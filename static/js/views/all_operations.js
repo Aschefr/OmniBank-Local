@@ -1090,7 +1090,7 @@ window.AllOperationsView = {
                                     <span>📜</span> <span>${window.i18n?.t('op_auto_history_title') || 'Dernières actions automatisées'}</span>
                                 </span>
                             </div>
-                            <div id="opRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
+                            <div id="opRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
                                 <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
                                     <span>⏳ Chargement...</span>
                                 </div>
@@ -1132,34 +1132,56 @@ window.AllOperationsView = {
                 return;
             }
 
+            const esc = (s) => (window.escapeHtml ? window.escapeHtml(s) : String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'));
+
             listEl.innerHTML = items.map(it => {
                 const isRecon = it.decision_type === 'reconciliation' || it.action === 'AUTO_RECONCILED_DEVIANT';
                 const badgeBg = isRecon ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)';
                 const badgeColor = isRecon ? '#10b981' : 'var(--accent, #3b82f6)';
-                const badgeText = isRecon ? 'Rapprochement' : 'Création directe';
+                const badgeText = isRecon 
+                    ? (window.i18n?.t('op_auto_recon_badge') || 'Rapprochement') 
+                    : (window.i18n?.t('op_auto_commit_badge') || 'Création directe');
+                const badgeIcon = isRecon ? '🔄' : '⚡';
                 const dateStr = it.created_at ? new Date(it.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-                const amtStr = typeof it.amount === 'number' ? (it.amount >= 0 ? `+${it.amount.toFixed(2)} €` : `${it.amount.toFixed(2)} €`) : '';
+                const amtVal = typeof it.amount === 'number' ? it.amount : 0;
+                const amtStr = amtVal >= 0 ? `+${amtVal.toFixed(2)} €` : `${amtVal.toFixed(2)} €`;
+                const amtColor = amtVal > 0 ? 'var(--success, #10b981)' : 'var(--text-main)';
+
+                let label = (it.label && it.label.trim()) ? it.label.trim() : '';
+                let category = (it.category && it.category.trim() && it.category !== '—') ? it.category.trim() : '';
+
+                if (!label && !category) {
+                    label = window.i18n?.t('op_auto_fallback_op') || 'Opération';
+                } else if (!label) {
+                    label = category;
+                    category = '';
+                }
 
                 return `
-                    <div style="padding: 7px 10px; border-radius: 6px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px;">
-                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-                            <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap;">
-                                ${badgeText}
-                            </span>
-                            <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${it.label || ''}">
-                                ${it.label || 'Opération'}
-                            </span>
-                            <span style="color: var(--text-muted); font-size: 10.5px; white-space: nowrap;">
-                                (${it.category || '—'})
-                            </span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                            <span style="font-weight: 700; color: var(--text-main);">
+                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; box-sizing: border-box;">
+                        <!-- Ligne 1 : Type d'action + Libellé & Montant -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
+                                <span style="font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px;">
+                                    <span>${badgeIcon}</span> <span>${esc(badgeText)}</span>
+                                </span>
+                                <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(label)}">
+                                    ${esc(label)}
+                                </span>
+                            </div>
+                            <span style="font-weight: 700; font-size: 12px; color: ${amtColor}; white-space: nowrap; flex-shrink: 0; margin-left: 6px;">
                                 ${amtStr}
                             </span>
-                            <span style="font-size: 10px; color: var(--text-muted); white-space: nowrap;">
-                                ${dateStr}
+                        </div>
+                        <!-- Ligne 2 : Catégorie & Date -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--text-muted); min-width: 0;">
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(category || (window.i18n?.t('uncategorized') || 'Non catégorisé'))}">
+                                🏷️ ${esc(category || (window.i18n?.t('uncategorized') || 'Non catégorisé'))}
                             </span>
+                            ${dateStr ? `
+                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 10px; margin-left: 6px;">
+                                🕒 ${esc(dateStr)}
+                            </span>` : ''}
                         </div>
                     </div>
                 `;

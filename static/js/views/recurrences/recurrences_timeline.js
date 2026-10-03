@@ -122,9 +122,10 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         }
         
         let timelineHtml = `
-            <div style="border: 1px solid var(--border-color); border-radius: 10px; margin-top: 10px;">
+            <div class="gantt-mobile-swipe-hint"><span>👉</span> <span>Faites défiler horizontalement pour afficher l'ensemble des 12 mois</span></div>
+            <div class="gantt-scroll-wrapper" style="border: 1px solid var(--border-color); border-radius: 10px; margin-top: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
                 <div class="gantt-header">
-                    <div style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--text-muted);">Description</div>
+                    <div style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--text-muted);" data-i18n="rec_th_desc">Description</div>
                     <div class="gantt-header-months">${monthHeaders}</div>
                 </div>
         `;

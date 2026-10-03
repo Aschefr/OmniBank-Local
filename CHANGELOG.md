@@ -27,7 +27,14 @@ All notable changes to this project will be documented in this file.
   - Mobile layout optimization: the primary Reste à vivre gauge spans full width while Cleared Expenses and Budget Cadence sit harmoniously side-by-side at half width each.
   - Streamlined, ultra-compact header toolbar: reduced vertical footprint by ~65% on mobile/tablet viewports by merging title, health badge, and glass capsule mode toggle onto a single row, followed by an elegant 2-row pairing (Account dropdown + '➕ Opération' on row 2, 'Auto-Pilote' + 'Relever en ligne' on row 3), eliminating mobile text truncation and button collisions.
 
+- **Comprehensive Bilingual Documentation & Guides 📚**:
+  - Added 4 exhaustive documentation pages in both French and English covering Auto-Pilot Control Center, Financial Simulator, Actions Audit Log with Undo/Redo, and Direct Bank Sync (Woob), with updated quick start guides, architecture docs, and master indexes.
+- **Mobile Modal Visual Detachment & Dynamic Viewport Height 📱✨**:
+  - Enhanced all mobile popovers and drawers (Auto-Pilot, notifications, smart presets) with unified dark blurred backdrops, smooth slide-up animations, touch-friendly dismiss headers, and dynamic viewport height scaling.
+
 ### Fixed
+- **Mobile Toolbar & Modal Layout Fixes 📱**: Fixed an issue where the Auto-Pilote modal stayed open on initial load, resolved text overlapping in recent automations tables on narrow screens, and ensured mobile Analytics controls remain cleanly within viewport boundaries with sticky category headers.
+- **Development String Cleanup & Budget I18n 🧹**: Removed temporary development tags `(Étape 6)` and ensured budget threshold alerts are properly translated across French and English.
 - **Mobile Toolbar Text Collision & Button Overflow 📱**: Resolved text bleeding and overlap between the Auto-Pilote timer chip and the bank sync button on narrow mobile viewports (iPhone SE, 375px) by pairing controls into two distinct rows with strict ellipsis protections while preserving a single seamless toolbar row on desktop.
 - **Vault Unlock & Modal Tree Structure 🔐**: Restored immediate master password modal display upon clicking vault unlock by correcting modal DOM nesting, and validated balanced tag structure across all application views.
 - **Simulation Accuracy & Cash Flow Isolation 🧮**: Fixed portfolio projection to treat internal savings transfers as neutral liquidity, corrected historical seasonal income projections, and cleanly evicted deleted recurrence forecasts during price adjustments.

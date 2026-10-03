@@ -42,9 +42,23 @@ Le bouton **"+ Nouvelle Opération"** ouvre la modale de création :
 - **Catégorie** : Choix de la catégorie et sous-catégorie.
 - **Statut de Pointage** : Coché ou non.
 
+### 5. Widget Cockpit Auto-Pilote
+Le Tableau de Bord intègre le panneau escamotable **Cockpit Auto-Pilote** :
+- **Statut en Direct** : Badge lumineux vert (*Actif*) ou gris (*Veille*).
+- **Compteur de Règles & File en Attente** : Visualisez d'un coup d'œil le nombre d'opérations nécessitant une revue.
+- **Bouton "⚡ Exécuter l'Auto-Pilote"** : Lance manuellement le cycle de rapprochement et de catégorisation sur l'ensemble de vos comptes.
+- **Accès Rapide au Centre de Contrôle** : Raccourci direct vers la vue complète d'arbitrage.
+
+### 6. Contrôles Globaux d'En-Tête
+- **Annuler / Rétablir (Undo / Redo)** : Flèches ↩️ / ↪️ (ou raccourcis clavier `Ctrl+Z` / `Ctrl+Y`) pour annuler ou rétablir n'importe quelle action comptable.
+- **Centre de Notifications (🔔)** : Cloche interactive regroupant les alertes de budget, les bilans financiers IA et les rappels d'échéances avec gestion des archives et recherche.
+- **Sélecteur de Profil Maître** : Basculez instantanément entre vos profils (ex: *Finances Personnelles*, *Activité Professionnelle*, *Association*).
+- **Mode Discrétion (👁️)** : Masque instantanément l'affichage des soldes et montants par des pastilles chiffrées (`••• €`) en cas d'utilisation dans un lieu public.
+- **Mode Compact & Thèmes** : Optimise la densité des tableaux et permet d'alterner entre les thèmes Sombre et Clair.
+
 ---
 
 ## 💡 Astuces & Bonnes Pratiques
 
 > [!TIP]
-> Utilisez la touche d'accès rapide sur le Tableau de Bord pour vérifier chaque matin si des opérations prévues ou récurrentes doivent être enregistrées.
+> Utilisez la touche d'accès rapide sur le Tableau de Bord pour vérifier chaque matin si des opérations prévues ou récurrentes doivent être enregistrées, et gardez un œil sur le badge Cockpit de l'Auto-Pilote.

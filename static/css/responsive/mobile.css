@@ -782,16 +782,146 @@
         font-size: 13px !important;
     }
 
-    .modal {
-        min-width: 90vw;
-        max-width: 95vw;
-        padding: 20px;
-        max-height: 90vh;
-        overflow-y: auto;
+    /* ─── Global Mobile Modals & Detached Visual Experience ─── */
+    .modal-overlay:not(#bankSyncReviewModal),
+    .bv-modal-overlay,
+    .user-picker-overlay,
+    .ap-override-overlay,
+    #operationsAutomationsModal,
+    #recurrenceAutomationsModal,
+    #smartLabelsAutomationsModal,
+    #budgetAutomationsModal,
+    #budgetSuggestionsReviewModal {
+        background: rgba(0, 0, 0, 0.72) !important;
+        backdrop-filter: blur(6px) !important;
+        -webkit-backdrop-filter: blur(6px) !important;
+        z-index: 10000 !important;
+        padding: 12px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Detached floating modal card on mobile */
+    .modal-overlay:not(#bankSyncReviewModal) .modal,
+    .modal-overlay:not(#bankSyncReviewModal) .modal-content,
+    .bv-modal-overlay .bv-modal,
+    .op-automations-modal,
+    .smart-labels-automations-modal,
+    .budget-automations-modal,
+    .budget-review-modal,
+    .budget-history-modal,
+    #recurrenceAutomationsModal .modal,
+    #operationsAutomationsModal .modal,
+    #smartLabelsAutomationsModal .modal,
+    #budgetAutomationsModal .modal,
+    #budgetSuggestionsReviewModal .modal {
+        min-width: 0 !important;
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100dvh - 32px) !important;
+        margin: auto !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(99, 102, 241, 0.4) !important;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 24px rgba(99, 102, 241, 0.2) !important;
+        background: var(--bg-surface) !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        animation: notifSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-sizing: border-box !important;
+    }
+
+    .modal-overlay:not(#bankSyncReviewModal) .modal {
+        padding: clamp(16px, 4vw, 24px) !important;
+        overflow-y: auto !important;
+    }
+
+    /* Pinned header/body/footer modals preserve their zero padding and zero gap */
+    .modal.op-automations-modal,
+    .modal.smart-labels-automations-modal,
+    .modal.budget-automations-modal,
+    .modal.budget-review-modal,
+    .modal.budget-history-modal {
+        padding: 0 !important;
+    }
+
+    .op-automations-modal > div,
+    .smart-labels-automations-modal > div,
+    .budget-automations-modal > div,
+    .budget-review-modal > div,
+    .budget-history-modal > div {
+        gap: 0 !important;
+    }
+
+    /* Occupy full available viewport height on mobile */
+    .op-automations-modal,
+    .smart-labels-automations-modal,
+    .budget-automations-modal,
+    .budget-review-modal,
+    .budget-history-modal,
+    #recurrenceAutomationsModal .modal {
+        height: calc(100dvh - 32px) !important;
+        max-height: calc(100dvh - 32px) !important;
+    }
+
+    .op-automations-modal form,
+    .smart-labels-automations-modal form,
+    .budget-automations-modal form,
+    #recurrenceAutomationsModal form {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .op-automations-modal form > div:first-child,
+    .smart-labels-automations-modal form > div:first-child,
+    .budget-automations-body,
+    #recurrenceAutomationsModal form > div:first-child {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Dedicated Automations Modals emerald / intelligence styling */
+    .op-automations-modal,
+    .smart-labels-automations-modal,
+    .budget-automations-modal,
+    #recurrenceAutomationsModal .modal {
+        border: 1px solid rgba(16, 185, 129, 0.45) !important;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 24px rgba(16, 185, 129, 0.22) !important;
+    }
+
+    /* Modal header gradient for automations */
+    .op-automations-modal > div:first-child,
+    .smart-labels-automations-modal > div:first-child,
+    #recurrenceAutomationsModal .modal > div:first-child,
+    .budget-automations-modal-header {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.04) 100%) !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    /* Close buttons in modal headers */
+    .op-automations-modal button[aria-label="Fermer"],
+    .smart-labels-automations-modal button[aria-label="Fermer"],
+    #recurrenceAutomationsModal button[onclick*="remove"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: var(--text-main) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        font-size: 16px !important;
+        transition: all 0.2s ease !important;
     }
 
     .op-modal-grid,
-    .modal>div {
+    .modal:not(.op-automations-modal):not(.smart-labels-automations-modal):not(.budget-automations-modal):not(.budget-review-modal):not(.budget-history-modal)>div {
         display: flex;
         flex-direction: column;
         gap: 15px !important;
@@ -869,15 +999,181 @@
         padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
 
-    /* Notification menu popup mobile alignment fix */
-    #notifMenu {
+    /* Notification menu popup mobile alignment & distinct overlay fix */
+    .notif-backdrop {
+        display: none;
         position: fixed !important;
-        top: 55px !important;
-        left: 10px !important;
-        right: 10px !important;
+        inset: 0 !important;
+        background: rgba(0, 0, 0, 0.68) !important;
+        backdrop-filter: blur(5px) !important;
+        -webkit-backdrop-filter: blur(5px) !important;
+        z-index: 9999 !important;
+    }
+
+    .notif-backdrop.active {
+        display: block !important;
+        animation: notifFadeIn 0.2s ease-out !important;
+    }
+
+    #notifMenu {
+        display: none;
+        position: fixed !important;
+        top: 60px !important;
+        left: 12px !important;
+        right: 12px !important;
+        bottom: max(16px, env(safe-area-inset-bottom)) !important;
         width: auto !important;
-        max-width: calc(100vw - 20px) !important;
-        border-radius: 12px !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100dvh - 60px - max(16px, env(safe-area-inset-bottom))) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(99, 102, 241, 0.45) !important;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(99, 102, 241, 0.2) !important;
+        z-index: 10000 !important;
+        overflow: hidden !important;
+        background: var(--bg-surface) !important;
+    }
+
+    #notifMenu.active {
+        display: flex !important;
+        flex-direction: column !important;
+        animation: notifSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    #notifListContainer {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .notif-mobile-titlebar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 10px 14px !important;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(99, 102, 241, 0.06) 100%) !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        flex-shrink: 0 !important;
+    }
+
+    .notif-mobile-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-weight: 700 !important;
+        font-size: 13.5px !important;
+        color: var(--text-main) !important;
+    }
+
+    .notif-mobile-close-btn {
+        background: var(--bg-hover, rgba(255,255,255,0.06)) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-muted) !important;
+        border-radius: 8px !important;
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+    }
+
+    .notif-mobile-close-btn:active {
+        transform: scale(0.92) !important;
+        color: var(--text-main) !important;
+    }
+
+    @keyframes notifSlideDown {
+        from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes notifFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Auto-Pilote overview popup mobile alignment & distinct overlay */
+    .ov-autopilot-backdrop {
+        display: none;
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(0, 0, 0, 0.68) !important;
+        backdrop-filter: blur(5px) !important;
+        -webkit-backdrop-filter: blur(5px) !important;
+        z-index: 9999 !important;
+    }
+
+    .ov-autopilot-backdrop.active {
+        display: block !important;
+        animation: notifFadeIn 0.2s ease-out !important;
+    }
+
+    #ovAutopilotPopover.overview-autopilot-popover {
+        display: none;
+        position: fixed !important;
+        top: 60px !important;
+        left: 12px !important;
+        right: 12px !important;
+        bottom: max(16px, env(safe-area-inset-bottom)) !important;
+        width: auto !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100dvh - 60px - max(16px, env(safe-area-inset-bottom))) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(16, 185, 129, 0.45) !important;
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(16, 185, 129, 0.25) !important;
+        z-index: 10000 !important;
+        overflow: hidden !important;
+        background: var(--bg-surface) !important;
+        margin: 0 !important;
+    }
+
+    #ovAutopilotPopover.overview-autopilot-popover.active {
+        display: flex !important;
+        flex-direction: column !important;
+        animation: notifSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .ov-ap-popover-header {
+        flex-shrink: 0 !important;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        padding: 12px 14px !important;
+    }
+
+    .ov-ap-popover-body {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 12px 14px !important;
+    }
+
+    .ov-ap-popover-footer {
+        flex-shrink: 0 !important;
+        padding: 10px 14px !important;
+        background: var(--bg-surface) !important;
+        border-top: 1px solid var(--border-color) !important;
+    }
+
+    .ov-ap-close-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 15px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: var(--text-main) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        cursor: pointer !important;
+        transition: background 0.2s, color 0.2s !important;
     }
 
     .notif-menu-header {
@@ -2661,6 +2957,51 @@ select.inline-input:focus option:checked {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+    /* ── Paramètres: Uniformisation des boutons et flex-containers ── */
+    .config-card {
+        padding: 16px 14px !important;
+        border-radius: 12px !important;
+    }
+
+    .config-card .btn {
+        white-space: normal !important;
+        line-height: 1.25 !important;
+        text-align: center !important;
+        height: auto !important;
+        min-height: 38px !important;
+        padding: 8px 12px !important;
+        word-break: break-word !important;
+        box-sizing: border-box !important;
+    }
+
+    .config-card > div[style*="display: flex"],
+    .config-card > div[style*="display:flex"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .config-card > div[style*="display: flex"] > .btn,
+    .config-card > div[style*="display:flex"] > .btn {
+        width: 100% !important;
+        margin-left: 0 !important;
+        justify-content: center !important;
+    }
+
+    .rate-add-container > div {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .rate-add-container .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    #profilesListContainer {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -3518,14 +3859,16 @@ body.theme-titanium-light .notif-card.unread {
     .budget-review-modal,
     .budget-history-modal,
     .budget-automations-modal {
-        width: calc(100vw - 16px) !important;
-        max-width: 98vw !important;
-        max-height: 94vh !important;
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100dvh - 32px) !important;
         padding: 0 !important;
         margin: auto !important;
         display: flex !important;
         flex-direction: column !important;
-        border-radius: 12px !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(16, 185, 129, 0.45) !important;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 24px rgba(16, 185, 129, 0.22) !important;
         overflow: hidden !important;
     }
 

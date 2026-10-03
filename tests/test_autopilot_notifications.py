@@ -346,3 +346,85 @@ def test_reconciliation_strict_direction_credit_vs_debit(db_session):
     assert match_debit["type"] == "expense_var"
 
 
+def test_autopilot_silent_mode_is_read_flag(db_session, monkeypatch):
+    """Vérifie le mode silencieux strict :
+    - 100% autonome (aucune action manuelle requise) : is_read=True (pas d'alarme/badge cloche)
+    - Action attendue (matches > 0 ou new_txs > 0) : is_read=False (badge cloche actif)
+    """
+    cfg = GlobalConfig(key="auto_pilot_enabled", value="true")
+    db_session.add(cfg)
+
+    conn = BankConnection(
+        label="Boursorama",
+        backend="woob",
+        is_active=True
+    )
+    db_session.add(conn)
+    db_session.commit()
+
+    mock_preview = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Compte Courant",
+                "transactions": []
+            }
+        ]
+    }
+    monkeypatch.setattr(BankSyncService, "fetch_preview_transactions", lambda **kwargs: mock_preview)
+
+    # Cas 1 : 100% autonome (pending == 0)
+    monkeypatch.setattr("app.services.autopilot_service.process_incoming_batch", lambda db, conn_id, preview, profile_id=None: {
+        "status": "completed",
+        "auto_reconciled": 3,
+        "auto_committed": 0,
+        "promoted_recurrences": 0,
+        "pending": 0,
+        "total": 3
+    })
+
+    execute_auto_sync_for_connection(db_session, conn, "test_pw", trigger_source="scheduled")
+
+    notif_auto = db_session.query(Notification).filter(Notification.type == "autopilot").order_by(Notification.id.desc()).first()
+    assert notif_auto is not None
+    assert notif_auto.is_read is True, "Une action 100% autonome doit être marquée lue (is_read=True) pour rester silencieuse"
+
+    # Cas 2 : Action manuelle attendue (nouvelle transaction à classer)
+    mock_preview_with_pending = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Compte Courant",
+                "transactions": [
+                    {
+                        "csv_id": "tx_new_to_classify",
+                        "is_reconciled": False,
+                        "is_dismissed": False,
+                        "is_auto_dismissed": False,
+                        "_excluded": False
+                    }
+                ]
+            }
+        ]
+    }
+    monkeypatch.setattr(BankSyncService, "fetch_preview_transactions", lambda **kwargs: mock_preview_with_pending)
+    monkeypatch.setattr("app.services.autopilot_service.process_incoming_batch", lambda db, conn_id, preview, profile_id=None: {
+        "status": "completed",
+        "auto_reconciled": 1,
+        "auto_committed": 0,
+        "promoted_recurrences": 0,
+        "pending": 1,
+        "total": 2
+    })
+
+    from app.services.bank_sync.pending_store import save_pending_sync_data
+    save_pending_sync_data(db_session, conn.id, mock_preview_with_pending, profile_id="default")
+
+    execute_auto_sync_for_connection(db_session, conn, "test_pw", trigger_source="scheduled")
+
+    notif_pending = db_session.query(Notification).filter(Notification.type == "autopilot").order_by(Notification.id.desc()).first()
+    assert notif_pending is not None
+    assert notif_pending.is_read is False, "Une action nécessitant l'intervention de l'utilisateur doit avoir is_read=False"
+
+
+

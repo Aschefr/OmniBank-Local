@@ -170,6 +170,8 @@ def execute_auto_sync_for_connection(
 
                 full_content = f"{conn.label} : " + ", ".join(ap_msg) + "."
                 has_pending = (matches > 0 or new_txs > 0)
+                # Mode silencieux strict : si l'Auto-Pilote a agi de manière 100% autonome (aucune action manuelle requise),
+                # la notification est enregistrée comme déjà lue (is_read=True) afin d'éviter d'allumer le badge rouge de la cloche.
                 notif = Notification(
                     type="autopilot",
                     title=f"🤖 Auto-Pilote : {conn.label}",
@@ -186,7 +188,7 @@ def execute_auto_sync_for_connection(
                         "coming": coming_matches,
                         "new_txs": new_txs
                     }),
-                    is_read=False,
+                    is_read=not has_pending,
                     created_at=datetime.now(timezone.utc)
                 )
                 db.add(notif)

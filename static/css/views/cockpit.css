@@ -294,6 +294,20 @@
     border: 1px solid rgba(156, 163, 175, 0.25);
 }
 
+.cockpit-card-badge.badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cockpit-card-badge.badge-warning:hover {
+    background: rgba(245, 158, 11, 0.25);
+    border-color: rgba(245, 158, 11, 0.55);
+    transform: translateY(-1px);
+}
+
 .cockpit-card-value {
     font-size: 28px;
     font-weight: 800;
@@ -311,6 +325,14 @@
     color: var(--text-muted);
     font-weight: 500;
     margin-top: 6px;
+}
+
+.cockpit-card-sub-extra {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 5px;
+    line-height: 1.3;
 }
 
 .cockpit-card-arrow {
@@ -350,9 +372,20 @@
     box-shadow: none;
 }
 
+.cockpit-ap-dot.warning {
+    background: #f59e0b;
+    animation: cockpitDotPulseWarning 2s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
 @keyframes cockpitDotPulse {
     0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
     50%      { opacity: 0.5; box-shadow: 0 0 12px rgba(16, 185, 129, 0.8); }
+}
+
+@keyframes cockpitDotPulseWarning {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5); }
+    50%      { opacity: 0.5; box-shadow: 0 0 12px rgba(245, 158, 11, 0.8); }
 }
 
 /* Autopilot actions count */
@@ -542,5 +575,222 @@
 @media (min-width: 769px) and (max-width: 1024px) {
     .cockpit-cards-row {
         grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ── Touch devices & Mobile hover suppression ── */
+@media (hover: none), (max-width: 768px) {
+    .cockpit-gauge-card:hover,
+    .cockpit-compact-card:hover,
+    .overview-hero-card:hover {
+        transform: none !important;
+        box-shadow: var(--shadow-sm) !important;
+        border-color: var(--border-color) !important;
+    }
+
+    .cockpit-gauge-card:active,
+    .cockpit-compact-card:active,
+    .overview-hero-card:active {
+        transform: scale(0.98) !important;
+        transition: transform 0.08s ease;
+    }
+}
+
+/* ── Mobile Info Sheet for Cockpit & Indicator Tiles ── */
+.cockpit-info-sheet-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.cockpit-info-sheet-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cockpit-info-sheet {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    padding: 16px 20px 24px;
+    box-sizing: border-box;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cockpit-info-sheet-overlay.active .cockpit-info-sheet {
+    transform: translateY(0);
+}
+
+.cockpit-info-sheet-handle {
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color);
+    margin: 0 auto 4px;
+    opacity: 0.8;
+}
+
+.cockpit-info-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cockpit-info-sheet-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cockpit-info-sheet-icon {
+    font-size: 22px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--accent-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cockpit-info-sheet-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.cockpit-info-sheet-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--bg-body);
+    color: var(--text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.cockpit-info-sheet-close:hover {
+    background: var(--border-color);
+    color: var(--text-main);
+}
+
+.cockpit-info-sheet-value-card {
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cockpit-info-sheet-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
+}
+
+.cockpit-info-sheet-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cockpit-info-sheet-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+}
+
+.cockpit-info-sheet-row-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.cockpit-info-sheet-row-value {
+    font-weight: 700;
+    color: var(--text-main);
+    text-align: right;
+}
+
+.cockpit-info-sheet-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    background: var(--bg-body);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+    white-space: pre-line;
+}
+
+.cockpit-info-sheet-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    margin-top: 4px;
+}
+
+.cockpit-info-sheet-btn:hover {
+    opacity: 0.92;
+}
+
+/* On desktop / large screens, center the sheet as a modal */
+@media (min-width: 641px) {
+    .cockpit-info-sheet-overlay {
+        align-items: center;
+    }
+
+    .cockpit-info-sheet {
+        border-radius: 20px;
+        transform: scale(0.94) translateY(20px);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+    }
+
+    .cockpit-info-sheet-overlay.active .cockpit-info-sheet {
+        transform: scale(1) translateY(0);
+    }
+
+    .cockpit-info-sheet-handle {
+        display: none;
     }
 }

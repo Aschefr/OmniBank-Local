@@ -393,38 +393,43 @@ window.AnalyticsView = {
         ).join('');
 
         const catW = this._catColWidth || 160;
-        const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;top:0;background:var(--bg-surface);z-index:20;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
+        const catStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;background:var(--bg-surface);z-index:15;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
+        const catHeaderStyle = `text-align:left;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;top:0;background:var(--bg-surface);z-index:30;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
 
         let html = `
         <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;${forPrint ? 'display:block;page-break-inside:auto;break-inside:auto;margin-bottom:20px;' : 'display:flex;flex-direction:column;max-height:75vh;'}">
-            <div style="background:${hb};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${hbd};flex-shrink:0;flex-wrap:wrap;gap:8px;">
-                <span style="font-weight:700;font-size:15px;color:var(--text-main);">${cfg.emoji} ${translatedType}</span>
-                <div class="print-hide" style="display:flex;align-items:center;gap:18px;font-size:12px;color:var(--text-muted);user-select:none;">
+            <div class="analytics-card-header" style="background:${hb};border-bottom:1px solid ${hbd};">
+                <div class="analytics-card-header-top">
+                    <span class="analytics-card-title">${cfg.emoji} ${translatedType}</span>
+                    <div class="analytics-card-stats">
+                        <span class="privacy-blur analytics-card-total">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
+                        ${hasInactive ? `<button data-inactive-btn="${txType}" class="btn btn-secondary print-hide analytics-inactive-btn" onclick="window.AnalyticsView.toggleInactiveRows('${txType}')" title="${window.i18n.t('analytics_inactive_cats_tooltip') || 'Catégories sans activité sur cette période — présentes dans l\'historique'}">👁 ${inactiveCatEntries.length} ${window.i18n.t('analytics_inactive_cats') || 'inactives'}</button>` : ''}
+                    </div>
+                </div>
+                <div class="print-hide analytics-card-controls">
                     <!-- Bloc Gradient -->
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span data-i18n="analytics_gradient_label">${window.i18n.t('analytics_gradient_label') || 'Gradient:'}</span>
-                        <input type="range" min="0.0" max="2.0" value="${sliderVal}" step="0.01" style="width:95px;cursor:pointer;margin:0;" oninput="window.AnalyticsView.onGradientChange('${txType}', this.value)">
+                    <div class="analytics-gradient-control">
+                        <span class="analytics-control-label" data-i18n="analytics_gradient_label">${window.i18n.t('analytics_gradient_label') || 'Gradient:'}</span>
+                        <input type="range" min="0.0" max="2.0" value="${sliderVal}" step="0.01" class="analytics-slider" oninput="window.AnalyticsView.onGradientChange('${txType}', this.value)">
                         <span class="reset-gradient-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, visibility 0.2s;visibility:${isProp ? 'hidden' : 'visible'};" title="Réinitialiser (Proportionnel)" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="window.AnalyticsView.onGradientChange('${txType}', '1.0'); this.parentElement.querySelector('input[type=range]').value = '1.0';">↺</span>
-                        <span class="gradient-label-value" style="font-weight:600;width:140px;flex-shrink:0;color:var(--text-muted);">${currentLabel}</span>
+                        <span class="gradient-label-value">${currentLabel}</span>
                     </div>
                     
                     <!-- Séparateur -->
-                    <div style="width:1px;height:14px;background:var(--border-color);opacity:0.5;"></div>
+                    <div class="analytics-control-sep"></div>
 
                     <!-- Bloc Couleur -->
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Color:'}</span>
-                        <input type="color" value="${cfg.color}" style="width:20px;height:20px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;outline:none;vertical-align:middle;box-shadow:var(--shadow-sm);" title="Changer la couleur du tableau" oninput="window.AnalyticsView.onColorChange('${txType}', this.value)">
+                    <div class="analytics-color-control">
+                        <span class="analytics-control-label" data-i18n="analytics_color_label">${window.i18n.t('analytics_color_label') || 'Color:'}</span>
+                        <input type="color" value="${cfg.color}" class="analytics-color-input" title="Changer la couleur du tableau" oninput="window.AnalyticsView.onColorChange('${txType}', this.value)">
                         <span class="reset-color-btn" style="cursor:pointer;opacity:0.6;font-size:11px;transition:opacity 0.2s, display 0.2s;display:${savedColor ? 'inline' : 'none'};" title="Restaurer la couleur par défaut" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" onclick="ProfileStorage.remove('analytics_color_${txType}'); window.AnalyticsView.renderAll();">⟲</span>
                     </div>
                 </div>
-                <span class="privacy-blur" style="font-size:13px;font-weight:600;color:var(--text-main);">${window.i18n.t('analytics_total_period')} : ${cfg.sign}${formatCurrency(grand_total)}</span>
-                ${hasInactive ? `<button data-inactive-btn="${txType}" class="btn btn-secondary print-hide" style="font-size:11px;padding:3px 10px;opacity:0.7;border-style:dashed;" onclick="window.AnalyticsView.toggleInactiveRows('${txType}')" title="${window.i18n.t('analytics_inactive_cats_tooltip') || 'Catégories sans activité sur cette période — présentes dans l\'historique'}">👁 ${inactiveCatEntries.length} ${window.i18n.t('analytics_inactive_cats') || 'inactives'}</button>` : ''}
             </div>
-            <div style="${forPrint ? 'overflow:visible;' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+            <div class="analytics-table-scroll-container" style="${forPrint ? 'overflow:visible;' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
             <table class="data-table" style="min-width:${220 + months.length * 80 + displayYears.length * 90}px;border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
-                <th data-col-type="cat" style="${catStyle}position:relative;" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
+                <th data-col-type="cat" style="${catHeaderStyle}" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
                 ${monthHeaders}
                 ${yearHeaders}
             </tr></thead>
@@ -631,7 +636,7 @@ window.AnalyticsView = {
             headerDiv.style.borderBottomColor = hbd;
             
             // Title color (must remain var(--text-main))
-            const titleSpan = headerDiv.firstElementChild;
+            const titleSpan = headerDiv.querySelector('.analytics-card-title') || headerDiv.firstElementChild;
             if (titleSpan) titleSpan.style.color = 'var(--text-main)';
             
             // Period total color (must remain var(--text-main))

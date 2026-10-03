@@ -117,59 +117,49 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </p>
                     <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_bimonthly" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_bimonthly" onchange="window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_bimonthly">Activer la récurrence bi-mensuelle</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_attachments" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_attachments" onchange="window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_attachments">Activer les documents joints (Upload de fichiers)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_check_slips" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_check_slips" onchange="window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_check_slips">Activer la saisie des numéros de bordereaux de chèques</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_org_mode" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView._onOrgModeToggle()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_org_mode" onchange="window.ConfigView._onOrgModeToggle()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_overview" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_overview" onchange="window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_overview">Activer la vue d'ensemble (page d'accueil simplifiée)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_enable_simulator" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_enable_simulator" onchange="window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_opt_simulator">Activer le simulateur de projets & What-If</span>
                         </label>
                     </div>
                     <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
-                    <style>
-                        .global-toggle:checked ~ .slider { background-color: var(--accent) !important; }
-                        .global-toggle:checked ~ .slider-knob { transform: translateX(16px) !important; }
-                    </style>
                 </div>
 
                 <!-- Multi-Currency & Exchange Rates Settings -->
@@ -386,11 +376,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
                                 <h4 style="margin:0; font-size: 13.5px;" data-i18n="settings_ai_reports_title">Bilans Périodiques Proactifs</h4>
                                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                                    <div style="position: relative; width: 40px; height: 24px;">
-                                        <input type="checkbox" id="conf_ai_reports_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
-                                        <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                        <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                                    </div>
+                                    <span class="toggle-switch">
+                                        <input type="checkbox" id="conf_ai_reports_enabled" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
+                                        <span class="slider"></span>
+                                    </span>
                                     <span data-i18n="settings_ai_reports_enable">Activer les bilans de santé financière par l'IA</span>
                                 </label>
                             </div>
@@ -506,11 +495,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
                         <h3 data-i18n="config_auto_backup_title">🕒 ${window.i18n.t('config_auto_backup_title')}</h3>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <div style="position: relative; width: 40px; height: 24px;">
-                                <input type="checkbox" id="conf_auto_backup_enabled" class="global-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
-                                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border-color); transition: .4s; border-radius: 34px;"></span>
-                                <span class="slider-knob" style="position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                            </div>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_auto_backup_enabled" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
                             <span data-i18n="config_auto_backup_enable">${window.i18n.t('config_auto_backup_enable')}</span>
                         </label>
                     </div>
