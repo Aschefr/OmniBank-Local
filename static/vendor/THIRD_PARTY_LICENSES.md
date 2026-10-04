@@ -18,12 +18,14 @@ Ces composants restent régis par leurs licences open-source respectives (permis
 | **DOMPurify** | 3.0.6 | Cure53 & Dr.-Ing. Mario Heiderich | Apache License 2.0 / MPL 2.0 (Dual License) |
 | **KaTeX** | 0.16.9 | Khan Academy and other contributors | MIT License |
 | **Flag Icons** | 7.2.3 | Panayiotis Lipiridis (lipis) | MIT License |
+| **Swagger UI** | 5.x | SmartBear Software | Apache License 2.0 |
+| **ReDoc** | 2.x | Redocly | MIT License |
 
 ---
 
 ## 1. MIT License
 
-Applicable à : **Chart.js, Hammer.js, chartjs-plugin-zoom, Marked.js, KaTeX, Flag Icons**
+Applicable à : **Chart.js, Hammer.js, chartjs-plugin-zoom, Marked.js, KaTeX, Flag Icons, ReDoc**
 
 ```text
 Permission is hereby granted, free of charge, to any person obtaining a copy

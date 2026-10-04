@@ -21,6 +21,9 @@ The documentation consists of general guides explaining core concepts and dedica
 3. 🛠️ **[Technical Architecture & Tools](03_TECHNICAL_ARCHITECTURE_AND_TOOLS.md)**
    - Software stack (FastAPI, SQLite, Tauri 2.x, Vanilla JS), SQL database schema, local Ollama AI integration (RAG & Function Calling), and i18n management.
 
+4. 🌐 **[REST API & Swagger (OpenAPI) Documentation](04_SWAGGER_API_DOCUMENTATION.md)**
+   - Exhaustive reference for all 26 FastAPI modules, local offline Swagger UI, ReDoc, OpenAPI 3.1 specifications (`openapi.json`/`openapi.yaml`), and multi-profile isolation.
+
 ---
 
 ### 📄 Detailed Page-by-Page Guides (`pages/`)
