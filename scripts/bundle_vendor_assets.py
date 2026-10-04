@@ -137,6 +137,14 @@ def bundle_chartjs():
     download_file("https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom", os.path.join(VENDOR_DIR, "chartjs-plugin-zoom", "chartjs-plugin-zoom.min.js"))
 
 
+def bundle_swagger_ui():
+    print("\n--- 7. Téléchargement de Swagger UI & ReDoc ---")
+    swagger_dir = os.path.join(VENDOR_DIR, "swagger-ui")
+    download_file("https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js", os.path.join(swagger_dir, "swagger-ui-bundle.js"))
+    download_file("https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css", os.path.join(swagger_dir, "swagger-ui.css"))
+    download_file("https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js", os.path.join(swagger_dir, "redoc.standalone.js"))
+
+
 def main():
     print("Démarrage du bundling des dépendances CDN dans static/vendor/...")
     bundle_inter()
@@ -145,6 +153,7 @@ def main():
     bundle_dompurify()
     bundle_katex()
     bundle_chartjs()
+    bundle_swagger_ui()
 
     # Calcul taille totale
     total_size = 0

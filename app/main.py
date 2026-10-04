@@ -126,7 +126,138 @@ async def lifespan(app: FastAPI):
             logger.info("[Shutdown] AI report thread finished cleanly.")
 
 
-app = FastAPI(title="OmniBank Local", version="1.1.6", lifespan=lifespan)
+OPENAPI_TAGS = [
+    {
+        "name": "transactions",
+        "description": "Gestion des opérations financières (dépenses, revenus, virements internes, pointage bancaire et ventilation budgétaire).",
+    },
+    {
+        "name": "accounts",
+        "description": "Gestion des comptes bancaires (courants, livrets d'épargne, soldes initiaux et archivage).",
+    },
+    {
+        "name": "categories",
+        "description": "Arborescence hiérarchique des catégories et sous-catégories de dépenses et recettes.",
+    },
+    {
+        "name": "budgets",
+        "description": "Enveloppes budgétaires mensuelles/annuelles, plafonds, ventilation multi-catégories et suggestions d'économies.",
+    },
+    {
+        "name": "autopilot",
+        "description": "Centre de contrôle de l'Auto-Pilote : découverte d'enveloppes, recalibrage prédictif EMA, saut automatique et registre de décisions réversibles.",
+    },
+    {
+        "name": "recurrences",
+        "description": "Échéancier financier et modèles d'opérations périodiques (abonnements, loyers, salaires, propagation d'échéances).",
+    },
+    {
+        "name": "bank-sync",
+        "description": "Synchronisation bancaire directe locale (Woob) : coffre-fort d'identifiants chiffré AES-256 (Fernet) et sas de validation sécurisé.",
+    },
+    {
+        "name": "smart-labels",
+        "description": "Normalisation intelligente des libellés bancaires vers tiers marchands et règles de pré-catégorisation.",
+    },
+    {
+        "name": "chat",
+        "description": "Assistant financier IA 100% hors-ligne (Ollama) : RAG local sur données financières, synthèse en langage naturel et Function Calling sécurisé.",
+    },
+    {
+        "name": "ai",
+        "description": "Services d'enrichissement et d'assistance prédictive par intelligence artificielle locale.",
+    },
+    {
+        "name": "stats",
+        "description": "Moteur analytique : bilans financiers, répartition par catégorie, reste à vivre, tendances temporelles et métriques de trésorerie.",
+    },
+    {
+        "name": "simulator",
+        "description": "Simulateur patrimonial et prospectif de trésorerie (1 à 30 ans, multi-scénarios, modélisation de l'inflation et saisonnalité).",
+    },
+    {
+        "name": "history",
+        "description": "Journal d'audit complet, traçabilité des modifications, snapshots différentiels (diffs JSON) et moteur Undo/Redo.",
+    },
+    {
+        "name": "profiles",
+        "description": "Gestion des profils de travail étanches (Personnel, Professionnel, Association) avec isolation des bases SQLite.",
+    },
+    {
+        "name": "cross-profile",
+        "description": "Opérations inter-profils : virements miroirs et équilibrage croisé.",
+    },
+    {
+        "name": "csv",
+        "description": "Pipeline d'importation de relevés CSV : détection automatique des dialectes bancaires, vérification des doublons et réconciliation.",
+    },
+    {
+        "name": "backup",
+        "description": "Sauvegardes manuelles : création d'archives SQLite, téléchargement et restauration de bases de données.",
+    },
+    {
+        "name": "auto_backup",
+        "description": "Sauvegardes automatiques périodiques et gestion des politiques de rétention.",
+    },
+    {
+        "name": "maintenance",
+        "description": "Maintenance de la base de données : optimisation SQLite (VACUUM / ANALYZE), vérification de cohérence d'intégrité et recalcul des soldes.",
+    },
+    {
+        "name": "notifications",
+        "description": "Centre de notifications et alertes : bilans périodiques, dépassements budgétaires, anomalies détectées et rappels d'échéances.",
+    },
+    {
+        "name": "config",
+        "description": "Configuration globale de l'application : devise, langue, endpoint Ollama, seuils planchers et préférences d'affichage.",
+    },
+    {
+        "name": "license",
+        "description": "Gestion de la licence OmniBank et activation du Mode Organisation (CSE / Association).",
+    },
+    {
+        "name": "OrgUsers",
+        "description": "Gestion des utilisateurs et rôles en Mode Organisation (administrateurs, trésoriers, auditeurs).",
+    },
+    {
+        "name": "setup",
+        "description": "Assistant de premier démarrage : initialisation guidée des comptes et paramètres initiaux.",
+    },
+    {
+        "name": "diagnostics",
+        "description": "Outils de diagnostic technique : état des services internes, métriques de latence et journal des erreurs backend.",
+    },
+    {
+        "name": "system",
+        "description": "Endpoints système : santé du serveur (health check), version de l'application, changelog dynamique et téléversement de fichiers.",
+    },
+]
+
+APP_DESCRIPTION = """
+# 🏦 OmniBank Local - Spécification OpenAPI & Documentation Swagger
+
+API REST locale pour **OmniBank Local**, application financière personnelle et d'association conçue selon le principe de **Souveraineté Totale des Données (Zero Cloud)**.
+
+## 🔒 Principes d'Architecture & Confidentialité
+- **Zero-Cloud & 100% Hors-Ligne** : Toutes les données financières sont stockées localement dans une base SQLite chiffrable et isolée par profil. Aucun appel réseau externe n'est émis.
+- **IA Locale Découplée (Ollama)** : L'assistant IA s'exécute sur une instance locale Ollama (`http://localhost:11434`) via RAG local et Function Calling sécurisé, sans télémétrie.
+- **Réactivité Événementielle (Zero F5)** : L'application communique en temps réel avec le frontend via des flux SSE et des événements personnalisés du DOM.
+- **Isolation Multi-Profils** : Support de profils étanches (Personnel, Professionnel, Association) pilotés via l'en-tête `X-Profile-ID`.
+
+## 📌 En-têtes Utiles
+- `X-Profile-ID` : Identifiant du profil actif (optionnel, profil actif par défaut si omis).
+- `Content-Type: application/json` pour tous les payloads de mutation POST/PUT.
+"""
+
+app = FastAPI(
+    title="OmniBank Local - REST API",
+    description=APP_DESCRIPTION,
+    version="1.1.6",
+    openapi_tags=OPENAPI_TAGS,
+    docs_url=None,
+    redoc_url=None,
+    lifespan=lifespan,
+)
 # Restrict CORS to known origins (SEC-05)
 _CORS_ORIGINS = [
     "http://127.0.0.1:8434",
@@ -354,6 +485,39 @@ def _get_spa_html():
     return html
 
 
+from fastapi.openapi.docs import (
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+    get_redoc_html,
+)
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    swagger_vendor = os.path.join(static_dir, "vendor", "swagger-ui")
+    has_local_bundle = os.path.exists(os.path.join(swagger_vendor, "swagger-ui-bundle.js"))
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title="OmniBank Local - Swagger UI",
+        swagger_js_url="/static/vendor/swagger-ui/swagger-ui-bundle.js" if has_local_bundle else "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
+        swagger_css_url="/static/vendor/swagger-ui/swagger-ui.css" if has_local_bundle else "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
+        swagger_favicon_url="/static/favicon.ico",
+    )
+
+@app.get("/docs/oauth2-redirect", include_in_schema=False)
+async def swagger_ui_redirect():
+    return get_swagger_ui_oauth2_redirect_html()
+
+@app.get("/redoc", include_in_schema=False)
+async def custom_redoc_html():
+    swagger_vendor = os.path.join(static_dir, "vendor", "swagger-ui")
+    has_local_redoc = os.path.exists(os.path.join(swagger_vendor, "redoc.standalone.js"))
+    return get_redoc_html(
+        openapi_url="/openapi.json",
+        title="OmniBank Local - ReDoc",
+        redoc_js_url="/static/vendor/swagger-ui/redoc.standalone.js" if has_local_redoc else "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
+        redoc_favicon_url="/static/favicon.ico",
+    )
+
 @app.get("/")
 def serve_spa():
     from fastapi.responses import HTMLResponse
@@ -365,12 +529,12 @@ def serve_spa():
     return HTMLResponse(content=_get_spa_html(), media_type="text/html", headers=headers)
 
 
-@app.get("/api/health")
+@app.get("/api/health", tags=["system"], summary="Vérification de santé du serveur")
 def health_check():
     return {"status": "ok"}
 
 
-@app.get("/api/version")
+@app.get("/api/version", tags=["system"], summary="Version courante de l'application")
 def get_version():
     """Return the app version from package.json."""
     import json
@@ -444,7 +608,7 @@ def parse_changelog():
         logger.error(f"[changelog] Error parsing CHANGELOG.md: {e}")
         return []
 
-@app.get("/api/changelog")
+@app.get("/api/changelog", tags=["system"], summary="Historique des versions et notes de publication")
 def get_changelog(version: str = None):
     """Return parsed release notes from local CHANGELOG.md with full history."""
     releases = parse_changelog()
@@ -482,7 +646,7 @@ def _safe_filename(raw_name: str) -> str:
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 Mo limit (SEC-06)
 
-@app.post("/api/upload")
+@app.post("/api/upload", tags=["system"], summary="Téléversement sécurisé de fichiers (max 50 Mo)")
 async def upload_file(file: UploadFile = File(...)):
     target_dir = get_current_uploads_dir()
     os.makedirs(target_dir, exist_ok=True)
