@@ -94,7 +94,9 @@ def _compute_match_score_precomputed(
     cand_sig_ordered = [t for t in cand_clean.split() if t in sig_cand]
     pat_prefix_in_cand = any(t in sig_cand for t in pat_sig_ordered[:2]) if pat_sig_ordered else False
     cand_prefix_in_pat = any(t in sig_pat for t in cand_sig_ordered[:2]) if cand_sig_ordered else False
-    has_merchant_overlap = pat_prefix_in_cand and cand_prefix_in_pat
+    has_merchant_overlap = (pat_prefix_in_cand and cand_prefix_in_pat) or (
+        len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8
+    )
 
     if not has_merchant_overlap and ratio < 0.75:
         return 0.0
