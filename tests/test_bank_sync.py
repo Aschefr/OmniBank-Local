@@ -3413,6 +3413,24 @@ def test_bank_sync_acronym_and_recurrence_matching():
     assert res["match_score"] >= 85, f"Score attendu >= 85, obtenu: {res['match_score']}"
 
 
+def test_smart_label_matcher_acronym_and_geographic_guardrail():
+    """
+    Non-régression :
+    1. Un libellé avec acronyme expansé partageant 2+ mots forts (ex: CREDIT AGRICOLE) doit être validé.
+    2. Deux commerces distincts partageant uniquement un suffixe géographique avec ratio modéré doivent rester à 0.0.
+    """
+    from app.services.smart_label_service import _compute_match_score
+
+    # Cas 1 : Expansion d'acronyme avec 2 mots forts (CREDIT + AGRICOLE >= 8 lettres)
+    score_acronym = _compute_match_score("0245902 CREDIT AGRICOLE CENTRE E", "CA Assurance - Prius 3")
+    assert score_acronym >= 0.70, f"Score attendu >= 0.70 pour CA / CREDIT AGRICOLE, obtenu: {score_acronym}"
+
+    # Cas 2 : Faux positif géographique rejeté par le garde-fou (ratio faible et commerces différents)
+    score_geo = _compute_match_score("AU VIEUX FOURNIL LA TOUR DU PIN", "SALON DE COIFFURE LA TOUR DU PIN")
+    assert score_geo == 0.0, f"Score attendu 0.0 pour collision géographique sans identité marchande, obtenu: {score_geo}"
+
+
+
 
 
 
