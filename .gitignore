@@ -84,3 +84,11 @@ pytest_output.txt
 .planning/
 data/gen_demo_dataset.py
 static/preview_overview.html
+
+# Scratch / diagnostic files at repo root (never commit)
+/_*check*.js
+/scratch_*.py
+/*_output.txt
+/debug_*.json
+/api_error*.txt
+data/backups/**
