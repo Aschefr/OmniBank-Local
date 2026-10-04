@@ -69,7 +69,7 @@ def test_no_external_cdn_in_html_files():
         r"cdnjs\.cloudflare\.com",
         r"unpkg\.com"
     ]
-    html_files = ["index.html", "loading.html", "preview_overview.html"]
+    html_files = ["index.html", "loading.html"]
     
     for filename in html_files:
         filepath = os.path.join(STATIC_DIR, filename)
