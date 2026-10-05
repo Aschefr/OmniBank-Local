@@ -175,7 +175,7 @@ window.ThemeManager = {
                     const isActive = t.id === this.currentThemeId;
                     const name = i18n.t(t.nameKey) || t.id;
                     return `
-                        <div class="theme-menu-option ${isActive ? 'active' : ''}" onclick="window.ThemeManager.applyTheme('${t.id}'); window.ThemeManager.toggleMenu();">
+                        <div class="theme-menu-option ${isActive ? 'active' : ''}" data-theme-id="${t.id}" onclick="window.ThemeManager.applyTheme('${t.id}'); window.ThemeManager.toggleMenu();">
                             <div class="theme-option-left">
                                 <span class="theme-option-icon">${t.icon}</span>
                                 <div class="theme-option-info">

@@ -325,7 +325,8 @@ class App {
         if (langToggleBtn && langMenu) {
             langToggleBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                langMenu.style.display = langMenu.style.display === 'none' ? 'block' : 'none';
+                const isVisible = window.getComputedStyle(langMenu).display !== 'none';
+                langMenu.style.display = isVisible ? 'none' : 'block';
             });
             
             document.addEventListener('click', () => {

@@ -3,7 +3,8 @@
 
 window.SetupWizard = {
     currentStep: 0,
-    totalSteps: 7,
+    totalSteps: 8,
+    _demoSeeded: false,
     createdAccounts: [],
     _mainAccountId: null,
     _orgUsers: [],
@@ -176,6 +177,7 @@ window.SetupWizard = {
             setTimeout(() => {
                 this.overlay.remove();
                 this.overlay = null;
+                this.refreshDemoBanner();
 
                 // Rediriger selon le mode d'entrée choisi lors du wizard
                 if (window.app && typeof window.app._initUI === 'function' && !window.app._uiInitialized) {
@@ -224,8 +226,8 @@ window.SetupWizard = {
         if (!bar) return;
         // 7 étapes symétriques (l'étape 3 est "Membres" en mode Org, ou "Salaire" en mode standard)
         const icons = this._orgMode
-            ? ['👋', '🔒', '🏦', '👥', '📝', '🤖', '🚀']
-            : ['👋', '🔒', '🏦', '💰', '📝', '🤖', '🚀'];
+            ? ['👋', '🔒', '🏦', '👥', '📝', '⚡', '🤖', '🚀']
+            : ['👋', '🔒', '🏦', '💰', '📝', '⚡', '🤖', '🚀'];
 
         bar.innerHTML = icons.map((ic, i) => `
             <div class="wizard-step-dot ${i < this.currentStep ? 'done' : ''} ${i === this.currentStep ? 'active' : ''}">
@@ -256,8 +258,9 @@ window.SetupWizard = {
                 }
                 break;
             case 4: this._stepGuide(body); break;
-            case 5: this._stepAI(body); break;
-            case 6: this._stepConfirm(body); break;
+            case 5: this._stepAutomations(body); break;
+            case 6: this._stepAI(body); break;
+            case 7: this._stepConfirm(body); break;
         }
 
         window.i18n.translateDOM(body);
@@ -536,6 +539,7 @@ window.SetupWizard = {
         const isManual = this.entryMode === 'manual';
         const isImport = this.entryMode === 'import';
         const isSync = this.entryMode === 'sync';
+        const isDemo = this.entryMode === 'demo';
 
         body.innerHTML = `
             <div class="wizard-step-content">
@@ -544,20 +548,26 @@ window.SetupWizard = {
 
                 <!-- Choix du mode d'entrée -->
                 <div class="wizard-entry-grid">
-                    <div class="wizard-entry-tile ${isManual ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('manual')">
-                        <div class="wizard-entry-icon">✍️</div>
-                        <div class="wizard-entry-title">${window.i18n.t('wizard_entry_manual') || 'Saisie manuelle'}</div>
-                        <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_manual_desc') || 'Créez vos comptes un par un avec leur solde initial.'}</div>
+                    <div class="wizard-entry-tile ${isSync ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('sync')" style="position:relative;">
+                        <span class="wizard-preset-badge" style="position:absolute; top:8px; right:8px;">⭐ ${this._t('wizard_entry_recommended', 'Recommandé')}</span>
+                        <div class="wizard-entry-icon">⚡</div>
+                        <div class="wizard-entry-title">${this._t('wizard_entry_sync', 'Connecter ma banque')}</div>
+                        <div class="wizard-entry-desc">${this._t('wizard_entry_sync_desc', 'Vos opérations arrivent toutes seules. Lecture seule, chiffrées en local.')}</div>
                     </div>
                     <div class="wizard-entry-tile ${isImport ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('import')">
                         <div class="wizard-entry-icon">📥</div>
                         <div class="wizard-entry-title">${window.i18n.t('wizard_entry_import') || 'Importer un relevé'}</div>
                         <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_import_desc') || 'Chargez directement votre premier fichier (CSV, Excel, OFX).'}</div>
                     </div>
-                    <div class="wizard-entry-tile ${isSync ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('sync')">
-                        <div class="wizard-entry-icon">⚡</div>
-                        <div class="wizard-entry-title">${window.i18n.t('wizard_entry_sync') || 'Synchroniser en ligne'}</div>
-                        <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_sync_desc') || 'Connectez votre banque via le connecteur sécurisé.'}</div>
+                    <div class="wizard-entry-tile ${isManual ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('manual')">
+                        <div class="wizard-entry-icon">✍️</div>
+                        <div class="wizard-entry-title">${window.i18n.t('wizard_entry_manual') || 'Saisie manuelle'}</div>
+                        <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_manual_desc') || 'Créez vos comptes un par un avec leur solde initial.'}</div>
+                    </div>
+                    <div class="wizard-entry-tile ${isDemo ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('demo')">
+                        <div class="wizard-entry-icon">🧪</div>
+                        <div class="wizard-entry-title">${this._t('wizard_entry_demo', 'Essayer avec une démo')}</div>
+                        <div class="wizard-entry-desc">${this._t('wizard_entry_demo_desc', 'Aucun compte à créer : 6 mois de données fictives, effaçables en un clic.')}</div>
                     </div>
                 </div>
 
@@ -608,24 +618,47 @@ window.SetupWizard = {
 
                 <!-- Message d'information si Import ou Synchro -->
                 <div id="wizAlternativeEntryNotice" style="${!isManual ? 'display:block;' : 'display:none;'}; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; margin: 16px 0; text-align: left;">
-                    <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px; color: var(--accent);">
-                        ${isImport ? '📄 Importation immédiate à la fin du wizard' : '🔒 Relevé automatique en ligne préparé'}
-                    </div>
-                    <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">
-                        ${isImport
-                            ? 'Dès la fin de l\'assistant, le cockpit d\'importation s\'ouvrira pour charger votre fichier. Vos comptes seront détectés automatiquement à partir des lignes du relevé.'
-                            : 'Dès la fin de l\'assistant, vous serez redirigé vers l\'espace de synchronisation pour configurer votre banque via le coffre-fort sécurisé.'}
-                    </p>
+                    ${this._entryNoticeInner(this.entryMode)}
                 </div>
 
                 <div class="wizard-nav">
                     <button class="wizard-btn-ghost" onclick="window.SetupWizard._nav(-1)">← ${window.i18n.t('wizard_btn_back')}</button>
-                    <button class="wizard-btn-primary" onclick="window.SetupWizard._goFromAccounts()" ${isManual && this.createdAccounts.length === 0 ? 'disabled' : ''}>
+                    <button class="wizard-btn-primary" onclick="window.SetupWizard._goFromAccounts()">
                         ${window.i18n.t('wizard_btn_next')} →
                     </button>
                 </div>
             </div>
         `;
+    },
+
+    _t(key, fallback) {
+        const v = window.i18n.t(key);
+        return (v && v !== key) ? v : fallback;
+    },
+
+    _entryNoticeInner(mode) {
+        const box = (title, desc, extra = '') => `
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px; color: var(--accent);">${title}</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">${desc}</p>${extra}`;
+        if (mode === 'import') {
+            return box('📄 ' + this._t('wizard_notice_import_title', 'Importation immédiate à la fin du wizard'),
+                this._t('wizard_notice_import_desc', 'Dès la fin de l\'assistant, le cockpit d\'importation s\'ouvrira pour charger votre fichier. Vos comptes seront détectés automatiquement à partir des lignes du relevé.'));
+        }
+        if (mode === 'sync') {
+            const bullets = [
+                ['wizard_notice_sync_b1', '🔒 Aucun cloud : identifiants chiffrés dans un coffre-fort local'],
+                ['wizard_notice_sync_b2', '👁️ Lecture seule : OmniBank ne peut jamais effectuer de paiement'],
+                ['wizard_notice_sync_b3', '🤖 Combinée à l\'Auto-Pilote, vos opérations se classent et se pointent seules']
+            ].map(([k, f]) => `<li>${this._t(k, f)}</li>`).join('');
+            return box('⚡ ' + this._t('wizard_notice_sync_title', 'Synchronisation bancaire : la voie royale'),
+                this._t('wizard_notice_sync_desc', 'Dès la fin de l\'assistant, nous vous guidons pour connecter votre banque via le coffre-fort sécurisé.'),
+                `<ul style="margin:10px 0 0; padding-left:18px; font-size:12px; color:var(--text-muted); line-height:1.7;">${bullets}</ul>`);
+        }
+        if (mode === 'demo') {
+            return box('🧪 ' + this._t('wizard_notice_demo_title', 'Mode découverte'),
+                this._t('wizard_notice_demo_desc', 'Un foyer fictif est chargé : 4 comptes, 6 mois d\'historique, budgets, récurrences et décisions de l\'Auto-Pilote. Un bandeau vous permettra de tout effacer en un clic pour repartir à neuf.'));
+        }
+        return '';
     },
 
     _setEntryMode(mode) {
@@ -636,26 +669,11 @@ window.SetupWizard = {
         if (manualSec) manualSec.style.display = isManual ? 'block' : 'none';
         if (altNotice) {
             altNotice.style.display = !isManual ? 'block' : 'none';
-            altNotice.innerHTML = `
-                <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px; color: var(--accent);">
-                    ${mode === 'import' ? '📄 Importation immédiate à la fin du wizard' : '🔒 Relevé automatique en ligne préparé'}
-                </div>
-                <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">
-                    ${mode === 'import'
-                        ? 'Dès la fin de l\'assistant, le cockpit d\'importation s\'ouvrira pour charger votre fichier. Vos comptes seront détectés automatiquement à partir des lignes du relevé.'
-                        : 'Dès la fin de l\'assistant, vous serez redirigé vers l\'espace de synchronisation pour configurer votre banque via le coffre-fort sécurisé.'}
-                </p>
-            `;
+            altNotice.innerHTML = this._entryNoticeInner(mode);
         }
 
         document.querySelectorAll('.wizard-entry-tile').forEach(t => t.classList.remove('active'));
         event.currentTarget?.classList.add('active');
-
-        // Mettre à jour le statut du bouton Suivant
-        const nextBtn = document.querySelector('.wizard-nav .wizard-btn-primary');
-        if (nextBtn) {
-            nextBtn.disabled = isManual && this.createdAccounts.length === 0;
-        }
     },
 
     _renderAccountsList() {
@@ -725,10 +743,6 @@ window.SetupWizard = {
             await API.del(`/api/accounts/${acc.id}`);
             this.createdAccounts.splice(index, 1);
             document.getElementById('wizAccountsList').innerHTML = this._renderAccountsList();
-            const nextBtn = document.querySelector('.wizard-nav .wizard-btn-primary');
-            if (nextBtn && this.entryMode === 'manual') {
-                nextBtn.disabled = this.createdAccounts.length === 0;
-            }
         } catch (e) {
             console.error('[SetupWizard] Erreur suppression compte', e);
         }
@@ -745,9 +759,16 @@ window.SetupWizard = {
     },
 
     async _goFromAccounts() {
-        // Si le mode est Import ou Synchro et qu'aucun compte n'a encore été créé manuellement,
-        // on crée un compte courant par défaut transparent pour préparer le terrain
-        if (this.entryMode !== 'manual' && this.createdAccounts.length === 0) {
+        // Mode démo : aucun compte à créer, le jeu de données fournit tout.
+        if (this.entryMode === 'demo') {
+            if (!this._demoSeeded && !(await this._seedDemo())) return;
+            this._nav(1);
+            return;
+        }
+
+        // Créer un compte n'est plus obligatoire : un compte courant par défaut est posé en coulisses
+        // (sans lui, l'application considérerait l'installation comme vierge au prochain démarrage).
+        if (this.createdAccounts.length === 0) {
             try {
                 const defAcc = await API.post('/api/accounts/', {
                     name: 'Compte Courant',
@@ -762,11 +783,6 @@ window.SetupWizard = {
             } catch (e) {
                 console.warn('[SetupWizard] Erreur création compte courant par défaut', e);
             }
-        }
-
-        if (this.createdAccounts.length === 0 && this.entryMode === 'manual') {
-            showToast(window.i18n.t('wizard_toast_need_account'), 'error');
-            return;
         }
 
         this._nav(1);
@@ -1551,24 +1567,190 @@ window.SetupWizard = {
                         🚀 ${window.i18n.t('wizard_btn_launch')}
                     </button>
 
-                    <button class="wizard-btn-demo" onclick="window.SetupWizard._seedDemoAndLaunch()">
+                    ${this._demoSeeded ? '' : `<button class="wizard-btn-demo" onclick="window.SetupWizard._seedDemoAndLaunch()">
                         ${window.i18n.t('wizard_btn_demo') || '🧪 Découvrir avec des données de démonstration'}
-                    </button>
+                    </button>`}
                 </div>
             </div>
         `;
     },
 
-    async _seedDemoAndLaunch() {
+    async _seedDemo() {
         try {
             const res = await API.post('/api/setup/seed-demo');
-            if (res.ok) {
-                showToast(window.i18n.t('wizard_toast_demo_success') || 'Données de démonstration chargées !', 'success');
-                this.dismiss();
+            if (!res.ok) throw new Error('seed-demo');
+            this._demoSeeded = true;
+            try {
+                const accounts = await API.get('/api/accounts/');
+                this.createdAccounts = (accounts || []).filter(a => !a.is_closed);
+                const mainAcc = await API.get('/api/stats/main_account');
+                this._mainAccountId = mainAcc?.id || null;
+            } catch (e) { /* rafraîchissement non bloquant */ }
+            this.preferredHome = 'overview';
+            if (window.app) {
+                if (!window.app.config) window.app.config = {};
+                window.app.config.enable_overview = 'true';
             }
+            showToast(this._t('wizard_toast_demo_success', 'Données de démonstration chargées !'), 'success');
+            return true;
         } catch (e) {
             console.error('[SetupWizard] Erreur chargement démo', e);
-            showToast('Erreur lors du chargement des données de démo', 'error');
+            showToast(this._t('wizard_toast_demo_error', 'Erreur lors du chargement des données de démo'), 'error');
+            return false;
+        }
+    },
+
+    async _seedDemoAndLaunch() {
+        if (this._demoSeeded || await this._seedDemo()) {
+            this.dismiss();
+        }
+    },
+
+    // ── Étape 5 : Les automatismes en action (mise en scène) ───────────────
+    _ensureStyles() {
+        if (document.getElementById('wizardExtraStyles')) return;
+        const st = document.createElement('style');
+        st.id = 'wizardExtraStyles';
+        st.textContent = `
+            .wiz-scene { display:flex; gap:12px; align-items:flex-start; padding:12px 14px; margin-bottom:10px;
+                background:var(--bg-base); border:1px solid var(--border-color); border-radius:12px; text-align:left;
+                opacity:0; transform:translateY(10px); transition:opacity .45s ease, transform .45s ease; }
+            .wiz-scene.visible { opacity:1; transform:none; }
+            .wiz-scene-icon { font-size:24px; line-height:1; }
+            .wiz-scene-title { font-weight:700; font-size:13px; color:var(--text-main); }
+            .wiz-scene-desc { font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.45; }
+            .wiz-scene-tag { display:inline-block; margin-top:6px; font-size:10.5px; font-weight:700; padding:2px 8px;
+                border-radius:999px; background:rgba(99,102,241,.14); color:var(--accent); }
+            .demo-banner { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9000; display:flex;
+                gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; max-width:calc(100vw - 24px);
+                padding:10px 16px; border-radius:14px; background:var(--bg-card, #1e2530); color:var(--text-main);
+                border:1px solid var(--accent); box-shadow:0 8px 30px rgba(0,0,0,.35); font-size:12.5px; }
+            .demo-banner-btn { border:1px solid var(--border-color); background:transparent; color:var(--text-main);
+                border-radius:8px; padding:5px 12px; cursor:pointer; font-size:12px; font-weight:600; }
+            .demo-banner-btn:hover { border-color:var(--accent); }
+            .demo-banner-btn.danger { background:var(--danger, #ff5630); border-color:transparent; color:#fff; }
+        `;
+        document.head.appendChild(st);
+    },
+
+    _automationScenes() {
+        return [
+            { icon: '📥', tag: 'auto_commit_incoming_transactions',
+              title: this._t('wizard_auto_s1_title', 'Une opération arrive de votre banque'),
+              desc: this._t('wizard_auto_s1_desc', '« PRLV LOYER APPARTEMENT −850,00 € » est enregistrée immédiatement, sans que vous leviez le petit doigt.'),
+              tagLabel: this._t('autopilot_subtoggle_auto_commit_incoming_transactions', 'Enregistrement direct des écritures') },
+            { icon: '🔗', tag: 'auto_reconcile_transactions',
+              title: this._t('wizard_auto_s2_title', 'Elle est rapprochée avec votre prévision'),
+              desc: this._t('wizard_auto_s2_desc', 'Confiance 97 % ≥ votre seuil : l\'opération est pointée et liée à l\'échéance « Loyer ».'),
+              tagLabel: this._t('autopilot_subtoggle_auto_reconcile_transactions', 'Auto-Rapprochement haute certitude') },
+            { icon: '🔁', tag: 'auto_propagate_recurrence_hikes',
+              title: this._t('wizard_auto_s3_title', 'Netflix augmente son tarif'),
+              desc: this._t('wizard_auto_s3_desc', '13,49 € → 15,99 € constaté 3 mois de suite : vos prévisions futures sont ajustées.'),
+              tagLabel: this._t('autopilot_subtoggle_auto_propagate_recurrence_hikes', 'Propagation automatique des hausses') },
+            { icon: '📊', tag: 'enable_budget_recalibration_suggestions',
+              title: this._t('wizard_auto_s4_title', 'Le budget Alimentation déborde'),
+              desc: this._t('wizard_auto_s4_desc', 'Un nouveau plafond lissé vous est suggéré, à valider d\'un clic (ou appliqué seul en Autonomie Totale).'),
+              tagLabel: this._t('autopilot_subtoggle_enable_budget_recalibration_suggestions', 'Suggestions de recalibrage mensuel') }
+        ];
+    },
+
+    _stepAutomations(body) {
+        this._ensureStyles();
+        const scenes = this._automationScenes().map((s, i) => `
+            <div class="wiz-scene" id="wizScene${i}">
+                <div class="wiz-scene-icon">${s.icon}</div>
+                <div>
+                    <div class="wiz-scene-title">${s.title}</div>
+                    <div class="wiz-scene-desc">${s.desc}</div>
+                    <span class="wiz-scene-tag">🤖 ${s.tagLabel}</span>
+                </div>
+            </div>`).join('');
+
+        body.innerHTML = `
+            <div class="wizard-step-content">
+                <h2 class="wizard-step-title">⚡ ${this._t('wizard_auto_title', 'Vos finances sur pilote automatique')}</h2>
+                <p class="wizard-step-desc">${this._t('wizard_auto_desc', 'Voici ce qui se passe, jour après jour, quand l\'Auto-Pilote est activé. Vous réglerez son niveau d\'autonomie à l\'étape suivante.')}</p>
+                <div id="wizScenes">${scenes}</div>
+                <p class="wizard-hint">🛡️ ${this._t('wizard_auto_reversible', 'Rien n\'est définitif : chaque décision est inscrite au journal Auto-Pilote et peut être annulée.')}</p>
+                <div class="wizard-nav">
+                    <button class="wizard-btn-ghost" onclick="window.SetupWizard._nav(-1)">← ${window.i18n.t('wizard_btn_back')}</button>
+                    <button class="wizard-btn-ghost" onclick="window.SetupWizard._playScenes()">↻ ${this._t('wizard_auto_replay', 'Rejouer')}</button>
+                    <button class="wizard-btn-primary" onclick="window.SetupWizard._nav(1)">${window.i18n.t('wizard_btn_next')} →</button>
+                </div>
+            </div>
+        `;
+        this._playScenes();
+    },
+
+    _playScenes() {
+        const token = (this._scenesToken = (this._scenesToken || 0) + 1);
+        const n = this._automationScenes().length;
+        for (let i = 0; i < n; i++) document.getElementById(`wizScene${i}`)?.classList.remove('visible');
+        for (let i = 0; i < n; i++) {
+            setTimeout(() => {
+                if (token === this._scenesToken) document.getElementById(`wizScene${i}`)?.classList.add('visible');
+            }, 350 + i * 900);
+        }
+    },
+
+    // ── Bandeau « Mode démo » + retour à zéro ────────────────────────────────
+    async refreshDemoBanner() {
+        let active = false;
+        try { active = (await API.get('/api/setup/status')).demo_active === true; } catch (e) { /* silencieux */ }
+        const existing = document.getElementById('demoModeBanner');
+        if (!active || sessionStorage.getItem('omni_demo_banner_hidden') === '1') {
+            if (existing) existing.remove();
+            return;
+        }
+        if (existing || this.overlay) return;
+        this._ensureStyles();
+        const el = document.createElement('div');
+        el.id = 'demoModeBanner';
+        el.className = 'demo-banner';
+        el.innerHTML = `
+            <span>🧪 <strong>${this._t('demo_banner_title', 'Mode démo')}</strong> — ${this._t('demo_banner_desc', 'vous explorez des données fictives.')}</span>
+            <button id="demoBannerReset" class="demo-banner-btn danger" onclick="window.SetupWizard.resetDemo()">↺ ${this._t('demo_banner_reset', 'Repartir à neuf')}</button>
+            <button id="demoBannerKeep" class="demo-banner-btn" onclick="window.SetupWizard.hideDemoBanner()">${this._t('demo_banner_keep', 'Garder et continuer')}</button>`;
+        document.body.appendChild(el);
+    },
+
+    hideDemoBanner() {
+        sessionStorage.setItem('omni_demo_banner_hidden', '1');
+        document.getElementById('demoModeBanner')?.remove();
+    },
+
+    async resetDemo() {
+        const ok = await showInlineConfirm(
+            this._t('title_confirmation', 'Confirmation'),
+            this._t('demo_banner_confirm', 'Supprimer toutes les données de démonstration ? Vos propres données seront conservées.')
+        );
+        if (!ok) return;
+        try {
+            const headers = Object.assign({ 'Content-Type': 'application/json' }, API._getCommonHeaders ? API._getCommonHeaders() : {}, { 'X-Confirm-Danger': 'reset-demo' });
+            const res = await API.post('/api/setup/reset-demo', undefined, { headers });
+            this._demoSeeded = false;
+            sessionStorage.removeItem('omni_demo_banner_hidden');
+            document.getElementById('demoModeBanner')?.remove();
+            showToast(this._t('demo_banner_reset_done', 'Données de démonstration supprimées.'), 'success');
+            if (res.needs_setup) {
+                this.entryMode = 'manual';
+                await this.show();
+            } else if (window.app) {
+                window.app.refreshSidebar();
+                window.app.loadView(window.app.currentView || this.preferredHome);
+            }
+        } catch (e) {
+            console.error('[SetupWizard] Erreur reset démo', e);
+            showToast(e.message || 'Error', 'error');
         }
     }
 };
+
+// Réactivité sans F5 : le bandeau démo suit l'état serveur (démarrage, retour d'onglet, mutations)
+setTimeout(() => window.SetupWizard.refreshDemoBanner(), 2000);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) window.SetupWizard.refreshDemoBanner();
+});
+if (window.EventBus && typeof window.EventBus.on === 'function') {
+    window.EventBus.on('data:mutated', () => window.SetupWizard.refreshDemoBanner());
+}

@@ -22,16 +22,20 @@ function resetE2EDatabase(mode = 'fresh') {
  */
 async function dismissOverlays(page) {
   try {
+    await page.waitForSelector('#appInitLoader', { state: 'hidden', timeout: 5000 }).catch(() => {});
+  } catch (e) {}
+
+  try {
     const skipBtn = page.locator('#wizardSkipBtn');
-    if (await skipBtn.isVisible({ timeout: 500 })) {
+    if (await skipBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
       await skipBtn.click();
-      await page.waitForSelector('#setupWizardOverlay', { state: 'detached', timeout: 3000 });
+      await page.waitForSelector('#setupWizardOverlay', { state: 'hidden', timeout: 3000 }).catch(() => {});
     }
   } catch (e) {}
 
   try {
     const confirmBtn = page.locator('#confirmCancel, #inlineConfirm button');
-    if (await confirmBtn.isVisible({ timeout: 500 })) {
+    if (await confirmBtn.isVisible({ timeout: 500 }).catch(() => false)) {
       await confirmBtn.click();
     }
   } catch (e) {}
@@ -45,6 +49,14 @@ async function dismissOverlays(page) {
       if (cl) cl.style.display = 'none';
       const inline = document.getElementById('inlineConfirm');
       if (inline) inline.style.display = 'none';
+      if (window.SetupWizard && typeof window.SetupWizard.close === 'function') {
+        window.SetupWizard.close();
+      }
+      const wiz = document.getElementById('setupWizardOverlay');
+      if (wiz) {
+        wiz.style.display = 'none';
+        wiz.classList.remove('wizard-visible');
+      }
     });
   } catch (e) {}
 }

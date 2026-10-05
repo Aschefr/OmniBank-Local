@@ -36,6 +36,25 @@ def clean_and_prepare_e2e_db(mode="fresh"):
 
     db = SessionLocal()
     try:
+        # Vider explicitement toutes les tables métier pour garantir une base vierge même si uvicorn a verrouillé le fichier
+        from app.models import (
+            Transaction, BudgetAllocation, BudgetCategory, Budget,
+            RecurrenceTemplate, Category, Account, OrgUser, ChatMessage,
+            ChatSession, Notification, ActionHistory, AIFact, Scenario,
+            ScenarioEvent, BankConnection, BankLabelMapping, AutopilotDecisionLog
+        )
+        for model in [
+            Transaction, BudgetAllocation, BudgetCategory, Budget,
+            RecurrenceTemplate, Category, Account, OrgUser, ChatMessage,
+            ChatSession, Notification, ActionHistory, AIFact, Scenario,
+            ScenarioEvent, BankConnection, BankLabelMapping, AutopilotDecisionLog
+        ]:
+            try:
+                db.query(model).delete(synchronize_session=False)
+            except Exception:
+                pass
+        db.commit()
+
         # Enable all optional features requested by user (org_mode remains false)
         configs = {
             "enable_overview": "true",

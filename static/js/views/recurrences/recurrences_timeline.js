@@ -182,6 +182,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     let statusText = window.i18n.t('rec_gantt_status_pending');
                     if (isReconciled) statusText = window.i18n.t('rec_gantt_status_reconciled');
                     else if (isSkipped) statusText = window.i18n.t('rec_gantt_status_skipped');
+                    else {
+                        const autoSkipInfo = this.getAutoSkipStatus ? this.getAutoSkipStatus(tx, t) : null;
+                        if (autoSkipInfo) {
+                            statusText += ` (⚙️ ${autoSkipInfo.timelineText})`;
+                        }
+                    }
                     const tooltip = `${tx.description} — ${formattedDate}\n${formatCurrency(tx.amount)} • ${statusText}`;
                     
                     // Multiple transactions in same month: show count, plus stacked amount
@@ -302,7 +308,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         popover.className = 'gantt-popover';
         popover.id = 'ganttPopoverActive';
         popover.style.padding = '8px';
-        popover.style.width = '240px';
+        popover.style.width = '260px';
         
         let skipActionHtml = '';
         if (!isReconciled) {
@@ -346,6 +352,20 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             autoBadgeHtml = `<span style="display: inline-block; font-size: 10px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⏭️ Auto-sauté</span>`;
         }
 
+        const autoSkipInfo = (!isSkipped && !isReconciled && this.getAutoSkipStatus) ? this.getAutoSkipStatus(tx, tpl) : null;
+        let autoBannerHtml = '';
+        if (autoSkipInfo) {
+            autoBannerHtml = `
+                <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 11px; line-height: 1.35; color: var(--text-main);">
+                    <div style="font-weight: 700; color: #8b5cf6; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+                        <span>⚙️</span>
+                        <span>${window.i18n.t('rec_popover_automation_title') || 'Automatisme actif'}</span>
+                    </div>
+                    <div>${autoSkipInfo.popoverText}</div>
+                </div>
+            `;
+        }
+
         popover.innerHTML = `
             <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
                 <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;">
@@ -354,6 +374,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 </div>
                 <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tx.description}</div>
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
+                ${autoBannerHtml}
             </div>
             <div style="display: flex; flex-direction: column; gap: 2px;">
                 ${skipActionHtml}
@@ -368,7 +389,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         
         // Position relative to segmentEl
         const rect = segmentEl.getBoundingClientRect();
-        const popW = 240;
+        const popW = 260;
         const popH = popover.offsetHeight || 180;
         let left = rect.left + rect.width / 2 - popW / 2;
         let top = rect.bottom + 8;

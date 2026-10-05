@@ -386,6 +386,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             this.categories = await API.get('/api/categories/');
             const allTx = await API.get('/api/transactions/?limit=10000');
             this.allTransactions = allTx;
+            this.config = (window.app && window.app.config) || await API.get('/api/config/').catch(() => ({}));
             
             // If a template is pending highlight, ensure correct year is selected
             if (this._pendingHighlightTemplateId) {
@@ -644,6 +645,102 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         } catch (err) {
             console.error('Erreur lors du rétablissement du montant prévu:', err);
             showToast(err.message || 'Erreur lors du rétablissement', 'error');
+        }
+    },
+
+    getAutoSkipLimitDate(dateOperationStr, frequency) {
+        if (!dateOperationStr) return null;
+        const parts = dateOperationStr.split('T')[0].split('-');
+        if (parts.length < 3) return null;
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+
+        const freq = (frequency || 'Monthly').toLowerCase();
+
+        if (freq === 'monthly' || freq === 'mensuelle') {
+            const nextYear = m === 12 ? y + 1 : y;
+            const nextMonth = m === 12 ? 1 : m + 1;
+            const nextDay = Math.min(d, 28);
+            const limit = new Date(nextYear, nextMonth - 1, nextDay);
+            limit.setDate(limit.getDate() + 3);
+            return limit;
+        } else if (freq === 'weekly' || freq === 'hebdomadaire') {
+            const limit = new Date(y, m - 1, d);
+            limit.setDate(limit.getDate() + 7 + 3);
+            return limit;
+        } else if (freq === 'quarterly' || freq === 'trimestrielle') {
+            const limit = new Date(y, m - 1, d);
+            limit.setDate(limit.getDate() + 90 + 3);
+            return limit;
+        } else if (freq === 'yearly' || freq === 'annuelle') {
+            const limit = new Date(y + 1, m - 1, Math.min(d, 28));
+            limit.setDate(limit.getDate() + 3);
+            return limit;
+        } else {
+            const limit = new Date(y, m - 1, d);
+            limit.setDate(limit.getDate() + 34);
+            return limit;
+        }
+    },
+
+    getAutoSkipStatus(tx, template) {
+        if (!tx || !template) return null;
+        const isSkipped = tx.is_skipped === true || tx.is_skipped === 'true';
+        const isReconciled = tx.reconciliation_date != null && !isSkipped;
+        if (isSkipped || isReconciled) return null;
+
+        // Check if auto-skip automation is enabled in config
+        const isAutoSkipEnabled = ((this.config?.auto_skip_unreconciled_recurrences ?? 'false') === 'true');
+        if (!isAutoSkipEnabled) return null;
+
+        if (!tx.date_operation) return null;
+        const opDateStr = tx.date_operation.split('T')[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const parts = opDateStr.split('-');
+        const opDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        opDate.setHours(0, 0, 0, 0);
+
+        // Must be in the past to be considered overdue
+        if (opDate >= today) {
+            return null;
+        }
+
+        const limitDate = this.getAutoSkipLimitDate(opDateStr, template.frequency);
+        if (!limitDate) return null;
+
+        const limitDateMidnight = new Date(limitDate);
+        limitDateMidnight.setHours(0, 0, 0, 0);
+
+        const dayStr = String(limitDate.getDate()).padStart(2, '0');
+        const monthStr = String(limitDate.getMonth() + 1).padStart(2, '0');
+        const formattedLimit = `${dayStr}/${monthStr}/${limitDate.getFullYear()}`;
+        const shortLimit = `${dayStr}/${monthStr}`;
+
+        if (today < limitDateMidnight) {
+            return {
+                isPendingSync: false,
+                limitDate,
+                formattedLimit,
+                shortLimit,
+                shortBadgeText: window.i18n.tp ? window.i18n.tp('rec_status_auto_skip_monitored', { date: shortLimit }) : `Prévu ${shortLimit}`,
+                detailedTip: window.i18n.tp ? window.i18n.tp('rec_status_auto_skip_monitored_tip', { date: formattedLimit }) : `⚙️ Automatisme : Échéance dépassée sous surveillance. Elle sera marquée comme sautée le ${formattedLimit} (si non prélevée et solde bancaire conforme).`,
+                popoverText: window.i18n.tp ? window.i18n.tp('rec_popover_automation_skip_scheduled', { date: formattedLimit }) : `Auto-saut programmé le ${formattedLimit} si l'échéance n'est pas débitée et le solde bancaire conforme.`,
+                timelineText: window.i18n.tp ? window.i18n.tp('rec_timeline_auto_skip_scheduled', { date: shortLimit }) : `Auto-saut prévu le ${shortLimit}`
+            };
+        } else {
+            return {
+                isPendingSync: true,
+                limitDate,
+                formattedLimit,
+                shortLimit,
+                shortBadgeText: window.i18n.t('rec_status_auto_skip_pending_sync') || 'Saut en attente',
+                detailedTip: window.i18n.t('rec_status_auto_skip_pending_sync_tip') || '⚙️ Automatisme : Délai écoulé. Échéance prête à être sautée lors de la prochaine synchronisation bancaire (sous réserve de solde conforme et sas vide).',
+                popoverText: window.i18n.t('rec_popover_automation_skip_ready') || 'Délai écoulé. L\'échéance sera automatiquement sautée dès la prochaine synchronisation bancaire.',
+                timelineText: window.i18n.t('rec_timeline_auto_skip_ready') || 'Auto-saut en attente de synchro'
+            };
         }
     }
 });

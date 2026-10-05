@@ -7,7 +7,7 @@ test.describe('Module C : Configuration, Thème, i18n & Export de Sauvegarde', (
     await openApp(page);
     await dismissOverlays(page);
 
-    // 1. Tester le bouton de thème
+    // 1. Tester le menu de sélection de thème
     const themeBtn = page.locator('#themeToggle');
     await expect(themeBtn).toBeVisible();
 
@@ -15,6 +15,10 @@ test.describe('Module C : Configuration, Thème, i18n & Export de Sauvegarde', (
     const wasDark = await body.evaluate(el => el.classList.contains('theme-dark'));
 
     await themeBtn.click();
+    const targetTheme = wasDark ? 'light' : 'dark';
+    const themeOption = page.locator(`.theme-menu-option[data-theme-id="${targetTheme}"]`);
+    await expect(themeOption).toBeVisible();
+    await themeOption.click();
     await page.waitForTimeout(200);
 
     const isDarkNow = await body.evaluate(el => el.classList.contains('theme-dark'));
@@ -22,6 +26,8 @@ test.describe('Module C : Configuration, Thème, i18n & Export de Sauvegarde', (
 
     // Remettre dans l'état initial
     await themeBtn.click();
+    const restoreTheme = wasDark ? 'dark' : 'light';
+    await page.locator(`.theme-menu-option[data-theme-id="${restoreTheme}"]`).click();
 
     // 2. Tester le mode discrétion (Privacy Mode)
     const privacyBtn = page.locator('#privacyToggle');
