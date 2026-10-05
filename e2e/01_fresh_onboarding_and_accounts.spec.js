@@ -80,9 +80,10 @@ test.describe('Module A : Parcours Base Vierge - Onboarding & Gestion des Compte
     await profileNameInput.fill('Foyer Test');
     await page.click('.wizard-nav button.wizard-btn-primary');
 
-    // Étape 2 : Mode d'entrée
-    const entryManual = page.locator('.wizard-entry-tile').first();
+    // Étape 2 : Mode d'entrée (banque recommandée en 1er, saisie manuelle en 3e) — aucun compte obligatoire
+    const entryManual = page.locator('.wizard-entry-tile').nth(2);
     await expect(entryManual).toBeVisible({ timeout: 5000 });
+    await entryManual.click();
     await page.click('.wizard-nav button.wizard-btn-primary');
 
     // Étape 3 : Salaire & Reste à vivre
@@ -96,12 +97,16 @@ test.describe('Module A : Parcours Base Vierge - Onboarding & Gestion des Compte
     await expect(page.locator('.wizard-home-card').first()).toBeVisible({ timeout: 5000 });
     await page.click('.wizard-nav button.wizard-btn-primary');
 
-    // Étape 5 : IA (Passer)
+    // Étape 5 : Les automatismes en action
+    await expect(page.locator('#wizScene0')).toBeVisible({ timeout: 5000 });
+    await page.click('.wizard-nav button.wizard-btn-primary');
+
+    // Étape 6 : IA (Passer)
     const skipAiBtn = page.locator('button[data-i18n="wizard_btn_skip_ai"]');
     await expect(skipAiBtn).toBeVisible({ timeout: 5000 });
     await skipAiBtn.click();
 
-    // Étape 6 : Lancement
+    // Étape 7 : Lancement
     const launchBtn = page.locator('button.wizard-btn-launch');
     await expect(launchBtn).toBeVisible({ timeout: 5000 });
     await launchBtn.click();

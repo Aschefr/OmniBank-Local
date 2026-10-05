@@ -113,7 +113,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             } else if (isSkipped) {
                 statusHTML = `<span class="badge" style="background: rgba(145, 158, 171, 0.15); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_gantt_status_skipped') || 'Ignoré'}</span>`;
             } else {
-                statusHTML = `<span class="badge" style="background: rgba(51, 102, 255, 0.12); color: var(--accent); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏳ ${window.i18n.t('rec_gantt_status_pending') || 'En attente'}</span>`;
+                const autoSkipInfo = this.getAutoSkipStatus ? this.getAutoSkipStatus(tx, tpl) : null;
+                if (autoSkipInfo) {
+                    statusHTML = `<span class="badge" title="${autoSkipInfo.detailedTip}" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚙️ ${autoSkipInfo.shortBadgeText}</span>`;
+                } else {
+                    statusHTML = `<span class="badge" style="background: rgba(51, 102, 255, 0.12); color: var(--accent); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏳ ${window.i18n.t('rec_gantt_status_pending') || 'En attente'}</span>`;
+                }
             }
  
             return `

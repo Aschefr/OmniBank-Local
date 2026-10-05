@@ -1515,7 +1515,7 @@ window.FormView = {
             // sont déjà affichés, l'utilisateur perçoit 0ms de délai
             const refreshPromises = [
                 window.app.refreshSidebar(),
-                window.app.refreshActiveView ? window.app.refreshActiveView({ highlightTxId }) : Promise.resolve()
+                window.app.refreshActiveView ? window.app.refreshActiveView({ highlightTxId: highlightId }) : Promise.resolve()
             ];
             Promise.all(refreshPromises).catch(e => console.error('[Form] Erreur refresh arrière-plan:', e));
             window.dispatchEvent(new CustomEvent('transactions_updated'));

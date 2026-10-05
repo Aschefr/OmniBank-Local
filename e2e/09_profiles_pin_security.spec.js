@@ -10,6 +10,12 @@ test.describe('Module C : Multi-Profils & Sécurité', () => {
     // Naviguer vers la vue Configuration
     await goToView(page, 'config');
 
+    // Basculer sur l'onglet Sécurité & Accès
+    const securityTab = page.locator('.config-tab-btn[data-tab="security"]');
+    if (await securityTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await securityTab.click();
+    }
+
     // Cliquer sur "Créer un profil"
     const createProfileBtn = page.locator('button[onclick*="_showCreateProfileModal"]');
     await expect(createProfileBtn).toBeVisible();

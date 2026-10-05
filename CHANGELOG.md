@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Guided Onboarding Wizard**:
+  - Online bank sync is now the highlighted first choice; creating an account is optional; a new automation walkthrough shows what Auto-Pilot does day to day.
+  - Much richer demo (4 accounts, 6 months of history, budgets, recurrences, Auto-Pilot decisions) with a demo banner offering one-click "Start fresh" that removes only demo data.
 - **Auto-Pilot Control Center & Autonomous Banking Operations 🤖⚡**:
   - Hands-free financial automation engine: direct transaction recording, high-certainty auto-reconciliation, real-time decision feed with 1-click batch rollback, and candidate recurrence forecast linking.
   - Zero-F5 reactive lifecycle engine: scheduled background bank sync cycles trigger instantly with live status tracker and real-time DOM updates across all views without manual browser refreshes.
@@ -19,6 +22,7 @@ All notable changes to this project will be documented in this file.
   - Directional category picker enforcing debits as expenses and credits as income, combined with built-in semantic lookup for public institutions and major utility providers.
 - **Dynamic Budget Envelopes & Recurrence Lifecycle 📊🔄**:
   - Automated envelope discovery and smoothed monthly EMA recalibration protected by drift guardrails ($\pm 10\%$/mo, $\pm 25\%$/yr), coupled with out-of-plan charge variance tolerance and perennial rate hike propagation.
+  - Transparent Recurrence Automation Monitoring: Overdue unreconciled forecasts under lifecycle automation surveillance now display informative badges (`⚙️ Prévu JJ/MM`), timeline tooltips, and popover banners indicating the scheduled auto-skip date.
 - **Mobile Ergonomics, Touch Controls & Design Polish 📱✨**:
   - Mobile-optimized Auto-Pilot popovers with viewport containment, dedicated mobile dismiss controls, tap debouncing, standardized decision override modals with integrated `CategoryPicker`, and full English/French bilingual parity with privacy blur support.
 - **Overview Cockpit Mode & Simplified Gauges 🎛️✨**:

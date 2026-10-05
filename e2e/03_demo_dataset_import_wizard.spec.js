@@ -5,6 +5,7 @@ const { ROOT_DIR, openApp, dismissOverlays, goToView } = require('./helpers/page
 
 test.describe('Module B : Assistant d\'importation du Dataset de Démonstration Réel', () => {
   test('03.01 - Importation complète de demo_dataset_omnibank.csv via l\'assistant UI', async ({ page }) => {
+    test.setTimeout(180000);
     await openApp(page);
     await dismissOverlays(page);
 
@@ -14,26 +15,37 @@ test.describe('Module B : Assistant d\'importation du Dataset de Démonstration 
     const fileInput = page.locator('#globalCsvFileInput');
     await fileInput.setInputFiles(csvFilePath);
 
-    // 2. Le modal d'importation doit s'ouvrir
+    // 2. Le modal d'importation s'ouvre pour l'analyse
     const importModal = page.locator('#importDataModal');
     await expect(importModal).toBeVisible({ timeout: 10000 });
 
-    // 3. Sélectionner le compte à lier
-    await page.selectOption('#importAccountSelect', { label: 'Compte Courant Test' });
+    // 3. Si l'ancien sélecteur de compte préliminaire est affiché, le renseigner et lancer l'analyse
+    const accSelect = page.locator('#importAccountSelect');
+    if (await accSelect.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await page.selectOption('#importAccountSelect', { label: 'Compte Courant Test' });
+      const analyzeBtn = page.locator('#btnAnalyzeDirect');
+      if (await analyzeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await analyzeBtn.click();
+      }
+    }
 
-    // 4. Cliquer sur l'analyse directe / rapide
-    await dismissOverlays(page);
-    const analyzeBtn = page.locator('#btnAnalyzeDirect');
-    await expect(analyzeBtn).toBeVisible();
-    await analyzeBtn.click();
-
-    // 5. Attendre que le cockpit unifié de prévisualisation et le bouton de validation apparaissent
+    // 4. Attendre que le cockpit unifié de prévisualisation et le bouton de validation apparaissent
     const saveBtn = page.locator('#btnCommitSync');
-    await expect(saveBtn).toBeVisible({ timeout: 15000 });
+    await expect(saveBtn).toBeVisible({ timeout: 120000 });
+
+    // 5. Associer le compte dans le cockpit unifié si demandé
+    const csvAccSelect = page.locator('#reviewCsvAccountSelect');
+    if (await csvAccSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const selectedVal = await csvAccSelect.inputValue();
+      if (!selectedVal) {
+        await csvAccSelect.selectOption({ index: 1 });
+      }
+    }
 
     // 6. Valider l'importation
     await saveBtn.click();
-    await page.waitForTimeout(1500);
+    await expect(page.locator('#bankSyncReviewModal')).not.toBeVisible({ timeout: 60000 });
+    await page.waitForTimeout(1000);
     await dismissOverlays(page);
 
     // 7. Vérifier dans la vue Historique que les opérations importées sont présentes

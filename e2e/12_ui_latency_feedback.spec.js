@@ -47,7 +47,8 @@ test.describe('Module UX : Réactivité Visuelle & Feedback de Latence', () => {
       window.GlobalProgress.done();
     });
 
-    await page.waitForTimeout(200);
+    // Attendre l'expiration des timers d'hystérésis (180ms) et de reset (180ms) = 360ms
+    await page.waitForTimeout(450);
     const hasDoneOrInactive = await progressBar.evaluate((el) => {
       return el.classList.contains('is-done') || !el.classList.contains('is-active');
     });
