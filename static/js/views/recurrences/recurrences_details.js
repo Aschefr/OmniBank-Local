@@ -109,7 +109,13 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             } else if (isAutoSkipped) {
                 statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_status_auto_skipped') || 'Sauté auto'}</span>`;
             } else if (isReconciled) {
-                statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Rapprochée'}</span>`;
+                if (tx.needs_review) {
+                    const conf = Math.round(tx.confidence_score || 0);
+                    const tip = (window.i18n ? window.i18n.t('autopilot_review_reconciled_tip') : 'Rapprochement incertain (confiance : {conf}%). Cliquer pour vérifier.').replace('{conf}', conf);
+                    statusHTML = `<span class="badge" title="${tip}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚠️ ${window.i18n.t('rec_gantt_status_needs_review') || 'À vérifier'} (${conf}%)</span>`;
+                } else {
+                    statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Rapprochée'}</span>`;
+                }
             } else if (isSkipped) {
                 statusHTML = `<span class="badge" style="background: rgba(145, 158, 171, 0.15); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_gantt_status_skipped') || 'Ignoré'}</span>`;
             } else {

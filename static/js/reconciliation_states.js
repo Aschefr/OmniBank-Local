@@ -60,7 +60,32 @@ window.ReconciliationStates = {
                 };
             }
 
-            // 2b. Rapprochée, conforme
+            // 2b. Rapprochée avec incertitude en attente de confirmation (needs_review)
+            if (tx.needs_review) {
+                const conf = Math.round(tx.confidence_score || 0);
+                const reviewTip = (i18n.t('autopilot_review_reconciled_tip') || 'Rapprochement automatique incertain (confiance : {conf}%). Cliquer pour vérifier.').replace('{conf}', conf).replace(/"/g, '&quot;');
+                const reviewBadgeText = i18n.t('autopilot_review_reconciled_badge') || 'À confirmer';
+                const toggleFn = this._getToggleFn(tx.id, view);
+
+                if (view === 'overview') {
+                    return {
+                        state: 'reconciled_needs_review',
+                        html: `<div class="recon-cell-stack">
+                            <span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le rapprochement'}">${dateStr}</span>
+                            <button class="overview-review-action-btn" onclick="window.handleReviewClick(${tx.id}, event)" title="${reviewTip}"><span>⚠️</span> <span>${reviewBadgeText} (${conf}%)</span></button>
+                        </div>`
+                    };
+                }
+                return {
+                    state: 'reconciled_needs_review',
+                    html: `<div class="recon-cell-stack" style="display: inline-flex; flex-direction: column; align-items: center; gap: 3px;">
+                        <span class="recon-date-link" onclick="${toggleFn}" title="${i18n.t('tooltip_cancel_reconciliation') || 'Cliquer pour annuler le rapprochement'}"><span style="color:#f59e0b; font-weight:700; margin-right:4px; font-size:11px;">⚠️</span>${dateStr}</span>
+                        <button class="recon-btn recon-btn-review" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;" onclick="window.handleReviewClick(${tx.id}, event)" title="${reviewTip}">⚠️ <span>${reviewBadgeText} (${conf}%)</span></button>
+                    </div>`
+                };
+            }
+
+            // 2c. Rapprochée, conforme
             const toggleFn = this._getToggleFn(tx.id, view);
             return {
                 state: 'reconciled',

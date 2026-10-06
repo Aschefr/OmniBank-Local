@@ -1946,7 +1946,12 @@ def link_review_transaction(
     }
 
 
-def validate_review_transaction(db: Session, tx_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
+def validate_review_transaction(
+    db: Session,
+    tx_id: int,
+    force_keep_current: bool = True,
+    profile_id: Optional[str] = None
+) -> Dict[str, Any]:
     """Acquitte une transaction en attente de revue (needs_review = False)."""
     from app.models import Transaction, AutopilotDecisionLog
     from app.services.history_service import record_action, snapshot_entity
@@ -1955,18 +1960,20 @@ def validate_review_transaction(db: Session, tx_id: int, profile_id: Optional[st
     if not tx:
         raise ValueError(f"Transaction #{tx_id} introuvable.")
 
-    # Si une prévision récurrente évidente existe sur la même date/montant, lier automatiquement
-    cands = find_candidate_forecasts_for_tx(db, tx, limit=1)
-    if cands and cands[0]["recurrence_id"] is not None and cands[0]["amt_diff"] <= 0.05:
-        return link_review_transaction(
-            db,
-            tx_id=tx_id,
-            target_forecast_id=cands[0]["id"],
-            learn_rule=True,
-            description=cands[0]["description"],
-            category=cands[0]["category"],
-            profile_id=profile_id
-        )
+    # Si l'utilisateur n'impose pas explicitement de conserver l'opération telle quelle,
+    # vérifier si une prévision récurrente évidente existe sur la même date/montant pour la lier.
+    if not force_keep_current:
+        cands = find_candidate_forecasts_for_tx(db, tx, limit=1)
+        if cands and cands[0]["recurrence_id"] is not None and cands[0]["amt_diff"] <= 0.05:
+            return link_review_transaction(
+                db,
+                tx_id=tx_id,
+                target_forecast_id=cands[0]["id"],
+                learn_rule=True,
+                description=cands[0]["description"],
+                category=cands[0]["category"],
+                profile_id=profile_id
+            )
 
     before_snap = snapshot_entity(tx)
     tx.needs_review = False
@@ -1981,6 +1988,21 @@ def validate_review_transaction(db: Session, tx_id: int, profile_id: Optional[st
     ).first()
     if dlog:
         dlog.action = "AUTO_COMMIT" if dlog.action == "AUTO_COMMIT_PENDING_REVIEW" else "AUTO_COMMIT_COMING"
+
+    # Apprentissage automatique : mémoriser la correspondance si un libellé brut bancaire est présent
+    if tx.raw_description and tx.description:
+        try:
+            from app.services.smart_label.learning import learn_label_mapping
+            learn_label_mapping(
+                db=db,
+                raw_label=tx.raw_description,
+                clean_description=tx.description,
+                category=tx.category,
+                is_manual=True
+            )
+            logger.info(f"[Auto-Pilote] Règle apprise avec succès pour '{tx.raw_description}' -> '{tx.description}'")
+        except Exception as e:
+            logger.warning(f"[Auto-Pilote] Impossible d'apprendre la règle pour tx #{tx.id}: {e}")
 
     record_action(
         db,

@@ -132,11 +132,20 @@ def get_autopilot_review_queue(db: Session = Depends(get_db)):
 
 
 @router.post("/review/{tx_id}/validate")
-def validate_review(tx_id: int, db: Session = Depends(get_db)):
+def validate_review(
+    tx_id: int,
+    force_keep_current: bool = Query(True),
+    db: Session = Depends(get_db)
+):
     """Acquitte et valide une opération de la file de revue."""
     active_pid = get_active_profile().get("id", "default")
     try:
-        return validate_review_transaction(db, tx_id=tx_id, profile_id=active_pid)
+        return validate_review_transaction(
+            db,
+            tx_id=tx_id,
+            force_keep_current=force_keep_current,
+            profile_id=active_pid
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

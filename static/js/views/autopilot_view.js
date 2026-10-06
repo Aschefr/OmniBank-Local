@@ -1585,17 +1585,16 @@ window.AutopilotView = {
                                 </td>
                                 <td style="padding: 12px; text-align: right; white-space: nowrap; vertical-align: middle;">
                                     <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
+                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle'}">
+                                            ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK'}</span>
+                                        </button>
                                         ${bestCandidate ? `
                                             <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
                                                 <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${window.i18n ? window.i18n.t('autopilot_review_btn_link_title').replace('{desc}', escapeHtml(bestCandidate.description)) : `Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon`}">
                                                     ${this._icons.link} <span data-i18n="autopilot_review_btn_link">${window.i18n ? window.i18n.t('autopilot_review_btn_link') : 'Lier'}</span>
                                                 </button>
                                             </div>
-                                        ` : `
-                                            <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider sans modifier') : 'Valider sans modifier'}">
-                                                ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_validate') || 'Valider') : 'Valider'}</span>
-                                            </button>
-                                        `}
+                                        ` : ''}
                                         <button class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
                                             ${this._icons.edit} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}</span>
                                         </button>
@@ -1653,18 +1652,17 @@ window.AutopilotView = {
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </div>
-                                <div style="display: flex; gap: 6px;">
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle'}">
+                                        ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK'}</span>
+                                    </button>
                                     ${bestCandidate ? `
                                         <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
                                             <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})">
                                                 ${this._icons.link} <span>Lier</span>
                                             </button>
                                         </div>
-                                    ` : `
-                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)">
-                                            ${this._icons.check} <span>Valider</span>
-                                        </button>
-                                    `}
+                                    ` : ''}
                                     <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
                                         ${this._icons.edit} <span data-i18n="autopilot_review_btn_edit">${window.i18n ? window.i18n.t('autopilot_review_btn_edit') : 'Éditer'}</span>
                                     </button>
@@ -1684,7 +1682,7 @@ window.AutopilotView = {
                 btn.disabled = true;
                 btn.innerHTML = '...';
             }
-            await API.post(`/api/autopilot/review/${txId}/validate`, {});
+            await API.post(`/api/autopilot/review/${txId}/validate?force_keep_current=true`, {});
             showToast(window.i18n ? (window.i18n.t('autopilot_review_validated') || 'Opération confirmée avec succès') : 'Opération confirmée avec succès', 'success');
             await this.refresh();
             if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
@@ -1696,7 +1694,8 @@ window.AutopilotView = {
             showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la validation', 'error');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = `${this._icons.check} <span>Valider</span>`;
+                const btnText = window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK';
+                btn.innerHTML = `${this._icons.check} <span>${btnText}</span>`;
             }
         }
     },

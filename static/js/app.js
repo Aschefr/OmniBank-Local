@@ -1015,14 +1015,200 @@ window.handleReviewClick = function(txId, event) {
         event.preventDefault();
     }
     if (window.app) {
-        if (window.app.currentView !== 'autopilot') {
-            if (window.AutopilotView) {
-                window.AutopilotView._pendingReviewTxId = txId;
-            }
-            window.app.loadView('autopilot');
-        } else if (window.AutopilotView && typeof window.AutopilotView.openReviewModal === 'function') {
+        if (window.app.currentView === 'autopilot' && window.AutopilotView && typeof window.AutopilotView.openReviewModal === 'function') {
             window.AutopilotView.openReviewModal(txId);
+        } else {
+            window.openQuickReviewModal(txId);
         }
+    }
+};
+
+window.openQuickReviewModal = async function(txId) {
+    let overlay = document.getElementById('quickReviewModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'quickReviewModal';
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10005; align-items: center; justify-content: center; backdrop-filter: blur(4px);';
+        overlay.onclick = (e) => {
+            if (e.target === overlay) window.closeQuickReviewModal();
+        };
+        document.body.appendChild(overlay);
+    }
+
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+        <div class="modal-content" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; width: 90%; max-width: 520px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span>
+                    <span>${window.i18n ? window.i18n.t('autopilot_quick_review_title') : 'Vérification du rapprochement'}</span>
+                </h3>
+                <button class="btn btn-sm" style="border: none; background: transparent; font-size: 18px; cursor: pointer; color: var(--text-muted);" onclick="window.closeQuickReviewModal()">✕</button>
+            </div>
+            <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                Chargement...
+            </div>
+        </div>
+    `;
+
+    try {
+        const tx = await API.get(`/api/transactions/${txId}`);
+        if (!tx) throw new Error('Transaction introuvable');
+
+        let reviewItem = null;
+        try {
+            const queue = await API.get('/api/autopilot/review-queue') || [];
+            reviewItem = queue.find(q => q.id === txId);
+        } catch (_) {}
+
+        const bestCandidate = (reviewItem?.candidate_forecasts && reviewItem.candidate_forecasts.length > 0)
+            ? reviewItem.candidate_forecasts[0]
+            : null;
+
+        const conf = Math.round(tx.confidence_score || reviewItem?.confidence_score || 0);
+        const dateStr = typeof formatDate === 'function' ? formatDate(tx.date_operation) : (tx.date_operation || '');
+        const amtStr = typeof formatCurrency === 'function' ? formatCurrency(tx.amount) : `${Number(tx.amount || 0).toFixed(2)} €`;
+        const isIncome = tx.type === 'income' || Number(tx.amount || 0) > 0;
+        const amtColor = isIncome ? 'var(--color-income, #10b981)' : 'var(--color-expense, #ef4444)';
+
+        overlay.innerHTML = `
+            <div class="modal-content" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; width: 90%; max-width: 520px; padding: 22px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                            <span>🔍</span>
+                            <span>${window.i18n ? window.i18n.t('autopilot_quick_review_title') : 'Vérifier le rapprochement'}</span>
+                        </h3>
+                        <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; font-size: 11px; padding: 2px 7px; border-radius: 6px;">
+                            Score : ${conf}%
+                        </span>
+                    </div>
+                    <button class="btn btn-sm" style="border: none; background: transparent; font-size: 18px; cursor: pointer; color: var(--text-muted);" onclick="window.closeQuickReviewModal()">✕</button>
+                </div>
+
+                <div style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Opération enregistrée</span>
+                        <span class="privacy-blur" style="font-weight: 800; font-size: 15px; color: ${amtColor};">${amtStr}</span>
+                    </div>
+                    <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</div>
+                    <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">📅 ${dateStr} • Catégorie : <span class="badge" style="font-size: 10.5px;">${window.escapeHtml ? window.escapeHtml(tx.category || '—') : (tx.category || '—')}</span></div>
+                    ${tx.raw_description && tx.raw_description !== tx.description ? `
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); font-size: 11px; color: var(--text-muted);">
+                            <span style="font-weight: 600;">${window.i18n ? window.i18n.t('autopilot_quick_review_bank_raw') : 'Libellé banque brut'} :</span>
+                            <code style="font-family: monospace; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; margin-left: 4px;">${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</code>
+                        </div>
+                    ` : ''}
+                </div>
+
+                ${bestCandidate ? `
+                    <div style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.35); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                            <span>🔗</span> <span>${window.i18n ? window.i18n.t('autopilot_quick_review_alternative') : 'Autre prévision suggérée :'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(bestCandidate.description) : bestCandidate.description}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Prévu : ${bestCandidate.date_operation} • <span class="badge" style="font-size: 10px;">${window.escapeHtml ? window.escapeHtml(bestCandidate.category || '—') : (bestCandidate.category || '—')}</span></div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="privacy-blur" style="font-weight: 700; font-size: 13px; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
+                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.18); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; padding: 4px 10px; font-size: 11.5px;" onclick="window.linkQuickReviewItem(${txId}, ${bestCandidate.id}, this)">🔗 Lier</button>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 6px 12px;" onclick="window.openEditFromQuickReview(${txId})">
+                        ✏️ Éditer / Corriger
+                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 6px 12px;" onclick="window.closeQuickReviewModal()">
+                            Annuler
+                        </button>
+                        <button class="btn btn-success btn-sm" style="background: #10b981; border: none; color: white; font-weight: 700; font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.validateQuickReviewItem(${txId}, this)">
+                            ✓ ${window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'C\'est OK'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        overlay.innerHTML = `
+            <div class="modal-content" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; width: 90%; max-width: 440px; padding: 20px; text-align: center;">
+                <div style="color: #ef4444; font-weight: 700; margin-bottom: 8px;">Erreur</div>
+                <div style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 14px;">Impossible de charger les détails de l'opération.</div>
+                <button class="btn btn-secondary btn-sm" onclick="window.closeQuickReviewModal()">Fermer</button>
+            </div>
+        `;
+    }
+};
+
+window.closeQuickReviewModal = function() {
+    const overlay = document.getElementById('quickReviewModal');
+    if (overlay) overlay.style.display = 'none';
+};
+
+window.validateQuickReviewItem = async function(txId, btn) {
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '...';
+        }
+        await API.post(`/api/autopilot/review/${txId}/validate?force_keep_current=true`, {});
+        window.closeQuickReviewModal();
+        showToast(window.i18n ? (window.i18n.t('autopilot_review_validated') || 'Opération confirmée avec succès') : 'Opération confirmée avec succès', 'success');
+        if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+            window.app.updateAutopilotBadge();
+        }
+        window.dispatchEvent(new CustomEvent('autopilot_updated'));
+        window.dispatchEvent(new CustomEvent('transactions_updated'));
+    } catch (e) {
+        showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la validation', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `✓ ${window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'C\'est OK'}`;
+        }
+    }
+};
+
+window.linkQuickReviewItem = async function(txId, forecastId, btn) {
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '...';
+        }
+        await API.post(`/api/autopilot/review/${txId}/link`, {
+            target_forecast_id: forecastId,
+            learn_rule: true
+        });
+        window.closeQuickReviewModal();
+        showToast(window.i18n ? (window.i18n.t('autopilot_toast_link_success') || 'Opération liée avec succès') : 'Opération liée avec succès', 'success');
+        if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+            window.app.updateAutopilotBadge();
+        }
+        window.dispatchEvent(new CustomEvent('autopilot_updated'));
+        window.dispatchEvent(new CustomEvent('transactions_updated'));
+    } catch (e) {
+        showToast(window.i18n ? window.i18n.t('autopilot_toast_link_error') : 'Erreur lors de la liaison', 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '🔗 Lier';
+        }
+    }
+};
+
+window.openEditFromQuickReview = async function(txId) {
+    window.closeQuickReviewModal();
+    try {
+        const tx = await API.get(`/api/transactions/${txId}`);
+        if (tx && window.FormView && typeof window.FormView.openEdit === 'function') {
+            window.FormView.openEdit(tx);
+        }
+    } catch (e) {
+        console.error('Erreur ouverture édition:', e);
     }
 };
 document.addEventListener('DOMContentLoaded', () => window.app.init());

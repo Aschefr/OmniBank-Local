@@ -158,7 +158,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     
                     let segmentClass = 'gantt-segment-pending';
                     if (isSkipped) segmentClass = 'gantt-segment-skipped';
-                    else if (isReconciled) segmentClass = 'gantt-segment-reconciled';
+                    else if (isReconciled) {
+                        segmentClass = tx.needs_review ? 'gantt-segment-review' : 'gantt-segment-reconciled';
+                    }
                     
                     const day = parseInt(tx.date_operation.split('T')[0].split('-')[2]);
                     
@@ -180,8 +182,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     const datePart = tx.date_operation.split('T')[0];
                     const formattedDate = datePart.split('-').reverse().join('/');
                     let statusText = window.i18n.t('rec_gantt_status_pending');
-                    if (isReconciled) statusText = window.i18n.t('rec_gantt_status_reconciled');
-                    else if (isSkipped) statusText = window.i18n.t('rec_gantt_status_skipped');
+                    if (isReconciled) {
+                        statusText = tx.needs_review ? `${window.i18n.t('rec_gantt_status_reconciled')} (${window.i18n.t('rec_gantt_status_needs_review') || 'À vérifier'})` : window.i18n.t('rec_gantt_status_reconciled');
+                    } else if (isSkipped) statusText = window.i18n.t('rec_gantt_status_skipped');
                     else {
                         const autoSkipInfo = this.getAutoSkipStatus ? this.getAutoSkipStatus(tx, t) : null;
                         if (autoSkipInfo) {
@@ -366,6 +369,22 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             `;
         }
 
+        let confirmActionHtml = '';
+        let reviewBannerHtml = '';
+        if (isReconciled && tx.needs_review) {
+            const conf = Math.round(tx.confidence_score || 0);
+            reviewBannerHtml = `
+                <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 11px; line-height: 1.35; color: #b45309;">
+                    <div style="font-weight: 700; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+                        <span>⚠️</span>
+                        <span>Rapprochement incertain (${conf}%)</span>
+                    </div>
+                    <div>Score sous le seuil d'autonomie. Vérifiez et confirmez.</div>
+                </div>
+            `;
+            confirmActionHtml = `<button class="gantt-popover-item" style="color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.08);" onclick="window.RecurrenceView.closeSegmentPopover(); window.RecurrenceView.confirmReconciliation(${txId}, ${templateId})">✅ ${window.i18n.t('rec_popover_action_confirm_recon') || 'Confirmer ce rapprochement (C\'est OK)'}</button>`;
+        }
+
         popover.innerHTML = `
             <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
                 <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;">
@@ -374,9 +393,11 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 </div>
                 <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tx.description}</div>
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
+                ${reviewBannerHtml}
                 ${autoBannerHtml}
             </div>
             <div style="display: flex; flex-direction: column; gap: 2px;">
+                ${confirmActionHtml}
                 ${skipActionHtml}
                 ${reconcileActionHtml}
                 ${restoreActionHtml}
@@ -571,5 +592,31 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         return ' <span style="font-size: 10px; color: var(--text-muted); opacity: 0.3;">▲</span>';
     },
 
+    async confirmReconciliation(txId, templateId) {
+        try {
+            await API.post(`/api/autopilot/review/${txId}/validate?force_keep_current=true`, {});
+            showToast(window.i18n ? (window.i18n.t('autopilot_review_validated') || 'Rapprochement confirmé avec succès') : 'Rapprochement confirmé avec succès', 'success');
+            
+            // Mise à jour réactive in-situ (Zero F5)
+            const tx = (this.allTransactions || []).find(t => t.id === txId);
+            if (tx) {
+                tx.needs_review = false;
+            }
+            if (typeof this.renderTemplateDetails === 'function' && templateId) {
+                this.renderTemplateDetails(templateId);
+            }
+            if (typeof this.renderTimeline === 'function') {
+                this.renderTimeline();
+            }
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+        } catch (e) {
+            console.error('[RecurrenceView] Erreur confirmation rapprochement:', e);
+            showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la confirmation', 'error');
+        }
+    }
 
 });

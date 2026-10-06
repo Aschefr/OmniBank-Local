@@ -131,6 +131,10 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 .gantt-segment-reconciled {
                     background: linear-gradient(135deg, rgba(54, 179, 126, 0.65), rgba(54, 179, 126, 0.40));
                 }
+                .gantt-segment-review {
+                    background: linear-gradient(135deg, rgba(245, 158, 11, 0.75), rgba(245, 158, 11, 0.45));
+                    border: 1px dashed rgba(245, 158, 11, 0.85);
+                }
                 .gantt-segment-skipped {
                     background: repeating-linear-gradient(
                         -45deg,
