@@ -218,8 +218,10 @@ def get_decisions(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     decision_type: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
     batch_id: Optional[str] = Query(None),
     show_undone: bool = Query(True),
+    deduplicate_entities: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     """Retourne le flux paginé et filtré des décisions prises par l'Auto-Pilote."""
@@ -228,8 +230,10 @@ def get_decisions(
         limit=limit,
         offset=offset,
         decision_type=decision_type,
+        action=action,
         batch_id=batch_id,
-        show_undone=show_undone
+        show_undone=show_undone,
+        deduplicate_entities=deduplicate_entities
     )
 
 

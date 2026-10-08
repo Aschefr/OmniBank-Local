@@ -54,6 +54,7 @@ from app.services.chat.chat_tools import (
     get_saving_recommendations_tool,
     get_spending_analytics_tool,
     get_spending_trends_tool,
+    get_application_knowledge_tool,
     search_similar_past_spends_tool,
     search_transactions_tool,
     set_predicted_paycheck_tool,
@@ -279,7 +280,7 @@ async def generate_chat_stream(
     is_first_exchange = (len(messages) == 1)
 
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name)
+    sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
     options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
 
     tools_tokens = estimate_tokens(json.dumps(TOOLS))
@@ -388,6 +389,7 @@ async def generate_chat_stream(
                 "get_dashboard_synthesis": "Consultation de la synthèse mensuelle du tableau de bord...",
                 "audit_transactions_integrity": "Audit de l'intégrité des opérations et des récurrences...",
                 "simulate_financial_scenario": "Simulation financière avancée (What-If)...",
+                "get_application_knowledge": "Consultation de la documentation et des règles OmniBank...",
             }
             tool_desc_map_en = {
                 "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -422,6 +424,7 @@ async def generate_chat_stream(
                 "get_dashboard_synthesis": "Consulting monthly dashboard synthesis...",
                 "audit_transactions_integrity": "Auditing transaction data integrity...",
                 "simulate_financial_scenario": "Running financial What-If simulation...",
+                "get_application_knowledge": "Looking up OmniBank documentation and feature rules...",
             }
             tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -645,6 +648,8 @@ async def generate_chat_stream(
                             tool_result = audit_transactions_integrity_tool(db)
                         elif fn_name == "simulate_financial_scenario":
                             tool_result = simulate_financial_scenario_tool(db, fn_args.get("horizon_months", 12), fn_args.get("project_name"), fn_args.get("one_off_amount", 0.0), fn_args.get("recurring_monthly_amount", 0.0), fn_args.get("recurring_duration_months", 12))
+                        elif fn_name == "get_application_knowledge":
+                            tool_result = get_application_knowledge_tool(fn_args.get("topic"))
                         elif fn_name == "store_financial_fact":
                             tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
                             yield f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n"

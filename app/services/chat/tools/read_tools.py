@@ -1523,3 +1523,13 @@ def get_dashboard_synthesis_tool(db: Session, year: int = None, month: int = Non
     }
 
 
+def get_application_knowledge_tool(topic: str = None) -> dict:
+    """
+    Look up authoritative OmniBank documentation, formulas, and operational rules.
+    Topics include: 'reste_a_vivre', 'autopilot', 'budgets', 'simulateur', 'comptes_imports', 'confidentialite_modes'.
+    """
+    from app.services.chat.knowledge_service import get_application_knowledge
+    return get_application_knowledge(topic)
+
+
+

@@ -64,7 +64,13 @@
         <header class="app-header">
             <div style="display:flex; align-items:center; gap: 10px;">
                 <button id="mobileMenuBtn" class="mobile-only-btn" style="display:none; font-size: 20px; background: none; border: none; color: var(--text-main); cursor: pointer;">☰</button>
-                <div class="logo"><img src="/static/img/logo.png" alt="OmniBank Logo" class="app-logo-img"> <span data-i18n="app_title">OmniBank</span> <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v1.1.4</span></div>
+                <div class="logo">
+                    <div class="logo-brand" id="appLogoBrand" role="button" tabindex="0" title="Retour à l'accueil" data-i18n-title="app_logo_home_title" onclick="window.app && window.app.onLogoClick ? window.app.onLogoClick(event) : null" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.app && window.app.onLogoClick ? window.app.onLogoClick(event) : null;}">
+                        <img src="/static/img/logo.png" alt="OmniBank Logo" class="app-logo-img">
+                        <span data-i18n="app_title">OmniBank</span>
+                    </div>
+                    <span id="appVersionBadge" onclick="window.app.showChangelog()" style="font-size: 10px; background: var(--bg-base); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; color: var(--text-muted); vertical-align: middle; letter-spacing: 0.3px; cursor: pointer; transition: background 0.2s, border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.borderColor='var(--border-color)';this.style.background='var(--bg-base)'">v1.1.4</span>
+                </div>
             </div>
             <nav class="main-nav">
                 <button data-view="overview" class="nav-btn" style="display:none;">👀 <span data-i18n="nav_overview">Vue d'ensemble</span></button>
@@ -285,7 +291,7 @@
                     <div class="stat-box highlight" id="restToLiveBox">
                         <span class="stat-label" id="restToLiveLabel" data-i18n="stat_rest_to_live">Reste à vivre</span>
                         <span class="stat-value" id="valRestToLive">0.00 €</span>
-                        <div class="stat-subtext" id="valRestToLiveSub" style="display:none; font-weight: 600; font-size: 11px; margin-top: 4px;"></div>
+                        <div class="stat-subtext privacy-blur" id="valRestToLiveSub" style="display:none; font-weight: 600; font-size: 11px; margin-top: 4px;"></div>
                     </div>
                     <div class="stat-box" id="nextPayBox" style="border-color: rgba(51, 102, 255, 0.4); background-color: rgba(51, 102, 255, 0.1);">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -303,11 +309,11 @@
                             <div>
                                 <span class="stat-label" id="lblOverdraft" data-i18n="stat_overdraft">⚠️ Risque Découvert</span>
                                 <span class="stat-value text-red" id="valOverdraft" style="display:block;"></span>
-                                <div class="stat-subtext" id="valOverdraftDate"></div>
+                                <div class="stat-subtext privacy-blur" id="valOverdraftDate"></div>
                             </div>
                             <span id="btnLocateOverdraft" style="cursor: pointer; font-size: 16px; padding: 4px;" data-i18n-title="tooltip_locate_overdraft" title="Voir l'opération dans l'historique">🔍</span>
                         </div>
-                        <div id="valOverdraftExplanation" style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.35; border-top: 1px dashed rgba(255, 86, 48, 0.3); padding-top: 6px;">
+                        <div id="valOverdraftExplanation" class="privacy-blur" style="font-size: 11.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.35; border-top: 1px dashed rgba(255, 86, 48, 0.3); padding-top: 6px;">
                         </div>
                     </div>
                     

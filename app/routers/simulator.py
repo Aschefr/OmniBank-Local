@@ -19,10 +19,19 @@ from app.schemas.api_schemas import (
     ScenarioEventOut,
     SimulationRunRequest
 )
-from app.services.simulator_engine import run_simulation, get_simulator_presets
+from app.services.simulator_engine import run_simulation, get_simulator_presets, get_cockpit_forecast_summary
 
 router = APIRouter(prefix="/api/simulator", tags=["simulator"])
 logger = logging.getLogger(__name__)
+
+
+# ─── Synthèse Prévisionnelle Multi-Horizons (Cockpit) ─────────────────────────
+@router.get("/forecast-summary")
+def get_forecast_summary(account_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Retourne la synthèse prévisionnelle multi-horizons (7j / cycle / 3 mois) pour le Cockpit.
+    """
+    return get_cockpit_forecast_summary(db=db, account_id=account_id)
 
 
 # ─── Modèles Prédéfinis (Presets) ─────────────────────────────────────────────

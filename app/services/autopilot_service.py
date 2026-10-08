@@ -1232,20 +1232,46 @@ def get_autopilot_decisions_feed(
     limit: int = 50,
     offset: int = 0,
     decision_type: Optional[str] = None,
+    action: Optional[str] = None,
     batch_id: Optional[str] = None,
-    show_undone: bool = True
+    show_undone: bool = True,
+    deduplicate_entities: bool = False
 ) -> Dict[str, Any]:
     """Retourne le flux des décisions prises par l'Auto-Pilote avec pagination et filtres."""
     query = db.query(AutopilotDecisionLog)
     if decision_type:
         query = query.filter(AutopilotDecisionLog.decision_type == decision_type)
+    if action:
+        if action == "LINKED_COMING":
+            query = query.filter(AutopilotDecisionLog.action.in_(["LINKED_COMING", "LINKED_COMING_PENDING_REVIEW"]))
+        elif action == "AUTO_COMMIT":
+            query = query.filter(AutopilotDecisionLog.action.in_(["AUTO_COMMIT", "AUTO_RECONCILED_DEVIANT"]))
+        else:
+            query = query.filter(AutopilotDecisionLog.action == action)
     if batch_id:
         query = query.filter(AutopilotDecisionLog.batch_id == batch_id)
     if not show_undone:
         query = query.filter(AutopilotDecisionLog.is_undone == False)
 
     total = query.count()
-    decisions = query.order_by(AutopilotDecisionLog.created_at.desc()).offset(offset).limit(limit).all()
+
+    if deduplicate_entities:
+        # Récupération ordonnée et déduplication par entité (conserve l'état le plus récent)
+        candidate_decisions = query.order_by(AutopilotDecisionLog.created_at.desc()).limit(max(limit * 4, 150)).all()
+        seen_entities = set()
+        deduped = []
+        for d in candidate_decisions:
+            if d.entity_id is not None and d.entity_type:
+                key = (d.entity_type, d.entity_id)
+                if key in seen_entities:
+                    continue
+                seen_entities.add(key)
+            deduped.append(d)
+            if len(deduped) >= offset + limit:
+                break
+        decisions = deduped[offset:offset + limit]
+    else:
+        decisions = query.order_by(AutopilotDecisionLog.created_at.desc()).offset(offset).limit(limit).all()
 
     acc_map = {acc.id: acc.name for acc in db.query(Account).all()}
 

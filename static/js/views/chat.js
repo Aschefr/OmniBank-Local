@@ -898,20 +898,25 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     to { transform: rotate(360deg); }
                 }
                 .tool-badge {
-                    display: inline-block;
-                    font-size: 10px;
-                    padding: 2px 6px;
-                    background: rgba(51, 102, 255, 0.15);
-                    border: 1px solid rgba(51, 102, 255, 0.3);
-                    border-radius: 4px;
-                    color: var(--accent);
-                    font-family: monospace;
-                    font-weight: 500;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    font-size: 11px;
+                    padding: 2.5px 8px;
+                    background: rgba(99, 102, 241, 0.12);
+                    border: 1px solid rgba(99, 102, 241, 0.3);
+                    border-radius: 6px;
+                    color: var(--accent, #818cf8);
+                    font-family: inherit;
+                    font-weight: 600;
                     cursor: help;
-                    transition: background 0.2s ease;
+                    transition: all 0.2s ease;
+                    letter-spacing: normal;
                 }
                 .tool-badge:hover {
-                    background: rgba(51, 102, 255, 0.25);
+                    background: rgba(99, 102, 241, 0.22);
+                    border-color: rgba(99, 102, 241, 0.5);
+                    box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
                 }
                 .chat-info-panel {
                     display: none;

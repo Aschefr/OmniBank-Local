@@ -393,8 +393,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     const tools = match[1].split(',').map(t => t.trim()).filter(Boolean);
                     toolsBadges = tools.map(t => {
                         const emoji = this._toolEmojiMap?.[t] || (window.ChatView?._toolEmojiMap?.[t]) || '⚙️';
-                        const label = (window.i18n && window.i18n.t(`tool_${t}`)) || t;
-                        const tooltipDesc = (window.i18n && window.i18n.t(`tool_${t}_desc`)) || label;
+                        const key = `tool_${t}`;
+                        const translated = window.i18n ? window.i18n.t(key) : null;
+                        const label = (translated && translated !== key) ? translated : this._formatToolFallback(t);
+                        const descKey = `tool_${t}_desc`;
+                        const translatedDesc = window.i18n ? window.i18n.t(descKey) : null;
+                        const tooltipDesc = (translatedDesc && translatedDesc !== descKey) ? translatedDesc : label;
                         return `<span class="tool-badge" title="${tooltipDesc.replace(/"/g, '&quot;')}">${emoji} ${label}</span>`;
                     }).join(' ');
                 }
@@ -1385,8 +1389,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
             window.app.loadView('all_operations');
         }
-    }
+    },
 
+    _formatToolFallback(t) {
+        if (!t) return 'Outil';
+        let clean = t.startsWith('tool_') ? t.substring(5) : t;
+        return clean.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
 });
 
 
