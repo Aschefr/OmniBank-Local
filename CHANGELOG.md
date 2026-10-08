@@ -25,9 +25,10 @@ All notable changes to this project will be documented in this file.
   - Transparent Recurrence Automation Monitoring: Overdue unreconciled forecasts under lifecycle automation surveillance now display informative badges (`⚙️ Prévu JJ/MM`), timeline tooltips, and popover banners indicating the scheduled auto-skip date.
 - **Mobile Ergonomics, Touch Controls & Design Polish 📱✨**:
   - Mobile-optimized Auto-Pilot popovers with viewport containment, dedicated mobile dismiss controls, tap debouncing, standardized decision override modals with integrated `CategoryPicker`, and full English/French bilingual parity with privacy blur support.
-- **Overview Cockpit Mode & Simplified Gauges 🎛️✨**:
+- **Overview Cockpit Mode & Analog Spending Cadence Gauge 🎛️⏱️**:
   - Added a responsive dual-mode toggle ("Cockpit" vs "Full") on the Overview page with session-persistent user preference.
-  - Introduced modern animated circular SVG gauges for key financial vitals: Reste à vivre (with translucent planned income arc), Cleared Expenses (% and amount of scheduled cycle charges cleared with pending balances), and Budget Cadence (real-time spending velocity vs elapsed cycle time).
+  - Semicircular Analog Spending Pace Gauge: transformed the 3rd Cockpit gauge into an intuitive analog needle meter calibrated in €/day ($0$ on the left, clean reference average in the center, and $2\times$ average on the right), with smooth spring needle transitions, multi-stop chromatic arc gradient, and strict privacy mode blurring.
+  - Key financial vitals: Reste à vivre (with translucent planned income arc), Cleared Expenses (% and amount of scheduled cycle charges cleared with pending balances), and Daily Cadence.
   - Mobile layout optimization: the primary Reste à vivre gauge spans full width while Cleared Expenses and Budget Cadence sit harmoniously side-by-side at half width each.
   - Streamlined, ultra-compact header toolbar: reduced vertical footprint by ~65% on mobile/tablet viewports by merging title, health badge, and glass capsule mode toggle onto a single row, followed by an elegant 2-row pairing (Account dropdown + '➕ Opération' on row 2, 'Auto-Pilote' + 'Relever en ligne' on row 3), eliminating mobile text truncation and button collisions.
 
@@ -37,10 +38,27 @@ All notable changes to this project will be documented in this file.
   - Enhanced all mobile popovers and drawers (Auto-Pilot, notifications, smart presets) with unified dark blurred backdrops, smooth slide-up animations, touch-friendly dismiss headers, and dynamic viewport height scaling.
 - **Auto-Pilot Uncertainty & One-Click Review 🎯⚡**:
   - The "Looks Good" (`[✓ C'est OK]`) confirmation button is now permanently available alongside suggested forecast links in the Auto-Pilot Control Center, enabling instant 1-click validation without forcing manual edits.
-  - Non-disruptive in-situ quick review modal accessible directly from All Operations and Overview without page redirection.
-  - Recurrence schedules and Gantt timelines now clearly highlight uncertain reconciliations (`⚠️ Rapprochée (À vérifier)`) with direct 1-click confirmation from the segment popover.
+- **Auto-Pilot Decision Lifecycle & Extended 15-Action Popover 🤖⏳**:
+  - Distinct visual states for upcoming vs confirmed bank debits: upcoming debit notices linked to forecast transactions now display a dedicated amber `⏳ Upcoming debit linked` badge, while settled debits show the emerald `⚡ Reconciliation confirmed` badge with informative tooltips across both the Overview popover and the full Control Center audit log.
+  - Extended 15-Action Recent Feed: expanded the Overview popover capacity to 15 actions with smart entity deduplication (`deduplicate_entities`), compact max-height containment, and refined dark/light scrollbars.
+- **Interactive Header Brand Logo & Fast Home Navigation 🏠✨**:
+  - The OmniBank brand logo in the main top header is now fully interactive and accessible (`Enter` / `Space` keyboard support, hover animations, localized tooltips), instantly redirecting to the **Overview Cockpit** (or Dashboard if Overview is disabled).
+- **Multi-Horizon Forecast Projections in Cockpit 🔮📊**:
+  - Integrated a 3-horizon predictive forecast widget into the Cockpit overview: 7-day imminent cash flow, current pay-cycle breakdown (expected income, fixed bills, living expenses, projected balance), and 3-month trajectory with dynamic trend badges (`growing`, `stable`, `declining`) and full privacy blur masking.
+- **Application Knowledge Base & Cognitive Assistant RAG 🧠📚**:
+  - Implemented an authoritative offline knowledge repository (`app/knowledge/`) covering core OmniBank operational rules: exact formulas for Left-to-Live (Reste à Vivre) and daily cadence (€/day), Auto-Pilot lifecycle states (`LINKED_COMING` vs `AUTO_COMMIT`), dynamic EMA budget envelopes, What-If simulation confidence cones, account types, and offline sovereignty.
+  - Added a lightweight zero-cloud cognitive resolution engine (`knowledge_service.py`) dynamically augmenting Ollama system prompts with targeted documentation, plus a dedicated `get_application_knowledge` assistant tool.
+- **Cockpit Upcoming Debits Arc & Anticipated Progression 💳⏳**:
+  - Added a translucent purple secondary progression arc (`planned-purple`) to the Cockpit "Cleared Expenses" circular gauge to visually depict announced upcoming debits (`is_coming: true`) on top of confirmed reconciled debits, featuring an informative committed capsule, updated tooltips, and detailed breakdown in the tile modal.
+- **Cockpit Simulator Activation Shortcut & Preference Synchronization 🔮⚡**:
+  - When the What-If Simulator is disabled in settings, the Cockpit forecast widget button seamlessly morphs from "Accéder au Simulateur" to "Activer et accéder au Simulateur" with an in-line confirmation modal, auto-enabling the feature and immediately loading the view without requiring a detour through Settings.
+  - Harmonized Cockpit 3-horizon forecast projections with user-saved Simulator preferences (`simulator_settings`: prudence margin, seasonality smoothing, income mode, outlier sensitivity), ensuring 100% mathematical consistency with the full What-If Simulator view, and added rich explanatory hover tooltips across all cards and metrics.
+- **AI Chat Info Modal & Tool Catalog Update ℹ️🤖**:
+  - Updated the "Informations sur l'assistant IA" modal with the new `Documentation & Connaissances` category (`get_application_knowledge`) and recent assistant capabilities (`simulate_financial_scenario`, `audit_transactions_integrity`, `get_recent_transactions`) with full bilingual localization.
 
 ### Fixed
+- **AI Chat Tool Badge Formatting & Localization 🤖🏷️**: Fixed unlocalized and raw snake_case tool labels (e.g. `⚙️ tool_get_application_knowledge`) in assistant messages by adding complete bilingual translations and descriptive tooltips for all 37 backend tools, pairing matching emoji icons, modernizing badge typography with rounded indigo capsules, and providing clean Title Case fallbacks.
+- **Privacy Mode Financial Blurring 🙈**: Fixed unblurred monetary values when Privacy Mode is active, ensuring subtitle amounts in Cockpit mode (planned income, initial leftover, cleared/pending expenses, daily cadence, cycle net after recurrences), the account selector dropdown trigger and list, and budget badges are properly masked with smooth hover reveals.
 - **Mobile Toolbar & Modal Layout Fixes 📱**: Fixed an issue where the Auto-Pilote modal stayed open on initial load, resolved text overlapping in recent automations tables on narrow screens, and ensured mobile Analytics controls remain cleanly within viewport boundaries with sticky category headers.
 - **Development String Cleanup & Budget I18n 🧹**: Removed temporary development tags `(Étape 6)` and ensured budget threshold alerts are properly translated across French and English.
 - **Mobile Toolbar Text Collision & Button Overflow 📱**: Resolved text bleeding and overlap between the Auto-Pilote timer chip and the bank sync button on narrow mobile viewports (iPhone SE, 375px) by pairing controls into two distinct rows with strict ellipsis protections while preserving a single seamless toolbar row on desktop.

@@ -169,21 +169,28 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 name: window.i18n.t('chat_group_analysis_name') || 'Analyse & Soldes',
                 access: 'readonly',
                 desc: window.i18n.t('chat_group_analysis_desc') || 'Consultation en temps réel du reste à vivre, du patrimoine net global, des soldes de comptes bancaires et de l\'état d\'avancement des enveloppes budgétaires.',
-                tools: 'get_financial_summary, get_spending_trends, get_dashboard_synthesis, get_monthly_overview, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history'
+                tools: 'get_financial_summary, get_spending_trends, get_dashboard_synthesis, get_monthly_overview, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history, get_recent_transactions'
             },
             {
                 emoji: '🔍',
                 name: window.i18n.t('chat_group_search_name') || 'Recherche & Classification',
                 access: 'readonly',
-                desc: window.i18n.t('chat_group_search_desc') || 'Recherche d\'opérations multicritères, suggestion intelligente de catégories, détection d\'anomalies ou abonnements et génération d\'exports CSV.',
-                tools: 'search_transactions, search_similar_past_spends, suggest_transaction_category, detect_anomalies_and_subscriptions, generate_csv_export_link'
+                desc: window.i18n.t('chat_group_search_desc') || 'Recherche d\'opérations multicritères, audit de cohérence, suggestion intelligente de catégories, détection d\'anomalies ou abonnements et génération d\'exports CSV.',
+                tools: 'search_transactions, search_similar_past_spends, suggest_transaction_category, detect_anomalies_and_subscriptions, audit_transactions_integrity, generate_csv_export_link'
             },
             {
                 emoji: '📈',
-                name: window.i18n.t('chat_group_simulation_name') || 'Simulations & Conseils',
+                name: window.i18n.t('chat_group_simulation_name') || 'Simulations & Projections',
                 access: 'readonly',
-                desc: window.i18n.t('chat_group_simulation_desc') || 'Projections de solde à 30/60/90 jours, simulation d\'impact d\'un achat sur un budget, calcul d\'amortissement de prêt et préconisations d\'épargne.',
-                tools: 'forecast_balances_history, get_envelopes_impact, simulate_loan_amortization, get_saving_recommendations'
+                desc: window.i18n.t('chat_group_simulation_desc') || 'Projections de solde à 30/60/90 jours, simulation de scénarios What-If, impact d\'un achat sur un budget, calcul d\'amortissement de prêt et préconisations d\'épargne.',
+                tools: 'forecast_balances_history, simulate_financial_scenario, get_envelopes_impact, simulate_loan_amortization, get_saving_recommendations'
+            },
+            {
+                emoji: '📚',
+                name: window.i18n.t('chat_group_knowledge_name') || 'Documentation & Connaissances',
+                access: 'readonly',
+                desc: window.i18n.t('chat_group_knowledge_desc') || 'Consultation des règles financières OmniBank, formules exactes (reste à vivre, cadence), cycles de paie, enveloppes dynamiques EMA et fonctionnement de l\'Auto-Pilote.',
+                tools: 'get_application_knowledge'
             },
             {
                 emoji: '⚡',
@@ -594,7 +601,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         'set_predicted_paycheck': '💵',
         'delete_transaction': '🗑️',
         'store_financial_fact': '🧠',
-        'forget_financial_fact': '🧹'
+        'forget_financial_fact': '🧹',
+        'get_application_knowledge': '📚',
+        'audit_transactions_integrity': '🛡️',
+        'simulate_financial_scenario': '🔮',
+        'get_spending_trends': '📈',
+        'get_dashboard_synthesis': '🎛️'
     },
 
 

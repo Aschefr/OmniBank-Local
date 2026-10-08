@@ -783,8 +783,17 @@ class App {
         ]);
     }
 
-    refreshCurrentView() {
-        this.refreshActiveView();
+    onLogoClick(e) {
+        if (e) e.preventDefault();
+        const isOverviewEnabled = Boolean(this.config && (this.config.enable_overview === 'true' || this.config.enable_overview === true));
+        if (isOverviewEnabled) {
+            this.loadView('overview');
+            if (window.OverviewView && typeof window.OverviewView.setMode === 'function') {
+                window.OverviewView.setMode('cockpit');
+            }
+        } else {
+            this.loadView('dashboard');
+        }
     }
 
     loadView(viewName) {

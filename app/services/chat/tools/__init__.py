@@ -20,6 +20,7 @@ from app.services.chat.tools.read_tools import (  # noqa: F401
     get_saving_recommendations_tool,
     get_spending_analytics_tool,
     get_spending_trends_tool,
+    get_application_knowledge_tool,
     search_similar_past_spends_tool,
     search_transactions_tool,
     suggest_transaction_category_tool,
@@ -591,6 +592,22 @@ TOOLS = [
                     "private_to_session": {"type": "boolean", "description": "Must match the visibility setting used when storing. Default is false."}
                 },
                 "required": ["key"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_application_knowledge",
+            "description": "Look up official OmniBank documentation, formulas, and operational rules (e.g. how Reste à Vivre is computed, Auto-Pilot states LINKED_COMING vs AUTO_COMMIT, budget envelopes EMA recalibration, What-If simulation cones, CSV/Woob bank sync, and Privacy mode).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Topic or query to look up (e.g. 'reste_a_vivre', 'autopilot', 'budgets', 'simulateur', 'comptes_imports', 'confidentialite_modes', or a question)."
+                    }
+                }
             }
         }
     }

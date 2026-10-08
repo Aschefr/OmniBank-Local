@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 from app.models import AIFact, OrgUser, Account
 
 from app.services.chat.chat_briefing import generate_financial_briefing
+from app.services.chat.knowledge_service import resolve_relevant_knowledge
 
-def load_system_prompt(role: str = 'advisor', categories: list = None, lang: str = 'fr', db: Session = None, session_id: int = None, user_name: str = None) -> str:
+def load_system_prompt(role: str = 'advisor', categories: list = None, lang: str = 'fr', db: Session = None, session_id: int = None, user_name: str = None, user_query: Optional[str] = None) -> str:
     if role == 'simulator':
         prompt = """You are the Project Simulation Engine for OmniBank.
 Your goal is to help the user simulate financial projects (purchasing a vehicle, home renovations, real estate purchase, loan simulation, sabbatical) and compute their exact impact on net worth, debt capacity, and future balances.
@@ -101,6 +102,25 @@ Always be concise, human, and directly helpful."""
                 prompt += f"\n\n{briefing_text}"
         except Exception as e:
             logger.warning(f"Erreur lors de la génération du briefing financier pour le prompt IA: {e}")
+
+    # Dynamic Application Knowledge Injection (OmniBank features, formulas & operational rules)
+    try:
+        query_to_check = user_query
+        if not query_to_check and db and session_id:
+            from app.models import ChatMessage
+            last_msg = db.query(ChatMessage).filter(
+                ChatMessage.session_id == session_id,
+                ChatMessage.role == 'user'
+            ).order_by(ChatMessage.timestamp.desc()).first()
+            if last_msg and last_msg.content:
+                query_to_check = last_msg.content
+
+        if query_to_check:
+            knowledge_block = resolve_relevant_knowledge(query_to_check, max_topics=2)
+            if knowledge_block:
+                prompt += f"\n\n{knowledge_block}"
+    except Exception as e:
+        logger.warning(f"Erreur lors de la résolution des connaissances applicatives pour le prompt IA: {e}")
 
     today_dt = date.today()
     today_str = today_dt.isoformat()

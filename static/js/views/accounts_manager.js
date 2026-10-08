@@ -331,7 +331,7 @@ window.AccountsView = {
                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                         <span>${window.i18n.t('acc_rate_label')} <strong style="color: var(--accent);">${acc.interest_rate}%</strong></span>
                         <span>•</span>
-                        <span>${window.i18n.t('acc_estimated_interest') || 'Intérêts estimés au 31/12'} : <strong style="color: #10b981;">+${formatCurrency(estimated, curr)}</strong></span>
+                        <span>${window.i18n.t('acc_estimated_interest') || 'Intérêts estimés au 31/12'} : <strong class="privacy-blur" style="color: #10b981;">+${formatCurrency(estimated, curr)}</strong></span>
                         <button class="btn btn-secondary btn-sm" onclick="window.AccountsView.openInterestModal(${acc.id}, ${estimated})" style="padding: 1px 7px; font-size: 10px; border-radius: 6px; height: 22px;" title="${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser les intérêts'}">
                             🎁 ${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser'}
                         </button>
@@ -347,7 +347,7 @@ window.AccountsView = {
                     let parts = [];
                     if (rate > 0) parts.push(`${window.i18n.t('acc_rate_label')} <strong style="color: #ef4444;">${rate}%</strong>`);
                     if (payment > 0) {
-                        parts.push(`${window.i18n.t('acc_monthly_payment_label')} <strong>${formatCurrency(payment, curr)}</strong> (<span style="color:#10b981;">${window.i18n.t('acc_capital_label')} ${formatCurrency(capitalM, curr)}</span> • <span style="color:#ef4444;">${window.i18n.t('acc_interest_label')} ${formatCurrency(interestM, curr)}</span>)`);
+                        parts.push(`${window.i18n.t('acc_monthly_payment_label')} <strong class="privacy-blur">${formatCurrency(payment, curr)}</strong> (<span class="privacy-blur" style="color:#10b981;">${window.i18n.t('acc_capital_label')} ${formatCurrency(capitalM, curr)}</span> • <span class="privacy-blur" style="color:#ef4444;">${window.i18n.t('acc_interest_label')} ${formatCurrency(interestM, curr)}</span>)`);
                     }
                     if (parts.length > 0) {
                         subInfoHtml = `
@@ -646,10 +646,10 @@ window.AccountsView = {
                     <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
                             <span style="font-size: 11px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
-                            <span style="font-size: 11px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
+                            <span style="font-size: 11px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong class="privacy-blur" style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
                         </div>
                         <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
-                            ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', flowStr)}
+                            ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', `<span class="privacy-blur">${flowStr}</span>`)}
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <input type="number" step="0.01" id="accEditTargetBal" class="inline-input" placeholder="${window.i18n.t('ph_initial_balance') || 'Ex: 1119.68'}" style="flex: 1; height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">

@@ -343,7 +343,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         
                         <div class="autopilot-tooltip-wrapper budget-strip-tooltip-wrapper">
                             <span class="budget-strip-impact-pill ${netTotalImpact >= 0 ? 'net-plus' : 'net-minus'}" tabindex="0" role="button" aria-label="Détail impact net">
-                                <span>Impact net : ${netTotalImpact >= 0 ? '+' : ''}${formatCurrency(netTotalImpact)}/mois</span>
+                                <span>Impact net : <span class="privacy-blur">${netTotalImpact >= 0 ? '+' : ''}${formatCurrency(netTotalImpact)}/mois</span></span>
                                 <span class="autopilot-info-icon">ℹ️</span>
                             </span>
                             <div class="autopilot-tooltip-popover autopilot-summary-popover">
@@ -354,23 +354,23 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                     ${creationsCount > 0 ? `
                                         <div class="autopilot-tooltip-summary-row">
                                             <span class="autopilot-tooltip-cat-name">✨ ${creationsCount} nouvelle${creationsCount > 1 ? 's' : ''} enveloppe${creationsCount > 1 ? 's' : ''}</span>
-                                            <span class="autopilot-tooltip-cat-sum"><strong>+${formatCurrency(creationsTotal)}/mois</strong></span>
+                                            <span class="autopilot-tooltip-cat-sum"><strong class="privacy-blur">+${formatCurrency(creationsTotal)}/mois</strong></span>
                                         </div>
                                     ` : ''}
                                     ${recalibsCount > 0 ? `
                                         <div class="autopilot-tooltip-summary-row">
                                             <span class="autopilot-tooltip-cat-name">📊 ${recalibsCount} ajustement${recalibsCount > 1 ? 's' : ''}</span>
                                             <span class="autopilot-tooltip-cat-sum">
-                                                <span style="text-decoration: line-through; opacity: 0.7;">${formatCurrency(recalibOldTotal)}</span>
-                                                → <strong>${formatCurrency(recalibNewTotal)}</strong>
-                                                <span class="${recalibDelta >= 0 ? 'net-plus' : 'net-minus'}" style="font-size: 11px; margin-left: 4px;">(${recalibDelta >= 0 ? '+' : ''}${formatCurrency(recalibDelta)})</span>
+                                                <span class="privacy-blur" style="text-decoration: line-through; opacity: 0.7;">${formatCurrency(recalibOldTotal)}</span>
+                                                → <strong class="privacy-blur">${formatCurrency(recalibNewTotal)}</strong>
+                                                <span class="${recalibDelta >= 0 ? 'net-plus' : 'net-minus'} privacy-blur" style="font-size: 11px; margin-left: 4px;">(${recalibDelta >= 0 ? '+' : ''}${formatCurrency(recalibDelta)})</span>
                                             </span>
                                         </div>
                                     ` : ''}
                                     <div class="autopilot-tooltip-summary-divider"></div>
                                     <div class="autopilot-tooltip-summary-row" style="font-weight: 700; color: var(--text-main); padding-top: 2px;">
                                         <span>${window.i18n.t('autopilot_budget_summary_total_impact') || 'Impact mensuel net'} :</span>
-                                        <span class="${netTotalImpact >= 0 ? 'net-plus' : 'net-minus'}">${netTotalImpact >= 0 ? '+' : ''}${formatCurrency(netTotalImpact)}/mois</span>
+                                        <span class="${netTotalImpact >= 0 ? 'net-plus' : 'net-minus'} privacy-blur">${netTotalImpact >= 0 ? '+' : ''}${formatCurrency(netTotalImpact)}/mois</span>
                                     </div>
                                 </div>
                             </div>

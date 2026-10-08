@@ -6,7 +6,7 @@ Inclut : projection dépenses variables, saisonnalité, inflation, bandes de con
 import logging
 import json
 import math
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 from calendar import monthrange
 from sqlalchemy.orm import Session
@@ -1150,5 +1150,188 @@ def run_simulation(
         "historical_real_net_avg": round(historical_real_net_avg, 2),
         "projection_sources": projection_sources,
         "monthly_data": monthly_data
+    }
+
+
+def get_cockpit_forecast_summary(
+    db: Session,
+    account_id: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Calcule la synthèse prévisionnelle multi-horizons pour le Cockpit :
+    1. Court terme (7 jours) : Opérations et échéances imminentes (recettes, prélèvements, net).
+    2. Moyen terme (Cycle en cours) : Flux du cycle (recettes prévues, charges fixes, enveloppe variable, reste à vivre projeté).
+    3. Trajectoire (M+1 à M+3) : Synthèse mensuelle issue du moteur de projection (solde, épargne, saisonnalité).
+    Zero duplication, 100% cohérent avec les calculs du Simulateur et du Dashboard.
+    """
+    today = date.today()
+    in_7_days = today + timedelta(days=7)
+
+    # 1. Horizon 1 : 7 jours (Échéances imminentes)
+    tx_query = db.query(Transaction).filter(
+        Transaction.reconciliation_date.is_(None),
+        Transaction.date_operation >= today,
+        Transaction.date_operation <= in_7_days,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    )
+    if account_id:
+        tx_query = tx_query.filter(
+            (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+        )
+
+    upcoming_txs = tx_query.order_by(Transaction.date_operation.asc()).all()
+
+    incoming_7d = 0.0
+    outgoing_7d = 0.0
+    items_7d = []
+
+    for tx in upcoming_txs:
+        amt = abs(float(tx.amount or 0.0))
+        is_internal_transfer = bool(tx.from_account_id and tx.to_account_id)
+        if not account_id and is_internal_transfer:
+            continue
+
+        is_inc = False
+        if account_id:
+            if tx.to_account_id == account_id:
+                is_inc = True
+        else:
+            if tx.type == "income" or (not tx.type and (tx.amount or 0) > 0 and not tx.from_account_id):
+                is_inc = True
+
+        if is_inc:
+            incoming_7d += amt
+        else:
+            outgoing_7d += amt
+
+        items_7d.append({
+            "id": tx.id,
+            "date": tx.date_operation.strftime("%Y-%m-%d") if tx.date_operation else None,
+            "description": tx.description or tx.raw_description or "Opération prévue",
+            "amount": round(amt, 2),
+            "type": "income" if is_inc else "expense",
+            "category": tx.category,
+            "account_id": tx.from_account_id or tx.to_account_id
+        })
+
+    net_7d = round(incoming_7d - outgoing_7d, 2)
+    incoming_7d = round(incoming_7d, 2)
+    outgoing_7d = round(outgoing_7d, 2)
+
+    # 2. Exécution du moteur de projection sur 3 mois
+    pay_info = {}
+    try:
+        from app.services.finance_engine import predict_next_paycheck
+        pay_info = predict_next_paycheck(db) or {}
+    except Exception as e:
+        logger.warning(f"[Simulateur] Erreur predict_next_paycheck: {e}")
+
+    next_pay_date = pay_info.get("date")
+
+    # Charger les préférences personnalisées du simulateur (ou repli réaliste par défaut)
+    from app.profile_manager import get_active_profile
+    from app.models import GlobalConfig
+    import json
+
+    active_pid = get_active_profile().get("id", "default")
+    sim_cfg_row = db.query(GlobalConfig).filter(GlobalConfig.key == f"simulator_settings_{active_pid}").first()
+    if not sim_cfg_row:
+        sim_cfg_row = db.query(GlobalConfig).filter(GlobalConfig.key == "simulator_settings").first()
+
+    sim_settings = {}
+    if sim_cfg_row and sim_cfg_row.value:
+        try:
+            sim_settings = json.loads(sim_cfg_row.value)
+        except Exception:
+            pass
+
+    seasonality_mode = sim_settings.get("seasonality_mode", "disabled")
+    seasonality_intensity = float(sim_settings.get("seasonality_intensity", 1.0))
+    conservative_weight = float(sim_settings.get("conservative_weight", 0.0))
+    outlier_sens = int(sim_settings.get("outlier_sensitivity", 2))
+    var_adj = float(sim_settings.get("var_expense_adjustment_pct", 0.0))
+    inc_mode = sim_settings.get("income_mode", "auto")
+    custom_inc = sim_settings.get("custom_income_amount")
+    custom_inc_float = float(custom_inc) if custom_inc is not None else None
+
+    sim_result = run_simulation(
+        db=db,
+        horizon_months=3,
+        account_id=account_id,
+        income_mode=inc_mode,
+        custom_income_amount=custom_inc_float,
+        variable_expense_adjustment_pct=var_adj,
+        projection_profile="realistic",
+        conservative_weight=conservative_weight,
+        outlier_sensitivity=outlier_sens,
+        seasonality_mode=seasonality_mode,
+        seasonality_intensity=seasonality_intensity
+    )
+
+    monthly_data = sim_result.get("monthly_data") or []
+    m0_data = monthly_data[0] if len(monthly_data) > 0 else {}
+
+    cycle_summary = {
+        "cycle_type": "pay" if next_pay_date else "calendar",
+        "next_pay_date": next_pay_date.strftime("%Y-%m-%d") if next_pay_date else None,
+        "projected_income": m0_data.get("baseline_income", 0.0),
+        "fixed_charges": m0_data.get("baseline_fixed", 0.0),
+        "variable_allocated": m0_data.get("baseline_variable", 0.0),
+        "total_expenses": m0_data.get("baseline_expense", 0.0),
+        "projected_net": m0_data.get("baseline_net", 0.0),
+        "projected_end_balance": m0_data.get("baseline_end_balance", 0.0),
+        "initial_balance": sim_result.get("initial_balance", 0.0)
+    }
+
+    # 3. Horizon 3 : Trajectoire (M+1 à M+3)
+    trajectory_months = []
+    for m_item in monthly_data:
+        trajectory_months.append({
+            "month": m_item.get("month"),
+            "month_label": m_item.get("month_label"),
+            "start_balance": m_item.get("start_balance_baseline"),
+            "income": m_item.get("baseline_income"),
+            "fixed_expense": m_item.get("baseline_fixed"),
+            "variable_expense": m_item.get("baseline_variable"),
+            "total_expense": m_item.get("baseline_expense"),
+            "net_savings": m_item.get("baseline_net"),
+            "end_balance": m_item.get("baseline_end_balance"),
+            "optimistic_balance": m_item.get("optimistic_end_balance"),
+            "pessimistic_balance": m_item.get("pessimistic_end_balance"),
+            "seasonal_tag": m_item.get("seasonal_tag"),
+            "seasonal_pct": m_item.get("seasonal_pct")
+        })
+
+    total_3m_savings = sum(m.get("net_savings", 0.0) for m in trajectory_months)
+    start_bal = sim_result.get("initial_balance", 0.0)
+    final_balance_3m = trajectory_months[-1].get("end_balance") if trajectory_months else start_bal
+
+    trend = "stable"
+    if final_balance_3m > start_bal + 50:
+        trend = "growing"
+    elif final_balance_3m < start_bal - 50:
+        trend = "declining"
+
+    trajectory_summary = {
+        "months": trajectory_months,
+        "total_3m_savings": round(total_3m_savings, 2),
+        "start_balance": round(start_bal, 2),
+        "final_balance_3m": round(final_balance_3m, 2),
+        "trend": trend,
+        "min_balance": sim_result.get("min_baseline_balance"),
+        "min_balance_date": sim_result.get("min_baseline_date")
+    }
+
+    return {
+        "short_term_7d": {
+            "incoming": incoming_7d,
+            "outgoing": outgoing_7d,
+            "net": net_7d,
+            "count": len(items_7d),
+            "operations": items_7d[:8]
+        },
+        "cycle_forecast": cycle_summary,
+        "trajectory_3m": trajectory_summary
     }
 

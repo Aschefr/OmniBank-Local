@@ -874,8 +874,45 @@ body.theme-classic-light .ap-decision-row:hover {
 /* Popover Body & Decisions Feed */
 .ov-ap-popover-body {
     padding: 12px 14px;
-    max-height: 290px;
+    max-height: 380px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.ov-ap-popover-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ov-ap-popover-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ov-ap-popover-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+.ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+body.theme-titanium-light .ov-ap-popover-body,
+body.theme-classic-light .ov-ap-popover-body,
+body.theme-light .ov-ap-popover-body {
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+body.theme-titanium-light .ov-ap-popover-body::-webkit-scrollbar-thumb,
+body.theme-classic-light .ov-ap-popover-body::-webkit-scrollbar-thumb,
+body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+body.theme-titanium-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover,
+body.theme-classic-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover,
+body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
 }
 
 .ov-ap-section-title {

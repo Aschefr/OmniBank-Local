@@ -385,10 +385,11 @@ window.AutopilotView = {
                                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <select id="feedFilterType" class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px;" onchange="window.AutopilotView.onFilterChange()">
                                         <option value="" data-i18n="autopilot_filter_all">${window.i18n.t('autopilot_filter_all') || 'Toutes les décisions'}</option>
-                                        <option value="reconciliation" data-i18n="autopilot_filter_reconciliation">${window.i18n.t('autopilot_filter_reconciliation') || 'Rapprochements'}</option>
-                                        <option value="new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || 'Nouvelles Écritures'}</option>
-                                        <option value="recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || 'Récurrences'}</option>
-                                        <option value="budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || 'Budgets'}</option>
+                                        <option value="action:AUTO_COMMIT" data-i18n="autopilot_filter_reconciliation_confirmed">${window.i18n.t('autopilot_filter_reconciliation_confirmed') || '⚡ Rapprochements confirmés'}</option>
+                                        <option value="action:LINKED_COMING" data-i18n="autopilot_filter_linked_coming">${window.i18n.t('autopilot_filter_linked_coming') || '⏳ Liaisons à venir'}</option>
+                                        <option value="type:new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || '✨ Nouvelles Écritures'}</option>
+                                        <option value="type:recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || '🔄 Récurrences'}</option>
+                                        <option value="type:budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || '🎯 Budgets'}</option>
                                     </select>
                                     <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
@@ -1952,6 +1953,7 @@ window.AutopilotView = {
                 show_undone: this._showUndone ? 'true' : 'false'
             });
             if (this._filterType) params.append('decision_type', this._filterType);
+            if (this._filterAction) params.append('action', this._filterAction);
             if (this._filterBatch) params.append('batch_id', this._filterBatch);
 
             const res = await API.get(`/api/autopilot/decisions?${params.toString()}`);
@@ -2039,10 +2041,12 @@ window.AutopilotView = {
     formatReasonBadge(reason) {
         if (!reason) return '';
         const key = 'autopilot_reason_' + reason;
+        const descKey = key + '_desc';
         const translated = window.i18n ? window.i18n.t(key) : null;
         const label = (translated && translated !== key) ? translated : reason;
-        const tooltip = window.i18n ? window.i18n.t('autopilot_feed_reason_title').replace('{reason}', escapeHtml(reason)) : `Raison de la décision : ${escapeHtml(reason)}`;
-        return `<span class="ap-reason-badge" title="${tooltip}">${escapeHtml(label)}</span>`;
+        const desc = window.i18n ? window.i18n.t(descKey) : null;
+        const tooltip = (desc && desc !== descKey) ? desc : (window.i18n ? window.i18n.t('autopilot_feed_reason_title').replace('{reason}', escapeHtml(label)) : `Raison de la décision : ${escapeHtml(label)}`);
+        return `<span class="ap-reason-badge" title="${escapeHtml(tooltip)}">${escapeHtml(label)}</span>`;
     },
 
     _renderDecisionItem(d) {
@@ -2053,9 +2057,49 @@ window.AutopilotView = {
             scoreBadge = `<span style="font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: ${color}22; color: ${color}; border: 1px solid ${color}44;">${score}%</span>`;
         }
 
-        const typeKey = 'autopilot_type_' + d.decision_type;
-        const translatedType = window.i18n ? window.i18n.t(typeKey) : null;
-        const typeLabel = (translatedType && translatedType !== typeKey) ? translatedType : (d.decision_type || '');
+        let badgeClass = 'badge-blue';
+        let typeLabel = window.i18n ? window.i18n.t('autopilot_action_committed') : 'Saisie directe';
+        let tooltipText = '';
+        let icon = '✨';
+
+        if (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') {
+            if (d.action === 'LINKED_COMING' || d.action === 'LINKED_COMING_PENDING_REVIEW') {
+                badgeClass = 'badge-amber';
+                typeLabel = window.i18n ? window.i18n.t('autopilot_action_linked_coming') : 'Opération à venir liée';
+                tooltipText = window.i18n ? window.i18n.t('autopilot_action_linked_coming_desc') : 'L\'opération prévisionnelle a été rattachée à l\'annonce bancaire à venir.';
+                icon = '⏳';
+            } else if (d.action === 'AUTO_RECONCILED_DEVIANT') {
+                badgeClass = 'badge-emerald';
+                typeLabel = window.i18n ? window.i18n.t('autopilot_action_deviant_confirmed') : 'Rapprochement ajusté';
+                tooltipText = window.i18n ? window.i18n.t('autopilot_action_deviant_confirmed_desc') : 'Le débit bancaire effectif a été pointé et le montant ajusté.';
+                icon = '⚡';
+            } else {
+                badgeClass = 'badge-emerald';
+                typeLabel = window.i18n ? window.i18n.t('autopilot_action_reconciled_confirmed') : 'Rapprochement confirmé';
+                tooltipText = window.i18n ? window.i18n.t('autopilot_action_reconciled_confirmed_desc') : 'Le débit bancaire effectif a été pointé et rapproché.';
+                icon = '⚡';
+            }
+        } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
+            badgeClass = 'badge-purple';
+            typeLabel = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence';
+            tooltipText = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence détectée et promue automatiquement';
+            icon = '🔄';
+        } else if (d.decision_type === 'recurrence_hike') {
+            badgeClass = 'badge-purple';
+            typeLabel = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse propagée';
+            tooltipText = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse tarifaire propagée';
+            icon = '🔄';
+        } else if (d.decision_type === 'budget' || d.decision_type === 'budget_adjustment' || d.decision_type === 'budget_suggestion') {
+            badgeClass = 'badge-amber';
+            typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_recalibrated') : 'Budget';
+            tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_recalibrated') : 'Budget recalibré automatiquement';
+            icon = '🎯';
+        } else if (d.decision_type === 'budget_creation_suggestion') {
+            badgeClass = 'badge-amber';
+            typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Budget suggéré';
+            tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Création d\'enveloppe budgétaire suggérée';
+            icon = '🎯';
+        }
 
         const isUndone = d.is_undone;
         
@@ -2086,7 +2130,11 @@ window.AutopilotView = {
         return `
             <div class="ap-decision-row" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); gap: 12px; opacity: ${isUndone ? '0.5' : '1'};">
                 <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                    <span style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); min-width: 130px;">${typeLabel}</span>
+                    <div style="min-width: 175px; flex-shrink: 0; display: flex; align-items: center;">
+                        <div class="ov-ap-decision-badge ${badgeClass}" title="${escapeHtml(tooltipText)}" style="font-size: 11px; padding: 2.5px 8px; border-radius: 6px;">
+                            <span>${icon}</span> <span>${typeLabel}</span>
+                        </div>
+                    </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}
@@ -2110,10 +2158,16 @@ window.AutopilotView = {
                             <span class="badge" style="font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid #ef4444;" data-i18n="autopilot_feed_badge_undone">${window.i18n ? window.i18n.t('autopilot_feed_badge_undone') : 'Annulé'}</span>
                         ` : `
                             <div style="display: flex; gap: 6px;">
-                                ${d.entity_type === 'transaction' && d.decision_type === 'reconciliation' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
-                                        ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
-                                    </button>
+                                ${d.entity_type === 'transaction' && (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') ? `
+                                    ${(d.action === 'LINKED_COMING' || d.action === 'LINKED_COMING_PENDING_REVIEW') ? `
+                                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink_title') : 'Délier l\'opération à venir'}">
+                                            ${this._icons.undo} <span data-i18n="autopilot_feed_btn_unlink">${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink') : 'Délier'}</span>
+                                        </button>
+                                    ` : `
+                                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
+                                            ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
+                                        </button>
+                                    `}
                                 ` : `
                                     <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback_title') : 'Annuler cette décision'}">
                                         ${this._icons.undo} <span data-i18n="autopilot_feed_btn_rollback">${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback') : 'Annuler'}</span>
@@ -2211,7 +2265,17 @@ window.AutopilotView = {
     onFilterChange() {
         const typeSelect = document.getElementById('feedFilterType');
         const undoneCheckbox = document.getElementById('feedShowUndone');
-        this._filterType = typeSelect ? typeSelect.value : '';
+        const rawVal = typeSelect ? typeSelect.value : '';
+        if (rawVal.startsWith('action:')) {
+            this._filterAction = rawVal.replace('action:', '');
+            this._filterType = '';
+        } else if (rawVal.startsWith('type:')) {
+            this._filterType = rawVal.replace('type:', '');
+            this._filterAction = '';
+        } else {
+            this._filterType = rawVal;
+            this._filterAction = '';
+        }
         this._showUndone = undoneCheckbox ? undoneCheckbox.checked : true;
         this._currentPage = 0;
         this.loadDecisions();

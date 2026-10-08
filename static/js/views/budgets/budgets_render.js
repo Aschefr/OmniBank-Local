@@ -731,7 +731,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div class="bv-card-sugg-badge" onclick="event.stopPropagation(); window.BudgetsView.openReviewModalForBudget(${b.id})" 
                          title="${window.i18n.t('budget_card_sugg_tt') || 'Examiner la recommandation de recalibrage'}">
                         <span class="bv-card-sugg-icon">💡</span>
-                        <span class="bv-card-sugg-text">${window.i18n.t('budget_card_sugg_label') || 'Ajustement'} : <strong>${formatCurrency(autoSugg.suggested_amount)}</strong> <small>(${deltaStr})</small></span>
+                        <span class="bv-card-sugg-text">${window.i18n.t('budget_card_sugg_label') || 'Ajustement'} : <strong class="privacy-blur">${formatCurrency(autoSugg.suggested_amount)}</strong> <small class="privacy-blur">(${deltaStr})</small></span>
                     </div>
                 `;
             }
@@ -825,7 +825,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 : '';
 
             const tempWithdrawnBadge = tempWithdrawn > 0
-                ? `<span class="bv-temp-withdrawn-badge" style="color:#ef4444;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
+                ? `<span class="bv-temp-withdrawn-badge privacy-blur" style="color:#ef4444;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
                 : '';
 
             return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">
@@ -970,7 +970,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const savingsBarColor = theoreticalSavingsPct >= 100 ? '#f59e0b' : '#10b981';
 
             const overflowBadgeHtml = overflow
-                ? `<span class="bv-overflow-badge" style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'};">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
+                ? `<span class="bv-overflow-badge privacy-blur" style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'};">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
                 : '';
 
             savingsHtml += `<div class="bv-summary-bar" style="border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
@@ -983,7 +983,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(effectiveTotalBalance)}</strong><span class="bv-summary-amount-label"> / ${formatCurrency(totalGoal)}</span>
+                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(effectiveTotalBalance)}</strong><span class="bv-summary-amount-label"> / <span class="privacy-blur">${formatCurrency(totalGoal)}</span></span>
                     </div>
                 </div>
                 <div class="bv-progress-track bv-progress-track--lg">
