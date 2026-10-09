@@ -131,6 +131,15 @@
     }
 
     #printContainer .data-table th,
+    #printContainer .export-tx-table th,
+    #printContainer thead,
+    #printContainer tr {
+        position: static !important;
+        top: auto !important;
+        z-index: auto !important;
+    }
+
+    #printContainer .data-table th,
     #printContainer .data-table td {
         min-width: 0 !important;
         white-space: normal !important;
@@ -150,6 +159,40 @@
         padding: 4px 6px !important;
         font-size: 11px !important;
         line-height: 1.2 !important;
+    }
+
+    /* Export Paper Container & Multi-Page Sheets */
+    .export-paper-container {
+        display: block !important;
+        width: 100% !important;
+        gap: 0 !important;
+    }
+
+    .export-paper-sheet {
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        background-image: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+    }
+
+    .export-paper-sheet:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
+
+    .export-page-header-indicator,
+    .export-page-footer-indicator,
+    .export-a4-overflow-marker {
+        display: none !important;
+        visibility: hidden !important;
     }
 
     /* Utilitaires d'impression dynamique */
