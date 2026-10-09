@@ -43,8 +43,9 @@ All notable changes to this project will be documented in this file.
   - Extended 15-Action Recent Feed: expanded the Overview popover capacity to 15 actions with smart entity deduplication (`deduplicate_entities`), compact max-height containment, and refined dark/light scrollbars.
 - **Interactive Header Brand Logo & Fast Home Navigation 🏠✨**:
   - The OmniBank brand logo in the main top header is now fully interactive and accessible (`Enter` / `Space` keyboard support, hover animations, localized tooltips), instantly redirecting to the **Overview Cockpit** (or Dashboard if Overview is disabled).
-- **Multi-Horizon Forecast Projections in Cockpit 🔮📊**:
-  - Integrated a 3-horizon predictive forecast widget into the Cockpit overview: 7-day imminent cash flow, current pay-cycle breakdown (expected income, fixed bills, living expenses, projected balance), and 3-month trajectory with dynamic trend badges (`growing`, `stable`, `declining`) and full privacy blur masking.
+- **Streamlined Cockpit Next Month Outlook Widget 🔮✨**:
+  - Transformed the Cockpit forecast section into a sleek, ultra-compact single-row "Next Month Outlook" banner featuring 4 clear KPI cards: Expected Income, Expected Fixed Charges, Estimated Variable Living Expenses (with real-time seasonality adjustment badge), and Estimated Net Remaining (Left-to-Live & projected end balance).
+  - Reduced vertical footprint by ~70% for instant at-a-glance cockpit reading without scrollbars, with seamless 1-click access to the full What-If Simulator and complete privacy blur support.
 - **Application Knowledge Base & Cognitive Assistant RAG 🧠📚**:
   - Implemented an authoritative offline knowledge repository (`app/knowledge/`) covering core OmniBank operational rules: exact formulas for Left-to-Live (Reste à Vivre) and daily cadence (€/day), Auto-Pilot lifecycle states (`LINKED_COMING` vs `AUTO_COMMIT`), dynamic EMA budget envelopes, What-If simulation confidence cones, account types, and offline sovereignty.
   - Added a lightweight zero-cloud cognitive resolution engine (`knowledge_service.py`) dynamically augmenting Ollama system prompts with targeted documentation, plus a dedicated `get_application_knowledge` assistant tool.
