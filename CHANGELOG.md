@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Organisation Mode AG Financial Report & Real-time A4 Multi-Page Live Preview 🏛️📄**:
+  - Split-view export modal on the Synthesis page (`analytics.js`) featuring a real-time live preview rendered as discrete A4 paper sheets (`.export-paper-sheet`) with high-contrast page start ribbons (`Début de page X / N • Format A4`), page end footers (`Fin de page X / N • Fin de feuille A4`), and amber physical cut guidelines for multi-page overflow.
+  - One-click presets: *General Assembly (AGM)* and *General Ledger & Audit* for Organisation Mode; *Household Annual Summary* and *Detailed Statement* for Personal Mode.
+  - Interactive page-break insertion: users can insert discrete page breaks (`+ Ajouter un saut de page`) and reorder them via drag-and-drop or arrows, instantly splitting the live preview into distinct sheets.
+  - Dedicated non-profit (Loi 1901 / CSE) accounting sections: Simplified Operating Statement (Operating Income vs Operating Expenses = Net Surplus/Deficit), Cash flow variation with operational runway in months, and dual certification & AGM approval block (Treasurer + President) with AGM date.
+  - Strict paper theme isolation: eliminated dark-mode CSS bleed onto the A4 sheet canvas, restored high-contrast ink typography for operational runway and cash balances, and preserved 100% Personal Mode continuity.
+  - Print engine synchronization: `@media print` accurately maps discrete `.export-paper-sheet` items to physical printer pages with `page-break-after: always;` while hiding on-screen UI indicators.
+  - Fixed PDF export "Détail des opérations" transaction table layout (`table-layout: fixed`, proportional column widths summing to 100%, text ellipsis) preventing horizontal overflow past the A4 sheet margins.
+  - Fixed cross-table column sizing and month headers (`JANV`, `FÉVR`, `MARS`...) in printable reports to prevent cell truncation.
+  - Fixed UX layout shifting on Synthesis heatmap gradient slider by locking label and reset button dimensions, eliminating cursor displacement while dragging.
+  - Fixed PDF export cross-table and transaction table sticky header leak by enforcing `position: static !important` across printable sheets and print container, eliminating floating headers overlaying table rows during preview scrolling.
+  - Fixed PDF export auxiliary transaction prefetching and HTML5 drag-and-drop section reordering across all browsers.
 - **Guided Onboarding Wizard**:
   - Online bank sync is now the highlighted first choice; creating an account is optional; a new automation walkthrough shows what Auto-Pilot does day to day.
   - Much richer demo (4 accounts, 6 months of history, budgets, recurrences, Auto-Pilot decisions) with a demo banner offering one-click "Start fresh" that removes only demo data.
