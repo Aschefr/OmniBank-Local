@@ -889,30 +889,37 @@
     }
 }
 
-/* ── Cockpit Forecast & Trajectory Section (Chantier 5) ─────────────────── */
+/* ── Cockpit Forecast & Trajectory Section (Cap sur le mois prochain) ──── */
 .cockpit-forecast-container {
     max-width: 1040px;
-    margin: 28px auto 0;
+    margin: 24px auto 0;
     width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cockpit-forecast-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
 }
 
 .cockpit-forecast-title-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .cockpit-forecast-main-title {
-    font-size: 16px;
+    font-size: 14.5px;
     font-weight: 700;
     color: var(--text-main);
     margin: 0;
@@ -921,14 +928,43 @@
     gap: 6px;
 }
 
-.cockpit-forecast-badge {
+.cockpit-forecast-month-badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary, #6366f1);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    text-transform: capitalize;
+}
+
+.cockpit-forecast-season-badge {
     font-size: 11px;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(139, 92, 246, 0.12);
-    color: var(--accent);
-    border: 1px solid rgba(139, 92, 246, 0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cockpit-forecast-season-badge.badge-high {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.cockpit-forecast-season-badge.badge-low {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.cockpit-forecast-season-badge.badge-neutral {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-muted);
+    border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .cockpit-forecast-sim-btn {
@@ -938,9 +974,9 @@
     background: transparent;
     border: 1px solid var(--border-color);
     color: var(--accent);
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-radius: 8px;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -964,289 +1000,83 @@
     box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
 }
 
-.cockpit-forecast-grid {
+.cockpit-forecast-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
     width: 100%;
 }
 
-.cockpit-forecast-card {
-    background: var(--bg-surface);
+.cockpit-forecast-kpi-card {
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 18px;
-    padding: 18px;
+    border-radius: 12px;
+    padding: 12px 14px;
     display: flex;
     flex-direction: column;
+    gap: 4px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.cockpit-forecast-card:hover {
+.cockpit-forecast-kpi-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     border-color: var(--accent-border);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
 }
 
-.cockpit-forecast-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    gap: 8px;
-}
-
-.cockpit-forecast-card-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-main);
+.cockpit-forecast-kpi-top {
     display: flex;
     align-items: center;
     gap: 6px;
-}
-
-.cockpit-horizon-icon {
-    font-size: 15px;
-}
-
-.cockpit-forecast-card-pill {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-}
-
-.cockpit-forecast-chips-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.cockpit-chip {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 10px;
-    background: var(--bg-card);
-    border-radius: 8px;
-    font-size: 11.5px;
-    border: 1px solid var(--border-color);
-}
-
-.cockpit-chip .chip-label {
-    color: var(--text-muted);
-}
-
-.cockpit-chip .chip-val {
-    font-weight: 700;
-}
-
-.cockpit-forecast-ops-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 150px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.cockpit-forecast-op-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    font-size: 11.5px;
-    gap: 8px;
-}
-
-.cockpit-forecast-op-date {
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 10.5px;
-    flex-shrink: 0;
-}
-
-.cockpit-forecast-op-info {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.cockpit-forecast-op-desc {
-    font-weight: 500;
-    color: var(--text-main);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.cockpit-forecast-op-cat {
-    font-size: 9.5px;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--accent);
-    flex-shrink: 0;
-}
-
-.cockpit-forecast-op-amount {
-    font-weight: 700;
-    font-size: 11.5px;
-    flex-shrink: 0;
-}
-
-.cockpit-forecast-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 24px 12px;
-    color: var(--text-muted);
-    font-size: 12px;
-    font-style: italic;
-    text-align: center;
-}
-
-/* Cycle breakdown */
-.cockpit-cycle-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.cockpit-cycle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-}
-
-.cockpit-cycle-label {
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.cockpit-cycle-value {
-    font-weight: 600;
-}
-
-.cockpit-cycle-separator {
-    height: 1px;
-    background: var(--border-color);
-    margin: 4px 0;
-}
-
-.cockpit-cycle-row.row-total {
-    font-weight: 700;
-    font-size: 13px;
-}
-
-.cockpit-cycle-row.row-total .cockpit-cycle-label {
-    color: var(--text-main);
-    font-weight: 700;
-}
-
-/* Trajectory 3M */
-.cockpit-trend-badge {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 6px;
-}
-
-.cockpit-trend-badge.badge-growing {
-    background: rgba(16, 185, 129, 0.12);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.25);
-}
-
-.cockpit-trend-badge.badge-declining {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.25);
-}
-
-.cockpit-trend-badge.badge-stable {
-    background: rgba(59, 130, 246, 0.12);
-    color: #3b82f6;
-    border: 1px solid rgba(59, 130, 246, 0.25);
-}
-
-.cockpit-trajectory-months-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.cockpit-trajectory-month-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 10px 6px;
-    text-align: center;
-}
-
-.cockpit-trajectory-month-name {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.cockpit-trajectory-month-net {
-    font-size: 13px;
-    font-weight: 700;
     margin-bottom: 2px;
 }
 
-.cockpit-trajectory-month-sub {
-    font-size: 10.5px;
+.cockpit-forecast-kpi-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.cockpit-forecast-kpi-label {
+    font-size: 11.5px;
+    font-weight: 600;
     color: var(--text-muted);
-    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.cockpit-trajectory-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: auto;
-    padding-top: 8px;
-    border-top: 1px dashed var(--border-color);
-    font-size: 12px;
-}
-
-.cockpit-traj-label {
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.cockpit-traj-amount {
+.cockpit-forecast-kpi-val {
+    font-size: 16.5px;
     font-weight: 700;
-    font-size: 13px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.cockpit-forecast-kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Mobile responsive for forecast section */
-@media (max-width: 768px) {
-    .cockpit-forecast-grid {
+@media (max-width: 900px) {
+    .cockpit-forecast-kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+@media (max-width: 520px) {
+    .cockpit-forecast-kpi-grid {
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 8px;
     }
 
-    .cockpit-forecast-card {
-        padding: 14px;
+    .cockpit-forecast-container {
+        padding: 12px 14px;
     }
 }

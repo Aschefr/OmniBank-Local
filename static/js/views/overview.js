@@ -3739,7 +3739,7 @@ window.OverviewView = {
 
         const data = this._forecastSummary;
         if (!data) {
-            container.innerHTML = `<div class="cockpit-forecast-loading" style="text-align:center; padding:20px; color:var(--text-muted);">⏳ Chargement des prévisions...</div>`;
+            container.innerHTML = `<div class="cockpit-forecast-loading" style="text-align:center; padding:16px; color:var(--text-muted);">⏳ Chargement des prévisions...</div>`;
             return;
         }
 
@@ -3748,74 +3748,27 @@ window.OverviewView = {
             return (val && val !== key) ? val : fallback;
         };
 
-        const st = data.short_term_7d || { incoming: 0, outgoing: 0, net: 0, count: 0, operations: [] };
-        const cf = data.cycle_forecast || {};
-        const tr = data.trajectory_3m || { months: [], trend: 'stable', total_3m_savings: 0 };
+        const nm = data.next_month || (data.trajectory_3m?.months?.[1]) || (data.cycle_forecast) || {};
+        const monthLabel = nm.month_label || t('cockpit_forecast_next_month_title', 'Mois prochain');
+        const incomeVal = Number(nm.projected_income ?? nm.income ?? 0);
+        const fixedVal = Number(nm.fixed_charges ?? nm.fixed_expense ?? 0);
+        const varVal = Number(nm.variable_expenses ?? nm.variable_expense ?? nm.variable_allocated ?? 0);
+        const netVal = Number(nm.projected_net ?? nm.net_savings ?? 0);
+        const endBalVal = nm.projected_end_balance !== undefined ? Number(nm.projected_end_balance) : null;
+        const seasonalPct = Number(nm.seasonal_pct || 0);
 
-        // Format Horizon 1 (7 jours)
-        const net7dClass = st.net >= 0 ? 'text-green' : 'text-red';
-        let opsHtml = '';
-        if (st.operations && st.operations.length > 0) {
-            opsHtml = `
-                <div class="cockpit-forecast-ops-list">
-                    ${st.operations.map(op => `
-                        <div class="cockpit-forecast-op-row">
-                            <div class="cockpit-forecast-op-date">${formatDate(op.date, 'short')}</div>
-                            <div class="cockpit-forecast-op-info">
-                                <span class="cockpit-forecast-op-desc" title="${escapeHtml(op.description)}">${escapeHtml(op.description)}</span>
-                                ${op.category ? `<span class="cockpit-forecast-op-cat">${escapeHtml(op.category)}</span>` : ''}
-                            </div>
-                            <div class="cockpit-forecast-op-amount privacy-blur ${op.type === 'income' ? 'text-green' : 'text-red'}">
-                                ${op.type === 'income' ? '+' : '-'}${formatCurrency(op.amount)}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+        let seasonBadgeHtml = '';
+        const seasonTooltip = t('cockpit_forecast_seasonality_tooltip', 'Modèle de saisonnalité calculé à partir de vos historiques mensuels et des tendances réelles.');
+        if (seasonalPct > 0) {
+            const tagStr = t('cockpit_forecast_seasonality_tag_high', 'Saisonnalité : +{pct}%').replace('{pct}', seasonalPct);
+            seasonBadgeHtml = `<span class="cockpit-forecast-season-badge badge-high" title="${escapeHtml(seasonTooltip)}">🍂 ${escapeHtml(tagStr)}</span>`;
+        } else if (seasonalPct < 0) {
+            const tagStr = t('cockpit_forecast_seasonality_tag_low', 'Saisonnalité : {pct}%').replace('{pct}', seasonalPct);
+            seasonBadgeHtml = `<span class="cockpit-forecast-season-badge badge-low" title="${escapeHtml(seasonTooltip)}">🌱 ${escapeHtml(tagStr)}</span>`;
         } else {
-            opsHtml = `
-                <div class="cockpit-forecast-empty">
-                    <span>✨</span>
-                    <span>${t('cockpit_forecast_7d_empty', 'Aucune opération prévue dans les 7 jours')}</span>
-                </div>
-            `;
+            const tagStr = t('cockpit_forecast_seasonality_tag_neutral', 'Saisonnalité neutre');
+            seasonBadgeHtml = `<span class="cockpit-forecast-season-badge badge-neutral" title="${escapeHtml(seasonTooltip)}">⚖️ ${escapeHtml(tagStr)}</span>`;
         }
-
-        // Format Horizon 2 (Cycle en cours)
-        const cycleNetClass = (cf.projected_net || 0) >= 0 ? 'text-green' : 'text-red';
-
-        // Format Horizon 3 (Trajectoire 3M)
-        let trendBadge = '';
-        if (tr.trend === 'growing') {
-            trendBadge = `<span class="cockpit-trend-badge badge-growing">📈 ${t('cockpit_forecast_3m_trend_growing', 'Tendance positive')}</span>`;
-        } else if (tr.trend === 'declining') {
-            trendBadge = `<span class="cockpit-trend-badge badge-declining">📉 ${t('cockpit_forecast_3m_trend_declining', 'Vigilance')}</span>`;
-        } else {
-            trendBadge = `<span class="cockpit-trend-badge badge-stable">➡️ ${t('cockpit_forecast_3m_trend_stable', 'Équilibré')}</span>`;
-        }
-
-        const monthsHtml = (tr.months || []).map(m => {
-            const netMonthClass = (m.net_savings || 0) >= 0 ? 'text-green' : 'text-red';
-            const label = m.month_label || m.month;
-            const inc = m.income || 0;
-            const fix = m.fixed_expense || 0;
-            const varExp = m.variable_expense || 0;
-            const netSav = m.net_savings || 0;
-            const endBal = m.end_balance || 0;
-            const startBal = m.start_balance || 0;
-            const monthTooltip = `${label} :\n• Solde début : ${formatCurrency(startBal)}\n• Recettes : +${formatCurrency(inc)}\n• Fixes : -${formatCurrency(fix)}\n• Variables : -${formatCurrency(varExp)}\n• Flux net : ${netSav >= 0 ? '+' : ''}${formatCurrency(netSav)}\n• Solde fin estimé : ${formatCurrency(endBal)}`;
-            return `
-                <div class="cockpit-trajectory-month-card" title="${escapeHtml(monthTooltip)}">
-                    <div class="cockpit-trajectory-month-name">${escapeHtml(label)}</div>
-                    <div class="cockpit-trajectory-month-net privacy-blur ${netMonthClass}">
-                        ${netSav >= 0 ? '+' : ''}${formatCurrency(netSav)}
-                    </div>
-                    <div class="cockpit-trajectory-month-sub">
-                        <span class="privacy-blur">${formatCurrency(endBal)}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
 
         const isSimEnabled = !window.app?.config || (window.app.config.enable_simulator !== 'false' && window.app.config.enable_simulator !== false);
         const simBtnText = isSimEnabled
@@ -3829,96 +3782,57 @@ window.OverviewView = {
         container.innerHTML = `
             <div class="cockpit-forecast-header">
                 <div class="cockpit-forecast-title-group">
-                    <h3 class="cockpit-forecast-main-title">🔮 <span data-i18n="cockpit_forecast_title">${t('cockpit_forecast_title', 'Prévisions & Trajectoire')}</span></h3>
-                    <span class="cockpit-forecast-badge" title="Alimenté en temps réel par le moteur de projection et les réglages du Simulateur">Simulateur What-If</span>
+                    <h3 class="cockpit-forecast-main-title">🔮 <span data-i18n="cockpit_forecast_next_month_title">${t('cockpit_forecast_next_month_title', 'Cap sur le mois prochain')}</span></h3>
+                    <span class="cockpit-forecast-month-badge">${escapeHtml(monthLabel)}</span>
+                    ${seasonBadgeHtml}
                 </div>
-                <button class="cockpit-forecast-sim-btn${simBtnExtraClass}" onclick="${simBtnAction}" title="${simBtnText}">
-                    <span>${simBtnText}</span>
+                <button class="cockpit-forecast-sim-btn${simBtnExtraClass}" onclick="${simBtnAction}" title="${escapeHtml(simBtnText)}">
+                    <span>${escapeHtml(simBtnText)}</span>
                     <span>→</span>
                 </button>
             </div>
 
-            <div class="cockpit-forecast-grid">
-                <!-- Horizon 1: 7 Jours -->
-                <div class="cockpit-forecast-card card-7d">
-                    <div class="cockpit-forecast-card-header">
-                        <div class="cockpit-forecast-card-title">
-                            <span class="cockpit-horizon-icon">⚡</span>
-                            <span data-i18n="cockpit_forecast_7d_title">${t('cockpit_forecast_7d_title', '7 Jours à venir')}</span>
-                        </div>
-                        <div class="cockpit-forecast-card-pill privacy-blur ${net7dClass}" title="${t('cockpit_forecast_7d_tooltip', 'Solde net prévu sur les 7 prochains jours (Rentrées - Prélèvements non pointés).')}">
-                            ${st.net >= 0 ? '+' : ''}${formatCurrency(st.net)}
-                        </div>
+            <div class="cockpit-forecast-kpi-grid">
+                <!-- 1. Recettes prévues -->
+                <div class="cockpit-forecast-kpi-card kpi-income" title="${escapeHtml(t('cockpit_forecast_next_month_income_tooltip', 'Total des salaires et rentrées prévisibles pour le mois prochain selon vos récurrences et votre historique.'))}">
+                    <div class="cockpit-forecast-kpi-top">
+                        <span class="cockpit-forecast-kpi-icon">📥</span>
+                        <span class="cockpit-forecast-kpi-label" data-i18n="cockpit_forecast_next_month_income">${t('cockpit_forecast_next_month_income', 'Recettes prévues')}</span>
                     </div>
-
-                    <div class="cockpit-forecast-chips-row">
-                        <div class="cockpit-chip chip-income" title="${t('cockpit_forecast_7d_incoming', 'Rentrées')}">
-                            <span class="chip-label">${t('cockpit_forecast_7d_incoming', 'Rentrées')} :</span>
-                            <span class="chip-val privacy-blur text-green">+${formatCurrency(st.incoming)}</span>
-                        </div>
-                        <div class="cockpit-chip chip-outgoing" title="${t('cockpit_forecast_7d_outgoing', 'Prélèvements')}">
-                            <span class="chip-label">${t('cockpit_forecast_7d_outgoing', 'Prélèvements')} :</span>
-                            <span class="chip-val privacy-blur text-red">-${formatCurrency(st.outgoing)}</span>
-                        </div>
-                    </div>
-
-                    ${opsHtml}
+                    <div class="cockpit-forecast-kpi-val text-green privacy-blur">+${formatCurrency(incomeVal)}</div>
+                    <div class="cockpit-forecast-kpi-sub" data-i18n="cockpit_forecast_next_month_income_hint">${t('cockpit_forecast_next_month_income_hint', 'Salaires & rentrées attendus')}</div>
                 </div>
 
-                <!-- Horizon 2: Cycle en cours -->
-                <div class="cockpit-forecast-card card-cycle">
-                    <div class="cockpit-forecast-card-header">
-                        <div class="cockpit-forecast-card-title">
-                            <span class="cockpit-horizon-icon">📅</span>
-                            <span data-i18n="cockpit_forecast_cycle_title">${t('cockpit_forecast_cycle_title', 'Cycle en cours')}</span>
-                        </div>
-                        <div class="cockpit-forecast-card-pill privacy-blur ${cycleNetClass}" title="${t('cockpit_forecast_cycle_net_tooltip', 'Flux net estimé du cycle (Recettes prévues - Charges fixes - Vie courante allouée).')}">
-                            ${(cf.projected_net || 0) >= 0 ? '+' : ''}${formatCurrency(cf.projected_net || 0)}
-                        </div>
+                <!-- 2. Charges fixes prévues -->
+                <div class="cockpit-forecast-kpi-card kpi-fixed" title="${escapeHtml(t('cockpit_forecast_next_month_fixed_tooltip', 'Total des charges récurrentes engagées (loyer, abonnements, mensualités, factures).'))}">
+                    <div class="cockpit-forecast-kpi-top">
+                        <span class="cockpit-forecast-kpi-icon">📌</span>
+                        <span class="cockpit-forecast-kpi-label" data-i18n="cockpit_forecast_next_month_fixed">${t('cockpit_forecast_next_month_fixed', 'Charges fixes prévues')}</span>
                     </div>
-
-                    <div class="cockpit-cycle-breakdown">
-                        <div class="cockpit-cycle-row" title="${t('cockpit_forecast_cycle_income_tooltip', 'Rentrées et salaires attendus sur le cycle selon vos récurrences ou l\'historique.')}">
-                            <span class="cockpit-cycle-label">${t('cockpit_forecast_cycle_income', 'Recettes prévues')}</span>
-                            <span class="cockpit-cycle-value privacy-blur text-green">+${formatCurrency(cf.projected_income || 0)}</span>
-                        </div>
-                        <div class="cockpit-cycle-row" title="${t('cockpit_forecast_cycle_fixed_tooltip', 'Dépenses récurrentes et charges fixes engagées sur le cycle (abonnements, factures, loyer).')}">
-                            <span class="cockpit-cycle-label">${t('cockpit_forecast_cycle_fixed', 'Charges fixes')}</span>
-                            <span class="cockpit-cycle-value privacy-blur text-main">-${formatCurrency(cf.fixed_charges || 0)}</span>
-                        </div>
-                        <div class="cockpit-cycle-row" title="${t('cockpit_forecast_cycle_variable_tooltip', 'Estimation des dépenses courantes variables calculée selon l\'historique et vos réglages de simulation.')}">
-                            <span class="cockpit-cycle-label">${t('cockpit_forecast_cycle_variable', 'Vie courante allouée')}</span>
-                            <span class="cockpit-cycle-value privacy-blur text-main">-${formatCurrency(cf.variable_allocated || 0)}</span>
-                        </div>
-                        <div class="cockpit-cycle-separator"></div>
-                        <div class="cockpit-cycle-row row-total" title="${t('cockpit_forecast_cycle_end_bal_tooltip', 'Solde de départ actuel + Flux net prévisionnel du cycle.')}">
-                            <span class="cockpit-cycle-label">${t('cockpit_forecast_cycle_end_bal', 'Solde fin de cycle')}</span>
-                            <span class="cockpit-cycle-value privacy-blur ${(cf.projected_end_balance || 0) >= 0 ? 'text-green' : 'text-red'}">
-                                ${formatCurrency(cf.projected_end_balance || 0)}
-                            </span>
-                        </div>
-                    </div>
+                    <div class="cockpit-forecast-kpi-val text-main privacy-blur">-${formatCurrency(fixedVal)}</div>
+                    <div class="cockpit-forecast-kpi-sub" data-i18n="cockpit_forecast_next_month_fixed_hint">${t('cockpit_forecast_next_month_fixed_hint', 'Loyer, crédits, abonnements')}</div>
                 </div>
 
-                <!-- Horizon 3: Trajectoire 3 Mois -->
-                <div class="cockpit-forecast-card card-trajectory">
-                    <div class="cockpit-forecast-card-header">
-                        <div class="cockpit-forecast-card-title">
-                            <span class="cockpit-horizon-icon">📈</span>
-                            <span data-i18n="cockpit_forecast_3m_title">${t('cockpit_forecast_3m_title', 'Trajectoire (3 Mois)')}</span>
-                        </div>
-                        ${trendBadge}
+                <!-- 3. Dépenses variables estimées -->
+                <div class="cockpit-forecast-kpi-card kpi-variable" title="${escapeHtml(t('cockpit_forecast_next_month_variable_tooltip', 'Estimation des dépenses courantes variables basée sur votre rythme moyen et la saisonnalité du mois.'))}">
+                    <div class="cockpit-forecast-kpi-top">
+                        <span class="cockpit-forecast-kpi-icon">🛒</span>
+                        <span class="cockpit-forecast-kpi-label" data-i18n="cockpit_forecast_next_month_variable">${t('cockpit_forecast_next_month_variable', 'Dépenses variables estimées')}</span>
                     </div>
+                    <div class="cockpit-forecast-kpi-val text-main privacy-blur">-${formatCurrency(varVal)}</div>
+                    <div class="cockpit-forecast-kpi-sub" data-i18n="cockpit_forecast_next_month_variable_hint">${t('cockpit_forecast_next_month_variable_hint', 'Vie courante (saisonnalité incluse)')}</div>
+                </div>
 
-                    <div class="cockpit-trajectory-months-grid">
-                        ${monthsHtml}
+                <!-- 4. Reste à vivre estimé -->
+                <div class="cockpit-forecast-kpi-card kpi-remaining" title="${escapeHtml(t('cockpit_forecast_next_month_remaining_tooltip', 'Capacité d\'épargne ou marge disponible nette en fin de mois (Recettes - Fixes - Variables).'))}">
+                    <div class="cockpit-forecast-kpi-top">
+                        <span class="cockpit-forecast-kpi-icon">💰</span>
+                        <span class="cockpit-forecast-kpi-label" data-i18n="cockpit_forecast_next_month_remaining">${t('cockpit_forecast_next_month_remaining', 'Reste à vivre estimé')}</span>
                     </div>
-
-                    <div class="cockpit-trajectory-footer" title="${t('cockpit_forecast_3m_savings_tooltip', 'Cumul de l\'épargne nette générée sur les 3 prochains mois selon les paramètres du simulateur.')}">
-                        <span class="cockpit-traj-label">${t('cockpit_forecast_3m_savings', 'Capacité d\'épargne 3M')} :</span>
-                        <span class="cockpit-traj-amount privacy-blur ${(tr.total_3m_savings || 0) >= 0 ? 'text-green' : 'text-red'}">
-                            ${(tr.total_3m_savings || 0) >= 0 ? '+' : ''}${formatCurrency(tr.total_3m_savings || 0)}
-                        </span>
+                    <div class="cockpit-forecast-kpi-val ${(netVal >= 0) ? 'text-green' : 'text-red'} privacy-blur">${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}</div>
+                    <div class="cockpit-forecast-kpi-sub">
+                        <span data-i18n="cockpit_forecast_next_month_remaining_hint">${t('cockpit_forecast_next_month_remaining_hint', 'Marge nette prévisionnelle')}</span>
+                        ${endBalVal !== null ? ` • <span class="privacy-blur" title="${escapeHtml(t('cockpit_forecast_next_month_end_balance', 'Solde fin de mois estimé'))}">${formatCurrency(endBalVal)}</span>` : ''}
                     </div>
                 </div>
             </div>

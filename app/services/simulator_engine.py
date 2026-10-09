@@ -1323,7 +1323,25 @@ def get_cockpit_forecast_summary(
         "min_balance_date": sim_result.get("min_baseline_date")
     }
 
+    # 4. Horizon Mois Prochain (M+1) : Indicateurs clés épurés (Fixes, Variables avec saisonnalité, Reste à vivre)
+    m1_data = monthly_data[1] if len(monthly_data) > 1 else (monthly_data[0] if len(monthly_data) > 0 else {})
+    next_month_summary = {
+        "month": m1_data.get("month"),
+        "month_label": m1_data.get("month_label"),
+        "projected_income": m1_data.get("baseline_income", 0.0),
+        "fixed_charges": m1_data.get("baseline_fixed", 0.0),
+        "variable_expenses": m1_data.get("baseline_variable", 0.0),
+        "total_expenses": m1_data.get("baseline_expense", 0.0),
+        "projected_net": m1_data.get("baseline_net", 0.0),
+        "start_balance": m1_data.get("start_balance_baseline", 0.0),
+        "projected_end_balance": m1_data.get("baseline_end_balance", 0.0),
+        "seasonal_tag": m1_data.get("seasonal_tag"),
+        "seasonal_pct": m1_data.get("seasonal_pct", 0),
+        "has_seasonality": bool(m1_data.get("seasonal_pct", 0) != 0)
+    }
+
     return {
+        "next_month": next_month_summary,
         "short_term_7d": {
             "incoming": incoming_7d,
             "outgoing": outgoing_7d,

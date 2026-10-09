@@ -102,9 +102,20 @@ def test_cockpit_forecast_summary_basic():
 
     summary = get_cockpit_forecast_summary(db=db, account_id=1)
 
+    assert "next_month" in summary
     assert "short_term_7d" in summary
     assert "cycle_forecast" in summary
     assert "trajectory_3m" in summary
+
+    # Next month checks (Cap sur le mois prochain)
+    nm = summary["next_month"]
+    assert "month_label" in nm
+    assert "projected_income" in nm
+    assert "fixed_charges" in nm
+    assert "variable_expenses" in nm
+    assert "projected_net" in nm
+    assert "projected_end_balance" in nm
+    assert "seasonal_pct" in nm
 
     # Short term 7d checks
     st = summary["short_term_7d"]
@@ -137,9 +148,11 @@ def test_cockpit_forecast_api_endpoint():
     assert response.status_code == 200
     data = response.json()
 
+    assert "next_month" in data
     assert "short_term_7d" in data
     assert "cycle_forecast" in data
     assert "trajectory_3m" in data
+    assert "month_label" in data["next_month"]
     assert data["short_term_7d"]["count"] >= 0
     assert len(data["trajectory_3m"]["months"]) == 3
 
