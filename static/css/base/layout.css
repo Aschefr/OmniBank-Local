@@ -517,10 +517,10 @@ h3 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .overview-root {
-    max-width: 1440px;
+    max-width: 1600px;
     width: 100%;
     margin: 0 auto;
-    padding: 16px 28px 48px;
+    padding: 16px 20px 48px;
     animation: overviewFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
     overflow-x: hidden;
@@ -680,19 +680,19 @@ h3 {
     align-items: center;
     margin-bottom: 24px;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
 }
 
 .overview-header-main {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .overview-title-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -711,7 +711,7 @@ h3 {
 .overview-controls-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -727,7 +727,7 @@ h3 {
     order: 2;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .overview-add-btn {
