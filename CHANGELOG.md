@@ -46,7 +46,9 @@ All notable changes to this project will be documented in this file.
 
 - **Comprehensive Bilingual Documentation & Guides 📚**:
   - Added 4 exhaustive documentation pages in both French and English covering Auto-Pilot Control Center, Financial Simulator, Actions Audit Log with Undo/Redo, and Direct Bank Sync (Woob), with updated quick start guides, architecture docs, and master indexes.
-- **Mobile Modal Visual Detachment & Dynamic Viewport Height 📱✨**:
+- **Mobile Modal Visual Detachment, Harmonized Dialogs & Dynamic Viewport Height 📱✨**:
+  - Unified modal anatomy across all views (Automation, Accounts, Categories, Timeline columns, History columns, Simulator, and Bank Sync) with standardized theme-tinted gradients, icon badges, clear typography, and glassmorphic close buttons (`.modal-header`, `.modal-close-btn`).
+  - Fixed mobile button sizing defect where Cancel buttons were constrained to 32px by a legacy mobile CSS rule; standardized pinned footers (`.modal-footer-pinned`) ensuring button text and actions wrap properly across all screen sizes.
   - Enhanced all mobile popovers and drawers (Auto-Pilot, notifications, smart presets) with unified dark blurred backdrops, smooth slide-up animations, touch-friendly dismiss headers, and dynamic viewport height scaling.
 - **Auto-Pilot Uncertainty & One-Click Review 🎯⚡**:
   - The "Looks Good" (`[✓ C'est OK]`) confirmation button is now permanently available alongside suggested forecast links in the Auto-Pilot Control Center, enabling instant 1-click validation without forcing manual edits.

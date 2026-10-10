@@ -60,51 +60,72 @@ window.CategoriesView = {
 
             <!-- Edit Modal -->
             <div id="catEditModal" class="modal-overlay" style="display:none; z-index:10000;" onclick="if(event.target===this) this.style.display='none'">
-                <div class="modal" style="width: min(400px, calc(100vw - 24px)); padding: 25px;">
-                    <h3 style="margin-top:0; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:10px;" data-i18n="cat_edit">Edit Category</h3>
-                    <input type="hidden" id="edit_cat_id">
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size:12px; color:var(--text-muted);" data-i18n="cat_edit_name">Name (will be changed everywhere!)</label>
-                        <input type="text" id="edit_cat_name" class="inline-input" style="width:100%; margin-top:5px; padding:8px;">
+                <div class="modal" style="width: min(440px, calc(100vw - 24px)); padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+                    <div class="modal-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge">🏷️</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" data-i18n="cat_edit">Edit Category</h3>
+                                <div class="modal-header-desc" data-i18n="cat_edit_name">Name (will be changed everywhere!)</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="document.getElementById('catEditModal').style.display='none'" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-size:12px; color:var(--text-muted);" data-i18n="th_type">Type</label>
-                        <select id="edit_cat_type" class="inline-input" style="width:100%; margin-top:5px; padding:8px;">
-                            ${types.map(t => `<option value="${t.key}">${window.app.getTypeLabel(t.key)}</option>`).join('')}
-                        </select>
+                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <input type="hidden" id="edit_cat_id">
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size:12px; color:var(--text-muted);" data-i18n="cat_edit_name">Name (will be changed everywhere!)</label>
+                            <input type="text" id="edit_cat_name" class="inline-input" style="width:100%; margin-top:5px; padding:8px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size:12px; color:var(--text-muted);" data-i18n="th_type">Type</label>
+                            <select id="edit_cat_type" class="inline-input" style="width:100%; margin-top:5px; padding:8px;">
+                                ${types.map(t => `<option value="${t.key}">${window.app.getTypeLabel(t.key)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="edit_cat_closed" style="accent-color: var(--accent); width: 16px; height: 16px;">
+                                <span data-i18n="cat_close">Close this category</span>
+                            </label>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 25px;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                            <input type="checkbox" id="edit_cat_closed" style="accent-color: var(--accent); width: 16px; height: 16px;">
-                            <span data-i18n="cat_close">Close this category</span>
-                        </label>
-                    </div>
-                    <div style="display:flex; justify-content: flex-end; gap: 10px;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('catEditModal').style.display='none'" data-i18n="btn_cancel">Cancel</button>
-                        <button class="btn btn-primary" onclick="window.CategoriesView.saveEdit()" data-i18n="btn_save">Save</button>
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('catEditModal').style.display='none'" data-i18n="btn_cancel">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="window.CategoriesView.saveEdit()" data-i18n="btn_save">Save</button>
                     </div>
                 </div>
             </div>
 
             <!-- Delete / Reallocate Modal -->
             <div id="catDeleteModal" class="modal-overlay" style="display:none; z-index:10001;" onclick="if(event.target===this) this.style.display='none'">
-                <div class="modal" style="width: min(400px, calc(100vw - 24px)); padding: 25px;">
-                    <h3 style="margin-top:0; color: #ff5630; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:10px;" data-i18n="cat_delete">Delete Category</h3>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
-                        <span data-i18n="cat_reallocate_msg">What to do with existing transactions associated with</span> <strong id="del_cat_name_display"></strong> ?
-                    </p>
-                    <input type="hidden" id="del_cat_id">
-                    
-                    <div style="margin-bottom: 25px;">
-                        <select id="del_reallocate_target" class="inline-input" style="width:100%; padding:8px;">
-                            <option value="">${window.i18n.t('cat_no_reallocate') || 'Do not reallocate (keep old name)'}</option>
-                            <!-- Filled dynamically -->
-                        </select>
+                <div class="modal" style="width: min(440px, calc(100vw - 24px)); padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.03)); border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge badge-danger">🗑️</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" style="color: #ef4444;" data-i18n="cat_delete">Delete Category</h3>
+                                <div class="modal-header-desc" data-i18n="cat_reallocate_desc">Réaffectation des écritures</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="document.getElementById('catDeleteModal').style.display='none'" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
-
-                    <div style="display:flex; justify-content: flex-end; gap: 10px;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('catDeleteModal').style.display='none'" data-i18n="btn_cancel">Cancel</button>
-                        <button class="btn btn-danger" onclick="window.CategoriesView.confirmDelete()" data-i18n="btn_delete">Delete</button>
+                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+                            <span data-i18n="cat_reallocate_msg">What to do with existing transactions associated with</span> <strong id="del_cat_name_display"></strong> ?
+                        </p>
+                        <input type="hidden" id="del_cat_id">
+                        
+                        <div style="margin-bottom: 15px;">
+                            <select id="del_reallocate_target" class="inline-input" style="width:100%; padding:8px;">
+                                <option value="">${window.i18n.t('cat_no_reallocate') || 'Do not reallocate (keep old name)'}</option>
+                                <!-- Filled dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('catDeleteModal').style.display='none'" data-i18n="btn_cancel">Cancel</button>
+                        <button type="button" class="btn btn-danger" onclick="window.CategoriesView.confirmDelete()" data-i18n="btn_delete">Delete</button>
                     </div>
                 </div>
             </div>

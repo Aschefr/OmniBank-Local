@@ -614,10 +614,21 @@ window.AccountsView = {
         ).join('');
 
         const modalHtml = `
-        <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:10000;" onclick="if(event.target===this) this.remove()">
-            <div class="modal" style="width: min(520px, calc(100vw - 24px)); max-width:90vw;">
-                <h3 style="margin-bottom:18px;">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
-                <div style="display:flex;flex-direction:column;gap:14px; max-height: 75vh; overflow-y: auto; padding-right: 4px;">
+        <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:10000;position:fixed;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;overflow-y:auto;padding:clamp(12px,3vh,24px) clamp(8px,2vw,16px);box-sizing:border-box;" onclick="if(event.target===this) window.AccountsView._closeEditModal()">
+            <div class="modal" style="width:100%;max-width:540px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
+                <div class="modal-header" style="background:linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.02) 100%), var(--bg-surface);">
+                    <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+                        <div class="modal-header-icon-badge badge-accent">
+                            💳
+                        </div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
+                            <div class="modal-header-desc">${acc.name} (${acc.currency || 'EUR'})</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="window.AccountsView._closeEditModal()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                </div>
+                <div style="flex:1 1 auto;overflow-y:auto;padding:clamp(14px,3vw,20px) clamp(16px,3.5vw,24px);display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;">
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_name')}</label>
                         <input type="text" id="accEditName" class="inline-input" value="${acc.name.replace(/"/g, '&quot;')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
@@ -692,9 +703,9 @@ window.AccountsView = {
                         <input type="hidden" id="accEditColor" value="${currentColor}">
                     </div>
                 </div>
-                <div class="modal-actions" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:10px;">
-                    <button class="btn btn-secondary" onclick="window.AccountsView._closeEditModal()">${window.i18n.t('btn_cancel')}</button>
-                    <button class="btn btn-primary" onclick="window.AccountsView._saveEdit(${acc.id})">${window.i18n.t('btn_save_changes') || 'Enregistrer'}</button>
+                <div class="modal-footer-pinned">
+                    <button type="button" class="btn btn-secondary" onclick="window.AccountsView._closeEditModal()">${window.i18n.t('btn_cancel')}</button>
+                    <button type="button" class="btn btn-primary" onclick="window.AccountsView._saveEdit(${acc.id})">${window.i18n.t('btn_save_changes') || 'Enregistrer'}</button>
                 </div>
             </div>
         </div>`;
@@ -839,15 +850,24 @@ window.AccountsView = {
         const defaultDate = `${today.getFullYear()}-12-31`;
 
         const modalHtml = `
-        <div id="accInterestModal" class="modal-overlay" style="display:flex;z-index:10000;backdrop-filter:blur(4px);" onclick="if(event.target===this) this.remove()">
-            <div class="modal" style="width: min(440px, calc(100vw - 24px)); max-width:90vw;">
-                <h3 style="margin-bottom:8px; display:flex; align-items:center; gap:8px;">
-                    <span>🎁</span> <span>${window.i18n.t('acc_modal_interest_title') || 'Comptabilisation des Intérêts'}</span>
-                </h3>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">
-                    ${window.i18n.t('acc_modal_interest_desc') || "Ajustez le montant exact versé par votre banque pour l'année :"}
-                </p>
-                <div style="display:flex;flex-direction:column;gap:12px;">
+        <div id="accInterestModal" class="modal-overlay" style="display:flex;z-index:10000;position:fixed;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;overflow-y:auto;padding:clamp(12px,3vh,24px) clamp(8px,2vw,16px);box-sizing:border-box;" onclick="if(event.target===this) this.remove()">
+            <div class="modal" style="width:100%;max-width:460px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
+                <div class="modal-header" style="background:linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.02) 100%), var(--bg-surface);">
+                    <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+                        <div class="modal-header-icon-badge">
+                            🎁
+                        </div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title">${window.i18n.t('acc_modal_interest_title') || 'Comptabilisation des Intérêts'}</h3>
+                            <div class="modal-header-desc">${acc.name} (${acc.currency || 'EUR'})</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('accInterestModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                </div>
+                <div style="flex:1 1 auto;overflow-y:auto;padding:clamp(14px,3vw,20px) clamp(16px,3.5vw,24px);display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;">
+                    <p style="font-size:12px; color:var(--text-muted); margin:0;">
+                        ${window.i18n.t('acc_modal_interest_desc') || "Ajustez le montant exact versé par votre banque pour l'année :"}
+                    </p>
                     <div>
                         <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_account')}</label>
                         <input type="text" class="inline-input" value="${acc.name} (${acc.currency || 'EUR'})" disabled style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;opacity:0.75;">
@@ -865,9 +885,9 @@ window.AccountsView = {
                         <input type="text" id="accInterestDesc" class="inline-input" value="${window.i18n.tp('acc_interest_default_desc', { year: today.getFullYear() })}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
                     </div>
                 </div>
-                <div class="modal-actions" style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:10px;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('accInterestModal').remove()">${window.i18n.t('btn_cancel')}</button>
-                    <button class="btn btn-primary" onclick="window.AccountsView.submitInterest(${accId})">${window.i18n.t('acc_interest_modal_submit')}</button>
+                <div class="modal-footer-pinned">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('accInterestModal')?.remove()">${window.i18n.t('btn_cancel')}</button>
+                    <button type="button" class="btn btn-primary" onclick="window.AccountsView.submitInterest(${accId})">${window.i18n.t('acc_interest_modal_submit')}</button>
                 </div>
             </div>
         </div>`;

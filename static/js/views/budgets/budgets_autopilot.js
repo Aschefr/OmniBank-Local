@@ -1080,12 +1080,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             <div class="modal budget-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
                 
                 <!-- Pinned Header -->
-                <div class="budget-automations-modal-header" style="flex-shrink: 0; padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: var(--bg-surface);">
-                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                <div class="automations-modal-header budget-automations-modal-header">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge">
+                            ⚙️
+                        </div>
+                        <div class="modal-header-info">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 class="modal-header-title">${title}</h3>
+                                ${isAutopilotActive ? apBadgeHtml : ''}
+                            </div>
+                            <div class="modal-header-desc">${desc}</div>
+                        </div>
                     </div>
-                    <button type="button" class="budget-review-close-btn" onclick="document.getElementById('budgetAutomationsModal')?.remove()" aria-label="${window.i18n.t('btn_close') || 'Fermer'}" title="${window.i18n.t('btn_close') || 'Fermer'}">✕</button>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('budgetAutomationsModal')?.remove()" aria-label="${window.i18n.t('btn_close') || 'Fermer'}" title="${window.i18n.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
 
                 <!-- Form wrapping scrollable body + pinned footer -->
@@ -1283,7 +1291,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
 
                     <!-- Pinned Footer -->
-                    <div class="budget-automations-modal-footer" style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px clamp(16px, 3.5vw, 24px); border-top: 1px solid var(--border-color); background: var(--bg-surface); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 2;">
+                    <div class="modal-footer-pinned budget-automations-modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="document.getElementById('budgetAutomationsModal')?.remove()">
                             ${window.i18n.t('btn_cancel') || 'Annuler'}
                         </button>
