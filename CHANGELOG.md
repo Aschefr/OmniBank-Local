@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Cockpit Toolbar & Responsive Overview Width 🎛️🖥️**:
+  - Expanded the Overview container width (`max-width: 1600px`, optimized 20px padding) and refined toolbar gaps, ensuring all Cockpit controls (health badge, mode toggle, account picker, Auto-Pilot status, online sync, and new transaction) remain comfortably aligned on a single horizontal row without wrapping across Firefox and high-density viewports.
 - **Organisation Mode AG Financial Report & Real-time A4 Multi-Page Live Preview 🏛️📄**:
   - Split-view export modal on the Synthesis page (`analytics.js`) featuring a real-time live preview rendered as discrete A4 paper sheets (`.export-paper-sheet`) with high-contrast page start ribbons (`Début de page X / N • Format A4`), page end footers (`Fin de page X / N • Fin de feuille A4`), and amber physical cut guidelines for multi-page overflow.
   - One-click presets: *General Assembly (AGM)* and *General Ledger & Audit* for Organisation Mode; *Household Annual Summary* and *Detailed Statement* for Personal Mode.
