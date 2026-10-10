@@ -132,83 +132,89 @@ window.ConfigSmartLabels = {
 
                 <!-- Modal d'édition d'une règle de correspondance -->
                 <div id="smartLabelEditModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);" onclick="if(event.target === this) window.ConfigSmartLabels.closeEditModal()">
-                    <div class="modal-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; width: 480px; max-width: 92vw; padding: 22px; box-shadow: var(--shadow-lg);">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                            <h3 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                                <span>✏️</span> <span>${window.i18n?.t('smart_label_edit_title') || 'Modifier la règle de correspondance'}</span>
-                            </h3>
-                            <button type="button" class="btn-action-del" onclick="window.ConfigSmartLabels.closeEditModal()" style="font-size: 16px; cursor: pointer; border: none; background: transparent; color: var(--text-muted);">✕</button>
+                    <div class="modal" style="width: min(500px, calc(100vw - 24px)); max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-surface);">
+                        <div class="modal-header">
+                            <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                                <div class="modal-header-icon-badge">✏️</div>
+                                <div class="modal-header-info">
+                                    <h3 class="modal-header-title">${window.i18n?.t('smart_label_edit_title') || 'Modifier la règle de correspondance'}</h3>
+                                    <div class="modal-header-desc">Règle de nettoyage et catégorisation</div>
+                                </div>
+                            </div>
+                            <button type="button" class="modal-close-btn" onclick="window.ConfigSmartLabels.closeEditModal()" aria-label="Fermer" title="Fermer">✕</button>
                         </div>
 
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_raw') || 'Motif bancaire d\'origine'}</label>
-                            <div id="smartLabelEditRaw" style="font-family: monospace; font-size: 12px; font-weight: 700; padding: 8px 12px; background: var(--bg-base); border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-main); word-break: break-all;"></div>
-                        </div>
+                        <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+                            <div>
+                                <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_raw') || 'Motif bancaire d\'origine'}</label>
+                                <div id="smartLabelEditRaw" style="font-family: monospace; font-size: 12px; font-weight: 700; padding: 8px 12px; background: var(--bg-base); border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-main); word-break: break-all;"></div>
+                            </div>
 
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_clean') || 'Nom personnalisé propre'}</label>
-                            <input type="text" id="smartLabelEditClean" class="inline-input" style="width: 100%; font-size: 13px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);" placeholder="Nom propre (ex: Auchan)">
-                        </div>
+                            <div>
+                                <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_clean') || 'Nom personnalisé propre'}</label>
+                                <input type="text" id="smartLabelEditClean" class="inline-input" style="width: 100%; font-size: 13px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);" placeholder="Nom propre (ex: Auchan)">
+                            </div>
 
-                        <div style="margin-bottom: 14px;">
-                            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main); margin-bottom: 8px;">
-                                <input type="checkbox" id="smartLabelEditIsMulti" onchange="window.ConfigSmartLabels.onEditMultiToggle(this.checked)" style="transform: scale(1.15); cursor: pointer;">
-                                <span>${window.i18n?.t('smart_label_edit_multi') || '🔀 Mode Multi-catégories (Nom seul, sans catégorie imposée)'}</span>
-                            </label>
-                            <div id="smartLabelEditCatWrap" style="transition: opacity 0.2s ease;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${window.i18n?.t('smart_label_edit_cat') || 'Catégorie associée'}</label>
-                                    <span id="smartLabelEditCatBadge" style="font-size: 10px; font-weight: 600; color: var(--text-muted);"></span>
+                            <div>
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main); margin-bottom: 8px;">
+                                    <input type="checkbox" id="smartLabelEditIsMulti" onchange="window.ConfigSmartLabels.onEditMultiToggle(this.checked)" style="transform: scale(1.15); cursor: pointer;">
+                                    <span>${window.i18n?.t('smart_label_edit_multi') || '🔀 Mode Multi-catégories (Nom seul, sans catégorie imposée)'}</span>
+                                </label>
+                                <div id="smartLabelEditCatWrap" style="transition: opacity 0.2s ease;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${window.i18n?.t('smart_label_edit_cat') || 'Catégorie associée'}</label>
+                                        <span id="smartLabelEditCatBadge" style="font-size: 10px; font-weight: 600; color: var(--text-muted);"></span>
+                                    </div>
+
+                                    <!-- Champ de recherche rapide permissif (insensible aux accents et à la casse) -->
+                                    <div style="position: relative; margin-bottom: 6px;">
+                                        <input type="text" 
+                                               id="smartLabelEditCatSearch" 
+                                               class="inline-input" 
+                                               style="width: 100%; font-size: 12px; padding: 6px 26px 6px 28px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base);" 
+                                               placeholder="${window.i18n?.t('smart_label_edit_cat_search_ph') || 'Filtrer les catégories (ex: alim, rest, elec...)'}" 
+                                               oninput="window.ConfigSmartLabels.filterEditCategories(this.value)"
+                                               onkeydown="window.ConfigSmartLabels.onCatSearchKeydown(event)">
+                                        <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none;">🔍</span>
+                                        <button type="button" 
+                                                id="smartLabelEditCatSearchClear" 
+                                                onclick="window.ConfigSmartLabels.clearEditCatSearch()" 
+                                                style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 0 4px;" 
+                                                title="Effacer">✕</button>
+                                    </div>
+
+                                    <!-- Sélecteur filtré avec scroll -->
+                                    <select id="smartLabelEditCat" 
+                                            size="5" 
+                                            class="inline-input" 
+                                            style="width: 100%; font-size: 12px; padding: 4px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); height: 110px; overflow-y: auto;"
+                                            onchange="window.ConfigSmartLabels.onCatSelectChange(this.value)"
+                                            ondblclick="window.ConfigSmartLabels.saveEditModal()">
+                                    </select>
+
+                                    <!-- Indicateur de sélection actuelle & bouton de remise à zéro -->
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                                        <div id="smartLabelEditCatCurrent" style="font-size: 11px; font-weight: 600;"></div>
+                                        <button type="button" 
+                                                onclick="window.ConfigSmartLabels.selectNoCategory()" 
+                                                style="font-size: 10px; color: var(--text-muted); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0;">
+                                            ${window.i18n?.t('smart_label_edit_cat_clear_btn') || '-- Sans catégorie --'}
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
 
-                                <!-- Champ de recherche rapide permissif (insensible aux accents et à la casse) -->
-                                <div style="position: relative; margin-bottom: 6px;">
-                                    <input type="text" 
-                                           id="smartLabelEditCatSearch" 
-                                           class="inline-input" 
-                                           style="width: 100%; font-size: 12px; padding: 6px 26px 6px 28px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base);" 
-                                           placeholder="${window.i18n?.t('smart_label_edit_cat_search_ph') || 'Filtrer les catégories (ex: alim, rest, elec...)'}" 
-                                           oninput="window.ConfigSmartLabels.filterEditCategories(this.value)"
-                                           onkeydown="window.ConfigSmartLabels.onCatSearchKeydown(event)">
-                                    <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none;">🔍</span>
-                                    <button type="button" 
-                                            id="smartLabelEditCatSearchClear" 
-                                            onclick="window.ConfigSmartLabels.clearEditCatSearch()" 
-                                            style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 0 4px;" 
-                                            title="Effacer">✕</button>
-                                </div>
-
-                                <!-- Sélecteur filtré avec scroll -->
-                                <select id="smartLabelEditCat" 
-                                        size="5" 
-                                        class="inline-input" 
-                                        style="width: 100%; font-size: 12px; padding: 4px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); height: 110px; overflow-y: auto;"
-                                        onchange="window.ConfigSmartLabels.onCatSelectChange(this.value)"
-                                        ondblclick="window.ConfigSmartLabels.saveEditModal()">
-                                </select>
-
-                                <!-- Indicateur de sélection actuelle & bouton de remise à zéro -->
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                                    <div id="smartLabelEditCatCurrent" style="font-size: 11px; font-weight: 600;"></div>
-                                    <button type="button" 
-                                            onclick="window.ConfigSmartLabels.selectNoCategory()" 
-                                            style="font-size: 10px; color: var(--text-muted); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0;">
-                                        ${window.i18n?.t('smart_label_edit_cat_clear_btn') || '-- Sans catégorie --'}
-                                    </button>
-                                </div>
+                            <div style="padding-top: 6px; border-top: 1px solid var(--border-color);">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main);">
+                                    <input type="checkbox" id="smartLabelEditIsManual" style="transform: scale(1.15); cursor: pointer;">
+                                    <span>${window.i18n?.t('smart_label_edit_manual') || '🛡️ Sanctuariser en règle manuelle (protégée contre l\'auto-apprentissage)'}</span>
+                                </label>
                             </div>
                         </div>
 
-                        <div style="margin-bottom: 18px; padding-top: 10px; border-top: 1px solid var(--border-color);">
-                            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-main);">
-                                <input type="checkbox" id="smartLabelEditIsManual" style="transform: scale(1.15); cursor: pointer;">
-                                <span>${window.i18n?.t('smart_label_edit_manual') || '🛡️ Sanctuariser en règle manuelle (protégée contre l\'auto-apprentissage)'}</span>
-                            </label>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                            <button type="button" class="btn btn-secondary" onclick="window.ConfigSmartLabels.closeEditModal()" style="padding: 6px 14px; font-size: 12px; border-radius: 6px;">Annuler</button>
-                            <button type="button" class="btn btn-primary" onclick="window.ConfigSmartLabels.saveEditModal()" style="padding: 6px 16px; font-size: 12px; border-radius: 6px; font-weight: 700;">Enregistrer</button>
+                        <div class="modal-footer-pinned">
+                            <button type="button" class="btn btn-secondary" onclick="window.ConfigSmartLabels.closeEditModal()">${window.i18n?.t('btn_cancel') || 'Annuler'}</button>
+                            <button type="button" class="btn btn-primary" onclick="window.ConfigSmartLabels.saveEditModal()">${window.i18n?.t('btn_save') || 'Enregistrer'}</button>
                         </div>
                     </div>
                 </div>
@@ -1091,12 +1097,20 @@ window.ConfigSmartLabels = {
             <div class="modal smart-labels-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
                 
                 <!-- Pinned Header -->
-                <div style="flex-shrink: 0; padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: var(--bg-surface);">
-                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                <div class="automations-modal-header">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge">
+                            ⚙️
+                        </div>
+                        <div class="modal-header-info">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 class="modal-header-title">${title}</h3>
+                                ${isAutopilotActive ? apBadgeHtml : ''}
+                            </div>
+                            <div class="modal-header-desc">${desc}</div>
+                        </div>
                     </div>
-                    <button type="button" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('smartLabelsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('smartLabelsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
 
                 <!-- Form wrapping scrollable body + pinned footer -->
@@ -1161,7 +1175,7 @@ window.ConfigSmartLabels = {
                     </div>
 
                     <!-- Pinned Footer -->
-                    <div style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px clamp(16px, 3.5vw, 24px); border-top: 1px solid var(--border-color); background: var(--bg-surface); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 2;">
+                    <div class="modal-footer-pinned">
                         <button type="button" class="btn btn-secondary" onclick="document.getElementById('smartLabelsAutomationsModal')?.remove()">
                             ${window.i18n?.t('btn_cancel') || 'Annuler'}
                         </button>

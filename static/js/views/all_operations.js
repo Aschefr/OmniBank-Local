@@ -15,27 +15,38 @@ window.AllOperationsView = {
         return `
             <style id="historyColsStyle"></style>
             <div id="historyColsModal" class="modal-overlay" style="display: none; z-index: 10000;" onclick="if(event.target===this) this.style.display='none'">
-                <div class="modal" style="max-width: 380px; min-width: auto; padding: 25px;">
-                    <h3 style="margin-top:0; margin-bottom: 20px; display:flex; align-items:center; gap:8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">${window.i18n.t('btn_columns')}</h3>
-                    <div class="op-form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_dateSaisie" onchange="window.AllOperationsView.toggleCol('dateSaisie')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_entry')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_date" onchange="window.AllOperationsView.toggleCol('date')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_op')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_desc" onchange="window.AllOperationsView.toggleCol('desc')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_description')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_type" onchange="window.AllOperationsView.toggleCol('type')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_type')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_cat" onchange="window.AllOperationsView.toggleCol('cat')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_category')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_amount" onchange="window.AllOperationsView.toggleCol('amount')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_amount')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recon" onchange="window.AllOperationsView.toggleCol('recon')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_reconciled')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_budget" onchange="window.AllOperationsView.toggleCol('budget')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_envelope')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_depuis" onchange="window.AllOperationsView.toggleCol('depuis')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_from')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_vers" onchange="window.AllOperationsView.toggleCol('vers')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_to')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recurrence" onchange="window.AllOperationsView.toggleCol('recurrence')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_recurrence')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${slipDisp}"><input type="checkbox" id="chk_history_col_slip" onchange="window.AllOperationsView.toggleCol('slip')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_slip')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${attachDisp}"><input type="checkbox" id="chk_history_col_attachments" onchange="window.AllOperationsView.toggleCol('attachments')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_attachments')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_createdBy" onchange="window.AllOperationsView.toggleCol('createdBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_created_by')}</label>
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_modifiedBy" onchange="window.AllOperationsView.toggleCol('modifiedBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_modified_by')}</label>
+                <div class="modal" style="width: min(440px, calc(100vw - 24px)); padding: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+                    <div class="modal-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge">📊</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</h3>
+                                <div class="modal-header-desc" data-i18n="cols_modal_desc">Affichage des colonnes du tableau</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="document.getElementById('historyColsModal').style.display='none'" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
-                    <div style="text-align: center;">
-                        <button class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 14px;" onclick="document.getElementById('historyColsModal').style.display='none'" data-i18n="btn_close">${window.i18n.t('btn_close')}</button>
+                    <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                        <div class="op-form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_dateSaisie" onchange="window.AllOperationsView.toggleCol('dateSaisie')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_entry')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_date" onchange="window.AllOperationsView.toggleCol('date')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_date_op')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_desc" onchange="window.AllOperationsView.toggleCol('desc')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_description')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_type" onchange="window.AllOperationsView.toggleCol('type')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_type')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_cat" onchange="window.AllOperationsView.toggleCol('cat')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_category')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_amount" onchange="window.AllOperationsView.toggleCol('amount')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_amount')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recon" onchange="window.AllOperationsView.toggleCol('recon')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_reconciled')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_budget" onchange="window.AllOperationsView.toggleCol('budget')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_envelope')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_depuis" onchange="window.AllOperationsView.toggleCol('depuis')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_from')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_vers" onchange="window.AllOperationsView.toggleCol('vers')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_to')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500;"><input type="checkbox" id="chk_history_col_recurrence" onchange="window.AllOperationsView.toggleCol('recurrence')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_recurrence')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${slipDisp}"><input type="checkbox" id="chk_history_col_slip" onchange="window.AllOperationsView.toggleCol('slip')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_slip')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${attachDisp}"><input type="checkbox" id="chk_history_col_attachments" onchange="window.AllOperationsView.toggleCol('attachments')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_attachments')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_createdBy" onchange="window.AllOperationsView.toggleCol('createdBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_created_by')}</label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:500; ${orgDisp}"><input type="checkbox" id="chk_history_col_modifiedBy" onchange="window.AllOperationsView.toggleCol('modifiedBy')" style="accent-color: var(--accent); width: 16px; height: 16px;"> ${window.i18n.t('col_modified_by')}</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('historyColsModal').style.display='none'" data-i18n="btn_close">${window.i18n.t('btn_close')}</button>
                     </div>
                 </div>
             </div>
@@ -1021,12 +1032,20 @@ window.AllOperationsView = {
             <div class="modal op-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
                 
                 <!-- Pinned Header -->
-                <div style="flex-shrink: 0; padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: var(--bg-surface);">
-                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+                <div class="automations-modal-header">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge">
+                            ⚙️
+                        </div>
+                        <div class="modal-header-info">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 class="modal-header-title">${title}</h3>
+                                ${isAutopilotActive ? apBadgeHtml : ''}
+                            </div>
+                            <div class="modal-header-desc">${desc}</div>
+                        </div>
                     </div>
-                    <button type="button" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('operationsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('operationsAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
 
                 <!-- Form wrapping scrollable body + pinned footer -->
@@ -1100,7 +1119,7 @@ window.AllOperationsView = {
                     </div>
 
                     <!-- Pinned Footer -->
-                    <div style="flex-shrink: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px clamp(16px, 3.5vw, 24px); border-top: 1px solid var(--border-color); background: var(--bg-surface); border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 2;">
+                    <div class="modal-footer-pinned">
                         <button type="button" class="btn btn-secondary" onclick="document.getElementById('operationsAutomationsModal')?.remove()">
                             ${window.i18n?.t('btn_cancel') || 'Annuler'}
                         </button>

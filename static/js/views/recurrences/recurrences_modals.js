@@ -17,7 +17,19 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const modal = document.createElement('div');
         modal.id = 'closeSubscriptionModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '1000';
+        modal.style.cssText = 'position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: clamp(12px, 3vh, 24px) clamp(8px, 2vw, 16px); box-sizing: border-box;';
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
 
         const title = window.i18n.t('rec_close_title') || "Clôturer l'abonnement";
         const explanation = window.i18n.t('rec_close_explanation') || "L'abonnement sera marqué comme clôturé et conservé dans vos archives. Les échéances futures non rapprochées strictement après la date choisie seront automatiquement supprimées.";
@@ -28,13 +40,18 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const confirmBtnText = window.i18n.t('rec_close_confirm_btn') || "Clôturer l'abonnement";
 
         modal.innerHTML = `
-            <div class="modal" style="width: 90%; max-width: 520px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: 25px; display: flex; flex-direction: column; gap: 20px; animation: modalFadeIn 0.3s ease;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
-                    <div>
-                        <h3 style="margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">🛑 ${title}</h3>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+            <div class="modal" style="width: 100%; max-width: 520px; min-width: 0; max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 18px; animation: modalFadeIn 0.3s ease;">
+                <div class="modal-header" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.02) 100%), var(--bg-surface);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge badge-danger">
+                            🛑
+                        </div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title">${title}</h3>
+                            <div class="modal-header-desc">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+                        </div>
                     </div>
-                    <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('closeSubscriptionModal').remove()">×</button>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('closeSubscriptionModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
                 
                 <div style="font-size: 13px; color: var(--text-main); line-height: 1.5; background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; padding: 12px; border-radius: 6px;">
@@ -65,9 +82,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         </div>
                     </div>
 
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('closeSubscriptionModal').remove()" style="padding: 8px 16px;">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
-                        <button type="submit" class="btn btn-danger" style="padding: 8px 16px; background: var(--danger, #ff5630); color: #ffffff;">${confirmBtnText}</button>
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('closeSubscriptionModal')?.remove()">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
+                        <button type="submit" class="btn btn-danger" style="background: var(--danger, #ff5630); color: #ffffff;">${confirmBtnText}</button>
                     </div>
                 </form>
             </div>
@@ -184,7 +201,19 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const modal = document.createElement('div');
         modal.id = 'editRecurrenceModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '1000';
+        modal.style.cssText = 'position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: clamp(12px, 3vh, 24px) clamp(8px, 2vw, 16px); box-sizing: border-box;';
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
 
         const categoryOptions = (this.categories || [])
             .filter(c => (!c.is_closed || c.name === tpl.category) && (!tpl.type || c.type === tpl.type))
@@ -209,10 +238,18 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             .join('');
 
         modal.innerHTML = `
-            <div class="modal" style="width: 90%; max-width: 650px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: 25px; display: flex; flex-direction: column; gap: 20px; animation: modalFadeIn 0.3s ease;">
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
-                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px;">✏️ ${window.i18n.t('edit_recurrence_title') || 'Modifier la récurrence'}</h3>
-                    <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('editRecurrenceModal').remove()">×</button>
+            <div class="modal" style="width: 100%; max-width: 650px; min-width: 0; max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 18px; animation: modalFadeIn 0.3s ease;">
+                <div class="modal-header" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0.02) 100%), var(--bg-surface);">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge badge-accent">
+                            ✏️
+                        </div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title">${window.i18n.t('edit_recurrence_title') || 'Modifier la récurrence'}</h3>
+                            <div class="modal-header-desc">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('editRecurrenceModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
                 
                 <form id="editRecurrenceForm" style="display: flex; flex-direction: column; gap: 15px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveEditModal(${tpl.id})">
@@ -297,24 +334,23 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     </div>
 
                     <!-- Line 6: Closed Switch -->
-                    <label style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px; cursor: pointer; user-select: none;">
-                        <div style="display: flex; flex-direction: column; gap: 3px; max-width: 80%;">
+                    <label style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px; cursor: pointer; user-select: none; gap: 12px;">
+                        <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;">
                             <span style="font-size: 14px; font-weight: 600; color: var(--text-main);">${window.i18n.t('edit_close_recurrence_label') || "Clôturer l'abonnement / récurrence"}</span>
                             <span style="font-size: 11px; color: var(--text-muted); line-height: 1.3;">${window.i18n.t('edit_close_recurrence_hint') || 'Activer cette option désactive définitivement la génération future de cette récurrence. Les transactions existantes seront conservées.'}</span>
                         </div>
-                        <input type="checkbox" id="edit_is_closed" ${initialIsClosed ? 'checked' : ''} style="width: 22px; height: 22px; cursor: pointer;">
+                        <input type="checkbox" id="edit_is_closed" ${initialIsClosed ? 'checked' : ''} style="width: 22px; height: 22px; flex-shrink: 0; cursor: pointer;">
                     </label>
 
                     <!-- Real-time Preview Container -->
                     <div id="edit_preview_dates_container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px; padding: 12px; background: rgba(99, 102, 241, 0.05); border-radius: 8px; border: 1px solid var(--border-color);">
                         <span id="edit_preview_dates_title" style="font-size: 13px; font-weight: 600; color: var(--text-muted);" data-i18n="recurrence_preview_dates_title">${window.i18n.t('recurrence_preview_dates_title') || 'Aperçu des 6 prochaines dates :'}</span>
-                        <div id="edit_preview_dates_list" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px; font-weight: 500; text-align: center;"></div>
+                        <div id="edit_preview_dates_list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 8px; font-size: 12.5px; font-weight: 500; text-align: center;"></div>
                     </div>
 
-                    <!-- Form Actions -->
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editRecurrenceModal').remove()" style="padding: 8px 16px;">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
-                        <button type="submit" class="btn btn-primary" style="padding: 8px 16px; background: var(--primary-color, #6366f1); color: #ffffff;">${window.i18n.t('btn_save') || 'Enregistrer'}</button>
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('editRecurrenceModal')?.remove()">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
+                        <button type="submit" class="btn btn-primary" style="background: var(--primary-color, #6366f1); color: #ffffff;">${window.i18n.t('btn_save') || 'Enregistrer'}</button>
                     </div>
                 </form>
             </div>
@@ -600,119 +636,149 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const modal = document.createElement('div');
         modal.id = 'recurrenceAutomationsModal';
         modal.className = 'modal-overlay';
-        modal.style.zIndex = '10000';
+        modal.style.cssText = 'position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: clamp(12px, 3vh, 24px) clamp(8px, 2vw, 16px); box-sizing: border-box;';
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
 
         const title = window.i18n.t('rec_automations_title', 'Automatismes du cycle de vie des récurrences');
         const desc = window.i18n.t('rec_automations_desc', 'Configurez les comportements autonomes de détection, ajustement et clôture des récurrences.');
 
         modal.innerHTML = `
-            <div class="modal" style="width: 94%; max-width: 620px; min-width: 0; max-height: 90vh; overflow-y: auto; box-sizing: border-box; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); padding: clamp(14px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 16px; animation: modalFadeIn 0.3s ease;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; gap: 10px;">
-                    <div>
-                        <h3 style="margin: 0; font-size: clamp(16px, 3vw, 18px); font-weight: 700; display: flex; align-items: center; gap: 8px;">⚙️ ${title}</h3>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${desc}</div>
+            <div class="modal rec-automations-modal" style="width: 96%; max-width: 640px; min-width: 0; max-height: min(90vh, 90dvh); display: flex; flex-direction: column; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: var(--shadow-md); padding: 0; overflow: hidden; animation: modalFadeIn 0.3s ease;">
+                
+                <!-- Pinned Header -->
+                <div class="automations-modal-header">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div class="modal-header-icon-badge">
+                            ⚙️
+                        </div>
+                        <div class="modal-header-info">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 class="modal-header-title">${title}</h3>
+                                ${isAutopilotActive ? apBadgeHtml : ''}
+                            </div>
+                            <div class="modal-header-desc">${desc}</div>
+                        </div>
                     </div>
-                    <button type="button" style="background: transparent; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 6px;" onclick="document.getElementById('recurrenceAutomationsModal').remove()">×</button>
+                    <button type="button" class="modal-close-btn" onclick="document.getElementById('recurrenceAutomationsModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
                 
-                <form id="recurrenceAutomationsForm" style="display: flex; flex-direction: column; gap: 14px;" onsubmit="event.preventDefault(); window.RecurrenceView.saveAutomationsConfig();">
-                    <!-- Option : Promotion automatique N>=3 avec date d'effet verrouillée -->
-                    <div style="padding: 12px; border-radius: 8px; border: ${isPromoteAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isPromoteAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isPromoteAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
-                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                            <input type="checkbox" id="cfg_auto_promote_recurrences" ${isPromote ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isPromoteAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n.t('rec_auto_promote_title', 'Promotion automatique des abonnements réguliers (N≥3)')}</span></span>
-                                    ${isPromoteAp ? apBadgeHtml : ''}
-                                </div>
-                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                    ${window.i18n.t('rec_auto_promote_desc', 'Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.')}
-                                </div>
-                                <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                    <label for="cfg_auto_promote_recurrences_since" style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin: 0;">
-                                        📅 ${window.i18n.t('rec_auto_promote_since_label', 'Analyser à partir du :')}
-                                    </label>
-                                    <input type="date" id="cfg_auto_promote_recurrences_since" value="${promoteSince}" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-main); transition: all 0.2s ease;">
-                                    <span id="cfg_auto_promote_since_hint" style="font-size: 11px; color: var(--text-muted); font-style: italic;"></span>
-                                </div>
-                            </div>
-                        </label>
-                    </div>
-
-                    <!-- Option Racine : Déviations & Hors-forfait -->
-                    <div style="padding: 12px; border-radius: 8px; border: ${isDeviantAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isDeviantAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isDeviantAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
-                        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                            <input type="checkbox" id="cfg_auto_link_deviant_recurrences" ${isDeviant ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n.t('rec_auto_link_deviant_title', 'Auto-liaison des déviations et hors-forfait')}</span></span>
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        ${isDeviantAp ? apBadgeHtml : ''}
-                                        <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
-                                    </div>
-                                </div>
-                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                    ${window.i18n.t('rec_auto_link_deviant_desc', 'Lie automatiquement l’opération du Sas à l’échéance prévue si le montant diffère dans une tolérance de ratio (1/3 à 3x), sans altérer le montant du modèle.')}
-                                </div>
-                            </div>
-                        </label>
-                    </div>
-
-                    <!-- Branche Hiérarchique Conditionnée par l'Auto-Liaison -->
-                    <div id="subAutomationsBranch" style="margin-left: clamp(10px, 2.5vw, 20px); border-left: 2px solid ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; padding-left: clamp(8px, 2vw, 14px); display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                <!-- Form wrapping scrollable body + pinned footer -->
+                <form id="recurrenceAutomationsForm" onsubmit="event.preventDefault(); window.RecurrenceView.saveAutomationsConfig();" style="display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; margin: 0;">
+                    
+                    <!-- Scrollable Body -->
+                    <div class="automations-body" style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: clamp(14px, 3vw, 20px) clamp(16px, 3.5vw, 24px); display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin;">
                         
-                        <!-- Sous-Option 1 : Hausse tarifaire pérenne N=3 -->
-                        <div id="box_auto_propagate_recurrence_hikes" style="padding: 11px 12px; border-radius: 8px; border: ${isHikeAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isHikeAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isHikeAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
+                        <!-- Option : Promotion automatique N>=3 avec date d'effet verrouillée -->
+                        <div style="padding: 12px; border-radius: 8px; border: ${isPromoteAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isPromoteAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isPromoteAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_propagate_recurrence_hikes" ${isHike ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isHikeAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_promote_recurrences" ${isPromote ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isPromoteAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📈</span> <span>${window.i18n.t('rec_auto_propagate_hikes_title', 'Actualisation auto sur hausse pérenne (N=3)')}</span></span>
-                                        ${isHikeAp ? apBadgeHtml : ''}
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>🔄</span> <span>${window.i18n.t('rec_auto_promote_title', 'Promotion automatique des abonnements réguliers (N≥3)')}</span></span>
+                                        ${isPromoteAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                        ${window.i18n.t('rec_auto_propagate_hikes_desc', 'Met à jour automatiquement le modèle de récurrence et les prévisions futures après 3 mois consécutifs au même nouveau montant.')}
+                                        ${window.i18n.t('rec_auto_promote_desc', 'Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.')}
+                                    </div>
+                                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                        <label for="cfg_auto_promote_recurrences_since" style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin: 0;">
+                                            📅 ${window.i18n.t('rec_auto_promote_since_label', 'Analyser à partir du :')}
+                                        </label>
+                                        <input type="date" id="cfg_auto_promote_recurrences_since" value="${promoteSince}" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-main); transition: all 0.2s ease;">
+                                        <span id="cfg_auto_promote_since_hint" style="font-size: 11px; color: var(--text-muted); font-style: italic;"></span>
                                     </div>
                                 </div>
                             </label>
                         </div>
 
-                        <!-- Sous-Option 2 : Auto-saut des échéances non prélevées -->
-                        <div id="box_auto_skip_unreconciled_recurrences" style="padding: 11px 12px; border-radius: 8px; border: ${isSkipAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isSkipAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isSkipAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
+                        <!-- Option Racine : Déviations & Hors-forfait -->
+                        <div style="padding: 12px; border-radius: 8px; border: ${isDeviantAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isDeviantAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isDeviantAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
                             <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
-                                <input type="checkbox" id="cfg_auto_skip_unreconciled_recurrences" ${isSkip ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isSkipAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
+                                <input type="checkbox" id="cfg_auto_link_deviant_recurrences" ${isDeviant ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                        <span style="display: flex; align-items: center; gap: 6px;"><span>⏭️</span> <span>${window.i18n.t('rec_auto_skip_title', 'Auto-saut des échéances non prélevées')}</span></span>
-                                        ${isSkipAp ? apBadgeHtml : ''}
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n.t('rec_auto_link_deviant_title', 'Auto-liaison des déviations et hors-forfait')}</span></span>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            ${isDeviantAp ? apBadgeHtml : ''}
+                                            <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
+                                        </div>
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                        ${window.i18n.t('rec_auto_skip_desc', 'Marque comme sautée une échéance dépassée (période + 3 jours) si le solde bancaire est strictement conforme au centime près et le Sas vide.')}
+                                        ${window.i18n.t('rec_auto_link_deviant_desc', 'Lie automatiquement l’opération du Sas à l’échéance prévue si le montant diffère dans une tolérance de ratio (1/3 à 3x), sans altérer le montant du modèle.')}
                                     </div>
                                 </div>
                             </label>
+                        </div>
 
-                            <!-- Sous-Sous-Option : Auto-clôture après 3 sauts consécutifs -->
-                            <div id="box_auto_close_unreconciled_recurrences" style="margin-top: 10px; margin-left: clamp(8px, 2vw, 16px); border-left: 2px dashed var(--border-color); padding-left: clamp(6px, 1.5vw, 12px); transition: opacity 0.2s ease;">
-                                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0;">
-                                    <input type="checkbox" id="cfg_auto_close_unreconciled_recurrences" ${isClose ? 'checked' : ''} style="margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: ${isCloseAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
+                        <!-- Branche Hiérarchique Conditionnée par l'Auto-Liaison -->
+                        <div id="subAutomationsBranch" style="margin-left: clamp(6px, 2vw, 16px); border-left: 2px solid ${isDeviantAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; padding-left: clamp(6px, 1.8vw, 12px); display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s ease, border-color 0.2s ease;">
+                            
+                            <!-- Sous-Option 1 : Hausse tarifaire pérenne N=3 -->
+                            <div id="box_auto_propagate_recurrence_hikes" style="padding: 11px 12px; border-radius: 8px; border: ${isHikeAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isHikeAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isHikeAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="cfg_auto_propagate_recurrence_hikes" ${isHike ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isHikeAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
                                     <div style="flex: 1; min-width: 0;">
-                                        <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                            <span style="display: flex; align-items: center; gap: 6px;"><span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span></span>
-                                            ${isCloseAp ? apBadgeHtml : ''}
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                            <span style="display: flex; align-items: center; gap: 6px;"><span>📈</span> <span>${window.i18n.t('rec_auto_propagate_hikes_title', 'Actualisation auto sur hausse pérenne (N=3)')}</span></span>
+                                            ${isHikeAp ? apBadgeHtml : ''}
                                         </div>
-                                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
-                                            ${window.i18n.t('rec_auto_close_desc', 'Clôture définitivement le modèle récurrent si 3 échéances successives n\'ont pas été prélevées (contrats résiliés ou abandonnés).')}
+                                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                            ${window.i18n.t('rec_auto_propagate_hikes_desc', 'Met à jour automatiquement le modèle de récurrence et les prévisions futures après 3 mois consécutifs au même nouveau montant.')}
                                         </div>
                                     </div>
                                 </label>
                             </div>
+
+                            <!-- Sous-Option 2 : Auto-saut des échéances non prélevées -->
+                            <div id="box_auto_skip_unreconciled_recurrences" style="padding: 11px 12px; border-radius: 8px; border: ${isSkipAp ? '1.5px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border-color)'}; background: ${isSkipAp ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-base)'}; box-shadow: ${isSkipAp ? '0 0 12px rgba(16, 185, 129, 0.08)' : 'none'}; transition: all 0.2s ease;">
+                                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="cfg_auto_skip_unreconciled_recurrences" ${isSkip ? 'checked' : ''} onchange="window.RecurrenceView.updateAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isSkipAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                            <span style="display: flex; align-items: center; gap: 6px;"><span>⏭️</span> <span>${window.i18n.t('rec_auto_skip_title', 'Auto-saut des échéances non prélevées')}</span></span>
+                                            ${isSkipAp ? apBadgeHtml : ''}
+                                        </div>
+                                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
+                                            ${window.i18n.t('rec_auto_skip_desc', 'Marque comme sautée une échéance dépassée (période + 3 jours) si le solde bancaire est strictement conforme au centime près et le Sas vide.')}
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <!-- Sous-Sous-Option : Auto-clôture après 3 sauts consécutifs -->
+                                <div id="box_auto_close_unreconciled_recurrences" style="margin-top: 10px; margin-left: clamp(6px, 1.8vw, 14px); border-left: 2px dashed var(--border-color); padding-left: clamp(6px, 1.5vw, 10px); transition: opacity 0.2s ease;">
+                                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" id="cfg_auto_close_unreconciled_recurrences" ${isClose ? 'checked' : ''} style="margin-top: 3px; width: 17px; height: 17px; flex-shrink: 0; accent-color: ${isCloseAp ? '#10b981' : 'var(--primary-color, #6366f1)'}; cursor: pointer;">
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                                <span style="display: flex; align-items: center; gap: 6px;"><span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span></span>
+                                                ${isCloseAp ? apBadgeHtml : ''}
+                                            </div>
+                                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
+                                                ${window.i18n.t('rec_auto_close_desc', 'Clôture définitivement le modèle récurrent si 3 échéances successives n\'ont pas été prélevées (contrats résiliés ou abandonnés).')}
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
                         </div>
 
                     </div>
 
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('recurrenceAutomationsModal').remove()">
+                    <!-- Pinned Footer -->
+                    <div class="modal-footer-pinned">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('recurrenceAutomationsModal')?.remove()">
                             ${window.i18n.t('btn_cancel', 'Annuler')}
                         </button>
                         <button type="submit" class="btn btn-primary" style="font-weight: 600;">

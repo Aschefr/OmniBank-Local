@@ -42,6 +42,111 @@
     margin-top: 32px;
 }
 
+/* ─── Standardized Modal Headers & Elements ─── */
+.modal-header,
+.automations-modal-header {
+    flex-shrink: 0;
+    padding: clamp(14px, 3vw, 18px) clamp(16px, 3.5vw, 24px);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.02) 100%), var(--bg-surface);
+}
+
+.modal-header-icon-badge {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.modal-header-icon-badge.badge-accent {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.modal-header-icon-badge.badge-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.modal-header-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.modal-header-title {
+    margin: 0;
+    font-size: clamp(15px, 2.8vw, 17px);
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    line-height: 1.25;
+}
+
+.modal-header-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.modal-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-main);
+}
+
+.modal-footer-pinned {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 12px clamp(16px, 3.5vw, 24px);
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    z-index: 2;
+}
+
+.modal-footer-pinned .btn {
+    min-width: fit-content;
+    white-space: nowrap;
+}
+
 
 /* ─── Section: Setup wizard modal (Phase 8) (Lines 2708-3997) ─── */
 /* ═══════════════════════════════════════════════════════

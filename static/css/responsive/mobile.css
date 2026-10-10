@@ -791,7 +791,8 @@
     #recurrenceAutomationsModal,
     #smartLabelsAutomationsModal,
     #budgetAutomationsModal,
-    #budgetSuggestionsReviewModal {
+    #budgetSuggestionsReviewModal,
+    #budgetDismissedSuggestionsModal {
         background: rgba(0, 0, 0, 0.72) !important;
         backdrop-filter: blur(6px) !important;
         -webkit-backdrop-filter: blur(6px) !important;
@@ -804,16 +805,21 @@
     .modal-overlay:not(#bankSyncReviewModal) .modal,
     .modal-overlay:not(#bankSyncReviewModal) .modal-content,
     .bv-modal-overlay .bv-modal,
+    .bv-modal-overlay .bv-modal-panel,
+    .bv-modal-panel,
     .op-automations-modal,
+    .rec-automations-modal,
     .smart-labels-automations-modal,
     .budget-automations-modal,
     .budget-review-modal,
     .budget-history-modal,
+    .ap-override-modal,
     #recurrenceAutomationsModal .modal,
     #operationsAutomationsModal .modal,
     #smartLabelsAutomationsModal .modal,
     #budgetAutomationsModal .modal,
-    #budgetSuggestionsReviewModal .modal {
+    #budgetSuggestionsReviewModal .modal,
+    #budgetDismissedSuggestionsModal .modal {
         min-width: 0 !important;
         width: calc(100vw - 24px) !important;
         max-width: calc(100vw - 24px) !important;
@@ -837,6 +843,7 @@
 
     /* Pinned header/body/footer modals preserve their zero padding and zero gap */
     .modal.op-automations-modal,
+    .modal.rec-automations-modal,
     .modal.smart-labels-automations-modal,
     .modal.budget-automations-modal,
     .modal.budget-review-modal,
@@ -845,6 +852,7 @@
     }
 
     .op-automations-modal > div,
+    .rec-automations-modal > div,
     .smart-labels-automations-modal > div,
     .budget-automations-modal > div,
     .budget-review-modal > div,
@@ -854,6 +862,7 @@
 
     /* Occupy full available viewport height on mobile */
     .op-automations-modal,
+    .rec-automations-modal,
     .smart-labels-automations-modal,
     .budget-automations-modal,
     .budget-review-modal,
@@ -864,6 +873,7 @@
     }
 
     .op-automations-modal form,
+    .rec-automations-modal form,
     .smart-labels-automations-modal form,
     .budget-automations-modal form,
     #recurrenceAutomationsModal form {
@@ -875,9 +885,11 @@
     }
 
     .op-automations-modal form > div:first-child,
+    .rec-automations-modal .automations-body,
+    .rec-automations-modal form > div:first-child,
     .smart-labels-automations-modal form > div:first-child,
     .budget-automations-body,
-    #recurrenceAutomationsModal form > div:first-child {
+    #recurrenceAutomationsModal .automations-body {
         flex: 1 1 auto !important;
         min-height: 0 !important;
         max-height: none !important;
@@ -887,6 +899,7 @@
 
     /* Dedicated Automations Modals emerald / intelligence styling */
     .op-automations-modal,
+    .rec-automations-modal,
     .smart-labels-automations-modal,
     .budget-automations-modal,
     #recurrenceAutomationsModal .modal {
@@ -896,35 +909,79 @@
 
     /* Modal header gradient for automations */
     .op-automations-modal > div:first-child,
+    .rec-automations-modal > div:first-child,
     .smart-labels-automations-modal > div:first-child,
     #recurrenceAutomationsModal .modal > div:first-child,
+    .automations-modal-header,
     .budget-automations-modal-header {
         background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.04) 100%) !important;
         border-bottom: 1px solid var(--border-color) !important;
     }
 
     /* Close buttons in modal headers */
-    .op-automations-modal button[aria-label="Fermer"],
-    .smart-labels-automations-modal button[aria-label="Fermer"],
-    #recurrenceAutomationsModal button[onclick*="remove"] {
+    .modal-close-btn,
+    .budget-review-close-btn,
+    .op-automations-modal .modal-close-btn,
+    .rec-automations-modal .modal-close-btn,
+    .smart-labels-automations-modal .modal-close-btn,
+    .budget-automations-modal .modal-close-btn,
+    .modal-header button[aria-label="Fermer"],
+    .automations-modal-header button[aria-label="Fermer"] {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
         width: 32px !important;
         height: 32px !important;
+        min-width: 32px !important;
         border-radius: 8px !important;
         background: rgba(255, 255, 255, 0.08) !important;
         color: var(--text-main) !important;
         border: 1px solid rgba(255, 255, 255, 0.12) !important;
         font-size: 16px !important;
         transition: all 0.2s ease !important;
+        flex-shrink: 0 !important;
+        cursor: pointer !important;
+        padding: 0 !important;
     }
 
+    /* Pinned Modal Footers on Mobile */
+    .modal-footer-pinned {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .modal-footer-pinned .btn {
+        width: auto !important;
+        flex: 0 0 auto !important;
+        min-width: fit-content !important;
+        white-space: nowrap !important;
+        padding: 8px 16px !important;
+        height: 36px !important;
+    }
+
+    /* Form grids inside modals */
     .op-modal-grid,
-    .modal:not(.op-automations-modal):not(.smart-labels-automations-modal):not(.budget-automations-modal):not(.budget-review-modal):not(.budget-history-modal)>div {
-        display: flex;
-        flex-direction: column;
-        gap: 15px !important;
+    .modal-form-grid,
+    .op-form-grid-2 {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Ensure modal headers stay aligned in row format */
+    .modal-header,
+    .bv-modal-header,
+    .review-modal-header,
+    .modal > div:first-child:has(button):not(.automations-body):not(form) {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: flex-start !important;
     }
 
     .modal-actions {

@@ -2569,12 +2569,15 @@ window.SimulatorView = {
         const modalHtml = `
             <div class="modal-overlay" id="simScenarioModal" style="display:flex;">
                 <div class="modal" style="width: min(500px, calc(100vw - 24px)); max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-surface);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display:flex; align-items:center; gap:8px;">
-                            <span>🔮</span>
-                            <span data-i18n="${titleKey}">${window.i18n.t(titleKey)}</span>
-                        </h3>
-                        <button type="button" class="btn btn-ghost btn-sm" onclick="window.SimulatorView.closeModal('simScenarioModal')" style="padding: 4px 8px; font-size: 16px; line-height: 1; border: none; background: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                    <div class="modal-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge">🔮</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" data-i18n="${titleKey}">${window.i18n.t(titleKey)}</h3>
+                                <div class="modal-header-desc" data-i18n="sim_modal_scenario_desc">Paramètres du scénario prévisionnel</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="window.SimulatorView.closeModal('simScenarioModal')" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
                     <form onsubmit="event.preventDefault(); window.SimulatorView.saveScenarioModal();" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin: 0;">
                         <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
@@ -2600,7 +2603,7 @@ window.SimulatorView = {
                                 </div>
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
+                        <div class="modal-footer-pinned">
                             <button type="button" class="btn btn-secondary" onclick="window.SimulatorView.closeModal('simScenarioModal')">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
                             <button type="submit" class="btn btn-primary">${window.i18n.t('btn_save') || 'Enregistrer'}</button>
                         </div>
@@ -2672,12 +2675,15 @@ window.SimulatorView = {
         const modalHtml = `
             <div class="modal-overlay" id="simPresetsModal" style="display:flex;">
                 <div class="modal" style="width: min(600px, calc(100vw - 24px)); max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-surface);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display:flex; align-items:center; gap:8px;">
-                            <span>✨</span>
-                            <span data-i18n="sim_modal_presets_title">${window.i18n.t('sim_modal_presets_title')}</span>
-                        </h3>
-                        <button type="button" class="btn btn-ghost btn-sm" onclick="window.SimulatorView.closeModal('simPresetsModal')" style="padding: 4px 8px; font-size: 16px; line-height: 1; border: none; background: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                    <div class="modal-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge">✨</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" data-i18n="sim_modal_presets_title">${window.i18n.t('sim_modal_presets_title')}</h3>
+                                <div class="modal-header-desc" data-i18n="sim_modal_presets_desc">Modèles de projets types préconfigurés</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="window.SimulatorView.closeModal('simPresetsModal')" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
                     <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
                         ${this.presets.map(p => {
@@ -2702,7 +2708,7 @@ window.SimulatorView = {
                             `;
                         }).join('')}
                     </div>
-                    <div style="display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
+                    <div class="modal-footer-pinned">
                         <button type="button" class="btn btn-secondary" onclick="window.SimulatorView.closeModal('simPresetsModal')">${window.i18n.t('btn_close') || 'Fermer'}</button>
                     </div>
                 </div>
@@ -2780,12 +2786,15 @@ window.SimulatorView = {
         const modalHtml = `
             <div class="modal-overlay" id="simEventModal" style="display:flex;">
                 <div class="modal" style="width: min(520px, calc(100vw - 24px)); max-width: 95vw; max-height: 90vh; border-radius: 14px; box-shadow: 0 25px 60px -12px rgba(0,0,0,0.6); padding: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg-surface);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display:flex; align-items:center; gap:8px;">
-                            <span>➕</span>
-                            <span data-i18n="${titleKey}">${window.i18n.t(titleKey)}</span>
-                        </h3>
-                        <button type="button" class="btn btn-ghost btn-sm" onclick="window.SimulatorView.closeModal('simEventModal')" style="padding: 4px 8px; font-size: 16px; line-height: 1; border: none; background: none; color: var(--text-muted); cursor: pointer;">✕</button>
+                    <div class="modal-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                            <div class="modal-header-icon-badge">➕</div>
+                            <div class="modal-header-info">
+                                <h3 class="modal-header-title" data-i18n="${titleKey}">${window.i18n.t(titleKey)}</h3>
+                                <div class="modal-header-desc" data-i18n="sim_modal_event_desc">Flux de trésorerie prévisionnel</div>
+                            </div>
+                        </div>
+                        <button type="button" class="modal-close-btn" onclick="window.SimulatorView.closeModal('simEventModal')" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
                     <form onsubmit="event.preventDefault(); window.SimulatorView.saveEventModal();" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin: 0;">
                         <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
@@ -2840,7 +2849,7 @@ window.SimulatorView = {
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-color); background: var(--bg-surface); flex-shrink: 0;">
+                        <div class="modal-footer-pinned">
                             <button type="button" class="btn btn-secondary" onclick="window.SimulatorView.closeModal('simEventModal')">${window.i18n.t('btn_cancel') || 'Annuler'}</button>
                             <button type="submit" class="btn btn-primary">${window.i18n.t('btn_save') || 'Enregistrer'}</button>
                         </div>

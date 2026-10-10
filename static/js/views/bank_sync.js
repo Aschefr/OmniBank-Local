@@ -394,11 +394,15 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="addBankModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 650px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.4); overflow: hidden;">
-                <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <span>🏦</span> <span id="addBankModalHeaderTitle" data-i18n="bank_link_modal_title">${window.i18n.t('bank_link_modal_title') || window.i18n.t('bank_sync_modal_title')}</span>
-                    </h3>
-                    <button onclick="window.BankSyncView.closeAddModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
+                <div class="modal-header">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                        <div class="modal-header-icon-badge">🏦</div>
+                        <div class="modal-header-info">
+                            <h3 id="addBankModalHeaderTitle" class="modal-header-title" data-i18n="bank_link_modal_title">${window.i18n.t('bank_link_modal_title') || window.i18n.t('bank_sync_modal_title')}</h3>
+                            <div class="modal-header-desc" data-i18n="bank_link_choose_method_desc">Ajouter un établissement ou relevé</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="window.BankSyncView.closeAddModal()" aria-label="Fermer" title="Fermer">✕</button>
                 </div>
 
                 <div id="addBankModalBody" style="padding: 24px; overflow-y: auto; flex: 1;">
@@ -502,11 +506,11 @@ window.BankSyncView = {
                     </div>
                 </div>
 
-                <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; background: var(--bg-card);">
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal()" data-i18n="bank_sync_cancel">
+                <div class="modal-footer-pinned">
+                    <button type="button" class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal()" data-i18n="bank_sync_cancel">
                         ${window.i18n.t('bank_sync_cancel')}
                     </button>
-                    <button id="btnSaveConnection" class="btn btn-primary" onclick="window.BankSyncView.saveConnection()" style="display: none;" data-i18n="bank_sync_save_btn">
+                    <button type="button" id="btnSaveConnection" class="btn btn-primary" onclick="window.BankSyncView.saveConnection()" style="display: none;" data-i18n="bank_sync_save_btn">
                         ${window.i18n.t('bank_sync_save_btn')}
                     </button>
                 </div>
@@ -518,16 +522,20 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="mappingModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.4); overflow: hidden;">
-                <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main);" data-i18n="bank_sync_mapping_title">
-                            🔗 ${window.i18n.t('bank_sync_mapping_title')}
-                        </h3>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.openMappingModal(window.BankSyncView.activeConnId, true)" style="font-size: 12px; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_refresh_mapping_tooltip') : 'Actualiser la liste depuis votre banque'}">
+                <div class="modal-header">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                        <div class="modal-header-icon-badge">🔗</div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title" data-i18n="bank_sync_mapping_title">${window.i18n.t('bank_sync_mapping_title')}</h3>
+                            <div class="modal-header-desc" data-i18n="bank_sync_mapping_subtitle">Associer les comptes distants à vos comptes OmniBank</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="window.BankSyncView.openMappingModal(window.BankSyncView.activeConnId, true)" style="font-size: 12px; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_refresh_mapping_tooltip') : 'Actualiser la liste depuis votre banque'}">
                             <span>🔄</span> <span data-i18n="bank_sync_refresh_btn">${window.i18n ? window.i18n.t('bank_sync_refresh_btn') : 'Actualiser'}</span>
                         </button>
+                        <button type="button" class="modal-close-btn" onclick="window.BankSyncView.closeMappingModal()" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
-                    <button onclick="window.BankSyncView.closeMappingModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
                 </div>
                 <div style="padding: 20px 24px; overflow-y: auto; flex: 1;">
                     <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0;" data-i18n="bank_sync_mapping_desc">
@@ -535,11 +543,11 @@ window.BankSyncView = {
                     </p>
                     <div id="mappingRowsContainer" style="display: flex; flex-direction: column; gap: 12px;"></div>
                 </div>
-                <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal()" data-i18n="bank_sync_cancel">
+                <div class="modal-footer-pinned">
+                    <button type="button" class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal()" data-i18n="bank_sync_cancel">
                         ${window.i18n.t('bank_sync_cancel')}
                     </button>
-                    <button class="btn btn-primary" onclick="window.BankSyncView.saveMapping()" data-i18n="bank_sync_save_mapping_btn">
+                    <button type="button" class="btn btn-primary" onclick="window.BankSyncView.saveMapping()" data-i18n="bank_sync_save_mapping_btn">
                         ${window.i18n.t('bank_sync_save_mapping_btn')}
                     </button>
                 </div>
@@ -854,11 +862,15 @@ window.BankSyncView = {
         <!-- ════════════════════════════════════════════════════════════════════════════ -->
         <div id="balanceAdjustModal" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10200; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 580px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
-                <div style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <span>⚖️</span> <span id="balanceAdjustModalTitle" data-i18n="modal_adjust_balance_title">${window.i18n ? window.i18n.t('modal_adjust_balance_title', 'Ajustement du solde du compte') : 'Ajustement du solde du compte'}</span>
-                    </h3>
-                    <button onclick="window.BankSyncView.closeBalanceAdjustModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted);">&times;</button>
+                <div class="modal-header">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                        <div class="modal-header-icon-badge">⚖️</div>
+                        <div class="modal-header-info">
+                            <h3 id="balanceAdjustModalTitle" class="modal-header-title" data-i18n="modal_adjust_balance_title">${window.i18n ? window.i18n.t('modal_adjust_balance_title', 'Ajustement du solde du compte') : 'Ajustement du solde du compte'}</h3>
+                            <div class="modal-header-desc">Régularisation ou modification du solde initial</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="window.BankSyncView.closeBalanceAdjustModal()" aria-label="Fermer" title="Fermer">✕</button>
                 </div>
 
                 <div style="padding: 20px 22px; display: flex; flex-direction: column; gap: 16px;">
@@ -926,11 +938,15 @@ window.BankSyncView = {
             <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; width: 95%; max-width: 680px; max-height: 90vh; box-shadow: 0 25px 50px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;">
                 
                 <!-- En-tête -->
-                <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-                        <span>🔗</span> <span data-i18n="ghost_link_modal_title">${window.i18n ? window.i18n.t('ghost_link_modal_title', 'Lier l\'opération en ligne à la base de données') : 'Lier l\'opération en ligne à la base de données'}</span>
-                    </h3>
-                    <button onclick="window.BankSyncView.closeLinkGhostModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+                <div class="modal-header">
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                        <div class="modal-header-icon-badge">🔗</div>
+                        <div class="modal-header-info">
+                            <h3 class="modal-header-title" data-i18n="ghost_link_modal_title">${window.i18n ? window.i18n.t('ghost_link_modal_title', 'Lier l\'opération en ligne à la base de données') : 'Lier l\'opération en ligne à la base de données'}</h3>
+                            <div class="modal-header-desc">Rapprochement manuel avec une opération existante</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close-btn" onclick="window.BankSyncView.closeLinkGhostModal()" aria-label="Fermer" title="Fermer">✕</button>
                 </div>
 
                 <!-- Corps scrollable -->
@@ -1027,11 +1043,11 @@ window.BankSyncView = {
                 </div>
 
                 <!-- Pied de modale avec boutons d'actions -->
-                <div style="padding: 12px 20px; border-top: 1px solid var(--border-color); background: var(--bg-card); display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeLinkGhostModal()" data-i18n="bank_sync_btn_cancel">
+                <div class="modal-footer-pinned">
+                    <button type="button" class="btn btn-secondary" onclick="window.BankSyncView.closeLinkGhostModal()" data-i18n="bank_sync_btn_cancel">
                         ${window.i18n ? window.i18n.t('bank_sync_btn_cancel', 'Annuler') : 'Annuler'}
                     </button>
-                    <button id="btnSubmitLinkGhost" class="btn btn-primary" onclick="window.BankSyncView.submitGhostLink()" style="font-weight: 700; padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;" disabled>
+                    <button type="button" id="btnSubmitLinkGhost" class="btn btn-primary" onclick="window.BankSyncView.submitGhostLink()" disabled>
                         <span data-i18n="ghost_link_submit_btn">${window.i18n ? window.i18n.t('ghost_link_submit_btn', '🔗 Lier et pointer l\'opération') : '🔗 Lier et pointer l\'opération'}</span>
                     </button>
                 </div>
