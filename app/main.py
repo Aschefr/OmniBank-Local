@@ -252,13 +252,114 @@ API REST locale pour **OmniBank Local**, application financière personnelle et 
 app = FastAPI(
     title="OmniBank Local - REST API",
     description=APP_DESCRIPTION,
-    version="1.1.6",
+    version="1.2.0",
     openapi_tags=OPENAPI_TAGS,
     docs_url=None,
     redoc_url=None,
     lifespan=lifespan,
 )
-# Restrict CORS to known origins (SEC-05)
+# DNS Rebinding Protection (SEC-07)
+# Protège l'instance locale contre les attaques par rebinding DNS (domaines externes tiers)
+# tout en autorisant :
+# - La boucle locale (localhost, 127.0.0.1, ::1, testserver, tauri.localhost)
+# - Les réseaux locaux privés (192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, .local, .lan, hostname)
+# - Tailscale (plage CGNAT 100.64.0.0/10, ULA IPv6, domaines MagicDNS *.ts.net, *.tailscale.net)
+# - Tout hôte supplémentaire configuré via OMNIBANK_ALLOWED_HOSTS
+import ipaddress
+import socket
+from starlette.datastructures import Headers
+from starlette.responses import PlainTextResponse
+
+_TAILSCALE_V4_NET = ipaddress.ip_network("100.64.0.0/10")
+_STATIC_ALLOWED_HOSTS = {
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "testserver",
+    "tauri.localhost",
+}
+_ALLOWED_HOST_SUFFIXES = (
+    ".localhost",
+    ".ts.net",
+    ".tailscale.net",
+    ".local",
+    ".lan",
+    ".home",
+    ".home.arpa",
+)
+
+def _get_local_hostname():
+    try:
+        return socket.gethostname().lower()
+    except Exception:
+        return ""
+
+def _is_allowed_host(host_header: str) -> bool:
+    if not host_header:
+        return False
+    if host_header.startswith("[") and "]" in host_header:
+        host = host_header[1:host_header.index("]")].strip().lower()
+    else:
+        host = host_header.split(":")[0].strip().lower()
+
+    if not host:
+        return False
+
+    # 1. Hôtes statiques autorisés
+    if host in _STATIC_ALLOWED_HOSTS:
+        return True
+
+    # 2. Nom de machine local
+    local_hn = _get_local_hostname()
+    if local_hn and host == local_hn:
+        return True
+
+    # 3. Suffixes reconnus (Tailscale MagicDNS, LAN mDNS)
+    if any(host.endswith(sfx) for sfx in _ALLOWED_HOST_SUFFIXES):
+        return True
+
+    # 4. Adresses IP privées, loopback, link-local et Tailscale (IPv4/IPv6)
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_loopback or ip.is_private or ip.is_link_local:
+            return True
+        if ip.version == 4 and ip in _TAILSCALE_V4_NET:
+            return True
+    except ValueError:
+        pass
+
+    # 5. Hôtes personnalisés déclarés via variable d'environnement
+    extra_hosts = os.environ.get("OMNIBANK_ALLOWED_HOSTS", "")
+    if extra_hosts:
+        allowed_extras = {h.strip().lower() for h in extra_hosts.split(",") if h.strip()}
+        if host in allowed_extras:
+            return True
+
+    return False
+
+
+class DNSRebindingMiddleware:
+    """Rejette immédiatement les requêtes contenant un en-tête Host externe suspect."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        host_header = headers.get("host", "").strip()
+
+        if not _is_allowed_host(host_header):
+            logger.warning(f"[Security] Requête bloquée par protection DNS rebinding (Host rejeté: '{host_header}')")
+            response = PlainTextResponse("Invalid Host header (DNS Rebinding Protection)", status_code=400)
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+# Restrict CORS to known origins and local/Tailscale networks (SEC-05)
 _CORS_ORIGINS = [
     "http://127.0.0.1:8434",
     "http://localhost:8434",
@@ -267,14 +368,18 @@ _CORS_ORIGINS = [
     "tauri://localhost",
     "https://tauri.localhost",
 ]
+_CORS_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3}|.*\.ts\.net|.*\.local)(:\d+)?$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=500)
+app.add_middleware(DNSRebindingMiddleware)
 
 @app.middleware("http")
 async def no_cache_api_responses(request, call_next):
@@ -306,13 +411,17 @@ async def serve_upload(file_path: str):
     uploads_dir = get_current_uploads_dir()
     full_path = os.path.join(uploads_dir, file_path)
     # Protection path traversal (SEC-02)
-    if not os.path.realpath(full_path).startswith(os.path.realpath(uploads_dir)):
+    resolved_uploads = os.path.realpath(uploads_dir)
+    resolved_full = os.path.realpath(full_path)
+    if not (resolved_full == resolved_uploads or resolved_full.startswith(resolved_uploads + os.sep)):
         raise HTTPException(status_code=400, detail="Chemin d'accès invalide.")
     if not os.path.isfile(full_path):
         # Fallback pour rétrocompatibilité : dossier global uploads/
         fallback_dir = os.path.join(DATA_DIR, "uploads")
         fallback_path = os.path.join(fallback_dir, file_path)
-        if not os.path.realpath(fallback_path).startswith(os.path.realpath(fallback_dir)):
+        resolved_fallback = os.path.realpath(fallback_dir)
+        resolved_fallback_path = os.path.realpath(fallback_path)
+        if not (resolved_fallback_path == resolved_fallback or resolved_fallback_path.startswith(resolved_fallback + os.sep)):
             raise HTTPException(status_code=400, detail="Chemin d'accès invalide.")
         if os.path.isfile(fallback_path):
             return FileResponse(fallback_path)
@@ -653,7 +762,9 @@ async def upload_file(file: UploadFile = File(...)):
     safe_name = _safe_filename(file.filename)
     file_location = os.path.join(target_dir, safe_name)
     # Double vérification : le chemin résolu doit rester dans target_dir (SEC-02)
-    if not os.path.realpath(file_location).startswith(os.path.realpath(target_dir)):
+    resolved_target = os.path.realpath(target_dir)
+    resolved_file = os.path.realpath(file_location)
+    if not (resolved_file == resolved_target or resolved_file.startswith(resolved_target + os.sep)):
         raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
     
     total_size = 0
