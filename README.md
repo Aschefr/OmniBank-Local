@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.1.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,21 +110,18 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.1.8)
+## 🆕 Nouveautés (v1.2.0)
+
+* **🤖 Auto-Pilote Bancaire & Centre de Contrôle Autonome** : Automatisation complète des opérations bancaires — pointage haute confiance, détection des débits annoncés, rattachement aux échéances prévisionnelles, découverte et recalibrage dynamique des enveloppes budgétaires, gestion de l'incertitude avec validation 1-clic `[✓ C'est OK]` et annulation instantanée unitaire ou par lot.
+* **🎛️ Mode Cockpit & Jauge Analogique de Cadence (€/jour)** : Sélecteur de vue instantané (« Cockpit » vs « Complet »), jauge analogique à aiguille avec gradient chromatique, synthèse prévisionnelle « Cap sur le mois prochain » et visualisations enrichies des débits à venir.
+* **🔮 Simulateur Prévisionnel What-If & Saisonnalité** : Projection multi-mois avec cônes de confiance browniens ($\sigma \sqrt{t}$), personnalisation de la saisonnalité des dépenses, neutralisation des virements internes et persistance multi-appareils.
+* **🏛️ Mode Organisation & Rapports Financiers A4 Live Preview** : Prévisualisation en feuilles physiques A4 avec rubans de césure, insertion de sauts de page interactifs, et modèles dédiés aux associations (Loi 1901) et CSE (bilan d'exploitation, piste d'audit, trésorerie et blocs d'approbation AG).
+* **🔄 Réactivité UI Zero-F5 & Garde-fous Bancaires** : Synchronisation en arrière-plan et actualisation en direct de l'ensemble des vues sans rechargement de page (F5), protégée par une analyse d'empreinte historique anti-inversion de relevés.
+
+## 📦 Historique Récent (v1.1.8)
 
 * **⚡ Relevé Bancaire 2× Plus Rapide (Crédit Agricole)** : La récupération des opérations en ligne est désormais jusqu'à deux fois plus rapide grâce à la réutilisation des sessions authentifiées et l'arrêt intelligent de la pagination.
 * **🔐 Fiabilité du Flux Coffre & Synchronisation** : Le clic sur « Relevé en ligne » fonctionne désormais correctement dans tous les cas — déverrouillage du coffre, ré-autorisation inter-navigateur et forçage de synchronisation.
-
-## 📦 Historique Récent (v1.1.7)
-
-* **📱 Forçage Manuel & Modale 2FA Directe** : Synchronisation forcée instantanée, modale 2FA interactive automatique et persistance des sessions SCA 90 jours.
-* **🛡️ Résilience Desktop & Double Smoke Test** : Tests de fumée automatisés du sidecar et du MSI avant publication, écran de repli en cas d'anomalie.
-
-## 📦 Historique Récent (v1.1.6)
-
-* **🏛️ Migrations SQLite Modulaires** : 24 modules versionnés sous `app/migrations/` avec runner atomique et fast-path (<1ms).
-* **🎨 Architecture CSS Modulaire** : 21 feuilles de style dans 5 répertoires sémantiques.
-* **📦 Souveraineté 100% Zero-Cloud** : Toutes les dépendances CDN intégrées localement.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -132,7 +129,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.1.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -232,21 +229,18 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.1.8)
+## 🆕 What's New (v1.2.0)
+
+* **🤖 Auto-Pilot Control Center & Autonomous Banking Operations**: Full hands-free financial automation — high-certainty auto-reconciliation, announced upcoming debit linking, dynamic budget envelope discovery/recalibration, in-situ review queue with 1-click validation (`[✓ C'est OK]`), and instant 1-click decision or cycle batch rollback.
+* **🎛️ Overview Cockpit Mode & Analog Spending Pace Gauge (€/day)**: Dual display toggle ("Cockpit" vs "Full"), analog needle meter with chromatic arc, compact "Next Month Outlook" forecast banner, and enriched upcoming debit progression arcs.
+* **🔮 What-If Financial Projection Simulator & Seasonality**: Multi-month cash flow forecasting with Brownian confidence cones ($\sigma \sqrt{t}$), customizable expense seasonality, neutral internal transfers, and persistent preferences.
+* **🏛️ Organisation Mode & Live A4 Multi-Page PDF Reports**: Real-time split-view live preview rendered as discrete A4 sheets with page markers, drag-and-drop page break insertion, and dedicated non-profit (Loi 1901 / CSE) accounting presets (Operating Statement, Cash Runway, dual Treasurer/President approval blocks).
+* **🔄 Zero-F5 Real-Time UI Reactivity & Banking Guardrails**: Instant background sync and cross-view DOM updates without manual browser refreshes, safeguarded by historical fingerprint overlap analysis preventing statement inversions.
+
+## 📦 Recent History (v1.1.8)
 
 * **⚡ 2× Faster Bank Synchronization (Crédit Agricole)**: Online statement retrieval is now up to twice as fast by reusing authenticated sessions and intelligently stopping pagination once all relevant transactions have been collected.
 * **🔐 Vault Unlock & Sync Flow Consistency**: Clicking "Relevé en ligne" now works reliably in all scenarios — vault unlock prompt, cross-browser session re-authorization, and force-sync regardless of anti-spam cooldown state.
-
-## 📦 Recent History (v1.1.7)
-
-* **📱 Forced Manual Bank Sync & Direct 2FA Auto-Prompt**: Instant forced synchronization, automatic interactive 2FA modal, and persistent 90-day SCA session tokens.
-* **🛡️ Desktop Startup Resilience & Dual Smoke Tests**: Automated sidecar and MSI smoke tests before publication, startup failure fallback screen.
-
-## 📦 Recent History (v1.1.6)
-
-* **🏛️ Modular SQLite Migrations**: 24 sequential version modules under `app/migrations/` with atomic runner and fast-path (<1ms).
-* **🎨 Modular CSS Architecture**: 21 domain stylesheets across 5 semantic directories.
-* **📦 100% Zero-Cloud Offline Sovereignty**: All CDN dependencies bundled locally.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

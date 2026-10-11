@@ -244,3 +244,55 @@ class TestCORSAllowedMethods:
         assert "GET" in allowed
         assert "POST" in allowed
 
+
+# ── SEC-07 & SEC-08 : DNS Rebinding & Tailscale / LAN Network Access ──
+class TestDNSRebindingAndNetworkAccess:
+    """Vérifie la protection DNS Rebinding tout en préservant l'accès Tailscale et réseau local."""
+
+    def test_dns_rebinding_blocks_external_attacker_domains(self):
+        res = client.get("/api/health", headers={"host": "evil-attacker.com:8434"})
+        assert res.status_code == 400
+        assert "DNS Rebinding" in res.text
+
+        res2 = client.get("/api/health", headers={"host": "malicious-bank.xyz"})
+        assert res2.status_code == 400
+        assert "DNS Rebinding" in res2.text
+
+    def test_allows_localhost_and_loopback(self):
+        res = client.get("/api/health", headers={"host": "localhost:8434"})
+        assert res.status_code == 200
+
+        res2 = client.get("/api/health", headers={"host": "127.0.0.1:8434"})
+        assert res2.status_code == 200
+
+    def test_allows_lan_private_ips(self):
+        res = client.get("/api/health", headers={"host": "192.168.1.55:8434"})
+        assert res.status_code == 200
+
+        res2 = client.get("/api/health", headers={"host": "10.0.0.15:8434"})
+        assert res2.status_code == 200
+
+    def test_allows_tailscale_cgnat_and_magicdns(self):
+        # Tailscale CGNAT range: 100.64.0.0/10
+        res = client.get("/api/health", headers={"host": "100.85.12.34:8434"})
+        assert res.status_code == 200
+
+        # Tailscale MagicDNS (*.ts.net)
+        res2 = client.get("/api/health", headers={"host": "mon-pc.tailnet-xyz.ts.net:8434"})
+        assert res2.status_code == 200
+
+
+# ── SEC-09 : Restriction de modification de clé de licence via config API ──
+class TestConfigLicenseKeyRestriction:
+    """Vérifie que POST /api/config/ refuse d'écrire license_key ou license_email (HTTP 403)."""
+
+    def test_set_config_rejects_license_key(self):
+        res = client.post("/api/config/", json={"license_key": "OMNI-fake-bypass"})
+        assert res.status_code == 403
+        assert "licence" in res.json().get("detail", "").lower()
+
+    def test_set_config_rejects_license_email(self):
+        res = client.post("/api/config/", json={"license_email": "attacker@fake.com"})
+        assert res.status_code == 403
+
+

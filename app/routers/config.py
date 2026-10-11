@@ -57,8 +57,15 @@ def get_all_config(db: Session = Depends(get_db)):
             res[k] = v
     return res
 
+RESTRICTED_CONFIG_KEYS = {"license_key", "license_email"}
+
 @router.post("/")
 def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
+    if any(k in data for k in RESTRICTED_CONFIG_KEYS):
+        raise HTTPException(
+            status_code=403,
+            detail="La gestion de la licence s'effectue exclusivement via /api/license/activate."
+        )
     for key, value in data.items():
         conf = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
         if conf:

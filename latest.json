@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9mT1o2VmE4SGRhZUR4enhKSlNmclNWQTZROUtPTi94NFBhTi9Palp5S2l1ekh5SUd6blBnakgvMmtFRG9HaTdicXI2a2JSRWZHSFVUOUs3d090MFFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTAyMTI0CWZpbGU6T21uaUJhbmtfMS4xLjhfeDY0X2ZyLUZSLm1zaQp6Y3dmSXI0ZTlkTXVqMHJ6RlRMYUNDN0tBVk1IYUhtQ1Z0amRYR3RJZnF3OEdOS0lXT3UwTzJLZ2RZT05NV3dpN3g3VFFEQTdhMkhDSExOQnhqbExCUT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.1.8/OmniBank_1.1.8_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhaeEQzWmN3RkRFNzB6SW84bThYTzV1cXRPMnYzb2NUSlpOMTA0cUc5MEx4bThJUlFpNXJHdXF1N3VIb1cwL3krSzEzS3NMWnhER1Bhcks0ZnFHZWd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzQ4MjE5CWZpbGU6T21uaUJhbmtfMS4yLjBfeDY0X2ZyLUZSLm1zaQo2clIzcU9vM1FjMnlEOTQyTldOMmx1MHZTczFBZzl5RWEreEhtZmxvcFZQek9ITGxPWVEyWVhYY2pnbXZHZHZMVnVGa3FMUjBQYlZXR1FVQytpeXFCQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.0/OmniBank_1.2.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-09-11T04:48:44Z",
-    "version":  "1.1.8",
-    "notes":  "Faster bank sync (2× Crédit Agricole) \u0026 vault unlock flow fix"
+    "pub_date":  "2026-10-11T19:50:20Z",
+    "version":  "1.2.0",
+    "notes":  "Mise a jour v1.2.0"
 }
