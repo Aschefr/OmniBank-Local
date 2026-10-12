@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRYRE1BL1Y0RGs3Yml3OGp1c05TUnJiRUl1MzRCMXR1cHFQK3lhU1JCY0FDQzQ1SEtHd0VXR2hzaTkwamNnd0t6alJJbVJ0dTg5NWZCcU9aK1VFWEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODE2OTc0CWZpbGU6T21uaUJhbmtfMS4yLjFfeDY0X2ZyLUZSLm1zaQo0R0VaYnA4dDZhekw2K3FHclljZ2RuS1VQMVFpVVFHOFROczdYV1YzR0RjYWtnYTdWZ2g3L3N2dUpVNk02RjJNUWNqQ01CbWtQYTcwV3R4OTJEVTBCdz09Cg==",
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHl1TWlPejFRRGxhZU4yL3B0QUY2K3JPdUU1eHVFUlc2VUd0YW9TRkgrekk4NUgzbXZ2V09tZW9YZXRQSzZWamdhcjR5MTNlY3YyS01UVnV6V3RKQ1FNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODE4MTE2CWZpbGU6T21uaUJhbmtfMS4yLjFfeDY0X2ZyLUZSLm1zaQpnbnExWWNRVVpveDFGdTNzTk53ZzVOQWRDY0ZZanJzMlU5WW03bUV2Ly81S2dMNGNKMnhDRW5KZzBQc1pIeGpIMXB3a0JqWE9PSk9Hc3k5UUdzc3hBUT09Cg==",
                                              "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.1/OmniBank_1.2.1_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-12T14:56:14Z",
+    "pub_date":  "2026-10-12T15:15:16Z",
     "version":  "1.2.1",
-    "notes":  "Mise a jour v1.2.1"
+    "notes":  "OmniBank v1.2.1 - Auto-Pilot Review Safety, Recurrence Preservation \u0026 Mobile Polish"
 }
