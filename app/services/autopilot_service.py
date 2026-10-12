@@ -7,6 +7,7 @@ et maintient la cohérence Undo/Redo via history_service.
 """
 import json
 import logging
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -1404,8 +1405,8 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
             tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
             if tx:
                 before_s = snapshot_entity(tx)
-                tx.reconciliation_date = None
                 orig_snap = snap.get("before") or {}
+                tx.reconciliation_date = orig_snap.get("reconciliation_date")
                 if "amount" in orig_snap:
                     tx.amount = orig_snap["amount"]
                 if "category" in orig_snap:
@@ -1414,6 +1415,10 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
                     tx.description = orig_snap["description"]
                 if "comment" in orig_snap:
                     tx.comment = orig_snap["comment"]
+                tx.raw_description = orig_snap.get("raw_description")
+                tx.csv_id = orig_snap.get("csv_id")
+                tx.needs_review = bool(orig_snap.get("needs_review", False))
+                tx.confidence_score = orig_snap.get("confidence_score")
                 record_action(
                     db,
                     "transaction",
@@ -1761,28 +1766,47 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
         date_diff = abs((c.date_operation - tx.date_operation).days)
         c_desc = (c.description or "").lower().strip()
 
-        # Critères de pertinence stricte pour éviter les faux positifs (ex: Thai 17€ vs Carrefour 34€) :
-        # 1. Écart de montant faible (<= 20% ou <= 2.00 €)
-        # 2. OU similarité textuelle évidente entre libellés
-        # 3. OU prévision récurrente sur montant proche (<= 25%)
+        # Critères de pertinence stricte pour éliminer les faux positifs (ex: Péage 38.90€ vs Assurance 47.94€) :
+        # 1. Écart de montant quasi-nul au centime près (ex: opaque PayPal 0.99€ vs iCloud 0.99€, ou 2.73€ vs 2.74€)
+        # 2. OU affinité textuelle avérée (sous-chaîne, tokens marchands distinctifs, alias) avec tolérance de montant
         max_amt = max(amt, c_amt)
         rel_diff = (amt_diff / max_amt) if max_amt > 0 else 0.0
-        has_close_amount = (rel_diff <= 0.20 or amt_diff <= 2.00)
 
-        # Similarité textuelle basique
-        has_text_match = bool(
+        # Montant au centime près (autorise les libellés bancaires opaques comme passerelles PayPal/Stripe)
+        has_exact_amount = (amt_diff <= 0.05) or (c.recurrence_id is not None and amt_diff <= 0.20)
+
+        # Affinité textuelle (sous-chaîne significative, tokens partagés hors passerelles, ou score sémantique)
+        _gateway_noise = {
+            'paypal', 'stripe', 'sumup', 'lydia', 'klarna', 'carte', 'cb', 'prlv',
+            'prelevement', 'virement', 'vir', 'facture', 'paiement', 'achat', 'retrait'
+        }
+        cand_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', c_desc) if tok not in _gateway_noise}
+        tx_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', f"{raw_desc} {clean_desc}") if tok not in _gateway_noise}
+        has_token_overlap = bool(cand_tokens and tx_tokens and (cand_tokens & tx_tokens))
+
+        has_substr_match = bool(
             c_desc and len(c_desc) >= 3 and (
                 c_desc in raw_desc or c_desc in clean_desc or
                 raw_desc in c_desc or clean_desc in c_desc
             )
         )
 
+        has_semantic_match = False
+        try:
+            from app.services.reconciliation_engine import compute_text_score
+            text_sc = compute_text_score(c.description, tx.raw_description or tx.description, candidate_cat=c.category, db=db)
+            has_semantic_match = (text_sc >= 8)
+        except Exception:
+            pass
+
+        has_text_affinity = has_substr_match or has_token_overlap or has_semantic_match
+
         is_valid_candidate = False
-        if has_close_amount:
+        if has_exact_amount:
+            # Même montant à quelques centimes près sur le même compte dans la fenêtre temporelle
             is_valid_candidate = True
-        elif has_text_match and rel_diff <= 0.50:
-            is_valid_candidate = True
-        elif c.recurrence_id is not None and rel_diff <= 0.25:
+        elif has_text_affinity and (rel_diff <= 0.35 or amt_diff <= 15.00):
+            # Même marchand/motif identifié avec montant variable ou ajusté
             is_valid_candidate = True
 
         if not is_valid_candidate:
@@ -1899,17 +1923,39 @@ def link_review_transaction(
     if not is_coming:
         tx_forecast.reconciliation_date = tx_review.reconciliation_date or tx_forecast.date_operation or date.today()
 
-    # Supprimer la transaction temporaire de revue
-    db.delete(tx_review)
-    record_action(
-        db,
-        "transaction",
-        tx_review.id,
-        "DELETE",
-        before_snap_review,
-        None,
-        user_name="Auto-Pilote (Fusion prévision)"
-    )
+    if tx_review.recurrence_id is not None:
+        # Il s'agit d'une prévision récurrente légitime qui avait été associée à tort
+        # ou présentée en revue : on ne la supprime pas, on réinitialise ses métadonnées bancaires
+        tx_review.raw_description = None
+        orig_csv = before_snap_review.get("csv_id") if before_snap_review else None
+        if orig_csv and not str(orig_csv).startswith("woob_"):
+            tx_review.csv_id = orig_csv
+        else:
+            tx_review.csv_id = None
+        tx_review.reconciliation_date = None
+        tx_review.needs_review = False
+        tx_review.confidence_score = None
+        record_action(
+            db,
+            "transaction",
+            tx_review.id,
+            "UPDATE",
+            before_snap_review,
+            snapshot_entity(tx_review),
+            user_name="Auto-Pilote (Déliement prévision récurrente)"
+        )
+    else:
+        # Supprimer la transaction temporaire de revue (import bancaire orphelin)
+        db.delete(tx_review)
+        record_action(
+            db,
+            "transaction",
+            tx_review.id,
+            "DELETE",
+            before_snap_review,
+            None,
+            user_name="Auto-Pilote (Fusion prévision)"
+        )
 
     record_action(
         db,

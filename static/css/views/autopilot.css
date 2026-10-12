@@ -1395,6 +1395,15 @@ body.theme-titanium-light .ap-override-rule-card {
     transform: translateY(0);
 }
 
+.candidate-forecast-pill {
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.candidate-forecast-pill:hover {
+    border-color: var(--accent) !important;
+    background: rgba(99, 102, 241, 0.12) !important;
+}
+
 .ap-header-btn {
     height: 40px;
     background: var(--bg-card, var(--bg-surface));

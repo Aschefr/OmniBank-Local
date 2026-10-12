@@ -386,8 +386,8 @@ def check_reconciliation(
     # 2. Recherche d'une prédiction non pointée / transaction planifiée
     def _find_unreconciled_prediction():
         if is_coming:
-            start_op = tx_date - timedelta(days=10)
-            end_op = tx_date + timedelta(days=30)
+            start_op = tx_date - timedelta(days=7)
+            end_op = tx_date + timedelta(days=7)
         else:
             start_op = tx_date - timedelta(days=30)
             end_op = tx_date + timedelta(days=3)

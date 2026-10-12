@@ -360,8 +360,8 @@ window.AutopilotView = {
                                     <span id="apReviewChevron" class="ap-chevron">▾</span>
                                 </div>
                             </div>
-                            <div id="apReviewContent" class="ap-collapsible-content">
-                                <div id="apReviewListContainer" style="padding: 18px 20px;">
+                            <div id="apReviewContent" class="ap-collapsible-content" style="padding: 12px 14px;">
+                                <div id="apReviewListContainer" style="padding: 0;">
                                     <!-- Injected dynamically -->
                                 </div>
                             </div>
@@ -632,12 +632,29 @@ window.AutopilotView = {
                     grid-template-columns: 1fr !important;
                 }
             }
+            .ap-review-wrapper {
+                container-type: inline-size;
+                container-name: apReviewQueue;
+                width: 100%;
+                overflow-x: hidden;
+            }
             .ap-review-desktop-table {
                 display: table;
                 width: 100%;
+                table-layout: auto;
             }
             .ap-review-mobile-cards {
                 display: none;
+            }
+            @container apReviewQueue (max-width: 720px) {
+                .ap-review-desktop-table {
+                    display: none !important;
+                }
+                .ap-review-mobile-cards {
+                    display: flex !important;
+                    flex-direction: column;
+                    gap: 12px;
+                }
             }
             @media (max-width: 960px) {
                 .ap-review-desktop-table {
@@ -647,6 +664,11 @@ window.AutopilotView = {
                     display: flex !important;
                     flex-direction: column;
                     gap: 12px;
+                }
+            }
+            @media (max-width: 600px) {
+                #apReviewListContainer {
+                    padding: 12px 10px !important;
                 }
             }
             @keyframes apDrawerSlideIn {
@@ -1531,18 +1553,18 @@ window.AutopilotView = {
         }
 
         container.innerHTML = `
-            <div style="overflow-x: auto; width: 100%;">
+            <div class="ap-review-wrapper" style="width: 100%; overflow-x: hidden;">
                 <!-- Desktop Table View -->
-                <table class="table ap-review-desktop-table" style="width: 100%; min-width: 780px; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px;">
+                <table class="table ap-review-desktop-table" style="width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px;">
                     <thead>
                         <tr style="text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
-                            <th style="padding: 8px 12px; width: 95px;" data-i18n="autopilot_review_th_date">${window.i18n ? window.i18n.t('autopilot_review_th_date') : 'Date'}</th>
-                            <th style="padding: 8px 12px; width: 140px;" data-i18n="label_account">${window.i18n ? window.i18n.t('label_account') : 'Compte'}</th>
-                            <th style="padding: 8px 12px; min-width: 260px;" data-i18n="autopilot_review_th_desc">${window.i18n ? window.i18n.t('autopilot_review_th_desc') : 'Libellé Brut & Identifié'}</th>
-                            <th style="padding: 8px 12px; width: 130px;" data-i18n="autopilot_review_th_category">${window.i18n ? window.i18n.t('autopilot_review_th_category') : 'Catégorie'}</th>
-                            <th style="padding: 8px 12px; width: 110px; text-align: right;" data-i18n="autopilot_review_th_amount">${window.i18n ? window.i18n.t('autopilot_review_th_amount') : 'Montant'}</th>
-                            <th style="padding: 8px 12px; width: 90px; text-align: center;" data-i18n="autopilot_review_col_confidence">${window.i18n ? window.i18n.t('autopilot_review_col_confidence') : 'Confiance'}</th>
-                            <th style="padding: 8px 12px; text-align: right; width: 180px;" data-i18n="autopilot_review_th_actions">${window.i18n ? window.i18n.t('autopilot_review_th_actions') : 'Actions'}</th>
+                            <th style="padding: 8px 10px; width: 85px;" data-i18n="autopilot_review_th_date">${window.i18n ? window.i18n.t('autopilot_review_th_date') : 'Date'}</th>
+                            <th style="padding: 8px 10px; width: 115px;" data-i18n="label_account">${window.i18n ? window.i18n.t('label_account') : 'Compte'}</th>
+                            <th style="padding: 8px 10px;" data-i18n="autopilot_review_th_desc">${window.i18n ? window.i18n.t('autopilot_review_th_desc') : 'Libellé Brut & Identifié'}</th>
+                            <th style="padding: 8px 10px; width: 110px;" data-i18n="autopilot_review_th_category">${window.i18n ? window.i18n.t('autopilot_review_th_category') : 'Catégorie'}</th>
+                            <th style="padding: 8px 10px; text-align: right; width: 85px;" data-i18n="autopilot_review_th_amount">${window.i18n ? (window.i18n.t('autopilot_review_th_amount') || 'Montant') : 'Montant'}</th>
+                            <th style="padding: 8px 10px; text-align: center; width: 75px;" data-i18n="autopilot_review_col_confidence">${window.i18n ? (window.i18n.t('autopilot_review_col_confidence') || 'Confiance') : 'Confiance'}</th>
+                            <th style="padding: 8px 10px; text-align: right; width: 145px;" data-i18n="autopilot_review_th_actions">${window.i18n ? window.i18n.t('autopilot_review_th_actions') : 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1553,50 +1575,62 @@ window.AutopilotView = {
                             const conf = Math.round(item.confidence_score || 0);
                             const bestCandidate = (item.candidate_forecasts && item.candidate_forecasts.length > 0) ? item.candidate_forecasts[0] : null;
 
+                            const confirmBtnTooltip = bestCandidate
+                                ? (window.i18n ? (window.i18n.t('autopilot_review_btn_confirm_standalone_tooltip') || 'Enregistrer comme opération indépendante sans la lier à la prévision') : 'Enregistrer comme opération indépendante sans la lier à la prévision')
+                                : (window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle');
+                            const linkBtnTitle = bestCandidate
+                                ? (window.i18n ? window.i18n.t('autopilot_review_btn_link_title').replace('{desc}', escapeHtml(bestCandidate.description)) : `Fusionner avec la prévision '${escapeHtml(bestCandidate.description)}' pour éviter un doublon`)
+                                : '';
+
                             return `
                             <tr style="background: var(--bg-surface); border-radius: 8px; transition: background 0.15s ease;">
-                                <td style="padding: 12px; white-space: nowrap; font-weight: 500; vertical-align: middle;">
+                                <td style="padding: 10px; white-space: nowrap; font-weight: 500; vertical-align: middle;">
                                     ${dateStr}
                                 </td>
-                                <td style="padding: 12px; white-space: nowrap; vertical-align: middle;">
-                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40;">
-                                        <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'};"></span>
-                                        ${escapeHtml(item.account_name || 'Compte')}
+                                <td style="padding: 10px; vertical-align: middle;">
+                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center;" title="${escapeHtml(item.account_name || 'Compte')}">
+                                        <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'}; flex-shrink: 0;"></span>
+                                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.account_name || 'Compte')}</span>
                                     </span>
                                 </td>
-                                <td style="padding: 12px; vertical-align: middle;">
+                                <td style="padding: 10px; vertical-align: middle;">
                                     <div style="font-weight: 600; font-size: 13px; color: var(--text-main); line-height: 1.3;">${escapeHtml(item.description || item.raw_description || '')}</div>
                                     ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
                                     ${bestCandidate ? `
-                                        <div style="margin-top: 6px; font-size: 11.5px; color: var(--accent); background: rgba(99,102,241,0.08); padding: 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: inline-flex; align-items: center; gap: 6px; line-height: 1.3;">
-                                            <span style="display: inline-flex; align-items: center; gap: 5px;">${this._icons.link} <span><span data-i18n="autopilot_review_forecast_detected">${window.i18n ? window.i18n.t('autopilot_review_forecast_detected') : 'Prévision :'}</span> <strong>${escapeHtml(bestCandidate.description)}</strong> (<span class="privacy-blur">${Number(bestCandidate.amount).toFixed(2)} €</span>)</span></span>
+                                        <div class="candidate-forecast-pill" style="margin-top: 6px; font-size: 11.5px; background: rgba(99,102,241,0.08); padding: 4px 8px 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; max-width: 100%;">
+                                            <span style="display: inline-flex; align-items: center; gap: 5px; min-width: 0;">
+                                                <span style="color: var(--accent); display: inline-flex;">${this._icons.link}</span>
+                                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                    <span data-i18n="autopilot_review_forecast_detected">${window.i18n ? window.i18n.t('autopilot_review_forecast_detected') : 'Prévision suggérée :'}</span>
+                                                    <strong style="color: var(--text-main);">${escapeHtml(bestCandidate.description)}</strong>
+                                                    (<span class="privacy-blur" style="color: var(--accent); font-weight: 600;">${Number(bestCandidate.amount).toFixed(2)} €</span>)
+                                                </span>
+                                            </span>
+                                            <div class="candidate-forecast-action" style="display: inline-flex; align-items: center; flex-shrink: 0;">
+                                                <button type="button" class="btn btn-sm" style="background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; font-size: 11px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${linkBtnTitle}">
+                                                    ${this._icons.link} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_link_short') || 'Lier') : 'Lier'}</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     ` : ''}
                                 </td>
-                                <td style="padding: 12px; white-space: nowrap; vertical-align: middle;">
-                                    <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
+                                <td style="padding: 10px; vertical-align: middle;">
+                                    <span class="badge" style="font-size: 11px; font-weight: 600; max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;" title="${escapeHtml(item.category || '—')}">${escapeHtml(item.category || '—')}</span>
                                 </td>
-                                <td style="padding: 12px; text-align: right; white-space: nowrap; font-weight: 700; font-size: 13.5px; color: ${amtColor}; vertical-align: middle;">
+                                <td style="padding: 10px; text-align: right; white-space: nowrap; font-weight: 700; font-size: 13px; color: ${amtColor}; vertical-align: middle;">
                                     <span class="privacy-blur">${amtStr}</span>
                                 </td>
-                                <td style="padding: 12px; text-align: center; white-space: nowrap; vertical-align: middle;">
-                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                <td style="padding: 10px; text-align: center; white-space: nowrap; vertical-align: middle;">
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 11px; padding: 3px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </td>
-                                <td style="padding: 12px; text-align: right; white-space: nowrap; vertical-align: middle;">
+                                <td style="padding: 10px; text-align: right; white-space: nowrap; vertical-align: middle;">
                                     <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end;">
-                                        <button class="btn btn-secondary btn-sm" style="padding: 5px 10px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle'}">
-                                            ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK'}</span>
+                                        <button type="button" class="btn btn-secondary btn-sm" style="padding: 5px 9px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${confirmBtnTooltip}">
+                                            ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'Valider') : 'Valider'}</span>
                                         </button>
-                                        ${bestCandidate ? `
-                                            <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
-                                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${window.i18n ? window.i18n.t('autopilot_review_btn_link_title').replace('{desc}', escapeHtml(bestCandidate.description)) : `Lier à la prévision '${escapeHtml(bestCandidate.description)}' sans créer de doublon`}">
-                                                    ${this._icons.link} <span data-i18n="autopilot_review_btn_link">${window.i18n ? window.i18n.t('autopilot_review_btn_link') : 'Lier'}</span>
-                                                </button>
-                                            </div>
-                                        ` : ''}
-                                        <button class="btn btn-primary btn-sm" style="padding: 5px 10px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
+                                        <button type="button" class="btn btn-primary btn-sm" style="padding: 5px 9px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
                                             ${this._icons.edit} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}</span>
                                         </button>
                                     </div>
@@ -1616,56 +1650,69 @@ window.AutopilotView = {
                         const conf = Math.round(item.confidence_score || 0);
                         const bestCandidate = (item.candidate_forecasts && item.candidate_forecasts.length > 0) ? item.candidate_forecasts[0] : null;
 
+                        const confirmBtnTooltip = bestCandidate
+                            ? (window.i18n ? (window.i18n.t('autopilot_review_btn_confirm_standalone_tooltip') || 'Enregistrer comme opération indépendante sans la lier à la prévision') : 'Enregistrer comme opération indépendante sans la lier à la prévision')
+                            : (window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle');
+                        const linkBtnTitle = bestCandidate
+                            ? (window.i18n ? window.i18n.t('autopilot_review_btn_link_title').replace('{desc}', escapeHtml(bestCandidate.description)) : `Fusionner avec la prévision '${escapeHtml(bestCandidate.description)}' pour éviter un doublon`)
+                            : '';
+
                         return `
-                        <div class="ap-review-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; font-size: 11px;">
+                        <div class="ap-review-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                         <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'};"></span>
                                         ${escapeHtml(item.account_name || 'Compte')}
                                     </span>
-                                    <span style="font-size: 11.5px; color: var(--text-muted);">${dateStr}</span>
+                                    <span style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;">${dateStr}</span>
                                 </div>
-                                <div class="privacy-blur" style="font-size: 15px; font-weight: 800; color: ${amtColor};">
+                                <div class="privacy-blur" style="font-size: 15px; font-weight: 800; color: ${amtColor}; white-space: nowrap;">
                                     ${amtStr}
                                 </div>
                             </div>
 
                             <div>
-                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${escapeHtml(item.description || item.raw_description || '')}</div>
-                                ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); word-break: break-word; line-height: 1.35;">${escapeHtml(item.description || item.raw_description || '')}</div>
+                                ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 3px; word-break: break-all;">${escapeHtml(item.raw_description)}</div>` : ''}
                             </div>
 
                             ${bestCandidate ? `
-                                <div style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--text-main);">
-                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px;">${this._icons.link} <span data-i18n="autopilot_review_suggested_forecast">${window.i18n ? window.i18n.t('autopilot_review_suggested_forecast') : 'Prévision suggérée :'}</span></div>
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span>${escapeHtml(bestCandidate.description)}</span>
-                                        <span class="privacy-blur" style="font-weight: 700; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
+                                <div class="candidate-forecast-card" style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                        <div style="min-width: 0;">
+                                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+                                                ${this._icons.link} <span data-i18n="autopilot_review_forecast_detected">${window.i18n ? window.i18n.t('autopilot_review_forecast_detected') : 'Prévision suggérée :'}</span>
+                                            </div>
+                                            <div style="font-weight: 600; color: var(--text-main); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                ${escapeHtml(bestCandidate.description)}
+                                            </div>
+                                        </div>
+                                        <div class="privacy-blur" style="font-weight: 700; color: var(--accent); font-size: 13.5px; white-space: nowrap; flex-shrink: 0;">
+                                            ${Number(bestCandidate.amount).toFixed(2)} €
+                                        </div>
+                                    </div>
+                                    <div class="candidate-forecast-action" style="display: flex; align-items: center; width: 100%;">
+                                        <button type="button" class="btn btn-sm" style="width: 100%; justify-content: center; background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid var(--accent); padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${linkBtnTitle}">
+                                            ${this._icons.link} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_link_action') || 'Lier à cette prévision') : 'Lier à cette prévision'}</span>
+                                        </button>
                                     </div>
                                 </div>
                             ` : ''}
 
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 2px; flex-wrap: wrap; gap: 8px;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span class="badge" style="font-size: 11px; font-weight: 600;">${escapeHtml(item.category || '—')}</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border-color); margin-top: 2px; gap: 8px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <span class="badge" style="font-size: 11px; font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.category || '—')}</span>
                                     <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </div>
-                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                    <button class="btn btn-secondary btn-sm" style="padding: 5px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_validate_tooltip') || 'Valider l\'opération telle quelle') : 'Valider l\'opération telle quelle'}">
-                                        ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK'}</span>
+                                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                                    <button type="button" class="btn btn-secondary btn-sm" style="padding: 7px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${confirmBtnTooltip}">
+                                        ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'Valider') : 'Valider'}</span>
                                     </button>
-                                    ${bestCandidate ? `
-                                        <div class="candidate-forecast-action" style="display: inline-flex; align-items: center;">
-                                            <button class="btn btn-sm" style="background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 5px 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})">
-                                                ${this._icons.link} <span>Lier</span>
-                                            </button>
-                                        </div>
-                                    ` : ''}
-                                    <button class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.AutopilotView.openReviewModal(${item.id})">
-                                        ${this._icons.edit} <span data-i18n="autopilot_review_btn_edit">${window.i18n ? window.i18n.t('autopilot_review_btn_edit') : 'Éditer'}</span>
+                                    <button type="button" class="btn btn-primary btn-sm" style="padding: 7px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}">
+                                        ${this._icons.edit} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1695,7 +1742,7 @@ window.AutopilotView = {
             showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la validation', 'error');
             if (btn) {
                 btn.disabled = false;
-                const btnText = window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'C\'est OK') : 'C\'est OK';
+                const btnText = window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'Valider') : 'Valider';
                 btn.innerHTML = `${this._icons.check} <span>${btnText}</span>`;
             }
         }
@@ -1707,9 +1754,10 @@ window.AutopilotView = {
         if (!parent._origHtml) {
             parent._origHtml = parent.innerHTML;
         }
+        const promptText = window.i18n ? (window.i18n.t('autopilot_review_prompt_link_q') || 'Lier à la prévision ?') : 'Lier à la prévision ?';
         parent.innerHTML = `
-            <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(16, 185, 129, 0.12); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);" onclick="event.stopPropagation();">
-                <span style="font-size: 11px; font-weight: 600; color: #10b981; white-space: nowrap;">Lier ?</span>
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);" onclick="event.stopPropagation();">
+                <span style="font-size: 11px; font-weight: 600; color: #10b981; white-space: nowrap;">${promptText}</span>
                 <button type="button" class="btn btn-success btn-sm" style="font-size: 11px; font-weight: 700; padding: 2px 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; line-height: 1.2;" onclick="event.stopPropagation(); window.AutopilotView.linkReviewItem(${txId}, ${forecastId}, this)">✓ Oui</button>
                 <button type="button" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.2;" onclick="event.stopPropagation(); window.AutopilotView.cancelInlineLinkConfirm(this)">✕</button>
             </div>
@@ -1746,7 +1794,8 @@ window.AutopilotView = {
             showToast(window.i18n ? window.i18n.t('autopilot_toast_link_error') : 'Erreur lors de la liaison avec la prévision', 'error');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = `${this._icons.link} <span>Lier</span>`;
+                const linkBtnText = window.i18n ? (window.i18n.t('autopilot_review_btn_link_short') || 'Lier') : 'Lier';
+                btn.innerHTML = `${this._icons.link} <span>${linkBtnText}</span>`;
             }
         }
     },

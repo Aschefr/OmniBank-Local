@@ -1123,7 +1123,7 @@ window.openQuickReviewModal = async function(txId) {
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="privacy-blur" style="font-weight: 700; font-size: 13px; color: var(--accent);">${Number(bestCandidate.amount).toFixed(2)} €</span>
-                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.18); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; padding: 4px 10px; font-size: 11.5px;" onclick="window.linkQuickReviewItem(${txId}, ${bestCandidate.id}, this)">🔗 Lier</button>
+                                <button class="btn btn-sm" style="background: rgba(99,102,241,0.18); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; padding: 4px 10px; font-size: 11.5px;" onclick="window.linkQuickReviewItem(${txId}, ${bestCandidate.id}, this)">🔗 ${window.i18n ? (window.i18n.t('autopilot_review_btn_link_action') || 'Lier à cette prévision') : 'Lier à cette prévision'}</button>
                             </div>
                         </div>
                     </div>
@@ -1138,7 +1138,7 @@ window.openQuickReviewModal = async function(txId) {
                             Annuler
                         </button>
                         <button class="btn btn-success btn-sm" style="background: #10b981; border: none; color: white; font-weight: 700; font-size: 12px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 5px;" onclick="window.validateQuickReviewItem(${txId}, this)">
-                            ✓ ${window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'C\'est OK'}
+                            ✓ ${bestCandidate ? (window.i18n ? window.i18n.t('autopilot_review_btn_confirm_standalone') : 'Valider telle quelle') : (window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'Valider')}
                         </button>
                     </div>
                 </div>
@@ -1178,7 +1178,7 @@ window.validateQuickReviewItem = async function(txId, btn) {
         showToast(window.i18n ? window.i18n.t('autopilot_toast_validate_error') : 'Erreur lors de la validation', 'error');
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `✓ ${window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'C\'est OK'}`;
+            btn.innerHTML = `✓ ${window.i18n ? window.i18n.t('autopilot_review_btn_confirm') : 'Valider'}`;
         }
     }
 };

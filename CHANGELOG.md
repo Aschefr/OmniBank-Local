@@ -4,8 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
-### Fixed
-- **CSV Import Privacy 🔒**: Removed a leftover debug routine that attempted to write imported bank statement data to a local diagnostic file.
+## [1.2.1] - 2026-10-12
+
+### Fixed & Improved
+- **Auto-Pilot Recurrence Preservation 🤖**: Linking a review transaction to another forecast now preserves legitimate recurring budget instances instead of deleting them.
+- **Pending Bank Authorizations Guardrail 🏦**: Restricted the search window for bank-announced pending operations to ±7 days, preventing pre-authorizations from mistakenly matching against next month's forecasts.
+- **Review Queue Clarity & Mobile Ergonomics 📱**: Replaced ambiguous buttons with explicit "Valider" and "Lier" actions, added an inline confirmation prompt, and eliminated horizontal scrollbars on mobile devices.
+- **Tailscale & Local Host Validation 🔒**: Allowed dotless local hostnames in DNS rebinding protection middleware for seamless private LAN and Tailscale access.
+- **CSV Import Privacy 🔒**: Removed leftover diagnostic logging in bank statement analysis.
 
 ## [1.2.0] - 2026-10-10
 
