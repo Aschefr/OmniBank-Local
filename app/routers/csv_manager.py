@@ -651,12 +651,6 @@ async def analyze_heuristic(
             
     df['_parsed_amount'] = df[amount_col].apply(clean_amt)
     
-    try:
-        with open(r"C:\Users\Adminlocal\.gemini\antigravity\brain\d3091038-9bc2-4231-8468-b628ecf15491\scratch\debug_df.json", "w", encoding="utf-8") as f:
-            df_str = df.astype(str)
-            json.dump(df_str.to_dict('records'), f, indent=2)
-    except Exception: pass
-    
     matched_ids = []
     for idx, row in df.iterrows():
         amt = row['_parsed_amount']

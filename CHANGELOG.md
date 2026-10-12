@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Fixed
+- **CSV Import Privacy 🔒**: Removed a leftover debug routine that attempted to write imported bank statement data to a local diagnostic file.
+
 ## [1.2.0] - 2026-10-10
 
 ### Added & Improved
