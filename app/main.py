@@ -328,7 +328,11 @@ def _is_allowed_host(host_header: str) -> bool:
     except ValueError:
         pass
 
-    # 5. Hôtes personnalisés déclarés via variable d'environnement
+    # 5. Noms d'hôtes locaux simples sans point (ex: nom de machine LAN/Tailscale comme 'lenovo-ai350')
+    if "." not in host:
+        return True
+
+    # 6. Hôtes personnalisés déclarés via variable d'environnement
     extra_hosts = os.environ.get("OMNIBANK_ALLOWED_HOSTS", "")
     if extra_hosts:
         allowed_extras = {h.strip().lower() for h in extra_hosts.split(",") if h.strip()}
