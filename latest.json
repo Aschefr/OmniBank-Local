@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlzZnJUbFBvMGNGOUNYNEwxVk8zam1sSkl0REd3MDAzNEVGR2sxa3pGZ2NGSTdXVUJ2UEdKcm5uYjQ0NnhrdWJCbXphb21HS25IaXN2S1FEdDNXOUFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzUwNzA0CWZpbGU6T21uaUJhbmtfMS4yLjBfeDY0X2ZyLUZSLm1zaQpOdWx2RUxVRXZ0YVFuTVhvU1Zsd2ljQmZDblJQSFE0TWNmRGV0aWZCeWtsWW53eWtvQXllVm5nSEk2S3g3VHhuY0JkWU9abGJ2NTZlTUJIclM2RTREUT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.0/OmniBank_1.2.0_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDRYRE1BL1Y0RGs3Yml3OGp1c05TUnJiRUl1MzRCMXR1cHFQK3lhU1JCY0FDQzQ1SEtHd0VXR2hzaTkwamNnd0t6alJJbVJ0dTg5NWZCcU9aK1VFWEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODE2OTc0CWZpbGU6T21uaUJhbmtfMS4yLjFfeDY0X2ZyLUZSLm1zaQo0R0VaYnA4dDZhekw2K3FHclljZ2RuS1VQMVFpVVFHOFROczdYV1YzR0RjYWtnYTdWZ2g3L3N2dUpVNk02RjJNUWNqQ01CbWtQYTcwV3R4OTJEVTBCdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.1/OmniBank_1.2.1_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-11T20:31:44Z",
-    "version":  "1.2.0",
-    "notes":  "OmniBank v1.2.0 - Auto-Pilot Control Center, Overview Cockpit \u0026 Security Hardening"
+    "pub_date":  "2026-10-12T14:56:14Z",
+    "version":  "1.2.1",
+    "notes":  "Mise a jour v1.2.1"
 }
