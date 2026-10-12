@@ -281,6 +281,13 @@ class TestDNSRebindingAndNetworkAccess:
         res2 = client.get("/api/health", headers={"host": "mon-pc.tailnet-xyz.ts.net:8434"})
         assert res2.status_code == 200
 
+    def test_allows_dotless_local_hostnames(self):
+        res = client.get("/api/health", headers={"host": "lenovo-ai350:8434"})
+        assert res.status_code == 200
+
+        res2 = client.get("/api/health", headers={"host": "my-server"})
+        assert res2.status_code == 200
+
 
 # ── SEC-09 : Restriction de modification de clé de licence via config API ──
 class TestConfigLicenseKeyRestriction:
