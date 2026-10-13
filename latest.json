@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHl1TWlPejFRRGxhZU4yL3B0QUY2K3JPdUU1eHVFUlc2VUd0YW9TRkgrekk4NUgzbXZ2V09tZW9YZXRQSzZWamdhcjR5MTNlY3YyS01UVnV6V3RKQ1FNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODE4MTE2CWZpbGU6T21uaUJhbmtfMS4yLjFfeDY0X2ZyLUZSLm1zaQpnbnExWWNRVVpveDFGdTNzTk53ZzVOQWRDY0ZZanJzMlU5WW03bUV2Ly81S2dMNGNKMnhDRW5KZzBQc1pIeGpIMXB3a0JqWE9PSk9Hc3k5UUdzc3hBUT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.1/OmniBank_1.2.1_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtsalFtUmxNaTdqMkVzeVllOWZtNW5lbTdQck1wd1dzbWp6a0VWWDNPM1NRc1p2MWd6YXZjQ1U1ZVNkSktObFkyV2ZyYkY0SHBEaTROVjM2RFpVNEFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODczMjM3CWZpbGU6T21uaUJhbmtfMS4yLjJfeDY0X2ZyLUZSLm1zaQpIK2NGbmFhSGlYMjJ3aGU1TC8ydW5PS3pORFJXRkdWbWRSNlFZd0I0OGFmYXUyajJzQm81cmdzOTNaTkJOSmxYVVI3L2Z0d0EvZzM2Q241eDF0MGdCQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.2/OmniBank_1.2.2_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-12T15:15:16Z",
-    "version":  "1.2.1",
-    "notes":  "OmniBank v1.2.1 - Auto-Pilot Review Safety, Recurrence Preservation \u0026 Mobile Polish"
+    "pub_date":  "2026-10-13T06:33:57Z",
+    "version":  "1.2.2",
+    "notes":  "OmniBank v1.2.2 - Auto-Pilot Anti-Duplicate Guard, Batch Rollback \u0026 Cockpit Polish"
 }
