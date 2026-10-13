@@ -484,6 +484,7 @@ def process_incoming_batch(
     rules_learned_count = 0
     pending_count = 0
     total_count = 0
+    seen_suspected_dup_ids = set()
 
     residual_accounts = []
     import copy
@@ -757,7 +758,68 @@ def process_incoming_batch(
                     decision_reason = "chameleon_default"
 
                 chameleon_blocked = is_multi_cat and not cfg_chameleon_fallback and not tx.get("smart_is_manual")
-                
+
+                raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
+                amt = abs(float(tx.get("amount", 0.0) or raw_amt))
+                t_type = "expense_var" if raw_amt < 0 else "income"
+                from_acc = acc_id if raw_amt < 0 else None
+                to_acc = acc_id if raw_amt >= 0 else None
+
+                op_date_str = tx.get("date_operation") or tx.get("date")
+                op_date = date.today()
+                if op_date_str:
+                    s = str(op_date_str).strip()[:10]
+                    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"):
+                        try:
+                            op_date = datetime.strptime(s, fmt).date()
+                            break
+                        except ValueError:
+                            pass
+
+                # Garde-fou Anti-Doublon Prévisionnel :
+                # Si aucune réconciliation n'a pu être validée (matched_id is None)
+                # mais qu'une opération non pointée de même montant existe sur le même compte
+                # dans une fenêtre temporelle cohérente (-30j / +7j), il s'agit très probablement
+                # d'une écriture prévisionnelle dont le libellé bancaire diffère.
+                # Pour protéger le cockpit et le budget contre des doublons silencieux,
+                # on interdit l'auto-commit automatique et on maintient l'opération dans le Sas.
+                suspected_dup = None
+                if not is_rec and matched_id is None and bool(acc_id) and amt > 0:
+                    from sqlalchemy import or_, and_
+                    d_start = op_date - timedelta(days=30)
+                    d_end = op_date + timedelta(days=7)
+                    dup_q = db.query(Transaction).filter(
+                        Transaction.reconciliation_date == None,
+                        Transaction.amount >= amt - 0.01,
+                        Transaction.amount <= amt + 0.01,
+                        Transaction.date_operation >= d_start,
+                        Transaction.date_operation <= d_end
+                    )
+                    if t_type == "income":
+                        dup_q = dup_q.filter(
+                            or_(
+                                Transaction.to_account_id == acc_id,
+                                and_(Transaction.type == "income", Transaction.from_account_id == acc_id)
+                            )
+                        )
+                    else:
+                        dup_q = dup_q.filter(
+                            or_(
+                                and_(Transaction.from_account_id == acc_id, Transaction.type != "income"),
+                                and_(Transaction.to_account_id == None, Transaction.from_account_id == acc_id)
+                            )
+                        )
+                    if seen_suspected_dup_ids:
+                        dup_q = dup_q.filter(Transaction.id.notin_(seen_suspected_dup_ids))
+                    suspected_dup = dup_q.first()
+                    if suspected_dup:
+                        seen_suspected_dup_ids.add(suspected_dup.id)
+                        logger.warning(
+                            f"[AutoPilot] ⚠️ Doublon prévisionnel potentiel détecté pour '{tx.get('raw_description') or tx.get('description')}' "
+                            f"({amt:.2f}€ sur compte #{acc_id}) : correspond à la prévision non pointée #{suspected_dup.id} "
+                            f"'{suspected_dup.description}' du {suspected_dup.date_operation}. Maintien dans le Sas pour arbitrage."
+                        )
+
                 # Éligibilité Full-Auto : Toute nouvelle opération bancaire (confirmée ou à venir non rapprochée)
                 is_eligible_new_entry = (
                     cfg_auto_commit
@@ -765,15 +827,10 @@ def process_incoming_batch(
                     and matched_id is None
                     and bool(acc_id)
                     and not is_duplicate
+                    and (suspected_dup is None)
                 )
 
                 if is_eligible_new_entry:
-                    raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
-                    amt = abs(float(tx.get("amount", 0.0) or raw_amt))
-                    t_type = "expense_var" if raw_amt < 0 else "income"
-                    from_acc = acc_id if raw_amt < 0 else None
-                    to_acc = acc_id if raw_amt >= 0 else None
-
                     # Évaluation du niveau de confiance / besoin de revue utilisateur
                     # Une catégorie de repli/par défaut (fallback) n'est JAMAIS considérée fiable sans revue utilisateur
                     is_reliable = (
@@ -816,17 +873,6 @@ def process_incoming_batch(
                             if not existing_cat and cat_obj:
                                 categories_created_count += 1
                             valid_categories.add(category)
-
-                    op_date_str = tx.get("date_operation") or tx.get("date")
-                    op_date = date.today()
-                    if op_date_str:
-                        s = str(op_date_str).strip()[:10]
-                        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"):
-                            try:
-                                op_date = datetime.strptime(s, fmt).date()
-                                break
-                            except ValueError:
-                                pass
 
                     raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
                     conf_score = round(confidence * 100, 1) if confidence <= 1.0 else confidence
@@ -930,7 +976,13 @@ def process_incoming_batch(
 
                 # Critère 3 : Opération en zone d'arbitrage ou à venir -> maintien dans le Sas
                 snap_tx["audit_status"] = "pending_review"
-                snap_tx["audit_action"] = "ARBITRAGE_NEEDED"
+                if suspected_dup:
+                    snap_tx["audit_action"] = "SUSPECTED_DUPLICATE"
+                    snap_tx["audit_suspected_dup_id"] = suspected_dup.id
+                    snap_tx["audit_suspected_dup_desc"] = suspected_dup.description
+                    needs_review_count += 1
+                else:
+                    snap_tx["audit_action"] = "ARBITRAGE_NEEDED"
                 if tx.get("is_dismissed"):
                     snap_tx["audit_status"] = "dismissed"
                 elif tx.get("is_auto_dismissed"):

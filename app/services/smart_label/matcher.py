@@ -79,8 +79,10 @@ def _compute_match_score_precomputed(
         return min(1.0, 0.75 + 0.15 * jaccard + 0.10 * ratio)
 
     # Tokens signifiants (hors stop-words génériques)
+    sig_matched = matched_pat.intersection(sig_pat)
     common_sig = sig_pat.intersection(sig_cand)
-    strong_matches = [t for t in common_sig if len(t) >= 4]
+    effective_common = common_sig | sig_matched
+    strong_matches = [t for t in effective_common if len(t) >= 3]
 
     # Filtre rapide : si aucun token en commun et longueurs très divergentes, le ratio ne peut atteindre 0.75
     intersection = pat_tokens.intersection(cand_tokens)
@@ -102,14 +104,15 @@ def _compute_match_score_precomputed(
         return 0.0
 
     if strong_matches:
-        jaccard = len(common_sig) / max(len(sig_pat.union(sig_cand)), 1)
-        coverage_pat = len(common_sig) / max(len(sig_pat), 1)
-        coverage_cand = len(common_sig) / max(len(sig_cand), 1)
+        jaccard = len(effective_common) / max(len(sig_pat.union(sig_cand)), 1)
+        coverage_pat = len(effective_common) / max(len(sig_pat), 1)
+        coverage_cand = len(effective_common) / max(len(sig_cand), 1)
         mut_coverage = min(coverage_pat, coverage_cand)
 
         # Pour matcher, il faut au moins 2 mots forts en commun (ex: 'CREDIT AGRICOLE', 'BANQUE POPULAIRE')
         # OU que le mot commun représente au moins 40% des tokens significatifs des deux côtés
-        if (len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8) or (mut_coverage >= 0.40 and jaccard >= 0.25):
+        # OU qu'un overlap marchand de tête soit avéré (ex: 'CTM' dans 'CTM RHONE ALP' et 'GARAGE CTM')
+        if (len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8) or (mut_coverage >= 0.40 and jaccard >= 0.25) or (has_merchant_overlap and mut_coverage >= 0.25):
             return min(1.0, 0.70 + 0.20 * jaccard + 0.10 * ratio)
 
     if intersection and not _GENERIC_TOKENS.issuperset(intersection):

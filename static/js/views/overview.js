@@ -4125,8 +4125,13 @@ window.OverviewView = {
         const incomeVal = Number(nm.projected_income ?? nm.income ?? 0);
         const fixedVal = Number(nm.fixed_charges ?? nm.fixed_expense ?? 0);
         const varVal = Number(nm.variable_expenses ?? nm.variable_expense ?? nm.variable_allocated ?? 0);
+        const baseVarVal = Number(nm.base_variable ?? nm.base_variable_projected ?? varVal);
+        const totalExpVal = Number(nm.total_expenses ?? nm.total_expense ?? (fixedVal + varVal));
         const netVal = Number(nm.projected_net ?? nm.net_savings ?? 0);
+        const startBalVal = nm.start_balance !== undefined ? Number(nm.start_balance) : null;
         const endBalVal = nm.projected_end_balance !== undefined ? Number(nm.projected_end_balance) : null;
+        const optimisticEnd = nm.optimistic_end_balance !== undefined ? Number(nm.optimistic_end_balance) : null;
+        const pessimisticEnd = nm.pessimistic_end_balance !== undefined ? Number(nm.pessimistic_end_balance) : null;
         const seasonalPct = Number(nm.seasonal_pct || 0);
 
         let seasonBadgeHtml = '';
@@ -4167,6 +4172,130 @@ window.OverviewView = {
         const netHint = isOrgMode ? t('cockpit_org_forecast_net_hint', 'Excédent ou besoin prévisionnel') : t('cockpit_forecast_next_month_remaining_hint', 'Marge nette prévisionnelle');
         const netTooltip = isOrgMode ? t('cockpit_org_forecast_net_tooltip', 'Résultat net estimé (Recettes - Charges de structure - Dépenses courantes) pour le mois prochain.') : t('cockpit_forecast_next_month_remaining_tooltip', 'Capacité d\'épargne ou marge disponible nette en fin de mois (Recettes - Fixes - Variables).');
 
+        // Mémorisation des données des fiches de détail (Modale Info Sheet)
+        if (!this._cachedCockpitTileData) this._cachedCockpitTileData = {};
+
+        const coveragePct = (totalExpVal > 0) ? Math.round((incomeVal / totalExpVal) * 100) : 100;
+        const fixedPct = (incomeVal > 0) ? Math.round((fixedVal / incomeVal) * 100) : 0;
+        const remainingAfterFixed = incomeVal - fixedVal;
+        const seasonDiff = Math.round((varVal - baseVarVal) * 100) / 100;
+
+        // 1. Recettes prévues
+        this._cachedCockpitTileData['next_month_income'] = {
+            icon: '📥',
+            title: isOrgMode ? t('cockpit_org_forecast_income', 'Recettes & Subventions') : t('cockpit_forecast_sheet_income_title', 'Recettes prévues'),
+            value: `+${formatCurrency(incomeVal)}`,
+            valueClass: 'text-green',
+            badge: `${monthLabel}`,
+            badgeClass: 'badge-success',
+            subtitle: `${incomeHint} • ${monthLabel}`,
+            rows: [
+                { label: t('cockpit_forecast_sheet_ref_month', 'Mois de projection'), value: monthLabel },
+                { label: isOrgMode ? t('cockpit_org_forecast_income', 'Subventions & cotisations attendues') : t('cockpit_forecast_next_month_income', 'Recettes et salaires prévus'), value: `+${formatCurrency(incomeVal)}`, valueClass: 'text-green' },
+                ...(startBalVal !== null ? [
+                    { label: t('cockpit_forecast_sheet_start_balance', 'Solde estimé début de mois'), value: formatCurrency(startBalVal) }
+                ] : []),
+                { label: t('cockpit_forecast_sheet_coverage_pct', 'Couverture des dépenses du mois'), value: `${coveragePct}%`, valueClass: coveragePct >= 100 ? 'text-green' : 'text-orange' }
+            ],
+            text: isOrgMode 
+                ? t('cockpit_org_forecast_income_tooltip', 'Total des subventions, cotisations et rentrées attendues pour le mois prochain.')
+                : t('cockpit_forecast_next_month_income_tooltip', 'Total des salaires et rentrées prévisibles pour le mois prochain selon vos récurrences et votre historique.'),
+            actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
+            onActionClick: () => {
+                if (window.app && window.app.loadView) {
+                    window.app.loadView('simulator');
+                }
+            }
+        };
+
+        // 2. Charges fixes prévues
+        this._cachedCockpitTileData['next_month_fixed'] = {
+            icon: '📌',
+            title: isOrgMode ? t('cockpit_org_forecast_fixed', 'Charges de structure') : t('cockpit_forecast_sheet_fixed_title', 'Charges fixes prévues'),
+            value: `-${formatCurrency(fixedVal)}`,
+            valueClass: 'text-main',
+            badge: `${fixedPct}% des recettes`,
+            badgeClass: fixedPct > 70 ? 'badge-warning' : 'badge-secondary',
+            subtitle: `${fixedHint} • ${monthLabel}`,
+            rows: [
+                { label: t('cockpit_forecast_sheet_ref_month', 'Mois de projection'), value: monthLabel },
+                { label: isOrgMode ? t('cockpit_org_forecast_fixed', 'Charges de structure prévues') : t('cockpit_forecast_next_month_fixed', 'Charges fixes engagées'), value: `-${formatCurrency(fixedVal)}`, valueClass: 'text-red' },
+                { label: t('cockpit_forecast_sheet_fixed_share', 'Poids sur les recettes du mois'), value: `${fixedPct}%` },
+                { label: t('cockpit_forecast_sheet_rem_after_fixed', 'Marge après charges fixes'), value: `${remainingAfterFixed >= 0 ? '+' : ''}${formatCurrency(remainingAfterFixed)}`, valueClass: remainingAfterFixed >= 0 ? 'text-green' : 'text-red' }
+            ],
+            text: isOrgMode 
+                ? t('cockpit_org_forecast_fixed_tooltip', 'Charges fixes de structure récurrentes (loyer, contrats, assurances, prestations).')
+                : t('cockpit_forecast_next_month_fixed_tooltip', 'Total des charges récurrentes engagées (loyer, abonnements, mensualités, factures).'),
+            actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
+            onActionClick: () => {
+                if (window.app && window.app.loadView) {
+                    window.app.loadView('simulator');
+                }
+            }
+        };
+
+        // 3. Dépenses variables estimées
+        this._cachedCockpitTileData['next_month_variable'] = {
+            icon: '🛒',
+            title: isOrgMode ? t('cockpit_org_forecast_var', 'Dépenses courantes') : t('cockpit_forecast_sheet_variable_title', 'Dépenses variables estimées'),
+            value: `-${formatCurrency(varVal)}`,
+            valueClass: 'text-main',
+            badge: seasonalPct !== 0 ? (seasonalPct > 0 ? `🍂 +${seasonalPct}%` : `🌱 ${seasonalPct}%`) : `⚖️ Neutre`,
+            badgeClass: seasonalPct > 0 ? 'badge-warning' : (seasonalPct < 0 ? 'badge-success' : 'badge-secondary'),
+            subtitle: `${varHint} • ${monthLabel}`,
+            rows: [
+                { label: t('cockpit_forecast_sheet_ref_month', 'Mois de projection'), value: monthLabel },
+                { label: t('cockpit_forecast_next_month_variable', 'Budget variable estimé'), value: `-${formatCurrency(varVal)}`, valueClass: 'text-main' },
+                ...(baseVarVal && Math.abs(baseVarVal - varVal) > 0.01 ? [
+                    { label: t('cockpit_forecast_sheet_base_var', 'Base moyenne (hors saisonnalité)'), value: formatCurrency(baseVarVal) },
+                    { label: t('cockpit_forecast_sheet_season_impact', 'Impact saisonnier estimé'), value: `${seasonDiff > 0 ? '+' : ''}${formatCurrency(seasonDiff)} (${seasonalPct > 0 ? '+' : ''}${seasonalPct}%)`, valueClass: seasonalPct > 0 ? 'text-orange' : 'text-green' }
+                ] : []),
+                { label: t('cockpit_forecast_sheet_daily_budget', 'Cadence journalière équivalente'), value: `~${formatCurrency(varVal / 30)}/j` }
+            ],
+            text: isOrgMode 
+                ? t('cockpit_org_forecast_variable_tooltip', 'Estimation des dépenses courantes de fonctionnement et projets selon le rythme moyen et la saisonnalité.')
+                : t('cockpit_forecast_next_month_variable_tooltip', 'Estimation des dépenses courantes variables basée sur votre rythme moyen et la saisonnalité du mois.'),
+            actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
+            onActionClick: () => {
+                if (window.app && window.app.loadView) {
+                    window.app.loadView('simulator');
+                }
+            }
+        };
+
+        // 4. Reste à vivre / Résultat net
+        this._cachedCockpitTileData['next_month_remaining'] = {
+            icon: '💰',
+            title: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_sheet_remaining_title', 'Reste à vivre estimé'),
+            value: `${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}`,
+            valueClass: netVal >= 0 ? 'text-green' : 'text-red',
+            badge: netVal >= 0 ? (isOrgMode ? '✨ Excédent' : '✨ Épargne') : (isOrgMode ? '⚠️ Besoin' : '⚠️ Déficit'),
+            badgeClass: netVal >= 0 ? 'badge-success' : 'badge-danger',
+            subtitle: `${netHint} • ${monthLabel}`,
+            rows: [
+                { label: t('cockpit_forecast_sheet_ref_month', 'Mois de projection'), value: monthLabel },
+                { label: isOrgMode ? t('cockpit_org_forecast_income', 'Recettes prévues') : t('cockpit_forecast_next_month_income', 'Recettes prévues'), value: `+${formatCurrency(incomeVal)}`, valueClass: 'text-green' },
+                { label: isOrgMode ? t('cockpit_org_forecast_fixed', 'Charges de structure') : t('cockpit_forecast_next_month_fixed', 'Charges fixes'), value: `-${formatCurrency(fixedVal)}`, valueClass: 'text-red' },
+                { label: isOrgMode ? t('cockpit_org_forecast_var', 'Dépenses courantes') : t('cockpit_forecast_next_month_variable', 'Dépenses variables'), value: `-${formatCurrency(varVal)}`, valueClass: 'text-red' },
+                { label: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_next_month_remaining', 'Marge nette prévisionnelle'), value: `${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}`, valueClass: netVal >= 0 ? 'text-green' : 'text-red' },
+                ...(endBalVal !== null ? [
+                    { label: t('cockpit_forecast_next_month_end_balance', 'Solde fin de mois estimé'), value: formatCurrency(endBalVal), valueClass: endBalVal >= 0 ? 'text-main' : 'text-red' }
+                ] : []),
+                ...(optimisticEnd !== null && pessimisticEnd !== null ? [
+                    { label: t('cockpit_forecast_sheet_confidence_range', 'Fourchette réaliste (min / max)'), value: `${formatCurrency(pessimisticEnd)} → ${formatCurrency(optimisticEnd)}` }
+                ] : [])
+            ],
+            text: isOrgMode 
+                ? t('cockpit_org_forecast_net_tooltip', 'Résultat net estimé (Recettes - Charges de structure - Dépenses courantes) pour le mois prochain.')
+                : t('cockpit_forecast_next_month_remaining_tooltip', 'Capacité d\'épargne ou marge disponible nette en fin de mois (Recettes - Fixes - Variables).'),
+            actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
+            onActionClick: () => {
+                if (window.app && window.app.loadView) {
+                    window.app.loadView('simulator');
+                }
+            }
+        };
+
         container.innerHTML = `
             <div class="cockpit-forecast-header">
                 <div class="cockpit-forecast-title-group">
@@ -4182,7 +4311,7 @@ window.OverviewView = {
 
             <div class="cockpit-forecast-kpi-grid">
                 <!-- 1. Recettes prévues -->
-                <div class="cockpit-forecast-kpi-card kpi-income" title="${escapeHtml(incomeTooltip)}">
+                <div class="cockpit-forecast-kpi-card kpi-income clickable" onclick="window.OverviewView.showCockpitTileInfo('next_month_income')" title="${escapeHtml(incomeTooltip)}">
                     <div class="cockpit-forecast-kpi-top">
                         <span class="cockpit-forecast-kpi-icon">📥</span>
                         <span class="cockpit-forecast-kpi-label">${incomeLabel}</span>
@@ -4192,7 +4321,7 @@ window.OverviewView = {
                 </div>
 
                 <!-- 2. Charges fixes prévues -->
-                <div class="cockpit-forecast-kpi-card kpi-fixed" title="${escapeHtml(fixedTooltip)}">
+                <div class="cockpit-forecast-kpi-card kpi-fixed clickable" onclick="window.OverviewView.showCockpitTileInfo('next_month_fixed')" title="${escapeHtml(fixedTooltip)}">
                     <div class="cockpit-forecast-kpi-top">
                         <span class="cockpit-forecast-kpi-icon">📌</span>
                         <span class="cockpit-forecast-kpi-label">${fixedLabel}</span>
@@ -4202,7 +4331,7 @@ window.OverviewView = {
                 </div>
 
                 <!-- 3. Dépenses variables estimées -->
-                <div class="cockpit-forecast-kpi-card kpi-variable" title="${escapeHtml(varTooltip)}">
+                <div class="cockpit-forecast-kpi-card kpi-variable clickable" onclick="window.OverviewView.showCockpitTileInfo('next_month_variable')" title="${escapeHtml(varTooltip)}">
                     <div class="cockpit-forecast-kpi-top">
                         <span class="cockpit-forecast-kpi-icon">🛒</span>
                         <span class="cockpit-forecast-kpi-label">${varLabel}</span>
@@ -4212,7 +4341,7 @@ window.OverviewView = {
                 </div>
 
                 <!-- 4. Reste à vivre / Résultat net estimé -->
-                <div class="cockpit-forecast-kpi-card kpi-remaining" title="${escapeHtml(netTooltip)}">
+                <div class="cockpit-forecast-kpi-card kpi-remaining clickable" onclick="window.OverviewView.showCockpitTileInfo('next_month_remaining')" title="${escapeHtml(netTooltip)}">
                     <div class="cockpit-forecast-kpi-top">
                         <span class="cockpit-forecast-kpi-icon">💰</span>
                         <span class="cockpit-forecast-kpi-label">${netLabel}</span>
@@ -4311,6 +4440,12 @@ window.OverviewView = {
             };
         }
 
+        // Handle next_month forecast cards on demand
+        if (!data && tileKey && tileKey.startsWith('next_month_')) {
+            this._renderCockpitForecast();
+            data = this._cachedCockpitTileData ? this._cachedCockpitTileData[tileKey] : null;
+        }
+
         if (!data) return;
         this._openInfoSheet(data);
     },
@@ -4340,7 +4475,10 @@ window.OverviewView = {
                     </div>
                     <div class="cockpit-info-sheet-rows" id="ovSheetRows"></div>
                     <div class="cockpit-info-sheet-text" id="ovSheetText"></div>
-                    <button class="cockpit-info-sheet-btn" id="ovSheetActionBtn">Compris</button>
+                    <div class="cockpit-info-sheet-actions">
+                        <button class="cockpit-info-sheet-btn-secondary" id="ovSheetSecondaryBtn" style="display:none;"></button>
+                        <button class="cockpit-info-sheet-btn" id="ovSheetActionBtn">Compris</button>
+                    </div>
                 </div>
             `;
             document.body.appendChild(overlay);
@@ -4405,15 +4543,25 @@ window.OverviewView = {
             textEl.style.display = 'none';
         }
 
+        const secBtn = document.getElementById('ovSheetSecondaryBtn');
+        if (secBtn) {
+            if (data.onActionClick && data.actionBtnText) {
+                secBtn.style.display = 'flex';
+                secBtn.textContent = `${data.actionBtnText} ➔`;
+                secBtn.onclick = () => {
+                    this.closeInfoSheet();
+                    data.onActionClick();
+                };
+            } else {
+                secBtn.style.display = 'none';
+                secBtn.onclick = null;
+            }
+        }
+
         const actionBtn = document.getElementById('ovSheetActionBtn');
         if (actionBtn) {
-            actionBtn.textContent = data.actionBtnText || t('cockpit_sheet_close', 'Compris');
-            actionBtn.onclick = () => {
-                this.closeInfoSheet();
-                if (typeof data.onActionClick === 'function') {
-                    data.onActionClick();
-                }
-            };
+            actionBtn.textContent = t('cockpit_sheet_close', 'Compris');
+            actionBtn.onclick = () => this.closeInfoSheet();
         }
 
         requestAnimationFrame(() => {

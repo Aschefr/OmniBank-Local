@@ -3622,5 +3622,19 @@
     "autopilot_review_btn_confirm_standalone_tooltip": "Record as an independent standalone transaction without linking to the forecast",
     "autopilot_review_prompt_link_q": "Link to forecast?",
     "autopilot_review_btn_link_action": "Link to this forecast",
-    "autopilot_review_btn_link_short": "Link"
+    "autopilot_review_btn_link_short": "Link",
+    "cockpit_forecast_sheet_income_title": "Projected income",
+    "cockpit_forecast_sheet_fixed_title": "Projected fixed charges",
+    "cockpit_forecast_sheet_variable_title": "Estimated variable expenses",
+    "cockpit_forecast_sheet_remaining_title": "Estimated remaining budget",
+    "cockpit_forecast_sheet_ref_month": "Forecast month",
+    "cockpit_forecast_sheet_start_balance": "Estimated start balance",
+    "cockpit_forecast_sheet_end_balance": "Estimated end balance",
+    "cockpit_forecast_sheet_coverage_pct": "Month expenses coverage",
+    "cockpit_forecast_sheet_fixed_share": "Share of month income",
+    "cockpit_forecast_sheet_rem_after_fixed": "Margin after fixed charges",
+    "cockpit_forecast_sheet_base_var": "Average baseline (excl. seasonality)",
+    "cockpit_forecast_sheet_season_impact": "Estimated seasonal impact",
+    "cockpit_forecast_sheet_daily_budget": "Equivalent daily cadence",
+    "cockpit_forecast_sheet_confidence_range": "Realistic range (min / max)"
 }

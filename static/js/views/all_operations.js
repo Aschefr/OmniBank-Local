@@ -657,11 +657,18 @@ window.AllOperationsView = {
         }
         if (unrecChecked && window.app.nextPayDate) {
             const nextPayDate = new Date(window.app.nextPayDate);
+            const accId = tAcc ? parseInt(tAcc) : null;
             filtered = filtered.filter(tx => {
                 if (tx.reconciliation_date) return false;
                 const txDate = new Date(tx.date_operation);
                 if (txDate > nextPayDate) return false;
-                if (!tx.from_account_id || tx.to_account_id) return false; // Basic proxy for expense
+                if (accId) {
+                    // Pour le compte filtré : sorties nettes (dépenses ou virements émis vers un autre compte)
+                    if (tx.from_account_id === accId && tx.to_account_id !== accId) return true;
+                    return false;
+                }
+                // Vue globale tous comptes : dépenses uniquement (sorties du patrimoine)
+                if (!tx.from_account_id || tx.to_account_id) return false;
                 return true;
             });
         }
@@ -675,9 +682,22 @@ window.AllOperationsView = {
 
         let sumIncome = 0;
         let sumExpense = 0;
+        const accId = tAcc ? parseInt(tAcc) : null;
         filtered.forEach(tx => {
-            if (tx.type === 'income') sumIncome += tx.amount || 0;
-            else if (tx.type && tx.type.startsWith('expense_')) sumExpense += tx.amount || 0;
+            if (accId) {
+                if (tx.to_account_id === accId && tx.from_account_id !== accId) {
+                    sumIncome += tx.amount || 0;
+                } else if (tx.from_account_id === accId && tx.to_account_id !== accId) {
+                    sumExpense += tx.amount || 0;
+                } else if (tx.type === 'income') {
+                    sumIncome += tx.amount || 0;
+                } else if (tx.type && tx.type.startsWith('expense_')) {
+                    sumExpense += tx.amount || 0;
+                }
+            } else {
+                if (tx.type === 'income') sumIncome += tx.amount || 0;
+                else if (tx.type && tx.type.startsWith('expense_')) sumExpense += tx.amount || 0;
+            }
         });
 
         const footer = document.getElementById('historyTotalsFooter');
