@@ -1334,7 +1334,10 @@ def get_cockpit_forecast_summary(
         "total_expenses": m1_data.get("baseline_expense", 0.0),
         "projected_net": m1_data.get("baseline_net", 0.0),
         "start_balance": m1_data.get("start_balance_baseline", 0.0),
+        "base_variable": m1_data.get("base_variable_projected", 0.0),
         "projected_end_balance": m1_data.get("baseline_end_balance", 0.0),
+        "optimistic_end_balance": m1_data.get("optimistic_end_balance"),
+        "pessimistic_end_balance": m1_data.get("pessimistic_end_balance"),
         "seasonal_tag": m1_data.get("seasonal_tag"),
         "seasonal_pct": m1_data.get("seasonal_pct", 0),
         "has_seasonality": bool(m1_data.get("seasonal_pct", 0) != 0)

@@ -2331,42 +2331,51 @@ window.AutopilotView = {
     },
 
     async rollbackDecision(decisionId, btn) {
-        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_rollback_decision') : 'Confirmer l\'annulation de cette décision ?', async () => {
+        const title = window.i18n ? window.i18n.t('title_confirmation') : 'Confirmation';
+        const msg = window.i18n ? window.i18n.t('autopilot_confirm_rollback_decision') : 'Confirmer l\'annulation de cette décision ?';
+        if (await showInlineConfirm(title, msg)) {
             try {
                 const res = await API.post(`/api/autopilot/decisions/${decisionId}/rollback`, {});
                 showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_decision_undone') : 'Décision annulée'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
             } catch (e) {
                 showToast(window.i18n ? window.i18n.t('autopilot_toast_rollback_error') : 'Échec de l\'annulation', 'error');
             }
-        });
+        }
     },
 
     async unpointDecision(decisionId, btn) {
-        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_unpoint') : 'Dépointer cette transaction et rétablir la prévision ?', async () => {
+        const title = window.i18n ? window.i18n.t('title_confirmation') : 'Confirmation';
+        const msg = window.i18n ? window.i18n.t('autopilot_confirm_unpoint') : 'Dépointer cette transaction et rétablir la prévision ?';
+        if (await showInlineConfirm(title, msg)) {
             try {
                 const res = await API.post(`/api/autopilot/decisions/${decisionId}/unpoint`, {});
                 showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_unpoint_success') : 'Transaction dépointée'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
             } catch (e) {
                 showToast(window.i18n ? window.i18n.t('autopilot_toast_unpoint_error') : 'Échec du dépointage', 'error');
             }
-        });
+        }
     },
 
     async rollbackCycle(batchId, btn) {
-        showInlineConfirm(btn, window.i18n ? window.i18n.t('autopilot_confirm_rollback_batch').replace('{batchId}', batchId.substring(0, 8)) : `Annuler l'intégralité du lot ${batchId.substring(0, 8)} et le renvoyer dans le Sas d'attente ?`, async () => {
+        const title = window.i18n ? window.i18n.t('title_confirmation') : 'Confirmation';
+        const msg = window.i18n ? (window.i18n.t('autopilot_confirm_rollback_batch') || "Annuler l'intégralité du lot {batchId} et le renvoyer dans le Sas d'attente ?").replace('{batchId}', batchId.substring(0, 8)) : `Annuler l'intégralité du lot ${batchId.substring(0, 8)} et le renvoyer dans le Sas d'attente ?`;
+        if (await showInlineConfirm(title, msg)) {
             try {
                 const res = await API.post(`/api/autopilot/rollback-cycle/${batchId}`, {});
                 showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_batch_rollback_success') : 'Lot annulé et renvoyé dans le Sas'), 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
             } catch (e) {
                 showToast(window.i18n ? window.i18n.t('autopilot_toast_batch_rollback_error') : 'Échec du rollback de lot', 'error');
             }
-        });
+        }
     },
 
     onRollbackCycleClick(btn) {

@@ -868,6 +868,14 @@
     white-space: pre-line;
 }
 
+.cockpit-info-sheet-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin-top: 6px;
+}
+
 .cockpit-info-sheet-btn {
     width: 100%;
     padding: 12px;
@@ -879,11 +887,32 @@
     border: none;
     cursor: pointer;
     transition: opacity 0.2s ease;
-    margin-top: 4px;
 }
 
 .cockpit-info-sheet-btn:hover {
     opacity: 0.92;
+}
+
+.cockpit-info-sheet-btn-secondary {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--primary, #6366f1);
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.cockpit-info-sheet-btn-secondary:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: var(--primary, #6366f1);
 }
 
 /* On desktop / large screens, center the sheet as a modal */
@@ -1041,6 +1070,21 @@
     transform: translateY(-2px);
     border-color: var(--accent-border);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.cockpit-forecast-kpi-card.clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.cockpit-forecast-kpi-card.clickable:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+}
+
+.cockpit-forecast-kpi-card.clickable:active {
+    transform: translateY(0);
 }
 
 .cockpit-forecast-kpi-top {

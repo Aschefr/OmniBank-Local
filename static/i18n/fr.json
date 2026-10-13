@@ -3622,5 +3622,19 @@
     "autopilot_review_btn_confirm_standalone_tooltip": "Enregistrer comme opération indépendante sans la lier à la prévision",
     "autopilot_review_prompt_link_q": "Lier à la prévision ?",
     "autopilot_review_btn_link_action": "Lier à cette prévision",
-    "autopilot_review_btn_link_short": "Lier"
+    "autopilot_review_btn_link_short": "Lier",
+    "cockpit_forecast_sheet_income_title": "Recettes prévues",
+    "cockpit_forecast_sheet_fixed_title": "Charges fixes prévues",
+    "cockpit_forecast_sheet_variable_title": "Dépenses variables estimées",
+    "cockpit_forecast_sheet_remaining_title": "Reste à vivre estimé",
+    "cockpit_forecast_sheet_ref_month": "Mois de projection",
+    "cockpit_forecast_sheet_start_balance": "Solde estimé début de mois",
+    "cockpit_forecast_sheet_end_balance": "Solde estimé fin de mois",
+    "cockpit_forecast_sheet_coverage_pct": "Couverture des dépenses du mois",
+    "cockpit_forecast_sheet_fixed_share": "Poids sur les recettes du mois",
+    "cockpit_forecast_sheet_rem_after_fixed": "Marge après charges fixes",
+    "cockpit_forecast_sheet_base_var": "Base moyenne (hors saisonnalité)",
+    "cockpit_forecast_sheet_season_impact": "Impact saisonnier estimé",
+    "cockpit_forecast_sheet_daily_budget": "Cadence journalière équivalente",
+    "cockpit_forecast_sheet_confidence_range": "Fourchette réaliste (min / max)"
 }

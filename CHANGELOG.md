@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+## [1.2.2] - 2026-10-13
+
+### Fixed & Improved
+- **Auto-Pilot Anti-Duplicate Safeguards 🤖**: Prevented silent auto-commit of new entries when an unreconciled forecast of the same amount already exists, avoiding cash flow projection distortions.
+- **Pending-to-Confirmed Debit Continuity 🏦**: Added a life-cycle transition bonus and dual textual matching (`description` + `raw_description`), enabling confirmed debits to match pending authorizations even when bank labels vary.
+- **Merchant Acronym Matching 🏷️**: Extended Smart-Label token matching to 3-letter acronyms (`CTM`, `LCL`, `EDF`) without relaxing geographic collision safeguards.
+- **Rollback Confirmation Fix 🔄**: Fixed asynchronous modal promise handling in Auto-Pilot decision and batch cancellation, ensuring "Annuler le lot" and "Annuler" trigger immediate rollback and reactive UI updates.
+- **Next Month Outlook Modals 🎛️**: Added interactive detail breakdown modals to the Cockpit "Cap sur le mois prochain" tiles.
+- **History & Cockpit Totals Alignment 📊**: Included account-level outgoing transfers in the pre-payday unreconciled filter, aligning Operations view totals with Cockpit metrics.
+
 ## [1.2.1] - 2026-10-12
 
 ### Fixed & Improved

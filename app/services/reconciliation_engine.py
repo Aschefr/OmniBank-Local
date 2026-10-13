@@ -115,7 +115,8 @@ def evaluate_candidate(
     candidate_tx: Transaction,
     target_dt,
     bank_label: Optional[str],
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    is_coming: bool = False
 ) -> int:
     """Calcule le score composite total (0-100 pts) pour un candidat."""
     amt_score = 40
@@ -150,20 +151,39 @@ def evaluate_candidate(
             logger.debug(f"[Reconciliation] Note récurrence day_of_month ignorée: {e}")
 
     session_for_text = db or Session.object_session(candidate_tx)
-    text_score = compute_text_score(
+    # Double comparaison textuelle : libellé propre (description) ET libellé bancaire d'origine (raw_description)
+    text_score_desc = compute_text_score(
         candidate_tx.description,
         bank_label,
         candidate_cat=candidate_tx.category,
         db=session_for_text
     )
-    return amt_score + temp_score + text_score
+    text_score_raw = 0
+    if candidate_tx.raw_description and candidate_tx.raw_description.strip() != (candidate_tx.description or "").strip():
+        text_score_raw = compute_text_score(
+            candidate_tx.raw_description,
+            bank_label,
+            candidate_cat=candidate_tx.category,
+            db=session_for_text
+        )
+    text_score = max(text_score_desc, text_score_raw)
+
+    # Bonus de cycle de vie : si le candidat en base attendait la confirmation d'une opération "À venir" (woob_coming_)
+    # et qu'on traite un débit bancaire confirmé (not is_coming)
+    coming_transition_bonus = 0
+    if not is_coming and candidate_tx.csv_id and str(candidate_tx.csv_id).startswith("woob_coming_"):
+        if temp_score >= 5:  # delta <= 15 jours
+            coming_transition_bonus = 15
+
+    return min(100, amt_score + temp_score + text_score + coming_transition_bonus)
 
 
 def best_scored_tx(
     candidates: List[Transaction],
     target_dt,
     bank_label: Optional[str],
-    db: Optional[Session] = None
+    db: Optional[Session] = None,
+    is_coming: bool = False
 ) -> Tuple[Optional[Transaction], int, bool]:
     """
     Sélectionne le meilleur candidat parmi une liste avec tri score décroissant puis proximité date.
@@ -173,7 +193,7 @@ def best_scored_tx(
         return None, 0, False
     scored = []
     for c in candidates:
-        s = evaluate_candidate(c, target_dt, bank_label, db=db)
+        s = evaluate_candidate(c, target_dt, bank_label, db=db, is_coming=is_coming)
         if s >= 40:
             scored.append((s, c))
     if not scored:
@@ -356,7 +376,7 @@ def check_reconciliation(
         else:
             recon_query_filtered = recon_query
 
-        recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label, db=db)
+        recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label, db=db, is_coming=is_coming)
         if recon_match and recon_score >= 60:
             cand_dt = recon_match.date_operation
             if cand_dt and is_coming:
@@ -406,7 +426,7 @@ def check_reconciliation(
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
 
-        op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label, db=db)
+        op_match, op_score, op_collision = best_scored_tx(available_op_query.all(), target_dt, bank_label, db=db, is_coming=is_coming)
         if op_match and op_score >= 60:
             return {
                 "id": op_match.id,
@@ -567,7 +587,7 @@ def check_reconciliation(
         ).all()
 
     if mirror_candidates:
-        mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_candidates, target_dt, bank_label, db=db)
+        mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_candidates, target_dt, bank_label, db=db, is_coming=is_coming)
         if mirror_match:
             # Bonus de confiance pour virement interne avéré entre deux comptes connus du profil
             if mirror_match.from_account_id and mirror_match.to_account_id:
@@ -615,7 +635,7 @@ def check_reconciliation(
         if matched_ids:
             orphan_q = orphan_q.filter(Transaction.id.notin_(matched_ids))
 
-        orphan_match, orphan_score, orphan_collision = best_scored_tx(orphan_q.all(), target_dt, bank_label)
+        orphan_match, orphan_score, orphan_collision = best_scored_tx(orphan_q.all(), target_dt, bank_label, db=db, is_coming=is_coming)
         if orphan_match:
             other_acc_id = orphan_match.to_account_id if raw_num < 0 else orphan_match.from_account_id
             other_acc = db.query(Account).filter(Account.id == other_acc_id).first()

@@ -645,3 +645,136 @@ def test_t2_8_csv_import_flow_with_autopilot(test_db):
     assert log is not None
     assert log.conn_id is None  # Les imports fichiers n'ont pas de conn_id réseau
     assert log.account_id == 1
+
+
+def test_autopilot_suspected_forecast_duplicate_guard(test_db):
+    """
+    Garde-fou anti-doublon : Si une opération prévisionnelle non pointée existe en base
+    avec le même montant sur le même compte, une opération bancaire non reconnue (matched_id=None)
+    ne doit PAS être créée automatiquement en douce (ce qui doublerait la dépense dans le cockpit).
+    Elle doit être maintenue dans le Sas pour arbitrage.
+    """
+    tx_forecast = Transaction(
+        id=801,
+        date_operation=date(2026, 10, 1),
+        description="Révision Garage",
+        amount=600.0,
+        type="expense_var",
+        category="Automobile",
+        from_account_id=1,
+        reconciliation_date=None
+    )
+    test_db.add(tx_forecast)
+    test_db.commit()
+
+    # Relevé bancaire avec libellé méconnaissable du rapprochement auto (score < 60)
+    preview = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Compte Courant",
+                "transactions": [
+                    {
+                        "date_operation": "2026-10-11",
+                        "description": "COMMERCE INCONNU",
+                        "raw_description": "COMMERCE INCONNU 999",
+                        "amount": 600.0,
+                        "raw_amount": -600.0,
+                        "is_reconciled": False,
+                        "already_reconciled": False,
+                        "matched_db_id": None,
+                        "match_score": 0.0,
+                        "collision_detected": False,
+                        "csv_id": "woob_unknown_600",
+                        "account_id": 1,
+                        "is_coming": False,
+                        "confidence": 0.90,
+                        "category": "Automobile"
+                    }
+                ]
+            }
+        ]
+    }
+
+    res = process_incoming_batch(test_db, conn_id=1, preview_data=preview, profile_id="default")
+
+    # Ne doit pas avoir été auto-commit en écriture
+    assert res["auto_committed"] == 0
+    # Doit être maintenue dans le Sas pour arbitrage
+    assert res["pending"] == 1
+
+    # Aucune nouvelle transaction de 600€ ne doit avoir été insérée en base
+    tx_count = test_db.query(Transaction).filter(Transaction.amount == 600.0).count()
+    assert tx_count == 1  # Seulement la prévision d'origine
+
+
+def test_autopilot_coming_to_confirmed_transition_with_acronym(test_db):
+    """
+    Vérifie qu'une opération 'À venir' avec acronyme (CTM) et variation de libellé bancaire
+    est correctement appariée et pointée lors de la confirmation du débit bancaire.
+    """
+    tx_coming = Transaction(
+        id=802,
+        date_operation=date(2026, 10, 1),
+        description="Garage CTM Les Avenières",
+        raw_description="X8492 SumUp *CTM Rhon LES",
+        amount=600.0,
+        type="expense_var",
+        category="Automobile",
+        from_account_id=1,
+        reconciliation_date=None,
+        csv_id="woob_coming_cragr_04113708641_0914fd0c4c3b"
+    )
+    test_db.add(tx_coming)
+    test_db.commit()
+
+    from app.services.reconciliation_engine import check_reconciliation
+    rec_info = check_reconciliation(
+        test_db,
+        tx_date=date(2026, 10, 11),
+        tx_amount=-600.0,
+        account_id=1,
+        is_coming=False,
+        bank_label="X8492 SumUp *CTM Rhone-Alp",
+        csv_id="woob_cragr_04113708641_5446a746a019"
+    )
+
+    assert rec_info is not None
+    assert rec_info["id"] == 802
+    assert rec_info["match_score"] >= 85
+    assert rec_info["auto_committed"] is True
+
+    preview = {
+        "accounts": [
+            {
+                "account_id": 1,
+                "account_name": "Compte Courant",
+                "transactions": [
+                    {
+                        "date_operation": "2026-10-11",
+                        "description": "X8492 SumUp *CTM Rhone-Alp",
+                        "raw_description": "X8492 SumUp *CTM Rhone-Alp",
+                        "amount": 600.0,
+                        "raw_amount": -600.0,
+                        "is_reconciled": True,
+                        "already_reconciled": False,
+                        "matched_db_id": 802,
+                        "match_score": rec_info["match_score"],
+                        "collision_detected": False,
+                        "csv_id": "woob_cragr_04113708641_5446a746a019",
+                        "account_id": 1,
+                        "is_coming": False
+                    }
+                ]
+            }
+        ]
+    }
+
+    res = process_incoming_batch(test_db, conn_id=1, preview_data=preview, profile_id="default")
+    assert res["auto_reconciled"] == 1
+    assert res["pending"] == 0
+
+    test_db.refresh(tx_coming)
+    assert tx_coming.reconciliation_date is not None
+    assert tx_coming.csv_id == "woob_cragr_04113708641_5446a746a019"
+
