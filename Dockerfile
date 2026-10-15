@@ -12,4 +12,4 @@ COPY ./app ./app
 COPY ./static ./static
 COPY CHANGELOG.md .
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8434", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8434", "--reload", "--reload-dir", "app"]

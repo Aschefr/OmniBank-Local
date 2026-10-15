@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Performance & Ergonomics
+- **Docker Resource Optimization ⚡**: Upgraded live reload engine with native `watchfiles` and scoped file watching to the application source directory, significantly cutting idle CPU overhead. Suspended background notification polling when the browser tab is hidden.
+
 ## [1.2.2] - 2026-10-13
 
 ### Fixed & Improved
