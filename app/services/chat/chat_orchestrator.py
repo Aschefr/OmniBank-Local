@@ -33,6 +33,7 @@ from app.services.chat.chat_tools import (
     audit_transactions_integrity_tool,
     create_budget_envelope_tool,
     create_category_tool,
+    create_planned_transfer_tool,
     create_recurrence_template_tool,
     delete_budget_envelope_tool,
     delete_category_tool,
@@ -62,6 +63,7 @@ from app.services.chat.chat_tools import (
     simulate_loan_amortization_tool,
     store_financial_fact_tool,
     suggest_transaction_category_tool,
+    trigger_bank_sync_tool,
     update_budget_envelope_tool,
     update_recurrence_template_tool,
 )
@@ -110,10 +112,28 @@ def register_notify_on_complete(session_id: int, db: Session, profile_id: Option
 
 
 def detect_mentioned_month_year(text: str, default_year: int, default_month: int) -> Tuple[int, int]:
-    """Détecte les mentions de mois/années dans une question utilisateur ou une réponse."""
+    """
+    Détecte les mentions de mois/années dans une question utilisateur ou une réponse.
+    Protège strictement contre les collisions avec des montants financiers (ex: '2036 € dépensés', '2000 € alloués').
+    """
     if not text:
         return default_year, default_month
     text_lower = text.lower()
+
+    # 1. Mots-clés temporels relatifs
+    if re.search(r'\b(le mois prochain|mois prochain)\b', text_lower):
+        if default_month == 12:
+            return default_year + 1, 1
+        return default_year, default_month + 1
+    if re.search(r'\b(le mois dernier|mois dernier|mois pr[eé]c[eé]dent)\b', text_lower):
+        if default_month == 1:
+            return default_year - 1, 12
+        return default_year, default_month - 1
+    if re.search(r'\b(l\'ann[eé]e prochaine|ann[eé]e prochaine)\b', text_lower):
+        return default_year + 1, default_month
+    if re.search(r'\b(l\'ann[eé]e derni[eè]re|l\'an pass[eé]|ann[eé]e pass[eé]e)\b', text_lower):
+        return default_year - 1, default_month
+
     months_map = {
         "janvier": 1, "january": 1, "janv": 1,
         "février": 2, "fevrier": 2, "february": 2, "fevr": 2, "févr": 2,
@@ -128,18 +148,55 @@ def detect_mentioned_month_year(text: str, default_year: int, default_month: int
         "novembre": 11, "november": 11, "nov": 11,
         "décembre": 12, "decembre": 12, "december": 12, "dec": 12, "déc": 12,
     }
+
+    # 2. Formats combinés stricts (Mois / Année explicites)
+    # Ex: 10/2026 ou 10-2026
+    m_slash = re.search(r'\b(0?[1-9]|1[0-2])[\/\-](202[0-9]|203[0-9])\b', text_lower)
+    if m_slash:
+        return int(m_slash.group(2)), int(m_slash.group(1))
+
+    # Ex: 2026-10
+    y_slash = re.search(r'\b(202[0-9]|203[0-9])[\/\-](0?[1-9]|1[0-2])\b', text_lower)
+    if y_slash:
+        return int(y_slash.group(1)), int(y_slash.group(2))
+
+    # Ex: 'octobre 2026'
+    for name, m_num in months_map.items():
+        m_combo = re.search(r'\b' + name + r'\s+(202[0-9]|203[0-9])\b', text_lower)
+        if m_combo:
+            return int(m_combo.group(1)), m_num
+
+    # 3. Détection séparée du mois
     detected_month = None
     for name, m_num in months_map.items():
         if re.search(r'\b' + name + r'\b', text_lower):
             detected_month = m_num
             break
 
-    year_match = re.search(r'\b(202[0-9]|203[0-9])\b', text_lower)
-    detected_year = int(year_match.group(1)) if year_match else default_year
+    # 4. Détection prudente de l'année (exclusion absolue des montants financiers)
+    detected_year = default_year
+    # Recherche prioritaire : année précédée d'un marqueur temporel ('en 2026', 'pour 2026', 'année 2026')
+    y_explicit = re.search(r'\b(?:en|pour|ann[eé]e|exercice|sur|de)\s+(202[0-9]|203[0-9])\b(?!\s*(?:€|eur|euros?|\$|k€|\%))', text_lower)
+    if y_explicit:
+        detected_year = int(y_explicit.group(1))
+    else:
+        for match in re.finditer(r'\b(202[0-9]|203[0-9])\b', text_lower):
+            cand_y = int(match.group(1))
+            start, end = match.span()
+            after_str = text_lower[end:end+25]
+            before_str = text_lower[max(0, start-25):start]
 
-    if detected_month:
-        return detected_year, detected_month
-    return default_year, default_month
+            # Exclure si suivi d'une devise ou d'un terme financier
+            if re.match(r'^\s*(?:€|eur|euros?|\$|k€|\%|d[eé]pens[eé]s?|allou[eé]s?|engag[eé]s?|restants?|factur[eé]s?|pay[eé]s?)', after_str):
+                continue
+            # Exclure si précédé par des indicateurs de montant (+, -, €, 'de', 'soit', 'dépassement de')
+            if re.search(r'(?:[+–-]|€|\$|de|soit|atteignant|d[eé]passement\s+de)\s*$', before_str):
+                continue
+
+            detected_year = cand_y
+            break
+
+    return detected_year, detected_month or default_month
 
 
 def execute_chat_action(db: Session, action: str, params: dict) -> dict:
@@ -237,6 +294,18 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             type=ttype,
             force_write=True,
         )
+    elif action == "create_planned_transfer":
+        res = create_planned_transfer_tool(
+            db,
+            from_account=params.get("from_account"),
+            to_account=params.get("to_account"),
+            amount=params.get("amount"),
+            description=params.get("description"),
+            date_operation=params.get("date_operation"),
+            force_write=True,
+        )
+    elif action == "trigger_bank_sync":
+        res = trigger_bank_sync_tool(db, force_write=True)
     else:
         raise HTTPException(status_code=400, detail=f"Action '{action}' non reconnue")
 
@@ -390,6 +459,8 @@ async def generate_chat_stream(
                 "audit_transactions_integrity": "Audit de l'intégrité des opérations et des récurrences...",
                 "simulate_financial_scenario": "Simulation financière avancée (What-If)...",
                 "get_application_knowledge": "Consultation de la documentation et des règles OmniBank...",
+                "create_planned_transfer": "Préparation du virement prévisionnel dans OmniBank...",
+                "trigger_bank_sync": "Lancement du relevé et de la synchronisation bancaire...",
             }
             tool_desc_map_en = {
                 "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -425,6 +496,8 @@ async def generate_chat_stream(
                 "audit_transactions_integrity": "Auditing transaction data integrity...",
                 "simulate_financial_scenario": "Running financial What-If simulation...",
                 "get_application_knowledge": "Looking up OmniBank documentation and feature rules...",
+                "create_planned_transfer": "Preparing planned transfer in OmniBank...",
+                "trigger_bank_sync": "Triggering online bank statement synchronization...",
             }
             tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -650,6 +723,18 @@ async def generate_chat_stream(
                             tool_result = simulate_financial_scenario_tool(db, fn_args.get("horizon_months", 12), fn_args.get("project_name"), fn_args.get("one_off_amount", 0.0), fn_args.get("recurring_monthly_amount", 0.0), fn_args.get("recurring_duration_months", 12))
                         elif fn_name == "get_application_knowledge":
                             tool_result = get_application_knowledge_tool(fn_args.get("topic"))
+                        elif fn_name == "create_planned_transfer":
+                            tool_result = create_planned_transfer_tool(
+                                db,
+                                from_account=fn_args.get("from_account"),
+                                to_account=fn_args.get("to_account"),
+                                amount=fn_args.get("amount"),
+                                description=fn_args.get("description"),
+                                date_operation=fn_args.get("date_operation"),
+                                force_write=False
+                            )
+                        elif fn_name == "trigger_bank_sync":
+                            tool_result = trigger_bank_sync_tool(db, force_write=False)
                         elif fn_name == "store_financial_fact":
                             tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
                             yield f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n"
@@ -698,9 +783,11 @@ async def generate_chat_stream(
             snap_y = target_period_override["year"]
             snap_m = target_period_override["month"]
             if not snap_y or not snap_m:
-                det_y, det_m = detect_mentioned_month_year(f"{req.content} {final_text}", now_dt.year, now_dt.month)
-                snap_y = det_y
-                snap_m = det_m
+                user_y, user_m = detect_mentioned_month_year(req.content, now_dt.year, now_dt.month)
+                if (user_y, user_m) != (now_dt.year, now_dt.month):
+                    snap_y, snap_m = user_y, user_m
+                else:
+                    snap_y, snap_m = detect_mentioned_month_year(final_text, now_dt.year, now_dt.month)
             snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
             snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
             if snapshots:
@@ -749,9 +836,11 @@ async def generate_chat_stream(
                 snap_y = target_period_override["year"]
                 snap_m = target_period_override["month"]
                 if not snap_y or not snap_m:
-                    det_y, det_m = detect_mentioned_month_year(f"{req.content} {final_text}", now_dt.year, now_dt.month)
-                    snap_y = det_y
-                    snap_m = det_m
+                    user_y, user_m = detect_mentioned_month_year(req.content, now_dt.year, now_dt.month)
+                    if (user_y, user_m) != (now_dt.year, now_dt.month):
+                        snap_y, snap_m = user_y, user_m
+                    else:
+                        snap_y, snap_m = detect_mentioned_month_year(final_text, now_dt.year, now_dt.month)
                 snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                 bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)

@@ -31,6 +31,7 @@ from app.services.chat.tools.write_tools import (  # noqa: F401
     apply_transaction_correction_tool,
     create_budget_envelope_tool,
     create_category_tool,
+    create_planned_transfer_tool,
     create_recurrence_template_tool,
     delete_budget_envelope_tool,
     delete_category_tool,
@@ -40,6 +41,7 @@ from app.services.chat.tools.write_tools import (  # noqa: F401
     generate_csv_export_link_tool,
     set_predicted_paycheck_tool,
     store_financial_fact_tool,
+    trigger_bank_sync_tool,
     update_budget_envelope_tool,
     update_recurrence_template_tool,
 )
@@ -608,6 +610,36 @@ TOOLS = [
                         "description": "Topic or query to look up (e.g. 'reste_a_vivre', 'autopilot', 'budgets', 'simulateur', 'comptes_imports', 'confidentialite_modes', or a question)."
                     }
                 }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_planned_transfer",
+            "description": "Register a planned internal transfer transaction between two accounts in OmniBank (e.g. from a liquid savings account like Livret A to the main checking account) to update projected balances and Reste à Vivre in the application. Note: The actual banking wire transfer must be performed by the user on their bank's application or web portal.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "from_account": {"type": "string", "description": "Source account name or ID (e.g. 'Livret A')."},
+                    "to_account": {"type": "string", "description": "Destination account name or ID (e.g. 'CA Centre-Est')."},
+                    "amount": {"type": "number", "description": "Amount to transfer in euros."},
+                    "description": {"type": "string", "description": "Label or note for the transfer in OmniBank."},
+                    "date_operation": {"type": "string", "description": "Date of the transfer in YYYY-MM-DD format (defaults to today)."}
+                },
+                "required": ["from_account", "to_account", "amount"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "trigger_bank_sync",
+            "description": "Trigger an online bank synchronization (relevé en ligne) in the background to fetch recent transactions from bank accounts and automatically match/reconcile them with planned operations via Auto-Pilot.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
             }
         }
     }

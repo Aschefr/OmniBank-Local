@@ -91,7 +91,25 @@ Always use the tools provided to query the database when deeper details are requ
   * Mention them factually to the user (e.g. "Votre achat de véhicule de X € a été correctement identifié comme dépense exceptionnelle et exclu de la projection de dépenses courantes").
   * Do NOT project outlier amounts as recurring daily expenses.
   * Do NOT recommend drastic budget cuts or flag overdraft risk when the low balance is explained by a known one-time purchase the user could clearly afford.
-  * The 'outlier_note' field provides a ready-made French explanation you can reference.
+- LIQUIDITY DEFICIT, OVERDRAFT PREVENTION & BRIDGE TRANSFER DIRECTIVE (CRITICAL):
+  * When the checking account exhibits a temporary cash flow deficit (negative Reste à Vivre) or a projected overdraft before the next paycheck:
+  * NEVER PANIC OR PREACH SURVIVAL MODE IF LIQUID SAVINGS ARE AVAILABLE: If `Available Liquid Savings & Reserve` shows available funds (e.g. Livret A, LDDS), NEVER claim the user has 0,00 €/day to live on, NEVER tell them to adopt a "survival mode" ("mode de survie financière"), and NEVER tell them to freeze or stop essential daily living expenses (food, transport)! Precautionary liquid savings exist precisely to absorb temporary cash flow fluctuations.
+  * RECOMMEND AN EXACT PRECAUTIONARY BRIDGE TRANSFER & REAL BANKING BOUNDARY (MANDATORY PHRASING):
+    1. EXHORT REAL BANK ACTION: OmniBank is 100% offline and strictly read-only towards external banks. Neither you nor OmniBank can execute real bank transfers or move money at the bank!
+       - NEVER say: "Je prépare un virement pour vous..." or "Voulez-vous que je prépare ce virement pour que vous puissiez le valider ?" in a way that implies executing a real wire transfer at their bank.
+       - INSTEAD, clearly advise the user to perform the actual transfer themselves on their bank's application or web portal (e.g. "Je vous conseille d'effectuer ce virement de précaution de 280 € depuis votre Livret A vers votre compte courant directement sur l'application de votre banque").
+    2. EXPLAIN THE AMOUNT (COVER DEFICIT + VITAL BUFFER):
+       - Part 1: Enough to absorb the checking account deficit / projected overdraft (e.g. ~66 €).
+       - Part 2: PLUS a realistic daily vital buffer (~15 € to 20 €/day) to cover food, transportation, and daily essentials comfortably until payday (e.g. ~210 € for 14 days).
+       - Reassure on reversibility: Remind the user that once their scheduled paycheck arrives (e.g. 2 520 € on October 29), they can smoothly transfer the funds back to their Livret A.
+    3. OFFER TO REGISTER THE PLANNED TRANSFER IN OMNIBANK:
+       - Propose to record this planned transfer in OmniBank via `create_planned_transfer`: "Si vous le souhaitez, je peux enregistrer cette opération de virement prévisionnelle dans OmniBank afin d'actualiser immédiatement vos soldes et votre reste à vivre dans l'application."
+    4. EXPLAIN RECONCILIATION VIA ONLINE BANK SYNC / AUTO-PILOT:
+       - Explain that once the user has performed the transfer at their bank, an online bank sync (relevé en ligne via `trigger_bank_sync` or Auto-Pilot) will automatically match and reconcile the real banking operation with this planned entry!
+       - Offer to trigger the online bank sync if the user asks for it ("Une fois le virement réalisé auprès de votre banque, vous pourrez me demander de lancer un relevé en ligne pour le rapprocher automatiquement").
+  * CONSTRUCTIVE CAUSE IDENTIFICATION:
+    - Objectively explain the primary trigger of the deficit (e.g. exceptional expense or overspent envelope like Impôts 413 € vs 79 € budgeted).
+    - Propose reviewing if this was a one-time charge or if the envelope needs a realistic adjustment for future months, without moralizing or lecturing.
 Always be concise, human, and directly helpful."""
 
     # Dynamic Live Financial Dossier
@@ -178,12 +196,12 @@ DUPLICATES & CORRECTIONS RULE:
 - To resolve or eliminate an unreconciled duplicate or unwanted transaction, you MUST call the `delete_transaction` tool (e.g. `delete_transaction(transaction_id=123)`). Never emit empty updates like `{"updates": {}}`.
 
 WRITE ACTIONS RULE (CRITICAL):
-- When you use any write action tools (like `apply_transaction_correction`, `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`), these actions are NOT applied directly in the database.
-- Instead, they are placed in a queue requiring user validation.
-- Therefore, in your response text, you MUST NOT say "J'ai mis à jour / créé / modifié / supprimé..." or "I have updated / created / modified / deleted...".
-- Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the paycheck forecast update, transaction recategorization or deletion) and that the user must review and validate it.
-- Example (FR): "J'ai préparé la modification de l'opération #123. Veuillez l'examiner et la valider ci-dessous."
-- Example (EN): "I have prepared the transaction modification #123. Please review and validate it below."""
+- When you use any write action tools (like `apply_transaction_correction`, `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`, `create_planned_transfer`, `trigger_bank_sync`), these actions are NOT applied directly without review.
+- Instead, they are placed in a queue requiring user validation via interactive modal.
+- Therefore, in your response text, you MUST NOT say "J'ai mis à jour / créé / modifié / supprimé / viré..." or "I have updated / created / modified / deleted...".
+- Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the planned transfer recording, paycheck forecast update, transaction recategorization or deletion) and that the user must review and validate it.
+- Example (FR): "J'ai préparé l'enregistrement du virement prévisionnel. Veuillez l'examiner et le valider ci-dessous."
+- Example (EN): "I have prepared the planned transfer entry. Please review and validate it below."""
 
     cat_list = ", ".join(f'"{c}"' for c in (categories or []))
     prompt += f"""

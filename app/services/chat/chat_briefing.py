@@ -45,6 +45,26 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         main_acc_name = main_acc.name if main_acc else "Compte Principal"
         main_acc_bal = balances_reconciled.get(main_acc.id, 0.0) if main_acc else 0.0
 
+        # Categorize liquid savings and secondary accounts
+        savings_accounts = []
+        secondary_checking_accounts = []
+        for acc in accounts:
+            if main_acc and acc.id == main_acc.id:
+                continue
+            acc_type_lower = (acc.type or "").lower()
+            acc_name_lower = (acc.name or "").lower()
+            is_loan = any(k in acc_type_lower for k in ['prêt', 'pret', 'emprunt', 'loan', 'crédit', 'credit'])
+            if is_loan:
+                continue
+            if any(k in acc_type_lower for k in ['livret', 'épargne', 'epargne', 'savings']) or any(k in acc_name_lower for k in ['livret', 'épargne', 'epargne', 'csl', 'ldd', 'lep', 'pel', 'cel']):
+                savings_accounts.append(acc)
+            else:
+                secondary_checking_accounts.append(acc)
+
+        liquid_savings_total = sum(max(balances_reconciled.get(a.id, 0.0), 0.0) for a in savings_accounts)
+        savings_detail_str = ", ".join(f"{a.name}: {balances_reconciled.get(a.id, 0.0):.2f} {base_curr}" for a in savings_accounts) if savings_accounts else "None"
+        sec_detail_str = ", ".join(f"{a.name}: {balances_reconciled.get(a.id, 0.0):.2f} {base_curr}" for a in secondary_checking_accounts) if secondary_checking_accounts else None
+
         # 2. Reste à Vivre & Paycheck
         paycheck = predict_next_paycheck(db)
         next_pay_date = paycheck.get("date")
@@ -55,6 +75,27 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         if isinstance(next_pay_date, date):
             days_until_paycheck = max(1, (next_pay_date - today).days)
         daily_budget = round(rtl / days_until_paycheck, 2) if rtl > 0 else 0.0
+
+        # Overdraft warning
+        from app.services.finance_engine import get_overdraft_warning
+        od_warning = get_overdraft_warning(db)
+
+        # Recommended Bridge Transfer calculation (Deficit + Vital Daily Living Buffer)
+        rec_bridge_transfer = None
+        if (rtl < 0 or od_warning) and liquid_savings_total > 0:
+            od_amt = abs(od_warning.get("projected_balance", 0.0)) if od_warning else 0.0
+            deficit_to_cover = max(abs(rtl), od_amt)
+            vital_daily_allowance = 15.0  # realistic floor for food and basic transit
+            vital_buffer = round(vital_daily_allowance * days_until_paycheck, 2)
+            total_transfer_needed = round(deficit_to_cover + vital_buffer, 0)
+            rec_bridge_transfer_rounded = int(((total_transfer_needed + 9) // 10) * 10)
+            rec_bridge_transfer = {
+                "amount": rec_bridge_transfer_rounded,
+                "deficit_covered": round(deficit_to_cover, 2),
+                "vital_buffer": round(vital_buffer, 2),
+                "vital_daily": vital_daily_allowance,
+                "days": days_until_paycheck
+            }
 
         # 3. Savings Reserved (Tirelires)
         savings_budgets = db.query(Budget).filter(
@@ -138,13 +179,39 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             f"• Base Currency: {base_curr}",
             f"• Reconciled Net Worth: {total_net_worth:.2f} {base_curr} across {len(accounts)} accounts.",
             f"• Main Account ({main_acc_name}): Reconciled {main_acc_bal:.2f} {base_curr} | Projected Today: {balances_projected.get(main_acc.id, 0.0):.2f} {base_curr}.",
-            f"• Reste à Vivre (RTL): {rtl:.2f} {base_curr} available until next paycheck ({days_until_paycheck} days remaining).",
-            f"• Daily Spending Ceiling: ~{daily_budget:.2f} {base_curr}/day.",
+            f"• Available Liquid Savings & Reserve (Épargne disponible): {liquid_savings_total:.2f} {base_curr} [{savings_detail_str}].",
+        ]
+
+        if sec_detail_str:
+            lines.append(f"• Secondary Accounts: {sec_detail_str}.")
+
+        lines.extend([
+            f"• Reste à Vivre (RTL): {rtl:.2f} {base_curr} available on main account until next paycheck ({days_until_paycheck} days remaining).",
             f"• Next Scheduled Paycheck: {next_pay_date} ({pay_amount:.2f} {base_curr}).",
-            f"• Savings Buffer (Tirelires): {savings_total:.2f} {base_curr} reserved (accessible on account in emergency).",
+        ])
+
+        if rtl > 0:
+            lines.append(f"• Daily Spending Ceiling: ~{daily_budget:.2f} {base_curr}/day.")
+        else:
+            lines.append(f"• Daily Spending Ceiling on Checking Account: 0.00 {base_curr}/day (Checking account cash flow deficit until paycheck. Liquid savings must be used to bridge daily essentials).")
+
+        if od_warning:
+            lines.append(f"• Overdraft Risk Alert: Projected negative balance of -{abs(od_warning.get('projected_balance', 0.0)):.2f} {base_curr} on {od_warning.get('date')} (trigger operation: '{od_warning.get('transaction_description', '')}').")
+        else:
+            lines.append(f"• Overdraft Status: No projected overdraft before next paycheck ({next_pay_date}).")
+
+        if rec_bridge_transfer:
+            lines.append(
+                f"• Recommended Bridge Transfer (Virement de précaution): ~{rec_bridge_transfer['amount']} {base_curr} from liquid savings ({savings_detail_str}) to checking account ({main_acc_name}). "
+                f"Breakdown: {rec_bridge_transfer['deficit_covered']:.2f} {base_curr} to cover checking account deficit/overdraft + ~{rec_bridge_transfer['vital_buffer']:.0f} {base_curr} vital living buffer (~{rec_bridge_transfer['vital_daily']:.0f} {base_curr}/day over {rec_bridge_transfer['days']} days until payday). "
+                f"Reversible: Re-transfer to replenish savings once paycheck of {pay_amount:.2f} {base_curr} arrives on {next_pay_date}."
+            )
+
+        lines.extend([
+            f"• Savings Buffer in Budgets (Tirelires): {savings_total:.2f} {base_curr} reserved (accessible on account in emergency).",
             f"• 3-Month Monthly Averages: Income {avg_monthly_income:.2f} {base_curr} | Expenses {avg_monthly_exp:.2f} {base_curr} | Savings Rate: {avg_savings_rate:.1f}%.",
             f"• Current Month to Date (Day {today.day}): Spent {cur_month_exp:.2f} {base_curr} | Received {cur_month_income:.2f} {base_curr}."
-        ]
+        ])
 
         if tight_envelopes:
             lines.append(f"• Envelopes Under Pressure (>=80% spent): {', '.join(tight_envelopes)}.")
@@ -163,9 +230,8 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             max_debt_cap = round(avg_monthly_income * 0.33, 2) if avg_monthly_income > 0 else 0.0
             lines.append(f"[Simulator Briefing] Disposable monthly capacity: ~{disposable_monthly:.2f} {base_curr}/mo | 33% Borrowing ceiling: ~{max_debt_cap:.2f} {base_curr}/mo | Liquid safety cushion: {savings_total:.2f} {base_curr}.")
         elif role == 'alerts':
-            from app.services.finance_engine import get_overdraft_warning
             from app.services.chat.chat_tools import get_active_recurrence_templates
-            od = get_overdraft_warning(db)
+            od = od_warning
             od_str = f"⚠️ OVERDRAFT RISK DETECTED on {od['date']} ({od['projected_balance']} {base_curr})" if od else "No immediate overdraft detected."
             active_templates = get_active_recurrence_templates(db)
             unrec_past_txs = db.query(Transaction).filter(

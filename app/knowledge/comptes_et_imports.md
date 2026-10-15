@@ -21,7 +21,16 @@ OmniBank prend en charge différents types de comptes :
 - La clé de déchiffrement est dérivée du mot de passe maître de l'utilisateur avec **PBKDF2-HMAC-SHA256** (100 000 itérations).
 - Aucun mot de passe bancaire n'est jamais stocké en clair ni transmis à l'extérieur.
 
-## 4. Virements Internes Entre Comptes
+## 4. Connexions Bancaires en Lecture Seule et Sécurité
+- **Lecture seule absolue** : Les modules d'importation et de synchronisation (Woob) sont strictement limités à la consultation (lecture de soldes, historique et opérations à venir).
+- **Zéro pouvoir d'action bancaire** : OmniBank et son assistant IA ne disposent d'aucun accès ni droit d'émission d'ordres de virement ou de paiement bancaire. Toute opération financière réelle doit impérativement être exécutée par l'utilisateur directement depuis le site ou l'application de sa banque.
+
+## 5. Virements Internes et Rapprochement de Virements Prévisionnels
 - Lorsqu'un virement s'effectue entre deux comptes du même profil (ex. Compte Courant $\rightarrow$ Livret A) :
   - Le système détecte l'opération miroir (débit sur le compte source, crédit sur le compte cible).
-  - L'opération est identifiée comme un **Virement Interne** : elle ne constitue ni un revenu ni une dépense et n'altère pas le Reste à Vivre ni les statistiques de consommation.
+  - L'opération est identifiée comme un **Virement Interne** : elle ne constitue ni un revenu ni une dépense et n'altère pas le Reste à Vivre ni les statistiques de consommation globales.
+- **Workflow de virement prévisionnel local** :
+  1. L'utilisateur (ou l'assistant IA via `create_planned_transfer`) peut enregistrer immédiatement un virement prévisionnel non pointé dans OmniBank.
+  2. Cela met à jour instantanément les soldes projetés et le Reste à Vivre (trésorerie sécurisée).
+  3. L'utilisateur réalise le virement réel auprès de sa banque.
+  4. Lors du prochain relevé en ligne (déclenché manuellement, via l'assistant IA `trigger_bank_sync` ou via l'Auto-Pilote), l'écriture réelle de la banque est automatiquement rapprochée de la transaction prévisionnelle.
