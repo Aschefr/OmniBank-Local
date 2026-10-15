@@ -624,6 +624,7 @@
 
 .review-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 13px;
     text-align: left;

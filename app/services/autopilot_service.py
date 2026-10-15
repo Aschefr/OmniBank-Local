@@ -817,7 +817,7 @@ def process_incoming_batch(
                         logger.warning(
                             f"[AutoPilot] ⚠️ Doublon prévisionnel potentiel détecté pour '{tx.get('raw_description') or tx.get('description')}' "
                             f"({amt:.2f}€ sur compte #{acc_id}) : correspond à la prévision non pointée #{suspected_dup.id} "
-                            f"'{suspected_dup.description}' du {suspected_dup.date_operation}. Maintien dans le Sas pour arbitrage."
+                            f"'{suspected_dup.description}' du {suspected_dup.date_operation}. Enregistrement en attente de vérification (Review Queue)."
                         )
 
                 # Éligibilité Full-Auto : Toute nouvelle opération bancaire (confirmée ou à venir non rapprochée)
@@ -827,18 +827,19 @@ def process_incoming_batch(
                     and matched_id is None
                     and bool(acc_id)
                     and not is_duplicate
-                    and (suspected_dup is None)
                 )
 
                 if is_eligible_new_entry:
                     # Évaluation du niveau de confiance / besoin de revue utilisateur
-                    # Une catégorie de repli/par défaut (fallback) n'est JAMAIS considérée fiable sans revue utilisateur
+                    # Une catégorie de repli/par défaut (fallback) ou une suspicion de doublon prévisionnel
+                    # n'est JAMAIS considérée fiable sans revue utilisateur
                     is_reliable = (
                         not chameleon_blocked
                         and not is_ignored
                         and not is_fallback
                         and has_valid_category
                         and confidence >= (threshold / 100.0)
+                        and (suspected_dup is None)
                     )
                     needs_review = not is_reliable
                     if needs_review:
@@ -877,8 +878,9 @@ def process_incoming_batch(
                     raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
                     conf_score = round(confidence * 100, 1) if confidence <= 1.0 else confidence
 
-                    # Pointage : aujourd'hui si opération confirmée, None si opération à venir
-                    recon_date_val = None if is_coming else date.today()
+                    # Pointage : aujourd'hui si opération confirmée sans suspicion de doublon prévisionnel,
+                    # None si opération à venir ou suspicion de doublon prévisionnel (attente d'arbitrage)
+                    recon_date_val = None if (is_coming or suspected_dup is not None) else date.today()
                     creator_label = (
                         ("Automatisme (À venir)" if is_reliable else "Automatisme (À venir / À vérifier)")
                         if is_coming
@@ -927,9 +929,11 @@ def process_incoming_batch(
                             if not k.startswith("_") and not isinstance(v, (datetime, date))
                         },
                         "created_tx_id": new_tx.id,
-                        "decision_reason": decision_reason,
+                        "decision_reason": "suspected_duplicate" if suspected_dup else decision_reason,
                         "needs_review": needs_review,
                         "is_coming": is_coming,
+                        "suspected_duplicate_forecast_id": suspected_dup.id if suspected_dup else None,
+                        "suspected_duplicate_forecast_description": suspected_dup.description if suspected_dup else None,
                         "confidence_score": conf_score,
                         "before": None,
                         "after": snapshot_entity(new_tx)
@@ -937,6 +941,8 @@ def process_incoming_batch(
 
                     if is_coming:
                         dec_act = "AUTO_COMMIT_COMING" if is_reliable else "AUTO_COMMIT_COMING_PENDING_REVIEW"
+                    elif suspected_dup is not None:
+                        dec_act = "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW"
                     else:
                         dec_act = "AUTO_COMMIT" if is_reliable else "AUTO_COMMIT_PENDING_REVIEW"
 
@@ -959,6 +965,9 @@ def process_incoming_batch(
                     snap_tx["audit_category"] = category
                     snap_tx["audit_confidence"] = conf_score
                     snap_tx["audit_needs_review"] = needs_review
+                    if suspected_dup:
+                        snap_tx["audit_suspected_dup_id"] = suspected_dup.id
+                        snap_tx["audit_suspected_dup_desc"] = suspected_dup.description
                     snap_tx["description"] = new_tx.description
                     snap_tx["category"] = category
                     auto_committed_count += 1
@@ -1789,8 +1798,8 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
     if not acc_id or not tx.date_operation:
         return []
 
-    start_d = tx.date_operation - timedelta(days=10)
-    end_d = tx.date_operation + timedelta(days=10)
+    start_d = tx.date_operation - timedelta(days=30)
+    end_d = tx.date_operation + timedelta(days=15)
 
     is_exp = (tx.type != "income")
 
@@ -2101,6 +2110,8 @@ def validate_review_transaction(
 
     before_snap = snapshot_entity(tx)
     tx.needs_review = False
+    if tx.reconciliation_date is None and not (tx.csv_id and str(tx.csv_id).startswith("woob_coming_")):
+        tx.reconciliation_date = tx.date_operation or date.today()
     db.flush()
     after_snap = snapshot_entity(tx)
 
@@ -2108,10 +2119,14 @@ def validate_review_transaction(
     dlog = db.query(AutopilotDecisionLog).filter(
         AutopilotDecisionLog.entity_type == "transaction",
         AutopilotDecisionLog.entity_id == tx.id,
-        AutopilotDecisionLog.action.in_(["AUTO_COMMIT_PENDING_REVIEW", "AUTO_COMMIT_COMING_PENDING_REVIEW"])
+        AutopilotDecisionLog.action.in_([
+            "AUTO_COMMIT_PENDING_REVIEW",
+            "AUTO_COMMIT_COMING_PENDING_REVIEW",
+            "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW"
+        ])
     ).first()
     if dlog:
-        dlog.action = "AUTO_COMMIT" if dlog.action == "AUTO_COMMIT_PENDING_REVIEW" else "AUTO_COMMIT_COMING"
+        dlog.action = "AUTO_COMMIT" if "COMING" not in dlog.action else "AUTO_COMMIT_COMING"
 
     # Apprentissage automatique : mémoriser la correspondance si un libellé brut bancaire est présent
     if tx.raw_description and tx.description:
@@ -2199,6 +2214,8 @@ def update_review_transaction(
         tx.category = cleaned_cat
 
     tx.needs_review = False
+    if tx.reconciliation_date is None and not (tx.csv_id and str(tx.csv_id).startswith("woob_coming_")):
+        tx.reconciliation_date = tx.date_operation or date.today()
     db.flush()
     after_snap = snapshot_entity(tx)
 
@@ -2221,10 +2238,14 @@ def update_review_transaction(
     dlog = db.query(AutopilotDecisionLog).filter(
         AutopilotDecisionLog.entity_type == "transaction",
         AutopilotDecisionLog.entity_id == tx.id,
-        AutopilotDecisionLog.action.in_(["AUTO_COMMIT_PENDING_REVIEW", "AUTO_COMMIT_COMING_PENDING_REVIEW"])
+        AutopilotDecisionLog.action.in_([
+            "AUTO_COMMIT_PENDING_REVIEW",
+            "AUTO_COMMIT_COMING_PENDING_REVIEW",
+            "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW"
+        ])
     ).first()
     if dlog:
-        dlog.action = "AUTO_COMMIT" if dlog.action == "AUTO_COMMIT_PENDING_REVIEW" else "AUTO_COMMIT_COMING"
+        dlog.action = "AUTO_COMMIT" if "COMING" not in dlog.action else "AUTO_COMMIT_COMING"
 
     record_action(
         db,

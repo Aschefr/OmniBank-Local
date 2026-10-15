@@ -320,6 +320,22 @@ Object.assign(window.BankSyncView, {
 
     switchReviewMode(mode, reRender = true) {
         this.reviewMode = mode;
+        const modalEl = document.getElementById('bankSyncReviewModal');
+        if (modalEl) {
+            modalEl.classList.toggle('mode-statement', mode === 'statement');
+            modalEl.classList.toggle('mode-pending', mode === 'pending');
+            modalEl.setAttribute('data-review-mode', mode);
+        }
+
+        const cancelBtn = document.querySelector('.review-btn-cancel');
+        if (cancelBtn) {
+            if (mode === 'statement') {
+                cancelBtn.textContent = window.i18n ? window.i18n.t('btn_close') || 'Fermer' : 'Fermer';
+            } else {
+                cancelBtn.textContent = window.i18n ? window.i18n.t('bank_sync_btn_cancel') || 'Annuler' : 'Annuler';
+            }
+        }
+
         const btnPending = document.getElementById('btnReviewModePending');
         const btnStmt = document.getElementById('btnReviewModeStatement');
         if (btnPending) btnPending.classList.toggle('active', mode === 'pending');
@@ -347,10 +363,12 @@ Object.assign(window.BankSyncView, {
             this.previewData = this.statementData || { accounts: [] };
 
             if (stmtBanner) stmtBanner.style.display = 'flex';
-            if (this.statementData?.updated_at && dateText) {
+            let dateStr = '';
+            if (this.statementData?.updated_at) {
                 try {
                     const d = new Date(this.statementData.updated_at);
-                    dateText.textContent = d.toLocaleString();
+                    dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    if (dateText) dateText.textContent = d.toLocaleString();
                     if (dateBadge) dateBadge.style.display = 'inline-flex';
                 } catch (_) {
                     if (dateBadge) dateBadge.style.display = 'none';
@@ -370,6 +388,7 @@ Object.assign(window.BankSyncView, {
                     ${autoRec > 0 ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-rapprochées : <strong>${autoRec}</strong></span>` : ''}
                     ${autoCom > 0 ? `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-enregistrées : <strong>${autoCom}</strong></span>` : ''}
                     ${pending > 0 ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">⚡ À traiter : <strong>${pending}</strong></span>` : ''}
+                    ${dateStr ? `<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 10.5px; padding: 2px 6px; border-radius: 6px;">🕒 ${dateStr}</span>` : ''}
                 `;
             }
 
@@ -637,6 +656,9 @@ Object.assign(window.BankSyncView, {
             if (aiBtn) {
                 aiBtn.disabled = false;
                 aiBtn.innerHTML = `<span>✨</span> <span>${window.i18n ? window.i18n.t('bank_categorize_all_ai') : 'Tout catégoriser par l\'IA'}</span>`;
+                if (this.reviewMode === 'statement') {
+                    aiBtn.style.display = 'none';
+                }
             }
         }
     },
@@ -1061,7 +1083,12 @@ Object.assign(window.BankSyncView, {
                 ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}"><span>🎯</span> <span>${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span></span>`
                 : '';
 
-            if (isStatementMode && tx.audit_status === 'auto_reconciled') {
+            if (isStatementMode && tx.audit_needs_review) {
+                const label = ((window.i18n ? window.i18n.t('bank_sync_status_pending_review') : null) || 'À vérifier').replace(/^⚡\s*/, '');
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>⚡</span> <span>${label}</span></span>`;
+                actionText = window.i18n ? window.i18n.t('bank_sync_action_pending_review') || 'À vérifier dans l\'Auto-Pilote' : 'À vérifier dans l\'Auto-Pilote';
+                actionColor = `color: #d97706; font-weight: 600;`;
+            } else if (isStatementMode && tx.audit_status === 'auto_reconciled') {
                 const label = ((window.i18n ? window.i18n.t('bank_sync_status_auto_reconciled') : null) || 'Auto-rapprochée').replace(/^🤖\s*/, '');
                 statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><span>🤖</span> <span>${label}</span></span>`;
                 actionText = window.i18n ? window.i18n.t('bank_sync_action_auto_reconciled') || 'Rapprochée automatiquement' : 'Rapprochée automatiquement';

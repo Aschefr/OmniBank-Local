@@ -1366,6 +1366,60 @@ body.theme-titanium-light .ap-override-rule-card {
 /* ═══════════════════════════════════════════════════════
    Review Queue & Candidate Forecasts Micro-Styling
    ═══════════════════════════════════════════════════════ */
+.ap-review-wrapper {
+    width: 100%;
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+}
+
+.ap-review-desktop-table {
+    display: table;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+}
+
+.ap-review-desktop-table th,
+.ap-review-desktop-table td {
+    box-sizing: border-box;
+}
+
+.ap-col-date {
+    width: 90px;
+}
+
+.ap-col-account {
+    width: 125px;
+}
+
+.ap-col-desc {
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ap-col-category {
+    width: 120px;
+}
+
+.ap-col-amount {
+    width: 95px;
+    text-align: right;
+}
+
+.ap-col-confidence {
+    width: 80px;
+    text-align: center;
+}
+
+.ap-col-actions {
+    width: 175px;
+    min-width: 175px;
+    text-align: right;
+    white-space: nowrap !important;
+}
+
 .ap-review-desktop-table tbody tr {
     transition: background-color 0.15s ease, transform 0.1s ease;
 }
@@ -1396,7 +1450,38 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .candidate-forecast-pill {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
     transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.candidate-forecast-pill-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.candidate-forecast-pill-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+}
+
+.candidate-forecast-action {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .candidate-forecast-pill:hover {

@@ -336,6 +336,16 @@ tr.highlight-flash td,
     overflow-y: auto;
 }
 
+.ghost-desktop-table-wrapper table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.ghost-desktop-table-wrapper th,
+.ghost-desktop-table-wrapper td {
+    box-sizing: border-box;
+}
+
 .ghost-mobile-cards-wrapper {
     display: none;
     flex-direction: column;

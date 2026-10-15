@@ -294,6 +294,12 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
+    openDataCleanupModal() {
+        if (window.DataCleanupModal) {
+            window.DataCleanupModal.open();
+        }
+    },
+
     async fixTypeMismatch() {
         const btn = document.getElementById('btnFixTypeMismatch');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse...'; }

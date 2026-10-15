@@ -452,6 +452,7 @@
 
 .overview-ops-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 13.5px;
     text-align: left;
@@ -529,6 +530,14 @@
     font-weight: 700;
     font-size: 14px;
     white-space: nowrap;
+}
+
+.ov-td-action {
+    width: 150px;
+    min-width: 150px;
+    white-space: nowrap !important;
+    text-align: right;
+    box-sizing: border-box;
 }
 
 .overview-recon-action-btn {
