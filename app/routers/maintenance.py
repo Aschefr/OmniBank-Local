@@ -707,3 +707,336 @@ def apply_misplaced_categories(
         "message": f"Reclassement terminé : {cats_fixed} catégorie(s), {txs_fixed} opération(s), {tmpls_fixed} modèle(s) mis à jour."
     }
 
+
+# ---------------------------------------------------------------------------
+# Abandoned Recurrences Detection & Purge
+# ---------------------------------------------------------------------------
+
+class AbandonedRecurrencesApplyRequest(BaseModel):
+    template_ids: List[int]
+    purge_unreconciled: bool = True
+    unlink_mismatched: bool = True
+
+
+def _find_abandoned_recurrences(db: Session):
+    """
+    Détecte les modèles de récurrence non clôturés qui sont de facto abandonnés :
+    - Inactivité prolongée dépassant le seuil de fréquence (Monthly > 75j, Yearly > 450j...)
+    - Fin de vie avec plusieurs échéances consécutives à 0,00 € (zero_tail >= 2)
+    - Longue rupture d'activité (> 2x seuil) avec opération ultérieure suspecte/non conforme
+    - Jamais confirmés depuis leur création passée
+    """
+    from datetime import datetime, date
+    from app.models import RecurrenceTemplate, Transaction
+
+    FREQS = {
+        'Daily': 15,
+        'Weekly': 45,
+        'Bi-weekly': 45,
+        'Monthly': 75,
+        'Quarterly': 150,
+        'Semi-Annually': 270,
+        'Biannual': 270,
+        'Yearly': 450
+    }
+
+    today = date.today()
+    templates = db.query(RecurrenceTemplate).filter(
+        (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
+    ).all()
+
+    abandoned = []
+
+    for tpl in templates:
+        threshold = FREQS.get(tpl.frequency, 75)
+
+        # Confirmed transactions, ignoring unconfirmed SAS review attempts
+        confirmed = db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl.id,
+            Transaction.reconciliation_date.isnot(None),
+            (Transaction.needs_review == False) | (Transaction.needs_review.is_(None))
+        ).order_by(Transaction.date_operation.desc()).all()
+
+        # Unreconciled / future phantom transactions
+        unreconciled_q = db.query(Transaction).filter(
+            Transaction.recurrence_id == tpl.id,
+            Transaction.reconciliation_date.is_(None)
+        ).order_by(Transaction.date_operation.asc())
+        unpointed_count = unreconciled_q.count()
+        unpointed_sample = [
+            {
+                "id": t.id,
+                "date_operation": str(t.date_operation),
+                "description": t.description,
+                "amount": t.amount
+            }
+            for t in unreconciled_q.limit(5).all()
+        ]
+
+        is_abandoned = False
+        reasons = []
+        last_confirmed_date = None
+        zero_tail = 0
+
+        if not confirmed:
+            # Check if any transaction exists
+            first_tx = db.query(Transaction).filter(
+                Transaction.recurrence_id == tpl.id
+            ).order_by(Transaction.date_operation.asc()).first()
+            if first_tx and first_tx.date_operation:
+                days_old = (today - first_tx.date_operation).days
+                if days_old > threshold:
+                    is_abandoned = True
+                    reasons.append(f"Aucune transaction confirmée depuis sa création il y a {days_old} jours")
+        else:
+            last_tx = confirmed[0]
+            last_date = last_tx.date_operation
+            last_confirmed_date = str(last_date)
+            days_since_last = (today - last_date).days
+
+            # Count consecutive zeros from the latest confirmed
+            for tx in confirmed:
+                if tx.amount == 0.0:
+                    zero_tail += 1
+                else:
+                    break
+
+            non_zeros = [tx for tx in confirmed if tx.amount != 0.0]
+            last_real_date = non_zeros[0].date_operation if non_zeros else None
+            days_since_real = (today - last_real_date).days if last_real_date else 999
+
+            if days_since_last > threshold:
+                is_abandoned = True
+                reasons.append(f"Inactif depuis {days_since_last} jours (dernière opération confirmée le {last_date}, seuil : {threshold}j)")
+            elif zero_tail >= 2:
+                is_abandoned = True
+                reasons.append(f"{zero_tail} échéances consécutives à 0,00 € (dernière activité réelle il y a {days_since_real} jours)")
+            elif len(confirmed) >= 2:
+                d_recent = confirmed[0].date_operation
+                d_prev = confirmed[1].date_operation
+                gap = abs((d_recent - d_prev).days)
+                if gap > max(150, threshold * 2):
+                    tpl_desc = tpl.description or ""
+                    tx_desc = confirmed[0].description or ""
+                    desc_match = tpl_desc.lower() in tx_desc.lower() or tx_desc.lower() in tpl_desc.lower()
+                    if not desc_match or days_since_real > 180:
+                        is_abandoned = True
+                        reasons.append(f"Rupture d'activité de {gap} jours puis opération suspecte (\"{tx_desc}\") non conforme au modèle")
+
+        if is_abandoned:
+            # Collect suspicious confirmed operations (mismatched description)
+            suspicious_ops = []
+            for tx in confirmed:
+                tpl_desc = (tpl.description or "").strip().lower()
+                tx_desc = (tx.description or "").strip().lower()
+                if tpl_desc and tx_desc and (tpl_desc not in tx_desc and tx_desc not in tpl_desc):
+                    suspicious_ops.append({
+                        "id": tx.id,
+                        "date_operation": str(tx.date_operation),
+                        "description": tx.description,
+                        "amount": tx.amount,
+                        "reconciled": True,
+                        "is_suspicious": True,
+                        "action_label": "Opération réelle (préservée en compte, liaison retirée)"
+                    })
+
+            # Recent real confirmed operations (sample of up to 5 for reassurance)
+            recent_confirmed_sample = [
+                {
+                    "id": tx.id,
+                    "date_operation": str(tx.date_operation),
+                    "description": tx.description,
+                    "amount": tx.amount,
+                    "reconciled": True,
+                    "is_suspicious": any(s["id"] == tx.id for s in suspicious_ops),
+                    "action_label": "Opération réelle confirmée (préservée en compte)"
+                }
+                for tx in confirmed[:5]
+            ]
+
+            # All unreconciled / phantom operations that will be purged
+            all_phantom_ops = [
+                {
+                    "id": t.id,
+                    "date_operation": str(t.date_operation),
+                    "description": t.description,
+                    "amount": t.amount,
+                    "reconciled": False,
+                    "action_label": "Opération prévisionnelle non pointée (sera purgée)"
+                }
+                for t in unreconciled_q.all()
+            ]
+
+            abandoned.append({
+                "id": tpl.id,
+                "description": tpl.description,
+                "frequency": tpl.frequency,
+                "amount": tpl.amount,
+                "category": tpl.category,
+                "type": tpl.type,
+                "reason": " ; ".join(reasons),
+                "last_confirmed_date": last_confirmed_date,
+                "zero_tail_count": zero_tail,
+                "unpointed_count": unpointed_count,
+                "unpointed_sample": unpointed_sample,
+                "suspicious_ops": suspicious_ops,
+                "recent_confirmed_sample": recent_confirmed_sample,
+                "phantom_ops": all_phantom_ops
+            })
+
+    return abandoned
+
+
+@router.get("/abandoned_recurrences/preview")
+def preview_abandoned_recurrences(db: Session = Depends(get_db)):
+    """
+    Retourne la liste des modèles de récurrence abandonnés détectés
+    avec le détail des opérations fantômes à purger.
+    """
+    candidates = _find_abandoned_recurrences(db)
+    total_phantom_txs = sum(c["unpointed_count"] for c in candidates)
+    return {
+        "count": len(candidates),
+        "total_phantom_txs": total_phantom_txs,
+        "templates": candidates
+    }
+
+
+@router.post("/abandoned_recurrences/apply")
+def apply_abandoned_recurrences(
+    req: AbandonedRecurrencesApplyRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Clôture les modèles de récurrence abandonnés sélectionnés,
+    purge leurs transactions prévisionnelles non pointées et détache
+    les transactions confirmées incompatibles (mismatched description).
+    """
+    from app.models import RecurrenceTemplate, Transaction
+    from app.routers.stats import stats_cache
+
+    if not req.template_ids:
+        return {"closed_templates": 0, "purged_transactions": 0, "unlinked_transactions": 0, "message": "Aucun modèle sélectionné."}
+
+    closed_count = 0
+    purged_count = 0
+    unlinked_count = 0
+
+    for tpl_id in req.template_ids:
+        tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+        if not tpl:
+            continue
+
+        tpl.is_closed = True
+        closed_count += 1
+
+        if req.purge_unreconciled:
+            # Delete unreconciled / phantom transactions
+            result = db.execute(text("""
+                DELETE FROM transactions
+                WHERE recurrence_id = :tpl_id
+                  AND reconciliation_date IS NULL
+            """), {"tpl_id": tpl_id})
+            purged_count += result.rowcount
+
+        if req.unlink_mismatched:
+            # Unlink confirmed or staged review transactions where description has zero overlap with template
+            confirmed_txs = db.query(Transaction).filter(
+                Transaction.recurrence_id == tpl_id,
+                Transaction.reconciliation_date.isnot(None)
+            ).all()
+            for tx in confirmed_txs:
+                tpl_desc = (tpl.description or "").strip().lower()
+                tx_desc = (tx.description or "").strip().lower()
+                raw_desc = (tx.raw_description or "").strip().lower()
+                is_mismatch = (tpl_desc and tx_desc and tpl_desc not in tx_desc and tx_desc not in tpl_desc) or \
+                              (tpl_desc and raw_desc and tpl_desc not in raw_desc and raw_desc not in tpl_desc)
+                if is_mismatch or tx.needs_review:
+                    tx.recurrence_id = None
+                    if tx.needs_review and tx.raw_description:
+                        # Restore clean bank description instead of ghost template label
+                        tx.description = tx.raw_description.title()
+                        if tx.type == "neutral" and tpl.to_account_id is not None:
+                            tx.type = "expense_var"
+                            tx.to_account_id = None
+                    unlinked_count += 1
+
+    db.commit()
+    stats_cache.invalidate()
+
+    return {
+        "closed_templates": closed_count,
+        "purged_transactions": purged_count,
+        "unlinked_transactions": unlinked_count,
+        "message": f"Succès : {closed_count} modèle(s) clôturé(s), {purged_count} opération(s) fantômes purgée(s)."
+    }
+
+
+# ---------------------------------------------------------------------------
+# Global Maintenance Pre-Analysis & Health Overview
+# ---------------------------------------------------------------------------
+
+@router.get("/overview")
+def get_maintenance_overview(db: Session = Depends(get_db)):
+    """
+    Pré-analyse globale ultra-rapide de l'intégrité de la base de données.
+    Retourne l'état et le nombre de corrections suggérées pour chaque outil de nettoyage.
+    """
+    abandoned = _find_abandoned_recurrences(db)
+    orphans = _find_orphan_recurrence_transactions(db)
+    misplaced_cats, total_tx_mismatches = _audit_misplaced_categories(db)
+    mismatches = _find_mismatch_rows(db)
+    zeroed_data = preview_convert_zeroed_to_skipped(db)
+
+    tools = {
+        "abandoned_recurrences": {
+            "id": "abandoned_recurrences",
+            "count": len(abandoned),
+            "label": "Récurrences abandonnées",
+            "icon": "🛑",
+            "description": "Modèles inactifs ou passés à 0 € générant des opérations fantômes dans le futur",
+            "status": "warning" if len(abandoned) > 0 else "ok"
+        },
+        "orphan_recurrences": {
+            "id": "orphan_recurrences",
+            "count": len(orphans),
+            "label": "Opérations orphelines de récurrence",
+            "icon": "🧹",
+            "description": "Opérations générées sur des années sans activité ou pour des modèles fermés",
+            "status": "warning" if len(orphans) > 0 else "ok"
+        },
+        "misplaced_categories": {
+            "id": "misplaced_categories",
+            "count": len(misplaced_cats),
+            "label": "Catégories mal classées",
+            "icon": "🏷️",
+            "description": "Catégories en contradiction avec les flux réels (virements, dépenses, recettes)",
+            "status": "warning" if len(misplaced_cats) > 0 else "ok",
+            "extra_mismatches": total_tx_mismatches
+        },
+        "fix_type_mismatch": {
+            "id": "fix_type_mismatch",
+            "count": len(mismatches),
+            "label": "Types d'opérations incohérents",
+            "icon": "🔧",
+            "description": "Dépenses variables avec récurrence à requalifier en charges fixes",
+            "status": "warning" if len(mismatches) > 0 else "ok"
+        },
+        "convert_zeroed_to_skipped": {
+            "id": "convert_zeroed_to_skipped",
+            "count": zeroed_data["count"],
+            "label": "Récurrences suspendues à 0 €",
+            "icon": "🔄",
+            "description": "Abonnements temporairement suspendus bloquant la reprise de génération",
+            "status": "warning" if zeroed_data["count"] > 0 else "ok"
+        }
+    }
+
+    total_anomalies = sum(t["count"] for t in tools.values())
+
+    return {
+        "tools": tools,
+        "total_anomalies": total_anomalies,
+        "status": "warning" if total_anomalies > 0 else "ok"
+    }
+

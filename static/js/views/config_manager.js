@@ -463,24 +463,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
                         </button>
 
-                        <!-- Fix type mismatch -->
-                        <button class="btn btn-secondary" id="btnFixTypeMismatch" onclick="window.ConfigView.fixTypeMismatch()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(245,158,11,0.5); color: #f59e0b;">
-                            🔧 <span data-i18n="maintenance_fix_types">${window.i18n.t('maintenance_fix_types') || 'Fix inconsistent types'}</span>
-                        </button>
-
-                        <!-- Audit misplaced categories -->
-                        <button class="btn btn-secondary" id="btnAuditMisplacedCategories" onclick="window.ConfigView.auditMisplacedCategories()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(14,165,233,0.5); color: #0ea5e9;">
-                            🏷️ <span data-i18n="maintenance_misplaced_cats_btn">${window.i18n.t('maintenance_misplaced_cats_btn') || 'Détecter les catégories mal placées'}</span>
-                        </button>
-
-                        <!-- Orphan recurrence cleanup -->
-                        <button class="btn btn-secondary" id="btnCleanOrphanRecurrences" onclick="window.ConfigView.cleanOrphanRecurrences()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(239,68,68,0.5); color: #ef4444;">
-                            🧹 <span data-i18n="maintenance_orphan_btn">${window.i18n.t('maintenance_orphan_btn') || 'Clean up orphan recurrences'}</span>
-                        </button>
-
-                        <!-- Convert zeroed to skipped -->
-                        <button class="btn btn-secondary" id="btnConvertZeroedToSkipped" onclick="window.ConfigView.convertZeroedToSkipped()" style="display: flex; align-items: center; gap: 5px; border-color: rgba(99,102,241,0.5); color: var(--accent, #6366f1);">
-                            🔄 <span data-i18n="maintenance_convert_zeroed_btn">${window.i18n.t('maintenance_convert_zeroed_btn') || 'Convert 0€ transactions to Skipped'}</span>
+                        <!-- Data Cleanup & Integrity Modal Trigger -->
+                        <button class="btn btn-primary" id="btnOpenDataCleanupModal" onclick="window.ConfigView.openDataCleanupModal()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.18)); border: 1px solid rgba(99,102,241,0.4); color: var(--text-main); cursor: pointer; transition: all 0.2s ease;">
+                            🧹 <span data-i18n="maintenance_cleanup_modal_btn">${(window.i18n && window.i18n.t) ? window.i18n.t('maintenance_cleanup_modal_btn') || "Boîte à Outils d'Assainissement des Données" : "Boîte à Outils d'Assainissement des Données"}</span>
+                            <span id="cleanupModalTriggerBadge" class="cleanup-badge cleanup-badge-warning" style="display:none; padding: 2px 7px; font-size: 11px;"></span>
                         </button>
 
                         <!-- Clear DB -->
