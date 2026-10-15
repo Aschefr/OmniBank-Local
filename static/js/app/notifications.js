@@ -39,12 +39,23 @@ window.AppModules.notifications = {
         this._notifInterval = 15000; // Base: 15s (Zero F5 réactivité)
         this._notifTimer = null;
         this._startNotifPolling();
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.loadNotifications();
+                this._startNotifPolling();
+            }
+        });
     },
 
     _startNotifPolling() {
         if (this._notifTimer) clearTimeout(this._notifTimer);
         
         const poll = async () => {
+            if (document.hidden) {
+                this._notifTimer = null;
+                return;
+            }
             await this.loadNotifications();
             this._notifTimer = setTimeout(poll, this._notifInterval);
         };
