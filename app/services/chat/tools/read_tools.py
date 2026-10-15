@@ -1270,8 +1270,8 @@ def search_similar_past_spends_tool(db: Session, keyword: str) -> dict:
     }
 
 def get_financial_summary_tool(db: Session) -> dict:
-    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
-    from app.models import Budget, BudgetAllocation, Transaction
+    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck, calculate_balances, get_main_account, get_overdraft_warning
+    from app.models import Budget, BudgetAllocation, Transaction, Account
     from datetime import date
     
     today = date.today()
@@ -1285,7 +1285,7 @@ def get_financial_summary_tool(db: Session) -> dict:
         days_until_paycheck = max(1, (next_pay_date - today).days)
     daily_budget = round(rest_to_live / days_until_paycheck, 2) if rest_to_live > 0 else 0.0
 
-    # Savings buffer
+    # Savings buffer in budgets (tirelires)
     savings_budgets = db.query(Budget).filter(Budget.envelope_type == "savings", Budget.is_closed == False).all()
     savings_total = 0.0
     for sb in savings_budgets:
@@ -1298,12 +1298,49 @@ def get_financial_summary_tool(db: Session) -> dict:
         tx_inc = sum(abs(t.amount) for t in txs if t.type == "income")
         tx_exp = sum(abs(t.amount) for t in txs if t.type != "income")
         savings_total += max((tx_inc - tx_exp) + alloc_bal, 0.0)
+
+    # Liquid bank accounts (Livrets & epargne de précaution)
+    accounts = db.query(Account).filter(Account.is_closed == False).all()
+    balances_reconciled = calculate_balances(db, only_reconciled=True)
+    main_acc = get_main_account(db)
+    savings_accounts = []
+    for acc in accounts:
+        if main_acc and acc.id == main_acc.id:
+            continue
+        acc_type_lower = (acc.type or "").lower()
+        acc_name_lower = (acc.name or "").lower()
+        is_loan = any(k in acc_type_lower for k in ['prêt', 'pret', 'emprunt', 'loan', 'crédit', 'credit'])
+        if is_loan:
+            continue
+        if any(k in acc_type_lower for k in ['livret', 'épargne', 'epargne', 'savings']) or any(k in acc_name_lower for k in ['livret', 'épargne', 'epargne', 'csl', 'ldd', 'lep', 'pel', 'cel']):
+            savings_accounts.append(acc)
+
+    liquid_savings_total = sum(max(balances_reconciled.get(a.id, 0.0), 0.0) for a in savings_accounts)
+    savings_breakdown = {a.name: round(balances_reconciled.get(a.id, 0.0), 2) for a in savings_accounts}
+    od_warning = get_overdraft_warning(db)
+
+    rec_bridge = None
+    if (rest_to_live < 0 or od_warning) and liquid_savings_total > 0:
+        od_amt = abs(od_warning.get("projected_balance", 0.0)) if od_warning else 0.0
+        def_cov = max(abs(rest_to_live), od_amt)
+        vital_buff = round(15.0 * days_until_paycheck, 2)
+        tot_needed = round(def_cov + vital_buff, 0)
+        rounded_amt = int(((tot_needed + 9) // 10) * 10)
+        rec_bridge = {
+            "recommended_amount_euros": rounded_amt,
+            "deficit_to_cover_euros": round(def_cov, 2),
+            "vital_living_buffer_euros": round(vital_buff, 2),
+            "days_until_paycheck": days_until_paycheck
+        }
     
     return {
         "current_rest_to_live_euros": rest_to_live,
         "daily_budget_available_euros": daily_budget,
         "days_until_next_paycheck": days_until_paycheck,
         "savings_safety_buffer_euros": round(savings_total, 2),
+        "available_liquid_savings_euros": round(liquid_savings_total, 2),
+        "liquid_accounts_breakdown": savings_breakdown,
+        "recommended_bridge_transfer": rec_bridge,
         "next_predicted_paycheck": {
             "date": next_pay_date.isoformat() if isinstance(next_pay_date, date) else str(next_pay_date),
             "amount": paycheck["amount"],

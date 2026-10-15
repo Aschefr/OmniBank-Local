@@ -3681,5 +3681,13 @@
   "cleanup_tool_zeroed_title": "Zeroed recurrences",
   "cleanup_tool_zeroed_desc": "Convert 0€ transactions to Skipped status to unblock future generation.",
   "cleanup_abandoned_none_title": "No abandoned recurrences detected",
-  "cleanup_abandoned_none_desc": "All active recurrence templates are regularly maintained or have recent activity."
+  "cleanup_abandoned_none_desc": "All active recurrence templates are regularly maintained or have recent activity.",
+  "tool_create_planned_transfer": "Planned transfer entry",
+  "tool_create_planned_transfer_desc": "Registers a planned transfer transaction between two accounts in OmniBank to update projected balances and Left to Live.",
+  "tool_create_planned_transfer_title": "Registering a planned transfer",
+  "tool_trigger_bank_sync": "Online bank sync",
+  "tool_trigger_bank_sync_desc": "Triggers a background online bank statement fetch to automatically reconcile transactions via Auto-Pilot.",
+  "tool_trigger_bank_sync_title": "Triggering online bank sync",
+  "field_label_from_account": "Source account",
+  "field_label_to_account": "Destination account"
 }

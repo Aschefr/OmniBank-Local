@@ -250,6 +250,10 @@ def generate_ai_report_task(db_session_factory, force: bool = False):
             "savings_reserved": forecast.get("savings_reserved_euros", 0.0),
             "savings_safety_buffer_euros": forecast.get("savings_safety_buffer_euros", 0.0),
             "savings_safety_note": forecast.get("savings_safety_note", ""),
+            "available_liquid_savings_euros": summary.get("available_liquid_savings_euros", 0.0),
+            "liquid_accounts_breakdown": summary.get("liquid_accounts_breakdown", {}),
+            "recommended_bridge_transfer": summary.get("recommended_bridge_transfer"),
+            "total_liquid_savings_cushion_euros": forecast.get("total_liquid_savings_cushion_euros", 0.0),
             "real_overdraft_threshold_euros": forecast.get("real_overdraft_threshold_euros", 0.0),
             "effective_starting_balance": forecast.get("effective_starting_balance_euros", 0.0),
             "forecast_includes_recurring_income": True,
@@ -315,26 +319,21 @@ RULE 5 — EXCEPTIONAL EXPENSES (OUTLIERS):
 - If the 'outlier_note' field is non-empty, reference it in your analysis.
 - Do NOT recommend the user to "reduce spending" or flag financial danger when the deficit in the current balance is explained by a known outlier purchase that the user clearly could afford (balance was positive before the purchase).
 
-RULE 6 — RESTE À VIVRE, SAVINGS BUFFER, AND OVERDRAFT RISK (CRITICAL):
-- 'current_reste_a_vivre' is the REAL available budget until the next paycheck. It already accounts for unreconciled pending expenses and savings reservations. It is the MOST RELIABLE short-term metric.
-- 'projected_balance_30_days' is a simulation. While useful for trends, it may differ from the RTL.
-- You MUST ALWAYS mention the 'current_reste_a_vivre' prominently in your analysis. It tells the user how much they can actually spend until their next paycheck.
-- If 'current_reste_a_vivre' is low (< 200€) but 'projected_balance_30_days' is high, do NOT present the situation as comfortable. The RTL is more accurate for short-term assessment.
-- Calculate the daily budget available: current_reste_a_vivre / days_until_next_paycheck. Present this as "budget quotidien disponible" so the user knows their spending ceiling.
-- The 'pending_unreconciled_expenses' field shows expenses already entered but not yet debited from the bank. These are REAL upcoming outflows.
-
-SAVINGS AS SAFETY BUFFER (TIRELIRES):
-- The 'savings_reserved' field shows funds earmarked for savings goals (tirelire). These are excluded from the RTL to encourage spending discipline.
-- HOWEVER, tirelires are VIRTUAL envelopes on the SAME bank account — the money is physically present and accessible.
-- If 'savings_safety_buffer_euros' > 0, mention that the user has this amount as a safety net that can be tapped in case of emergency to avoid a real bank overdraft.
-- A real bank overdraft only occurs when the TOTAL account balance (including savings) goes negative, i.e., when spending exceeds RTL + savings buffer.
-- If RTL is low but savings buffer is substantial, the tone should be cautious (🟡) but NOT alarmist (🔴), because the user has a financial cushion available.
-- Example phrasing: "Votre reste à vivre est de X€ (Y€/jour), mais vos Z€ en tirelires constituent un filet de sécurité en cas de besoin."
+RULE 6 — RESTE À VIVRE, SAVINGS BUFFER, AND LIQUID SAVINGS (CRITICAL):
+- 'current_reste_a_vivre' is the REAL available budget on the checking account until the next paycheck. It already accounts for unreconciled pending expenses and savings reservations.
+- 'available_liquid_savings_euros' and 'liquid_accounts_breakdown' show the user's immediately accessible liquid savings (e.g. Livret A, LDDS).
+- 'savings_reserved' and 'savings_safety_buffer_euros' show funds earmarked in virtual piggy banks (tirelires).
+- PRECAUTIONARY BRIDGE TRANSFER (VIREMENT DE PRÉCAUTION):
+  * When the checking account faces a temporary cash flow deficit (negative Reste à Vivre) or overdraft risk, but the user has available liquid savings (Livret A, LDDS, etc.):
+    1. NEVER PANIC OR DECLARE A SURVIVAL CRISIS: Do not tell the user they have 0 €/day or to freeze vital expenses.
+    2. RECOMMEND A PRECAUTIONARY BRIDGE TRANSFER: Explicitly advise transferring a specific amount from their liquid savings (naming the account, e.g. Livret A) to their checking account. If 'recommended_bridge_transfer' is present, use its figures (e.g. recommended_amount_euros covering the deficit + vital daily needs buffer until payday).
+    3. REASSURE ON REVERSIBILITY: Remind the user that this is a temporary bridge, easily reversible once their scheduled paycheck arrives.
+    4. Set status to 🟡 (Warning), NEVER 🔴 (Critical)!
 
 Strict guidelines for the status emoji in 'summary':
 - 🟢 (Green) if projected balance is positive, rest to live is comfortable (> 200€), and no real anomalies.
-- 🟡 (Warning) if rest to live is low (< 200€) but savings buffer provides adequate safety net, or there are minor genuine anomalies.
-- 🔴 (Critical) ONLY if BOTH rest to live AND savings buffer combined would not prevent a real overdraft, projected balance is deeply negative, or severe genuine duplicate charges are confirmed.
+- 🟡 (Warning) if rest to live is tight or negative on checking account BUT comfortably covered by available liquid savings (Livret A, LDDS) with a bridge transfer, or there are minor genuine anomalies.
+- 🔴 (Critical) ONLY if BOTH checking account AND all available liquid savings (Livret A, LDDS, tirelires) combined cannot cover the deficit, total net liquid worth is depleted/negative, or severe unresolvable financial insolvency is confirmed.
 
 Return ONLY the raw JSON object, no introduction, no markdown blocks like ```json, just the JSON string."""
 

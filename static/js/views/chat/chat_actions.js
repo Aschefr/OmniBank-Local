@@ -22,7 +22,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 delete_transaction: window.i18n.t('tool_delete_transaction_title') || 'Suppression d\'une opération',
                 apply_transaction_correction: window.i18n.t('tool_apply_transaction_correction_title') || 'Correction d\'une opération',
                 store_financial_fact: window.i18n.t('tool_store_financial_fact_title') || 'Mémorisation d\'une information',
-                forget_financial_fact: window.i18n.t('tool_forget_financial_fact_title') || 'Oubli d\'une information'
+                forget_financial_fact: window.i18n.t('tool_forget_financial_fact_title') || 'Oubli d\'une information',
+                create_planned_transfer: window.i18n.t('tool_create_planned_transfer_title') || 'Enregistrement d\'un virement prévisionnel',
+                trigger_bank_sync: window.i18n.t('tool_trigger_bank_sync_title') || 'Lancement d\'un relevé bancaire en ligne'
             };
             const friendlyName = actionNames[actionObj.action] || actionObj.action;
             
@@ -119,7 +121,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 transaction_id: window.i18n.t('field_label_transaction_id') || "ID de l'opération",
                 key: window.i18n.t('field_label_key') || 'Clé de mémoire',
                 value: window.i18n.t('field_label_value') || 'Valeur à mémoriser',
-                private_to_session: window.i18n.t('field_label_private_to_session') || 'Privé à cette conversation'
+                private_to_session: window.i18n.t('field_label_private_to_session') || 'Privé à cette conversation',
+                from_account: window.i18n.t('field_label_from_account') || 'Compte source',
+                to_account: window.i18n.t('field_label_to_account') || 'Compte destination',
+                date_operation: window.i18n.t('field_label_date') || 'Date de l\'opération'
             };
 
             const valueTranslations = {

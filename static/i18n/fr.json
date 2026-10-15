@@ -3681,5 +3681,13 @@
   "cleanup_tool_zeroed_title": "Récurrences à 0 €",
   "cleanup_tool_zeroed_desc": "Convertit les échéances à 0 € en statuts « Ignorées » pour réactiver la génération.",
   "cleanup_abandoned_none_title": "Aucune récurrence abandonnée détectée",
-  "cleanup_abandoned_none_desc": "Tous vos modèles de récurrence actifs sont suivis régulièrement ou ont des opérations récentes."
+  "cleanup_abandoned_none_desc": "Tous vos modèles de récurrence actifs sont suivis régulièrement ou ont des opérations récentes.",
+  "tool_create_planned_transfer": "Enregistrement de virement prévisionnel",
+  "tool_create_planned_transfer_desc": "Enregistre une opération de virement prévisionnelle entre deux comptes dans OmniBank pour actualiser les soldes et le Reste à Vivre.",
+  "tool_create_planned_transfer_title": "Enregistrement d'un virement prévisionnel",
+  "tool_trigger_bank_sync": "Relevé bancaire en ligne",
+  "tool_trigger_bank_sync_desc": "Déclenche une synchronisation et un relevé bancaire en arrière-plan pour rapprocher automatiquement les opérations via l'Auto-Pilote.",
+  "tool_trigger_bank_sync_title": "Lancement d'un relevé bancaire en ligne",
+  "field_label_from_account": "Compte source",
+  "field_label_to_account": "Compte destination"
 }

@@ -498,3 +498,125 @@ def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool =
     except Exception as e:
         return {"error": str(e)}
 
+
+def create_planned_transfer_tool(db: Session, from_account: str, to_account: str, amount: float, description: str = None, date_operation: str = None, force_write: bool = False) -> dict:
+    """
+    Enregistre une opération de virement prévisionnelle entre deux comptes dans OmniBank.
+    Cette action est purement locale à OmniBank pour actualiser les soldes prévisionnels et le Reste à Vivre.
+    L'opération réelle en banque doit être effectuée par l'utilisateur.
+    """
+    from app.models import Transaction, Account
+    from app.services.history_service import record_action, snapshot_entity
+    from datetime import date as dt_date
+    
+    if not force_write:
+        return {
+            "success": True,
+            "pending_validation": True,
+            "from_account": from_account,
+            "to_account": to_account,
+            "amount": float(amount),
+            "description": description or f"Virement prévisionnel {from_account} -> {to_account}",
+            "date_operation": date_operation or dt_date.today().isoformat()
+        }
+
+    def _find_acc(acc_identifier):
+        if not acc_identifier:
+            return None
+        try:
+            acc_id = int(acc_identifier)
+            a = db.query(Account).filter(Account.id == acc_id).first()
+            if a:
+                return a
+        except (ValueError, TypeError):
+            pass
+        name_lower = str(acc_identifier).strip().lower()
+        match = db.query(Account).filter(Account.name.ilike(name_lower)).first()
+        if match:
+            return match
+        return db.query(Account).filter(Account.name.ilike(f"%{name_lower}%")).first()
+
+    from_acc = _find_acc(from_account)
+    to_acc = _find_acc(to_account)
+
+    if not from_acc or not to_acc:
+        return {"success": False, "error": f"Comptes introuvables : source '{from_account}', destination '{to_account}'"}
+
+    amt = abs(float(amount))
+    today = dt_date.today()
+    try:
+        op_date = dt_date.fromisoformat(date_operation) if date_operation else today
+    except Exception:
+        op_date = today
+
+    desc = description or f"Virement prévisionnel {from_acc.name} -> {to_acc.name}"
+
+    tx = Transaction(
+        amount=amt,
+        type="transfer",
+        category="Virement interne",
+        description=desc,
+        date_operation=op_date,
+        date_saisie=today,
+        from_account_id=from_acc.id,
+        to_account_id=to_acc.id,
+        reconciliation_date=None  # Non rapproché tant que le relevé bancaire n'est pas synchronisé
+    )
+    db.add(tx)
+    db.flush()
+
+    action_id = record_action(db, "transaction", tx.id, "CREATE", None, snapshot_entity(tx))
+    db.commit()
+    return {
+        "success": True,
+        "transaction_id": tx.id,
+        "from_account": from_acc.name,
+        "to_account": to_acc.name,
+        "amount": amt,
+        "date_operation": op_date.isoformat(),
+        "action_id": action_id
+    }
+
+
+def trigger_bank_sync_tool(db: Session, force_write: bool = False) -> dict:
+    """
+    Déclenche une synchronisation et un relevé bancaire en ligne en tâche de fond pour rapprocher les écritures.
+    """
+    if not force_write:
+        return {"success": True, "pending_validation": True}
+
+    from app.profile_manager import get_active_profile
+    from app.services.credential_vault import VaultSessionManager
+    from app.services.bank_sync.auto_sync import trigger_manual_auto_sync, is_background_sync_running
+    from app.models import BankConnection
+
+    pid = get_active_profile().get("id", "default")
+    
+    conns = db.query(BankConnection).filter(BankConnection.is_active == True).all()
+    if not conns:
+        return {
+            "success": False,
+            "error": "Aucune connexion bancaire active n'est configurée dans OmniBank."
+        }
+
+    is_unlocked = VaultSessionManager.is_unlocked(profile_id=pid)
+    if not is_unlocked:
+        return {
+            "success": False,
+            "error": "Le coffre-fort de synchronisation bancaire est actuellement verrouillé. Veuillez le déverrouiller dans l'onglet Banques pour permettre le relevé en ligne."
+        }
+
+    if is_background_sync_running(profile_id=pid):
+        return {
+            "success": True,
+            "already_running": True,
+            "message": "Une synchronisation bancaire est déjà en cours d'exécution en arrière-plan."
+        }
+
+    res = trigger_manual_auto_sync(profile_id=pid, force=True, db=db, trigger_source="manual")
+    return {
+        "success": res.get("ok", False),
+        "message": res.get("message") or res.get("detail", "Relevé bancaire en ligne lancé avec succès en tâche de fond."),
+        "connections_count": len(conns)
+    }
+

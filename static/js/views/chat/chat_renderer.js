@@ -236,6 +236,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             if (actionObj.params.amount !== undefined) parts.push(`${window.i18n.t('field_label_amount') || 'Montant'} : ${actionObj.params.amount} €`);
                             const fieldsStr = parts.join(', ');
                             desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_apply_correction', { id: txId, fields: fieldsStr }) : `Correction de l'opération #${txId} (${fieldsStr})`;
+                        } else if (actionObj.action === 'create_planned_transfer') {
+                            const fromA = actionObj.params.from_account || 'Compte source';
+                            const toA = actionObj.params.to_account || 'Compte destination';
+                            const amt = actionObj.params.amount !== undefined ? `${actionObj.params.amount} €` : '';
+                            desc = `Enregistrement d'un virement prévisionnel de ${amt} (${fromA} ➔ ${toA})`;
+                        } else if (actionObj.action === 'trigger_bank_sync') {
+                            desc = `Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)`;
                         }
 
                         displayContent += `
