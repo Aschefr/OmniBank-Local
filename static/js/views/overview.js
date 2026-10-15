@@ -3862,6 +3862,25 @@ window.OverviewView = {
             };
         }
 
+        this._cockpitGaugeContext = {
+            totalCycleExpenses,
+            ravRef,
+            ravAmount,
+            dailyRef,
+            dailySpent,
+            cycleReconciledVarExpenses,
+            cycleReconciledExpenses,
+            cycleComingExpenses,
+            cyclePlannedExpenses,
+            cycleStartISO,
+            cycleEndISO,
+            isOrgMode,
+            orgGrossBalance: typeof orgGrossBalance !== 'undefined' ? orgGrossBalance : 0,
+            orgAvailableTreasury: typeof orgAvailableTreasury !== 'undefined' ? orgAvailableTreasury : 0,
+            orgBudgetTarget: typeof orgBudgetTarget !== 'undefined' ? orgBudgetTarget : 0,
+            orgBudgetSpent: typeof orgBudgetSpent !== 'undefined' ? orgBudgetSpent : 0
+        };
+
         // Card 2: AutoPilot Status
         const apStatus = this._apStatus || {};
         const apEnabled = !!apStatus.is_enabled;
@@ -4447,10 +4466,11 @@ window.OverviewView = {
         }
 
         if (!data) return;
-        this._openInfoSheet(data);
+        this._openInfoSheet(data, tileKey);
     },
 
-    _openInfoSheet(data) {
+    _openInfoSheet(data, tileKey) {
+        this._currentSheetTileKey = tileKey;
         let overlay = document.getElementById('ovCockpitInfoSheetOverlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -4473,6 +4493,18 @@ window.OverviewView = {
                         </div>
                         <span id="ovSheetBadge" class="cockpit-card-badge"></span>
                     </div>
+
+                    <!-- Mini-graphique temporel avec sélecteur de durée -->
+                    <div class="cockpit-info-sheet-chart-section" id="ovSheetChartSection" style="display:none;">
+                        <div class="cockpit-sheet-chart-header">
+                            <span class="cockpit-sheet-chart-title" id="ovSheetChartTitle">📈 Tendance</span>
+                            <div class="cockpit-sheet-period-segmented" id="ovSheetPeriodGroup"></div>
+                        </div>
+                        <div class="cockpit-sheet-chart-canvas-wrapper">
+                            <canvas id="ovSheetChartCanvas"></canvas>
+                        </div>
+                    </div>
+
                     <div class="cockpit-info-sheet-rows" id="ovSheetRows"></div>
                     <div class="cockpit-info-sheet-text" id="ovSheetText"></div>
                     <div class="cockpit-info-sheet-actions">
@@ -4522,6 +4554,9 @@ window.OverviewView = {
             badgeEl.style.display = 'none';
         }
 
+        // Rendu du mini-graphique
+        this._renderSheetChart(tileKey, 'current');
+
         const rowsEl = document.getElementById('ovSheetRows');
         if (data.rows && data.rows.length > 0) {
             rowsEl.style.display = 'flex';
@@ -4570,10 +4605,435 @@ window.OverviewView = {
     },
 
     closeInfoSheet() {
+        if (this._infoSheetChart) {
+            this._infoSheetChart.destroy();
+            this._infoSheetChart = null;
+        }
         const overlay = document.getElementById('ovCockpitInfoSheetOverlay');
         if (overlay) {
             overlay.classList.remove('active');
         }
+    },
+
+    _renderSheetChart(tileKey, period = 'current') {
+        const chartSection = document.getElementById('ovSheetChartSection');
+        const canvas = document.getElementById('ovSheetChartCanvas');
+        if (!chartSection || !canvas || typeof Chart === 'undefined') return;
+
+        if (this._infoSheetChart) {
+            this._infoSheetChart.destroy();
+            this._infoSheetChart = null;
+        }
+
+        const t = (k, fb) => (window.i18n ? window.i18n.t(k) : null) || fb;
+        const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
+        const isPrivate = document.body.classList.contains('privacy-mode');
+
+        // Périodes configurables selon le mode
+        const periods = isOrgMode ? [
+            { key: 'current', label: t('cockpit_chart_period_month', 'Mois en cours') },
+            { key: 'quarter', label: t('cockpit_chart_period_quarter', 'Trimestre') },
+            { key: 'year', label: t('cockpit_chart_period_year', 'Exercice') },
+            { key: '3m', label: t('cockpit_chart_period_3m', '3 mois') }
+        ] : [
+            { key: 'current', label: (this._stats?.next_pay_date ? t('cockpit_chart_period_current', 'Période en cours') : t('cockpit_chart_period_month', 'Ce mois')) },
+            { key: '30d', label: t('cockpit_chart_period_30d', '30 jours') },
+            { key: '3m', label: t('cockpit_chart_period_3m', '3 mois') }
+        ];
+
+        const periodGroup = document.getElementById('ovSheetPeriodGroup');
+        if (periodGroup) {
+            periodGroup.innerHTML = periods.map(p => `
+                <button type="button" class="cockpit-sheet-period-btn ${p.key === period ? 'active' : ''}" data-period="${p.key}">
+                    ${p.label}
+                </button>
+            `).join('');
+            periodGroup.querySelectorAll('.cockpit-sheet-period-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const targetPeriod = btn.getAttribute('data-period');
+                    this._renderSheetChart(tileKey, targetPeriod);
+                };
+            });
+        }
+
+        // Calcul des dates début et fin
+        const today = new Date();
+        const todayISO = this._getTodayISO(today);
+        let startDate, endDate;
+
+        if (period === 'current') {
+            if (this._stats?.next_pay_date && !isOrgMode) {
+                endDate = new Date(this._stats.next_pay_date);
+                let prevPayDateStr = null;
+                if (Array.isArray(this._stats.pay_history)) {
+                    for (const p of this._stats.pay_history) {
+                        if (p.date && p.date < this._stats.next_pay_date && p.date <= todayISO) {
+                            prevPayDateStr = p.date;
+                            break;
+                        }
+                    }
+                }
+                if (prevPayDateStr) {
+                    startDate = new Date(prevPayDateStr);
+                } else {
+                    startDate = new Date(endDate.getTime() - 30 * 86400000);
+                }
+            } else {
+                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            }
+        } else if (period === '30d') {
+            startDate = new Date(today.getTime() - 30 * 86400000);
+            endDate = new Date(today);
+        } else if (period === 'quarter') {
+            const qMonth = Math.floor(today.getMonth() / 3) * 3;
+            startDate = new Date(today.getFullYear(), qMonth, 1);
+            endDate = new Date(today.getFullYear(), qMonth + 3, 0);
+        } else if (period === 'year') {
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = new Date(today.getFullYear(), 11, 31);
+        } else if (period === '3m') {
+            startDate = new Date(today.getTime() - 90 * 86400000);
+            endDate = new Date(today);
+        } else {
+            startDate = new Date(today.getTime() - 30 * 86400000);
+            endDate = new Date(today);
+        }
+
+        // Génération du calendrier journalier
+        const dateList = [];
+        const cur = new Date(startDate);
+        let guard = 0;
+        const monthNames = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+        while (cur <= endDate && guard < 370) {
+            guard++;
+            const yyyy = cur.getFullYear();
+            const mm = String(cur.getMonth() + 1).padStart(2, '0');
+            const dd = String(cur.getDate()).padStart(2, '0');
+            const iso = `${yyyy}-${mm}-${dd}`;
+            const dLabel = `${cur.getDate()} ${monthNames[cur.getMonth()]}`;
+            dateList.push({ iso, label: dLabel });
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        if (dateList.length === 0) {
+            chartSection.style.display = 'none';
+            return;
+        }
+
+        // Agrégation des opérations
+        const dailyExpenses = {};
+        const dailyVarExpenses = {};
+        const dailyReconciled = {};
+        const dailyIncome = {};
+
+        for (const item of dateList) {
+            dailyExpenses[item.iso] = 0;
+            dailyVarExpenses[item.iso] = 0;
+            dailyReconciled[item.iso] = 0;
+            dailyIncome[item.iso] = 0;
+        }
+
+        const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+        for (const tx of (this._transactions || [])) {
+            if (tx.is_skipped) continue;
+            if (tx.cross_profile_status === 'pending') continue;
+            if (!tx.date_operation) continue;
+            const txDate = String(tx.date_operation).substring(0, 10);
+            if (dailyExpenses[txDate] === undefined) continue;
+
+            if (accIdStr) {
+                const isFrom = String(tx.from_account_id) === accIdStr;
+                const isTo = String(tx.to_account_id) === accIdStr;
+                if (!isFrom && !isTo) continue;
+            } else {
+                if (tx.from_account_id && tx.to_account_id) continue;
+            }
+
+            const rawAmt = parseFloat(tx.amount) || 0;
+            const amt = Math.abs(rawAmt);
+            const typeStr = String(tx.type || '');
+            const isIncome = typeStr === 'income';
+            const isExpense = typeStr.startsWith('expense') || (!typeStr && rawAmt < 0);
+            const isFixed = typeStr === 'expense_fixed' || tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
+            const isVar = typeStr === 'expense_var' || (isExpense && !isFixed);
+
+            if (isIncome) {
+                dailyIncome[txDate] += amt;
+            } else if (isExpense) {
+                dailyExpenses[txDate] += amt;
+                if (isVar) dailyVarExpenses[txDate] += amt;
+                if (tx.reconciliation_date) dailyReconciled[txDate] += amt;
+            }
+        }
+
+        // Configuration selon la carte (tileKey)
+        let chartTitle = '📈 Tendance';
+        let datasets = [];
+        let chartType = 'line';
+
+        const ctx = canvas.getContext('2d');
+        const primaryGradient = ctx.createLinearGradient(0, 0, 0, 150);
+        primaryGradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+        primaryGradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+        const greenGradient = ctx.createLinearGradient(0, 0, 0, 150);
+        greenGradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+        greenGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+        if (tileKey === 'cadence') {
+            chartType = 'bar';
+            chartTitle = `⏱️ ${t('cockpit_chart_title_cadence', 'Rythme des dépenses')} (€/j)`;
+            const dailyRef = this._cockpitGaugeContext?.dailyRef || this._stats?.daily_ref || 50;
+
+            datasets = [
+                {
+                    type: 'bar',
+                    label: t('cockpit_chart_legend_daily_spent', 'Dépenses du jour'),
+                    data: dateList.map(item => item.iso <= todayISO ? (isOrgMode ? dailyExpenses[item.iso] : dailyVarExpenses[item.iso]) : null),
+                    backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                    borderColor: '#6366f1',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    type: 'line',
+                    label: `${t('cockpit_chart_legend_daily_ref', 'Rythme cible')} (${formatCurrency(dailyRef)}/j)`,
+                    data: dateList.map(() => dailyRef),
+                    borderColor: '#f59e0b',
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    fill: false
+                }
+            ];
+        } else if (tileKey === 'rav') {
+            chartTitle = isOrgMode
+                ? `🏦 ${t('cockpit_chart_title_treasury', 'Trajectoire de trésorerie')}`
+                : `💰 ${t('cockpit_chart_title_rav', 'Trajectoire du reste à vivre')}`;
+
+            if (!isOrgMode) {
+                // Reste à vivre décroissant au fil des dépenses
+                const initialRav = (this._cockpitGaugeContext?.ravRef && this._cockpitGaugeContext.ravRef > 0)
+                    ? this._cockpitGaugeContext.ravRef
+                    : Math.max(0, (this._cockpitGaugeContext?.ravAmount || 0) + (this._cockpitGaugeContext?.cycleReconciledVarExpenses || 0));
+
+                let runningRav = initialRav;
+                const ravSeries = [];
+                for (const item of dateList) {
+                    if (item.iso <= todayISO) {
+                        runningRav -= (dailyVarExpenses[item.iso] || 0);
+                        ravSeries.push(Math.round(runningRav * 100) / 100);
+                    } else {
+                        ravSeries.push(null);
+                    }
+                }
+
+                datasets = [
+                    {
+                        type: 'line',
+                        label: t('cockpit_chart_title_rav', 'Reste à vivre disponible'),
+                        data: ravSeries,
+                        borderColor: '#10b981',
+                        backgroundColor: greenGradient,
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: dateList.length <= 31 ? 2.5 : 0,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        type: 'line',
+                        label: 'Seuil 0 €',
+                        data: dateList.map(() => 0),
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderDash: [4, 4],
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ];
+            } else {
+                // Mode Organisation : cumul trésorerie
+                let runningBalance = (this._stats?.total_balance || 0);
+                let deltaAfter = 0;
+                for (const item of dateList) {
+                    if (item.iso <= todayISO) {
+                        deltaAfter += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                    }
+                }
+                let balance = runningBalance - deltaAfter;
+                const series = [];
+                for (const item of dateList) {
+                    if (item.iso <= todayISO) {
+                        balance += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                        series.push(Math.round(balance * 100) / 100);
+                    } else {
+                        series.push(null);
+                    }
+                }
+
+                datasets = [
+                    {
+                        type: 'line',
+                        label: t('cockpit_org_sheet_treasury_title', 'Trésorerie nette'),
+                        data: series,
+                        borderColor: '#6366f1',
+                        backgroundColor: primaryGradient,
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: dateList.length <= 31 ? 2 : 0
+                    }
+                ];
+            }
+        } else if (tileKey === 'expenses') {
+            chartTitle = isOrgMode
+                ? `📊 ${t('cockpit_chart_title_budget', 'Exécution budgétaire')}`
+                : `💳 ${t('cockpit_chart_title_expenses', 'Cumul des dépenses')}`;
+
+            let runningSum = 0;
+            const cumSeries = [];
+            for (const item of dateList) {
+                if (item.iso <= todayISO) {
+                    runningSum += (dailyReconciled[item.iso] || 0);
+                    cumSeries.push(Math.round(runningSum * 100) / 100);
+                } else {
+                    cumSeries.push(null);
+                }
+            }
+
+            const totalLimit = isOrgMode
+                ? (this._cockpitGaugeContext?.orgBudgetTarget || this._stats?.budget_target || 0)
+                : (this._cockpitGaugeContext?.totalCycleExpenses || this._stats?.total_cycle_expenses || (runningSum * 1.2));
+
+            datasets = [
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_legend_cumulative', 'Dépenses cumulées'),
+                    data: cumSeries,
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: dateList.length <= 31 ? 2 : 0
+                }
+            ];
+
+            if (totalLimit > 0) {
+                datasets.push({
+                    type: 'line',
+                    label: t('cockpit_chart_legend_budget_ceiling', 'Plafond prévu'),
+                    data: dateList.map(() => totalLimit),
+                    borderColor: 'rgba(148, 163, 184, 0.7)',
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    borderWidth: 1.5,
+                    fill: false
+                });
+            }
+        } else {
+            // Projection ou cartes secondaires
+            chartTitle = `🔮 ${t('cockpit_chart_title_projection', 'Solde bancaire')}`;
+            let currentBal = this._stats?.total_balance || 0;
+            let sumTx = 0;
+            for (const item of dateList) {
+                if (item.iso <= todayISO) sumTx += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+            }
+            let bal = currentBal - sumTx;
+            const balSeries = [];
+            for (const item of dateList) {
+                if (item.iso <= todayISO) {
+                    bal += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                    balSeries.push(Math.round(bal * 100) / 100);
+                } else {
+                    balSeries.push(null);
+                }
+            }
+
+            datasets = [
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_title_projection', 'Solde bancaire'),
+                    data: balSeries,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: dateList.length <= 31 ? 2 : 0
+                }
+            ];
+        }
+
+        // Affichage du titre et de la section
+        document.getElementById('ovSheetChartTitle').textContent = chartTitle;
+        chartSection.style.display = 'flex';
+
+        // Création de l'instance Chart.js
+        this._infoSheetChart = new Chart(canvas, {
+            type: chartType,
+            data: {
+                labels: dateList.map(item => item.label),
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: datasets.length > 1,
+                        position: 'top',
+                        labels: {
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            color: 'rgba(148, 163, 184, 0.85)',
+                            font: { size: 10, weight: '600' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        padding: 8,
+                        titleFont: { size: 11, weight: '700' },
+                        bodyFont: { size: 11 },
+                        callbacks: {
+                            label: (context) => {
+                                const val = context.raw;
+                                if (val === null || val === undefined) return '';
+                                const formatted = isPrivate ? '•••• €' : formatCurrency(val);
+                                return `${context.dataset.label || ''}: ${formatted}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: tileKey === 'cadence',
+                        grid: { color: 'rgba(128, 128, 128, 0.08)' },
+                        ticks: {
+                            color: 'rgba(148, 163, 184, 0.7)',
+                            font: { size: 9 },
+                            callback: (v) => isPrivate ? '••••' : formatCurrency(v)
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            color: 'rgba(148, 163, 184, 0.8)',
+                            font: { size: 9.5, weight: '500' },
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 6
+                        }
+                    }
+                }
+            }
+        });
     },
 
     async enableAndOpenSimulator() {
