@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Added & Improved
+- **Interactive Cockpit Modal Charts 📈**: Added temporal mini-charts inside Cockpit detail sheets (Cadence, Disposable Income, Reconciled Expenses, Balance Projection) with context-adapted visual curves, dynamic period selectors (Current Cycle/Month, 30 Days, 3 Months, Quarter, Fiscal Year in Organisation Mode), and strict privacy mode masking.
+
 ### Performance & Ergonomics
 - **Docker Resource Optimization ⚡**: Upgraded live reload engine with native `watchfiles` and scoped file watching to the application source directory, significantly cutting idle CPU overhead. Suspended background notification polling when the browser tab is hidden.
 
