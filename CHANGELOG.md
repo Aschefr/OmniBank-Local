@@ -4,8 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+## [1.2.5] - 2026-10-16
+
 ### Fixed & Critical
-- **Dashboard Bank Sync Staging Table Ergonomics 📐✨**: Resolved column overlapping in the unrecorded bank transactions staging area (`Statut`, `Date`, and `Description` collision) by allocating explicit column widths, using responsive flex badge containers, and adding graceful text ellipsis. Eliminated the unwanted horizontal scrollbar and nested scroll containers on desktop screens, ensuring a clean 100% responsive width.
+- **Auto-Pilot Fluctuating Recurrence & Variable Amount Reconciliation 🤖💡**: Enhanced Auto-Pilot reconciliation logic to accurately match recurring expenses with variable amounts or out-of-bundle charges (e.g. telecom or utility bills varying from the baseline forecast). Instead of creating a duplicate phantom forecast, the engine detects competing forecast collisions and routes the transaction to the Review Queue with a 1-click `[🔗 Lier]` action that auto-adjusts the planned amount and records audit history (`Auto-ajusté : X € → Y €`).
+- **Review Queue Linking Traceability & Active Log Lifecycle 🔍🏷️**: Transactions verified and linked to planned forecasts via the Auto-Pilot review queue now distinctly display a `✓ Vérifiée & liée` badge with direct reference to the linked forecast (`🔗 Liée à : <Nom prévision>`) instead of remaining in a generic pending state. The corresponding Auto-Pilot decision feed seamlessly transitions to `LINKED_COMING` with 100% confidence.
+- **Historical Reconciliation Deduplication Guardrail 🛡️🏦**: Resolved an issue in historical statement evaluation where newly synced transactions could falsely match older reconciled operations whose original bank ID was replaced, preventing duplicate entry creation during subsequent sync runs.
+
+### Ergonomics & Reliability
+- **Dashboard Bank Sync Staging Table Ergonomics 📐✨**: Resolved column overlapping in the unrecorded bank transactions staging table (`Statut`, `Date`, and `Description` collision) by allocating explicit column widths, responsive flex badge containers, and graceful text ellipsis. Eliminated unwanted horizontal scrollbars on desktop displays.
 - **Hermetic Test Isolation & Production DB Protection 🧪🛡️**: Migrated chat planned transfer, bank sync tools, and maintenance tests to isolated in-memory SQLite databases (`sqlite:///:memory:` with `StaticPool`), strictly preventing automated test suites from writing or leaving test accounts and fixtures in active profile databases.
 
 ## [1.2.4] - 2026-10-16
