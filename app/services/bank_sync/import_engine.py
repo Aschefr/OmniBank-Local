@@ -74,40 +74,30 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
 
         def _evaluate_tx_list(tx_list, is_coming_flag):
             result_list = []
-            for tx in tx_list:
-                tx_copy = dict(tx)
-                tx_copy["is_coming"] = is_coming_flag
-                tx_date_str = tx.get("date_operation")
-                raw_amount = tx.get("raw_amount")
+            rec_results = [None] * len(tx_list)
+
+            # Passe 0 & 1 : Forçages manuels et correspondances exactes par csv_id en priorité absolue
+            for i, tx in enumerate(tx_list):
                 csv_id = tx.get("csv_id")
-
-                is_dismissed = bool(csv_id and csv_id in dismissed_tx_map)
-                tx_copy["is_dismissed"] = is_dismissed
-                tx_copy["is_auto_dismissed"] = False
-
                 # Passe 0 : Forcer le match si spécifié manuellement par l'utilisateur
                 if csv_id and csv_id in force_by_csv:
                     forced_db_id = force_by_csv[csv_id]
                     forced_tx = db.query(Transaction).filter(Transaction.id == forced_db_id).first()
                     if forced_tx:
-                        tx_copy["is_reconciled"] = True
-                        tx_copy["already_reconciled"] = bool(forced_tx.reconciliation_date)
-                        tx_copy["is_mirror_transfer"] = False
-                        tx_copy["is_orphan_transfer_link"] = False
-                        tx_copy["orphan_account_id"] = None
-                        tx_copy["orphan_account_name"] = None
-                        tx_copy["matched_db_id"] = forced_db_id
-                        tx_copy["db_description"] = forced_tx.description
-                        if forced_tx.category:
-                            tx_copy["category"] = tx_copy.get("category") or forced_tx.category
-                            tx_copy["db_category"] = forced_tx.category
+                        rec_results[i] = {
+                            "id": forced_db_id,
+                            "description": forced_tx.description,
+                            "category": forced_tx.category,
+                            "type": forced_tx.type,
+                            "already_reconciled": bool(forced_tx.reconciliation_date),
+                            "match_score": 100
+                        }
                         matched_ids_global.add(forced_db_id)
-                        if is_dismissed:
-                            tx_copy["_excluded"] = True
-                        result_list.append(tx_copy)
                         continue
 
-                if tx_date_str and raw_amount is not None and local_acc_id:
+                tx_date_str = tx.get("date_operation")
+                raw_amount = tx.get("raw_amount")
+                if tx_date_str and raw_amount is not None and local_acc_id and csv_id:
                     try:
                         tx_date = date.fromisoformat(str(tx_date_str)[:10])
                         local_excluded = set(matched_ids_global)
@@ -122,44 +112,77 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                             account_id=local_acc_id,
                             is_coming=is_coming_flag,
                             bank_label=tx.get("raw_description") or tx.get("description"),
-                            csv_id=csv_id
+                            csv_id=csv_id,
+                            exact_only=True
                         )
-                        if rec_info:
-                            tx_copy["is_reconciled"] = True
-                            tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
-                            tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
-                            tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
-                            tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
-                            tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
-                            tx_copy["matched_db_id"] = rec_info.get("id")
-                            tx_copy["db_description"] = rec_info.get("description")
-                            tx_copy["match_score"] = rec_info.get("match_score", 0)
-                            if rec_info.get("category"):
-                                tx_copy["category"] = tx_copy.get("category") or rec_info.get("category")
-                                tx_copy["db_category"] = rec_info.get("category")
-                            if rec_info.get("id"):
-                                matched_ids_global.add(rec_info.get("id"))
-                        else:
-                            tx_copy["is_reconciled"] = False
-                            tx_copy["already_reconciled"] = False
-                            tx_copy["is_mirror_transfer"] = False
-                            tx_copy["is_orphan_transfer_link"] = False
-                            tx_copy["orphan_account_id"] = None
-                            tx_copy["orphan_account_name"] = None
-                            tx_copy["matched_db_id"] = None
-                            tx_copy["db_description"] = None
-                            tx_copy["match_score"] = 0
+                        if rec_info and rec_info.get("id"):
+                            rec_results[i] = rec_info
+                            matched_ids_global.add(rec_info.get("id"))
                     except Exception as err:
-                        logger.warning(f"[BankSync] Erreur re-matching preview tx: {err}")
-                        tx_copy["is_reconciled"] = False
-                        tx_copy["already_reconciled"] = False
-                        tx_copy["is_mirror_transfer"] = False
-                        tx_copy["is_orphan_transfer_link"] = False
-                        tx_copy["orphan_account_id"] = None
-                        tx_copy["orphan_account_name"] = None
-                        tx_copy["matched_db_id"] = None
-                        tx_copy["db_description"] = None
-                        tx_copy["match_score"] = 0
+                        logger.warning(f"[BankSync] Erreur passe 1 exact matching: {err}")
+
+            # Passe 2 : Prédictions, rapprochements flous et règles métier pour les opérations restantes
+            for i, tx in enumerate(tx_list):
+                tx_copy = dict(tx)
+                tx_copy["is_coming"] = is_coming_flag
+                tx_date_str = tx.get("date_operation")
+                raw_amount = tx.get("raw_amount")
+                csv_id = tx.get("csv_id")
+
+                is_dismissed = bool(csv_id and csv_id in dismissed_tx_map)
+                tx_copy["is_dismissed"] = is_dismissed
+                tx_copy["is_auto_dismissed"] = False
+
+                rec_info = rec_results[i]
+                if rec_info is None and tx_date_str and raw_amount is not None and local_acc_id:
+                    try:
+                        tx_date = date.fromisoformat(str(tx_date_str)[:10])
+                        local_excluded = set(matched_ids_global)
+                        if csv_id and csv_id in rejected_by_csv:
+                            local_excluded |= rejected_by_csv[csv_id]
+
+                        rec_info = check_reconciliation(
+                            db,
+                            tx_date,
+                            float(raw_amount),
+                            matched_ids=local_excluded,
+                            account_id=local_acc_id,
+                            is_coming=is_coming_flag,
+                            bank_label=tx.get("raw_description") or tx.get("description"),
+                            csv_id=csv_id,
+                            exact_only=False
+                        )
+                        if rec_info and rec_info.get("id"):
+                            matched_ids_global.add(rec_info.get("id"))
+                    except Exception as err:
+                        logger.warning(f"[BankSync] Erreur passe 2 re-matching preview tx: {err}")
+
+                if rec_info:
+                    tx_copy["is_reconciled"] = True
+                    tx_copy["already_reconciled"] = rec_info.get("already_reconciled", False)
+                    tx_copy["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                    tx_copy["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                    tx_copy["orphan_account_id"] = rec_info.get("orphan_account_id")
+                    tx_copy["orphan_account_name"] = rec_info.get("orphan_account_name")
+                    tx_copy["matched_db_id"] = rec_info.get("id")
+                    tx_copy["db_description"] = rec_info.get("description")
+                    tx_copy["match_score"] = rec_info.get("match_score", 0)
+                    if rec_info.get("category"):
+                        tx_copy["category"] = tx_copy.get("category") or rec_info.get("category")
+                        tx_copy["db_category"] = rec_info.get("category")
+                    if rec_info.get("type"):
+                        tx_copy["type"] = rec_info.get("type")
+                        tx_copy["db_type"] = rec_info.get("type")
+                else:
+                    tx_copy["is_reconciled"] = False
+                    tx_copy["already_reconciled"] = False
+                    tx_copy["is_mirror_transfer"] = False
+                    tx_copy["is_orphan_transfer_link"] = False
+                    tx_copy["orphan_account_id"] = None
+                    tx_copy["orphan_account_name"] = None
+                    tx_copy["matched_db_id"] = None
+                    tx_copy["db_description"] = None
+                    tx_copy["match_score"] = 0
 
                 # Auto-exclusion intelligente si solde conforme et ancienne opération non reconnue
                 if not tx_copy.get("is_reconciled") and not is_coming_flag and not is_dismissed:
