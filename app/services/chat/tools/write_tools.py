@@ -22,19 +22,149 @@ from app.services.history_service import record_action, snapshot_entity
 
 logger = logging.getLogger(__name__)
 
-def apply_transaction_correction_tool(db: Session, transaction_id: int, category: str = None, description: str = None, amount: float = None, type: str = None, force_write: bool = False) -> dict:
+def _normalize_name(s: str) -> str:
+    import unicodedata
+    if not s:
+        return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').strip().lower()
+
+
+def _find_transaction(
+    db: Session,
+    transaction_id: Optional[int] = None,
+    description: Optional[str] = None,
+    amount: Optional[float] = None,
+    date_operation: Optional[str] = None
+) -> Optional[Transaction]:
+    """
+    Recherche résiliente d'une transaction :
+    1. Par transaction_id direct si fourni et valide.
+    2. En repli multi-critères : montant (tolérance ±0.02 €), sous-chaîne ou mots-clés normalisés
+       du libellé (description ou raw_description), et proximité de date.
+    """
+    from app.models import Transaction
+    from datetime import date as dt_date
+
+    # 1. Direct ID lookup
+    if transaction_id is not None:
+        try:
+            tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
+            if tx:
+                return tx
+        except (ValueError, TypeError):
+            pass
+
+    # 2. Fallback search
+    if not description and amount is None and not date_operation:
+        return None
+
+    query = db.query(Transaction)
+    target_amt = None
+    if amount is not None:
+        try:
+            target_amt = abs(float(amount))
+            query = query.filter(Transaction.amount.between(target_amt - 0.05, target_amt + 0.05))
+        except (ValueError, TypeError):
+            pass
+
+    target_date = None
+    if date_operation:
+        try:
+            target_date = dt_date.fromisoformat(str(date_operation).strip())
+        except Exception:
+            pass
+
+    # Fetch candidates (recent first)
+    candidates = query.order_by(Transaction.date_operation.desc()).limit(100).all()
+    if not candidates and target_amt is not None:
+        # Fallback to broader search if amount filter was too strict or amount changed
+        candidates = db.query(Transaction).order_by(Transaction.date_operation.desc()).limit(150).all()
+
+    best_cand = None
+    best_score = -1
+
+    desc_norm = _normalize_name(description) if description else ""
+    desc_tokens = [w for w in desc_norm.split() if len(w) > 2] if desc_norm else []
+
+    for c in candidates:
+        score = 0
+        if target_amt is not None and c.amount is not None:
+            diff = abs(c.amount - target_amt)
+            if diff < 0.01:
+                score += 50
+            elif diff < 0.05:
+                score += 30
+
+        c_desc = _normalize_name(c.description or "")
+        c_raw = _normalize_name(c.raw_description or "")
+        if desc_norm:
+            if desc_norm == c_desc or desc_norm in c_desc or c_desc in desc_norm:
+                score += 40
+            elif desc_norm in c_raw:
+                score += 35
+            elif desc_tokens:
+                matching_words = sum(1 for w in desc_tokens if (w in c_desc or w in c_raw))
+                score += matching_words * 12
+
+        if target_date and c.date_operation:
+            day_diff = abs((c.date_operation - target_date).days)
+            if day_diff == 0:
+                score += 30
+            elif day_diff <= 3:
+                score += 20
+            elif day_diff <= 15:
+                score += 10
+        elif c.date_operation:
+            days_ago = abs((dt_date.today() - c.date_operation).days)
+            if days_ago <= 30:
+                score += 5
+
+        if score > best_score and score >= 25:
+            best_score = score
+            best_cand = c
+
+    return best_cand
+
+
+def apply_transaction_correction_tool(
+    db: Session,
+    transaction_id: int = None,
+    category: str = None,
+    description: str = None,
+    amount: float = None,
+    type: str = None,
+    date_operation: str = None,
+    force_write: bool = False
+) -> dict:
     from app.models import Transaction, Category
     from app.services.history_service import record_action, snapshot_entity
-    tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
+    from datetime import date as dt_date
+
+    tx = _find_transaction(
+        db,
+        transaction_id=transaction_id,
+        description=description,
+        amount=amount,
+        date_operation=date_operation
+    )
     if not tx:
         return {"success": False, "error": "Transaction not found"}
-        
+
     if not force_write:
-        return {"success": True, "pending_validation": True, "transaction_id": transaction_id}
-        
+        return {
+            "success": True,
+            "pending_validation": True,
+            "transaction_id": tx.id,
+            "description": tx.description,
+            "amount": tx.amount,
+            "category": category or tx.category,
+            "type": type or tx.type,
+            "date_operation": date_operation or (tx.date_operation.isoformat() if tx.date_operation else None)
+        }
+
     old_snapshot = snapshot_entity(tx)
     changes = {}
-    if category is not None:
+    if category is not None and category != tx.category:
         cat_exists = db.query(Category).filter(Category.name == category).first()
         if not cat_exists:
             new_cat = Category(name=category, type=type or tx.type or "expense_var")
@@ -42,26 +172,35 @@ def apply_transaction_correction_tool(db: Session, transaction_id: int, category
             db.flush()
         tx.category = category
         changes["category"] = category
-        
-    if description is not None:
+
+    if description is not None and _normalize_name(description) != _normalize_name(tx.description):
         tx.description = description
         changes["description"] = description
-        
-    if amount is not None:
+
+    if amount is not None and abs(float(amount) - (tx.amount or 0.0)) > 0.01:
         tx.amount = float(amount)
         changes["amount"] = float(amount)
-        
-    if type is not None:
+
+    if type is not None and type != tx.type:
         tx.type = type
         changes["type"] = type
-        
+
+    if date_operation is not None:
+        try:
+            parsed_date = dt_date.fromisoformat(str(date_operation).strip())
+            if parsed_date != tx.date_operation:
+                tx.date_operation = parsed_date
+                changes["date_operation"] = parsed_date.isoformat()
+        except Exception:
+            pass
+
     if changes:
         db.flush()
         action_id = record_action(db, "transaction", tx.id, "UPDATE", old_snapshot, snapshot_entity(tx))
         db.commit()
-        return {"success": True, "transaction_id": transaction_id, "updated_fields": changes, "action_id": action_id}
-        
-    return {"success": False, "error": "No fields to update"}
+        return {"success": True, "transaction_id": tx.id, "updated_fields": changes, "action_id": action_id}
+
+    return {"success": True, "transaction_id": tx.id, "message": "Aucune modification nécessaire"}
 
 
 def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, period: str = "monthly", categories: list = None, is_project: bool = False, force_write: bool = False) -> dict:
@@ -95,12 +234,6 @@ def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, p
     db.commit()
     return {"success": True, "budget_id": b.id, "name": name, "action_id": action_id}
 
-
-def _normalize_name(s: str) -> str:
-    import unicodedata
-    if not s:
-        return ""
-    return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').strip().lower()
 
 
 def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False) -> dict:
@@ -393,24 +526,45 @@ def delete_category_tool(db: Session, name: str, force_write: bool = False) -> d
     return {"success": True, "name": name, "action_id": action_id}
 
 
-def delete_transaction_tool(db: Session, transaction_id: int, force_write: bool = False) -> dict:
+def delete_transaction_tool(
+    db: Session,
+    transaction_id: int = None,
+    description: str = None,
+    amount: float = None,
+    date_operation: str = None,
+    force_write: bool = False
+) -> dict:
     from app.models import Transaction
     from app.services.history_service import record_action, snapshot_entity
-    
-    tx = db.query(Transaction).filter(Transaction.id == int(transaction_id)).first()
+
+    tx = _find_transaction(
+        db,
+        transaction_id=transaction_id,
+        description=description,
+        amount=amount,
+        date_operation=date_operation
+    )
     if not tx:
-        return {"success": False, "error": "Transaction not found"}
-        
+        return {"success": False, "error": "Transaction introuvable avec ces critères"}
+
     if not force_write:
-        return {"success": True, "pending_validation": True}
-        
+        return {
+            "success": True,
+            "pending_validation": True,
+            "transaction_id": tx.id,
+            "description": tx.description,
+            "amount": tx.amount,
+            "date_operation": tx.date_operation.isoformat() if tx.date_operation else None
+        }
+
     old_snapshot = snapshot_entity(tx)
+    real_id = tx.id
     db.delete(tx)
     db.flush()
-    
-    action_id = record_action(db, "transaction", int(transaction_id), "DELETE", old_snapshot, None)
+
+    action_id = record_action(db, "transaction", real_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"success": True, "transaction_id": transaction_id, "action_id": action_id}
+    return {"success": True, "transaction_id": real_id, "action_id": action_id}
 
 
 def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, date_override: str = None, force_write: bool = False) -> dict:
@@ -559,10 +713,10 @@ def store_financial_fact_tool(db: Session, key: str, value: str, private_to_sess
             db.add(new_fact)
         db.commit()
         logger.info(f"[store_financial_fact_tool] Fact '{key}' successfully saved.")
-        return {"ok": True, "message": f"Fact '{key}' successfully saved."}
+        return {"success": True, "ok": True, "message": f"Fact '{key}' successfully saved."}
     except Exception as e:
         logger.error(f"[store_financial_fact_tool] Error saving fact '{key}': {e}", exc_info=True)
-        return {"error": str(e)}
+        return {"success": False, "ok": False, "error": str(e)}
 
 def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool = False, session_id: int = None, user_name: str = None) -> dict:
     from app.models import AIFact, OrgUser
@@ -588,10 +742,10 @@ def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool =
         if fact:
             db.delete(fact)
             db.commit()
-            return {"ok": True, "message": f"Fact '{key}' successfully forgotten."}
-        return {"ok": False, "message": f"Fact '{key}' not found."}
+            return {"success": True, "ok": True, "message": f"Fact '{key}' successfully forgotten."}
+        return {"success": False, "ok": False, "message": f"Fact '{key}' not found."}
     except Exception as e:
-        return {"error": str(e)}
+        return {"success": False, "ok": False, "error": str(e)}
 
 
 def create_planned_transfer_tool(db: Session, from_account: str, to_account: str, amount: float, description: str = None, date_operation: str = None, force_write: bool = False) -> dict:

@@ -298,3 +298,171 @@ def test_update_recurrence_template_description_fallback(db_session):
             db_session.commit()
 
 
+def test_transaction_fallback_correction_and_deletion(db_session):
+    from app.models import Transaction, Account
+    from app.services.chat.tools.write_tools import apply_transaction_correction_tool, delete_transaction_tool
+
+    acc = db_session.query(Account).first()
+    if not acc:
+        acc = Account(name="Test Account Tx", type="checking", initial_balance=500.0)
+        db_session.add(acc)
+        db_session.flush()
+
+    # Create a test transaction
+    tx = Transaction(
+        description="Acompte Provisionnel DGFIP",
+        amount=331.0,
+        category="Inconnu",
+        type="expense_var",
+        date_operation=date(2026, 10, 15),
+        from_account_id=acc.id
+    )
+    db_session.add(tx)
+    db_session.commit()
+    real_tx_id = tx.id
+
+    try:
+        # 1. Update with hallucinated transaction_id but matching description & amount
+        res_update = apply_transaction_correction_tool(
+            db_session,
+            transaction_id=999999,
+            description="Acompte DGFIP",
+            amount=331.0,
+            category="Impôts",
+            force_write=True
+        )
+        assert res_update.get("success") is True
+        assert res_update.get("transaction_id") == real_tx_id
+
+        db_session.refresh(tx)
+        assert tx.category == "Impôts"
+
+        # 2. Delete with hallucinated transaction_id but matching description & amount
+        res_del = delete_transaction_tool(
+            db_session,
+            transaction_id=888888,
+            description="DGFIP",
+            amount=331.0,
+            force_write=True
+        )
+        assert res_del.get("success") is True
+        assert res_del.get("transaction_id") == real_tx_id
+
+        # Verify deletion from DB
+        deleted_tx = db_session.query(Transaction).filter(Transaction.id == real_tx_id).first()
+        assert deleted_tx is None
+    finally:
+        remaining = db_session.query(Transaction).filter(Transaction.id == real_tx_id).first()
+        if remaining:
+            db_session.delete(remaining)
+            db_session.commit()
+
+
+def test_store_and_forget_financial_facts(db_session):
+    from app.models import AIFact
+    from app.services.chat.tools.write_tools import store_financial_fact_tool, forget_financial_fact_tool
+    from app.services.chat.chat_briefing import generate_financial_briefing
+
+    test_key = "test_acompte_impots_2026"
+    test_val = "Acompte impôts de +331 €/mois jusqu'en décembre 2026"
+
+    try:
+        # 1. Store fact
+        res_store = store_financial_fact_tool(db_session, key=test_key, value=test_val)
+        assert res_store.get("success") is True
+        assert res_store.get("ok") is True
+
+        fact_row = db_session.query(AIFact).filter(AIFact.fact_key == test_key).first()
+        assert fact_row is not None
+        assert fact_row.fact_value == test_val
+
+        # 2. Verify fact appears in briefing Live Financial Dossier
+        briefing = generate_financial_briefing(db_session)
+        assert "Known Financial Facts & Memory (ai_facts)" in briefing
+        assert test_val in briefing
+
+        # 3. Forget fact
+        res_forget = forget_financial_fact_tool(db_session, key=test_key)
+        assert res_forget.get("success") is True
+        assert res_forget.get("ok") is True
+
+        fact_row_after = db_session.query(AIFact).filter(AIFact.fact_key == test_key).first()
+        assert fact_row_after is None
+    finally:
+        cleanup_fact = db_session.query(AIFact).filter(AIFact.fact_key == test_key).first()
+        if cleanup_fact:
+            db_session.delete(cleanup_fact)
+            db_session.commit()
+
+
+def test_bridge_restitution_briefing_prompt(db_session):
+    from datetime import timedelta
+    from app.models import Account, Transaction
+    from app.services.chat.chat_briefing import generate_financial_briefing
+    from app.services.chat.tools.write_tools import create_planned_transfer_tool
+
+    # Ensure checking and savings accounts exist
+    savings = db_session.query(Account).filter(Account.type == "savings").first()
+    checking = db_session.query(Account).filter(Account.type == "checking").first()
+    if not savings:
+        savings = Account(name="Livret A Test", type="savings", initial_balance=2000.0)
+        db_session.add(savings)
+        db_session.flush()
+    if not checking:
+        checking = Account(name="Courant Test", type="checking", initial_balance=50.0)
+        db_session.add(checking)
+        db_session.flush()
+    db_session.commit()
+
+    today = date.today()
+
+    # Create bridge transfer from savings to checking (e.g. 250 EUR)
+    bridge_tx = Transaction(
+        amount=250.0,
+        type="transfer",
+        category="Virement interne",
+        description="Virement pont Livret A -> Courant",
+        date_operation=today,
+        from_account_id=savings.id,
+        to_account_id=checking.id
+    )
+    db_session.add(bridge_tx)
+    db_session.commit()
+
+    return_tx_id = None
+    try:
+        # 1. Briefing should detect pending restitution
+        briefing_before = generate_financial_briefing(db_session)
+        assert "Pending Savings Restitution" in briefing_before
+        assert "250.00" in briefing_before
+        assert "ACTION REQUIRED: Propose scheduling the return transfer" in briefing_before
+
+        # 2. Schedule the return transfer
+        res_return = create_planned_transfer_tool(
+            db_session,
+            from_account=checking.name,
+            to_account=savings.name,
+            amount=250.0,
+            description="Reconstitution épargne de précaution Livret A",
+            date_operation=(today + timedelta(days=5)).isoformat(),
+            force_write=True
+        )
+        assert res_return.get("success") is True
+        return_tx_id = res_return.get("transaction_id")
+
+        # 3. Briefing should now show scheduled restitution instead of pending
+        briefing_after = generate_financial_briefing(db_session)
+        assert "Scheduled Savings Restitution" in briefing_after
+        assert "Pending Savings Restitution" not in briefing_after
+
+    finally:
+        # Cleanup
+        db_session.delete(bridge_tx)
+        if return_tx_id:
+            rtx = db_session.query(Transaction).filter(Transaction.id == return_tx_id).first()
+            if rtx:
+                db_session.delete(rtx)
+        db_session.commit()
+
+
+

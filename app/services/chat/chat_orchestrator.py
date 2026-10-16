@@ -284,7 +284,14 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             force_write=True,
         )
     elif action == "delete_transaction":
-        res = delete_transaction_tool(db, transaction_id=params.get("transaction_id"), force_write=True)
+        res = delete_transaction_tool(
+            db,
+            transaction_id=params.get("transaction_id") or params.get("id"),
+            description=params.get("description"),
+            amount=params.get("amount"),
+            date_operation=params.get("date_operation"),
+            force_write=True
+        )
     elif action == "apply_transaction_correction":
         t_id = params.get("transaction_id") or params.get("id")
         updates = params.get("updates", {}) if isinstance(params.get("updates"), dict) else {}
@@ -296,6 +303,7 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             desc = desc.strip()
         amt = params.get("amount") if params.get("amount") is not None else updates.get("amount")
         ttype = params.get("type") or updates.get("type")
+        date_op = params.get("date_operation") or updates.get("date_operation")
         res = apply_transaction_correction_tool(
             db,
             transaction_id=t_id,
@@ -303,6 +311,7 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             description=desc,
             amount=amt,
             type=ttype,
+            date_operation=date_op,
             force_write=True,
         )
     elif action == "create_planned_transfer":
@@ -317,6 +326,23 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
         )
     elif action == "trigger_bank_sync":
         res = trigger_bank_sync_tool(db, force_write=True)
+    elif action == "store_financial_fact":
+        res = store_financial_fact_tool(
+            db,
+            key=params.get("key"),
+            value=params.get("value"),
+            private_to_session=params.get("private_to_session", False),
+            session_id=params.get("session_id"),
+            user_name=params.get("user_name"),
+        )
+    elif action == "forget_financial_fact":
+        res = forget_financial_fact_tool(
+            db,
+            key=params.get("key"),
+            private_to_session=params.get("private_to_session", False),
+            session_id=params.get("session_id"),
+            user_name=params.get("user_name"),
+        )
     else:
         raise HTTPException(status_code=400, detail=f"Action '{action}' non reconnue")
 
@@ -711,7 +737,16 @@ async def generate_chat_stream(
                         elif fn_name == "detect_anomalies_and_subscriptions":
                             tool_result = detect_anomalies_and_subscriptions_tool(db)
                         elif fn_name == "apply_transaction_correction":
-                            tool_result = apply_transaction_correction_tool(db, fn_args.get("transaction_id"), fn_args.get("category"), fn_args.get("description"), fn_args.get("amount"), fn_args.get("type"))
+                            tool_result = apply_transaction_correction_tool(
+                                db,
+                                transaction_id=fn_args.get("transaction_id"),
+                                category=fn_args.get("category"),
+                                description=fn_args.get("description"),
+                                amount=fn_args.get("amount"),
+                                type=fn_args.get("type"),
+                                date_operation=fn_args.get("date_operation"),
+                                force_write=False
+                            )
                         elif fn_name == "create_budget_envelope":
                             tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
                         elif fn_name == "update_budget_envelope":
@@ -733,7 +768,14 @@ async def generate_chat_stream(
                         elif fn_name == "set_predicted_paycheck":
                             tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
                         elif fn_name == "delete_transaction":
-                            tool_result = delete_transaction_tool(db, fn_args.get("transaction_id"))
+                            tool_result = delete_transaction_tool(
+                                db,
+                                transaction_id=fn_args.get("transaction_id"),
+                                description=fn_args.get("description"),
+                                amount=fn_args.get("amount"),
+                                date_operation=fn_args.get("date_operation"),
+                                force_write=False
+                            )
                         elif fn_name == "get_saving_recommendations":
                             tool_result = get_saving_recommendations_tool(db)
                         elif fn_name == "search_similar_past_spends":
@@ -769,11 +811,22 @@ async def generate_chat_stream(
                         else:
                             tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
 
-                        if isinstance(tool_result, dict) and "target_period" in tool_result:
-                            tp = tool_result["target_period"]
-                            if tp.get("year") and tp.get("month"):
-                                target_period_override["year"] = tp["year"]
-                                target_period_override["month"] = tp["month"]
+                        if isinstance(tool_result, dict):
+                            if "target_period" in tool_result:
+                                tp = tool_result["target_period"]
+                                if tp.get("year") and tp.get("month"):
+                                    target_period_override["year"] = tp["year"]
+                                    target_period_override["month"] = tp["month"]
+
+                            if fn_name in ("apply_transaction_correction", "delete_transaction") and detected_write_actions:
+                                if tool_result.get("transaction_id"):
+                                    last_action = detected_write_actions[-1]
+                                    if last_action.get("action") == fn_name:
+                                        last_action["params"]["transaction_id"] = tool_result["transaction_id"]
+                                        if tool_result.get("description") and not last_action["params"].get("description"):
+                                            last_action["params"]["description"] = tool_result["description"]
+                                        if tool_result.get("amount") is not None and last_action["params"].get("amount") is None:
+                                            last_action["params"]["amount"] = tool_result["amount"]
 
                         if fn_name in _CACHEABLE_READ_TOOLS:
                             cache_key = f"{fn_name}:{json.dumps(fn_args, sort_keys=True)}"

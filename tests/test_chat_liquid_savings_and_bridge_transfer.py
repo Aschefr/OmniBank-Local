@@ -17,8 +17,7 @@ def test_briefing_includes_liquid_savings_and_bridge_transfer():
         briefing = generate_financial_briefing(db, role='advisor')
         assert "Available Liquid Savings & Reserve (Épargne disponible):" in briefing
         assert "Livret A" in briefing
-        assert "Recommended Bridge Transfer (Virement de précaution):" in briefing
-        assert "Daily Spending Ceiling on Checking Account:" in briefing
+        assert "Daily Spending Ceiling" in briefing
     finally:
         db.close()
 

@@ -212,6 +212,45 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
                 f"Reversible: Re-transfer to replenish savings once paycheck of {pay_amount:.2f} {base_curr} arrives on {next_pay_date}."
             )
 
+        # Check for recent bridge transfers from savings to checking during the current pay period
+        bridge_cutoff = today - timedelta(days=20)
+        recent_bridge_tx = db.query(Transaction).join(Account, Transaction.from_account_id == Account.id).filter(
+            Transaction.type == "transfer",
+            Account.type == "savings",
+            Transaction.date_operation >= bridge_cutoff,
+            Transaction.date_operation <= today
+        ).order_by(Transaction.date_operation.desc()).first()
+
+        if recent_bridge_tx:
+            from_acc_obj = db.query(Account).filter(Account.id == recent_bridge_tx.from_account_id).first()
+            to_acc_obj = db.query(Account).filter(Account.id == recent_bridge_tx.to_account_id).first()
+            from_acc_name = from_acc_obj.name if from_acc_obj else "Livret A"
+            to_acc_name = to_acc_obj.name if to_acc_obj else "Compte courant"
+
+            # Check if there is already a scheduled return transfer
+            return_tx = db.query(Transaction).filter(
+                Transaction.type == "transfer",
+                Transaction.from_account_id == recent_bridge_tx.to_account_id,
+                Transaction.to_account_id == recent_bridge_tx.from_account_id,
+                Transaction.date_operation >= today
+            ).first()
+
+            try:
+                p_dt = date.fromisoformat(next_pay_date)
+                day_after_pay = (p_dt + timedelta(days=1)).isoformat()
+            except Exception:
+                day_after_pay = next_pay_date
+
+            if not return_tx:
+                lines.append(
+                    f"• Pending Savings Restitution: A bridge transfer of {recent_bridge_tx.amount:.2f} {base_curr} was recorded from {from_acc_name} to {to_acc_name}. "
+                    f"No return transfer has been scheduled yet! ACTION REQUIRED: Propose scheduling the return transfer ({to_acc_name} -> {from_acc_name}, {recent_bridge_tx.amount:.2f} {base_curr}) on {day_after_pay} (day after next paycheck) via `create_planned_transfer` to automatically replenish liquid savings."
+                )
+            else:
+                lines.append(
+                    f"• Scheduled Savings Restitution: Return transfer of {return_tx.amount:.2f} {base_curr} from {to_acc_name} back to {from_acc_name} is already scheduled on {return_tx.date_operation}."
+                )
+
         lines.extend([
             f"• Savings Buffer in Budgets (Tirelires): {savings_total:.2f} {base_curr} reserved (accessible on account in emergency).",
             f"• 3-Month Monthly Averages: Income {avg_monthly_income:.2f} {base_curr} | Expenses {avg_monthly_exp:.2f} {base_curr} | Savings Rate: {avg_savings_rate:.1f}%.",
@@ -228,6 +267,14 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         if active_savings_goals:
             goals_str = ", ".join(f"{g['name']} ({g['saved']:.0f}/{g['target']:.0f} {base_curr} - {g['pct']}%)" for g in active_savings_goals[:3])
             lines.append(f"• Active Savings Goals: {goals_str}.")
+
+        # Known Financial Facts & Memory (from ai_facts)
+        from app.models import AIFact
+        ai_facts_rows = db.query(AIFact).all()
+        if ai_facts_rows:
+            facts_list = [f"[{f.fact_key}]: {f.fact_value}" for f in ai_facts_rows if f.fact_value]
+            if facts_list:
+                lines.append(f"• Known Financial Facts & Memory (ai_facts): {'; '.join(facts_list)}.")
 
         lines.append(f"• Latest AI Financial Health Evaluation: {last_report_summary}")
 
