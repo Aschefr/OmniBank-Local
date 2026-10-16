@@ -1,11 +1,11 @@
 {
-    "platforms":  {
-                      "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHllZXBqVklNb3NKWDhXQ2UzVWZPRHFJYktmdlNuaHNmVTBZUWNDRDhuQjBkcTFqem5lbkkxZE9WV2FDYm4zL3RQWXp4cjRYKzR6T0dSQmN6amZQand3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTU3NjY4CWZpbGU6T21uaUJhbmtfMS4yLjRfeDY0X2ZyLUZSLm1zaQpCWjdTbTZVOXI5Vlhxa2lpSi9lSXBwNTJwc2hDUUdCRUJlc3NYRUgyamV2elFmNU02QXd5a1FDTDR5VkdoT2thbGZZMGVON1E3TThRVmMxcHNKRjFCdz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.4/OmniBank_1.2.4_x64_fr-FR.msi"
-                                         }
-                  },
-    "pub_date":  "2026-10-16T13:34:28Z",
-    "version":  "1.2.4",
-    "notes":  "Bank Sync Two-Pass Reconciliation \u0026 ID Theft Guardrail"
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHllZXBqVklNb3NKWDhXQ2UzVWZPRHFJYktmdlNuaHNmVTBZUWNDRDhuQjBkcTFqem5lbkkxZE9WV2FDYm4zL3RQWXp4cjRYKzR6T0dSQmN6amZQand3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTU3NjY4CWZpbGU6T21uaUJhbmtfMS4yLjRfeDY0X2ZyLUZSLm1zaQpCWjdTbTZVOXI5Vlhxa2lpSi9lSXBwNTJwc2hDUUdCRUJlc3NYRUgyamV2elFmNU02QXd5a1FDTDR5VkdoT2thbGZZMGVON1E3TThRVmMxcHNKRjFCdz09Cg==",
+      "url": "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.5/OmniBank_1.2.5_x64_fr-FR.msi"
+    }
+  },
+  "pub_date": "2026-10-16T18:48:00Z",
+  "version": "1.2.5",
+  "notes": "Auto-Pilot Fluctuating Recurrences, Review Queue Traceability & Staging Layout Fix"
 }
