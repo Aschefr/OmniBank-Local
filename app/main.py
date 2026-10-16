@@ -252,7 +252,7 @@ API REST locale pour **OmniBank Local**, application financière personnelle et 
 app = FastAPI(
     title="OmniBank Local - REST API",
     description=APP_DESCRIPTION,
-    version="1.2.2",
+    version="1.2.5",
     openapi_tags=OPENAPI_TAGS,
     docs_url=None,
     redoc_url=None,
