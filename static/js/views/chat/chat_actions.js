@@ -4,6 +4,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         const actionObj = this.pendingActions[txId];
         if (!actionObj) return;
 
+        // One-Click Direct Execution for safe/read-only actions like trigger_bank_sync
+        if (actionObj.action === 'trigger_bank_sync') {
+            await this.executeDirectAction(txId, actionObj);
+            return;
+        }
+
         if (typeof txId === 'string' && txId.startsWith('act_')) {
             const descEl = document.getElementById('aiActionModalDesc');
             if (descEl) descEl.textContent = window.i18n.t('chat_modal_ai_desc_generic') || "L'IA propose d'exécuter l'action suivante. Veuillez vérifier les changements avant de valider.";
@@ -37,6 +43,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         const list = await r.json();
                         const bid = parseInt(actionObj.params.budget_id || actionObj.params.id);
                         currentEntityState = list.find(b => b.id === bid);
+                        if (!currentEntityState && actionObj.params.name) {
+                            const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                            const target = normalize(actionObj.params.name);
+                            currentEntityState = list.find(b => normalize(b.name) === target) ||
+                                                 list.find(b => normalize(b.name).includes(target) || target.includes(normalize(b.name)));
+                            if (currentEntityState) {
+                                actionObj.params.budget_id = currentEntityState.id;
+                            }
+                        }
                     }
                 } catch(e) {}
             } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template') {
@@ -46,6 +61,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         const list = await r.json();
                         const tid = parseInt(actionObj.params.template_id || actionObj.params.id);
                         currentEntityState = list.find(tpl => tpl.id === tid);
+                        if (!currentEntityState && actionObj.params.description) {
+                            const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                            const target = normalize(actionObj.params.description);
+                            currentEntityState = list.find(tpl => normalize(tpl.description) === target) ||
+                                                 list.find(tpl => normalize(tpl.description).includes(target) || target.includes(normalize(tpl.description)));
+                            if (currentEntityState) {
+                                actionObj.params.template_id = currentEntityState.id;
+                            }
+                        }
                     }
                 } catch(e) {}
             } else if (actionObj.action === 'delete_transaction' || actionObj.action === 'apply_transaction_correction') {
@@ -68,6 +92,20 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         };
                     }
                 } catch(e) {}
+            }
+
+            // For planned transfer, ensure user sees default label, system category and date if omitted
+            if (actionObj.action === 'create_planned_transfer') {
+                actionObj.params = actionObj.params || {};
+                if (!actionObj.params.description) {
+                    actionObj.params.description = `Virement prévisionnel ${actionObj.params.from_account || ''} ➔ ${actionObj.params.to_account || ''}`.trim();
+                }
+                if (!actionObj.params.category) {
+                    actionObj.params.category = 'Virement interne';
+                }
+                if (!actionObj.params.date_operation) {
+                    actionObj.params.date_operation = new Date().toISOString().split('T')[0];
+                }
             }
 
             let subtitleHtml = '';
@@ -306,5 +344,58 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
+    async executeDirectAction(actionId, actionObj) {
+        const btn = document.querySelector(`button[data-action-id="${actionId}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border-sm" style="width:12px; height:12px; border:2px solid; border-right-color:transparent; border-radius:50%; animation: spin 0.75s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px;"></span>${window.i18n.t('chat_sync_in_progress') || 'Synchronisation en cours...'}`;
+        }
+
+        try {
+            const response = await fetch('/api/chat/apply-action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: actionObj.action,
+                    params: actionObj.params || {}
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || "Erreur lors de la synchronisation");
+            }
+
+            if (btn) {
+                btn.innerHTML = `✔ ${window.i18n.t('chat_sync_success_btn') || 'Relevé lancé avec succès'}`;
+                btn.style.background = 'var(--success, #28a745)';
+                btn.style.borderColor = 'var(--success, #28a745)';
+            }
+
+            const actionTitle = window.i18n.t(`tool_${actionObj.action}_title`) || window.i18n.t(`tool_${actionObj.action}`) || actionObj.action;
+            const successMsg = `✅ L'action **${actionTitle}** a été exécutée avec succès. Le relevé bancaire et le rapprochement Auto-Pilote sont en cours en arrière-plan.`;
+            await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: successMsg, lang: window.i18n.lang || 'fr' })
+            });
+
+            await this.loadMessages();
+
+            // Refresh sidebar/views
+            if (window.app && typeof window.app.refreshSidebar === 'function') {
+                await window.app.refreshSidebar();
+            }
+            if (window.app && window.app.currentView && typeof window.app.currentView.loadData === 'function') {
+                try { await window.app.currentView.loadData(); } catch(e) {}
+            }
+        } catch (error) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<span style="margin-right: 4px;">🏦</span>${window.i18n.t('chat_btn_sync_retry') || 'Réessayer la synchronisation'}`;
+            }
+            showInlineMessage(window.i18n.t('title_error') || 'Erreur', error.message);
+        }
+    }
 
 });

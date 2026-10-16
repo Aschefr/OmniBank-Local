@@ -96,21 +96,62 @@ def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, p
     return {"success": True, "budget_id": b.id, "name": name, "action_id": action_id}
 
 
-def update_budget_envelope_tool(db: Session, budget_id: int, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False) -> dict:
+def _normalize_name(s: str) -> str:
+    import unicodedata
+    if not s:
+        return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').strip().lower()
+
+
+def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False) -> dict:
     from app.models import Budget
     
-    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    b = None
+    if budget_id is not None:
+        try:
+            b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    # Fallback resolution by name if budget_id not found or hallucinated
+    if not b and name:
+        target_norm = _normalize_name(name)
+        all_budgets = db.query(Budget).all()
+        for cand in all_budgets:
+            if cand.name and _normalize_name(cand.name) == target_norm:
+                b = cand
+                break
+        if not b:
+            for cand in all_budgets:
+                if cand.name and (target_norm in _normalize_name(cand.name) or _normalize_name(cand.name) in target_norm):
+                    b = cand
+                    break
+
+    # Fallback resolution by category
+    if not b and categories:
+        from app.models import BudgetCategory
+        all_cats = db.query(BudgetCategory).all()
+        for cat in categories:
+            cat_norm = _normalize_name(str(cat))
+            for bc in all_cats:
+                if bc.category_name and _normalize_name(bc.category_name) == cat_norm:
+                    b = db.query(Budget).filter(Budget.id == bc.budget_id).first()
+                    if b:
+                        break
+            if b:
+                break
+
     if not b:
         return {"success": False, "error": "Budget envelope not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True}
+        return {"success": True, "pending_validation": True, "budget_id": b.id}
 
     from app.models import BudgetCategory
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(b, db)
     
-    if name is not None:
+    if name is not None and _normalize_name(b.name) != _normalize_name(name):
         b.name = name
     if monthly_amount is not None:
         b.monthly_amount = float(monthly_amount)
@@ -130,40 +171,67 @@ def update_budget_envelope_tool(db: Session, budget_id: int, name: str = None, m
     return {"success": True, "budget_id": b.id, "action_id": action_id}
 
 
-def delete_budget_envelope_tool(db: Session, budget_id: int, force_write: bool = False) -> dict:
+def delete_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, force_write: bool = False) -> dict:
     from app.models import Budget
     
-    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    b = None
+    if budget_id is not None:
+        try:
+            b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    if not b and name:
+        target_norm = _normalize_name(name)
+        for cand in db.query(Budget).all():
+            if cand.name and (_normalize_name(cand.name) == target_norm or target_norm in _normalize_name(cand.name)):
+                b = cand
+                break
+
     if not b:
         return {"success": False, "error": "Budget envelope not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True}
+        return {"success": True, "pending_validation": True, "budget_id": b.id}
 
     from app.models import BudgetCategory
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(b, db)
     
-    db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).delete()
+    b_id = b.id
+    db.query(BudgetCategory).filter(BudgetCategory.budget_id == b_id).delete()
     db.delete(b)
     db.flush()
     
-    action_id = record_action(db, "budget", int(budget_id), "DELETE", old_snapshot, None)
+    action_id = record_action(db, "budget", b_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"success": True, "budget_id": budget_id, "action_id": action_id}
+    return {"success": True, "budget_id": b_id, "action_id": action_id}
 
 
-def allocate_savings_funds_tool(db: Session, budget_id: int, amount: float, note: str = None, force_write: bool = False) -> dict:
+def allocate_savings_funds_tool(db: Session, budget_id: int = None, amount: float = 0.0, note: str = None, name: str = None, force_write: bool = False) -> dict:
     from app.models import Budget
     
-    b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+    b = None
+    if budget_id is not None:
+        try:
+            b = db.query(Budget).filter(Budget.id == int(budget_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    if not b and name:
+        target_norm = _normalize_name(name)
+        for cand in db.query(Budget).all():
+            if cand.name and (_normalize_name(cand.name) == target_norm or target_norm in _normalize_name(cand.name)):
+                b = cand
+                break
+
     if not b:
         return {"success": False, "error": "Savings envelope not found"}
     if (b.envelope_type or "spending") != "savings":
         return {"success": False, "error": "This budget envelope is not a savings (tirelire) envelope."}
         
     if not force_write:
-        return {"success": True, "pending_validation": True}
+        return {"success": True, "pending_validation": True, "budget_id": b.id}
 
     from app.models import BudgetAllocation
     from app.services.history_service import record_action, snapshot_entity
@@ -204,22 +272,35 @@ def create_recurrence_template_tool(db: Session, amount: float, description: str
     return {"success": True, "template_id": tpl.id, "description": description, "action_id": action_id}
 
 
-def update_recurrence_template_tool(db: Session, template_id: int, amount: float = None, description: str = None, frequency: str = None, category: str = None, type: str = None, day_of_month: int = None, is_active: bool = None, force_write: bool = False) -> dict:
+def update_recurrence_template_tool(db: Session, template_id: int = None, amount: float = None, description: str = None, frequency: str = None, category: str = None, type: str = None, day_of_month: int = None, is_active: bool = None, force_write: bool = False) -> dict:
     from app.models import RecurrenceTemplate
     
-    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+    tpl = None
+    if template_id is not None:
+        try:
+            tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    if not tpl and description:
+        target_norm = _normalize_name(description)
+        for cand in db.query(RecurrenceTemplate).all():
+            if cand.description and (_normalize_name(cand.description) == target_norm or target_norm in _normalize_name(cand.description) or _normalize_name(cand.description) in target_norm):
+                tpl = cand
+                break
+
     if not tpl:
         return {"success": False, "error": "Recurrence template not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True}
+        return {"success": True, "pending_validation": True, "template_id": tpl.id}
 
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(tpl)
     
     if amount is not None:
         tpl.amount = float(amount)
-    if description is not None:
+    if description is not None and _normalize_name(tpl.description) != _normalize_name(description):
         tpl.description = description
     if frequency is not None:
         tpl.frequency = frequency
@@ -238,24 +319,38 @@ def update_recurrence_template_tool(db: Session, template_id: int, amount: float
     return {"success": True, "template_id": tpl.id, "action_id": action_id}
 
 
-def delete_recurrence_template_tool(db: Session, template_id: int, force_write: bool = False) -> dict:
+def delete_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, force_write: bool = False) -> dict:
     from app.models import RecurrenceTemplate
     
-    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+    tpl = None
+    if template_id is not None:
+        try:
+            tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    if not tpl and description:
+        target_norm = _normalize_name(description)
+        for cand in db.query(RecurrenceTemplate).all():
+            if cand.description and (_normalize_name(cand.description) == target_norm or target_norm in _normalize_name(cand.description) or _normalize_name(cand.description) in target_norm):
+                tpl = cand
+                break
+
     if not tpl:
         return {"success": False, "error": "Recurrence template not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True}
+        return {"success": True, "pending_validation": True, "template_id": tpl.id}
 
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(tpl)
+    tpl_id = tpl.id
     db.delete(tpl)
     db.flush()
     
-    action_id = record_action(db, "recurrence_template", int(template_id), "DELETE", old_snapshot, None)
+    action_id = record_action(db, "recurrence_template", tpl_id, "DELETE", old_snapshot, None)
     db.commit()
-    return {"success": True, "template_id": template_id, "action_id": action_id}
+    return {"success": True, "template_id": tpl_id, "action_id": action_id}
 
 
 def create_category_tool(db: Session, name: str, type: str, force_write: bool = False) -> dict:

@@ -245,11 +245,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             desc = `Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)`;
                         }
 
+                        let btnIcon = '';
+                        let btnLabel = window.i18n.t('chat_btn_review_generic');
+                        if (actionObj.action === 'trigger_bank_sync') {
+                            btnIcon = '<span style="margin-right: 4px;">🏦</span>';
+                            btnLabel = window.i18n.t('chat_btn_sync_now') || 'Synchroniser maintenant';
+                        }
+
                         displayContent += `
                             <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
                                 <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
                                 <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
-                                <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review_generic')}</button>
+                                <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${btnIcon}${btnLabel}</button>
                             </div>
                         `;
                     }

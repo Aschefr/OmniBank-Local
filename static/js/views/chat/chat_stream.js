@@ -58,7 +58,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
-            if (!this._streamDetached) {
+            if (this._streamDetached) {
+                if (window.app && typeof window.app.loadNotifications === 'function') {
+                    window.app.loadNotifications(true);
+                    setTimeout(() => window.app.loadNotifications(true), 1500);
+                }
+                window.dispatchEvent(new CustomEvent('notifications-updated'));
+            } else {
                 if (sendBtn) { sendBtn.disabled = false; sendBtn.classList.remove('btn-stop'); sendBtn.textContent = window.i18n.t('chat_btn_send'); sendBtn.onclick = () => this.sendMessage(); }
                 if (input) input.disabled = false;
                 if (this._stopRequested) {
@@ -341,7 +347,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
-            if (!this._streamDetached) {
+            if (this._streamDetached) {
+                if (window.app && typeof window.app.loadNotifications === 'function') {
+                    window.app.loadNotifications(true);
+                    setTimeout(() => window.app.loadNotifications(true), 1500);
+                }
+                window.dispatchEvent(new CustomEvent('notifications-updated'));
+            } else {
                 const sendBtnF = document.getElementById('chatSendBtn');
                 const inputF = document.getElementById('chatInput');
                 if (sendBtnF) { sendBtnF.disabled = false; sendBtnF.classList.remove('btn-stop'); sendBtnF.textContent = window.i18n.t('chat_btn_send'); sendBtnF.onclick = () => this.sendMessage(); }

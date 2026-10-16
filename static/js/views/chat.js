@@ -1264,7 +1264,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             this._streamDetached = true;
             // Register for notification when generation completes
             if (sessionId) {
-                fetch(`/api/chat/sessions/${sessionId}/notify-on-complete`, { method: 'POST' }).catch(() => {});
+                fetch(`/api/chat/sessions/${sessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
             }
             // Don't abort — the fetch will continue in background and finish naturally
             // The AbortController reference stays so the stream can complete
@@ -1279,6 +1279,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             window.visualViewport.removeEventListener('resize', this._onVisualViewportChange);
             window.visualViewport.removeEventListener('scroll', this._onVisualViewportChange);
             this._onVisualViewportChange = null;
+        }
+        if (this._onChatVisibilityChange) {
+            document.removeEventListener('visibilitychange', this._onChatVisibilityChange);
+            this._onChatVisibilityChange = null;
+        }
+        if (this._onChatPageHide) {
+            window.removeEventListener('pagehide', this._onChatPageHide);
+            this._onChatPageHide = null;
         }
         document.body.classList.remove('in-chat-view');
     },
@@ -1307,6 +1315,21 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this._stopRequested = false;
         this._streamDetached = false; // True when user left view during generation
         this._compressionPollTimer = null;
+
+        // Register notify-on-complete if user hides tab or unloads during generation
+        this._onChatVisibilityChange = () => {
+            if (document.hidden && this._activeAbortController && this.activeSessionId) {
+                fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
+            }
+        };
+        document.addEventListener('visibilitychange', this._onChatVisibilityChange);
+
+        this._onChatPageHide = () => {
+            if (this._activeAbortController && this.activeSessionId) {
+                fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
+            }
+        };
+        window.addEventListener('pagehide', this._onChatPageHide);
 
         // Fetch actual Ollama config limit
         try {
