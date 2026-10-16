@@ -261,9 +261,6 @@ async def test_connection_stream(
         msg = f"event: {event_type}\ndata: {data_str}\n\n"
         main_loop.call_soon_threadsafe(event_queue.put_nowait, msg)
 
-    from app.profile_manager import get_active_profile
-    active_pid = get_active_profile()["id"]
-
     def test_worker():
         try:
             sse_callback("progress", {"step": "auth", "message": f"Connexion sécurisée à {conn.label or conn.backend}..."})
@@ -449,9 +446,6 @@ async def sync_connection_stream(
         msg = f"event: {event_type}\ndata: {data_str}\n\n"
         # Envoi thread-safe dans la queue asyncio depuis le thread worker
         main_loop.call_soon_threadsafe(event_queue.put_nowait, msg)
-
-    from app.profile_manager import get_active_profile
-    active_pid = get_active_profile()["id"]
 
     # Lancement du worker de sync dans un thread séparé
     def sync_worker():
