@@ -750,7 +750,8 @@ def get_changelog(version: str = None):
 
 def _safe_filename(raw_name: str) -> str:
     """Sanitise un nom de fichier uploadé : supprime les composants de chemin et caractères dangereux."""
-    base = os.path.basename(raw_name) if raw_name else ""
+    normalized = raw_name.replace('\\', '/') if raw_name else ""
+    base = os.path.basename(normalized) if normalized else ""
     safe = _re.sub(r'[^\w\-.]', '_', base)
     if not safe or safe.startswith('.'):
         safe = f"upload_{_uuid.uuid4().hex[:8]}"

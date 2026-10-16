@@ -214,12 +214,15 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
 
         # Check for recent bridge transfers from savings to checking during the current pay period
         bridge_cutoff = today - timedelta(days=20)
-        recent_bridge_tx = db.query(Transaction).join(Account, Transaction.from_account_id == Account.id).filter(
-            Transaction.type == "transfer",
-            Account.type == "savings",
-            Transaction.date_operation >= bridge_cutoff,
-            Transaction.date_operation <= today
-        ).order_by(Transaction.date_operation.desc()).first()
+        savings_account_ids = [a.id for a in savings_accounts]
+        recent_bridge_tx = None
+        if savings_account_ids:
+            recent_bridge_tx = db.query(Transaction).filter(
+                Transaction.type == "transfer",
+                Transaction.from_account_id.in_(savings_account_ids),
+                Transaction.date_operation >= bridge_cutoff,
+                Transaction.date_operation <= today
+            ).order_by(Transaction.date_operation.desc()).first()
 
         if recent_bridge_tx:
             from_acc_obj = db.query(Account).filter(Account.id == recent_bridge_tx.from_account_id).first()
@@ -227,19 +230,30 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             from_acc_name = from_acc_obj.name if from_acc_obj else "Livret A"
             to_acc_name = to_acc_obj.name if to_acc_obj else "Compte courant"
 
-            # Check if there is already a scheduled return transfer
-            return_tx = db.query(Transaction).filter(
-                Transaction.type == "transfer",
-                Transaction.from_account_id == recent_bridge_tx.to_account_id,
-                Transaction.to_account_id == recent_bridge_tx.from_account_id,
-                Transaction.date_operation >= today
-            ).first()
-
+            p_dt = None
             try:
                 p_dt = date.fromisoformat(next_pay_date)
                 day_after_pay = (p_dt + timedelta(days=1)).isoformat()
             except Exception:
                 day_after_pay = next_pay_date
+
+            # Check if there is already a scheduled return transfer
+            # Specific return criteria: description references restitution/reconstitution, or matching amount near next payday
+            candidate_returns = db.query(Transaction).filter(
+                Transaction.type == "transfer",
+                Transaction.from_account_id == recent_bridge_tx.to_account_id,
+                Transaction.to_account_id == recent_bridge_tx.from_account_id,
+                Transaction.date_operation >= today
+            ).all()
+
+            return_tx = None
+            for cand in candidate_returns:
+                desc_lower = (cand.description or "").lower()
+                is_explicit = any(k in desc_lower for k in ["reconstitution", "restitution", "retour", "remboursement"])
+                matches_amt = abs((cand.amount or 0.0) - recent_bridge_tx.amount) < 0.01
+                if is_explicit or (matches_amt and p_dt and cand.date_operation <= p_dt + timedelta(days=5)):
+                    return_tx = cand
+                    break
 
             if not return_tx:
                 lines.append(

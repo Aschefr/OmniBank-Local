@@ -369,12 +369,18 @@ def check_reconciliation(
         if acc_filter is not None:
             recon_query = recon_query.filter(acc_filter)
 
-        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct
+        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct,
+        # sauf s'il s'agit d'un virement interne à apparier ou d'une pré-autorisation 'woob_coming_'
         if target_csv_ids:
             recon_query = recon_query.filter(
                 or_(
                     Transaction.csv_id.is_(None),
-                    Transaction.csv_id.in_(target_csv_ids)
+                    Transaction.csv_id.in_(target_csv_ids),
+                    Transaction.csv_id.like("woob_coming_%"),
+                    and_(
+                        or_(Transaction.type == "transfer", Transaction.category == "Virement interne"),
+                        or_(Transaction.from_account_id.is_(None), Transaction.to_account_id.is_(None))
+                    )
                 )
             )
 
@@ -436,12 +442,18 @@ def check_reconciliation(
         if acc_filter is not None:
             op_query = op_query.filter(acc_filter)
 
-        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct
+        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct,
+        # sauf s'il s'agit d'un virement interne ou d'une pré-autorisation 'woob_coming_'
         if target_csv_ids:
             op_query = op_query.filter(
                 or_(
                     Transaction.csv_id.is_(None),
-                    Transaction.csv_id.in_(target_csv_ids)
+                    Transaction.csv_id.in_(target_csv_ids),
+                    Transaction.csv_id.like("woob_coming_%"),
+                    and_(
+                        or_(Transaction.type == "transfer", Transaction.category == "Virement interne"),
+                        or_(Transaction.from_account_id.is_(None), Transaction.to_account_id.is_(None))
+                    )
                 )
             )
 
@@ -496,7 +508,8 @@ def check_reconciliation(
             op_query = op_query.filter(
                 or_(
                     Transaction.csv_id.is_(None),
-                    Transaction.csv_id.in_(target_csv_ids)
+                    Transaction.csv_id.in_(target_csv_ids),
+                    Transaction.csv_id.like("woob_coming_%")
                 )
             )
 
@@ -668,7 +681,11 @@ def check_reconciliation(
             orphan_q = orphan_q.filter(
                 or_(
                     Transaction.csv_id.is_(None),
-                    Transaction.csv_id.in_(target_csv_ids)
+                    Transaction.csv_id.in_(target_csv_ids),
+                    Transaction.type == "transfer",
+                    Transaction.category == "Virement interne",
+                    Transaction.from_account_id.is_(None),
+                    Transaction.to_account_id.is_(None)
                 )
             )
 

@@ -698,14 +698,12 @@ def test_autopilot_suspected_forecast_duplicate_guard(test_db):
 
     res = process_incoming_batch(test_db, conn_id=1, preview_data=preview, profile_id="default")
 
-    # Ne doit pas avoir été auto-commit en écriture
-    assert res["auto_committed"] == 0
-    # Doit être maintenue dans le Sas pour arbitrage
-    assert res["pending"] == 1
-
-    # Aucune nouvelle transaction de 600€ ne doit avoir été insérée en base
-    tx_count = test_db.query(Transaction).filter(Transaction.amount == 600.0).count()
-    assert tx_count == 1  # Seulement la prévision d'origine
+    # Est maintenant orienté vers la Review Queue d'Auto-Pilote avec needs_review=True
+    assert res["auto_committed"] == 1
+    new_tx = test_db.query(Transaction).filter(Transaction.csv_id == "woob_unknown_600").first()
+    assert new_tx is not None
+    assert new_tx.needs_review is True
+    assert new_tx.reconciliation_date is None
 
 
 def test_autopilot_coming_to_confirmed_transition_with_acronym(test_db):
