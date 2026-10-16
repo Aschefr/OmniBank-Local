@@ -3693,5 +3693,7 @@
   "chat_btn_sync_now": "Synchroniser maintenant",
   "chat_sync_in_progress": "Synchronisation en cours...",
   "chat_sync_success_btn": "Relevé lancé avec succès",
-  "chat_btn_sync_retry": "Réessayer la synchronisation"
+  "chat_btn_sync_retry": "Réessayer la synchronisation",
+  "autopilot_action_linked_forecast_done": "Vérifiée & liée",
+  "autopilot_action_linked_forecast_desc": "L'opération a été vérifiée manuellement et liée à sa prévision budgétaire."
 }

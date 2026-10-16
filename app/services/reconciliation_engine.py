@@ -87,6 +87,9 @@ def compute_text_score(
             if alias_key in norm_bank or alias_key in raw_bank_label.upper():
                 if any(kw.upper() in norm_cand for kw in target_keywords):
                     return 25
+            if alias_key in norm_cand:
+                if any(kw.upper() in norm_bank or kw.upper() in raw_bank_label.upper() for kw in target_keywords):
+                    return 25
 
         # 2. Vérification par règles BankLabelMapping si db disponible
         if db:
@@ -377,6 +380,7 @@ def check_reconciliation(
                     Transaction.csv_id.is_(None),
                     Transaction.csv_id.in_(target_csv_ids),
                     Transaction.csv_id.like("woob_coming_%"),
+                    ~Transaction.csv_id.like("woob_%"),
                     and_(
                         or_(Transaction.type == "transfer", Transaction.category == "Virement interne"),
                         or_(Transaction.from_account_id.is_(None), Transaction.to_account_id.is_(None))
@@ -450,6 +454,7 @@ def check_reconciliation(
                     Transaction.csv_id.is_(None),
                     Transaction.csv_id.in_(target_csv_ids),
                     Transaction.csv_id.like("woob_coming_%"),
+                    ~Transaction.csv_id.like("woob_%"),
                     and_(
                         or_(Transaction.type == "transfer", Transaction.category == "Virement interne"),
                         or_(Transaction.from_account_id.is_(None), Transaction.to_account_id.is_(None))
@@ -489,9 +494,9 @@ def check_reconciliation(
             return None
 
         # Chercher des prévisions non pointées issues d'une récurrence
-        # Fenêtre temporelle : tx_date +/- 5 jours
-        start_op = tx_date - timedelta(days=5)
-        end_op = tx_date + timedelta(days=5)
+        # Fenêtre temporelle : tx_date +/- 7 jours
+        start_op = tx_date - timedelta(days=7)
+        end_op = tx_date + timedelta(days=7)
 
         op_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
@@ -509,7 +514,8 @@ def check_reconciliation(
                 or_(
                     Transaction.csv_id.is_(None),
                     Transaction.csv_id.in_(target_csv_ids),
-                    Transaction.csv_id.like("woob_coming_%")
+                    Transaction.csv_id.like("woob_coming_%"),
+                    ~Transaction.csv_id.like("woob_%")
                 )
             )
 
@@ -529,9 +535,9 @@ def check_reconciliation(
             if is_expense != cand_is_expense:
                 continue
 
-            # Similarité textuelle marchand >= 85%
-            txt_score = compute_text_score(cand.description, bank_label)
-            if txt_score < 21:
+            # Similarité textuelle marchand
+            txt_score = compute_text_score(cand.description, bank_label, candidate_cat=cand.category, db=db)
+            if txt_score < 20:
                 # Vérifier aussi si clean merchants concordent nettement
                 try:
                     from app.services.recurrence_detector import get_clean_merchant
@@ -543,21 +549,31 @@ def check_reconciliation(
                         continue
                 except Exception:
                     continue
+            # Déterminer si les clean merchants correspondent directement (même marque)
+            is_direct_clean_match = False
+            try:
+                from app.services.recurrence_detector import get_clean_merchant
+                cm_cand = get_clean_merchant(cand.description)
+                cm_bank = get_clean_merchant(bank_label)
+                if cm_cand and cm_bank and (cm_cand.upper() == cm_bank.upper() or cm_cand.upper() in cm_bank.upper() or cm_bank.upper() in cm_cand.upper()):
+                    is_direct_clean_match = True
+            except Exception:
+                pass
 
-            # Plafond de tolérance : facteur 3 strict
-            # montant réel compris entre (prévu / 3.0) et (prévu * 3.0)
+            # Tolérance de montant assouplie pour factures fluctuantes / hors-forfait (facteur 5, ou 10 si affinité forte)
             exp_amt = abs(float(cand.amount or 0.0))
             act_amt = abs_amount
             if exp_amt <= 0 or act_amt <= 0:
                 continue
 
-            min_allowed = exp_amt / 3.0
-            max_allowed = exp_amt * 3.0
+            max_factor = 10.0 if txt_score >= 20 else 5.0
+            min_allowed = exp_amt / max_factor
+            max_allowed = exp_amt * max_factor
             if not (min_allowed <= act_amt <= max_allowed):
                 continue
 
             tmp_score = compute_temporal_score(cand.date_operation, target_dt)
-            valid_matches.append((cand, exp_amt, act_amt, txt_score + tmp_score))
+            valid_matches.append((cand, exp_amt, act_amt, txt_score + tmp_score, is_direct_clean_match))
 
         if not valid_matches:
             return None
@@ -565,7 +581,12 @@ def check_reconciliation(
         # Trier par score décroissant
         valid_matches.sort(key=lambda x: x[3], reverse=True)
         collision = (len(valid_matches) > 1 and (valid_matches[0][3] - valid_matches[1][3]) < 10)
-        best_cand, best_exp, best_act, total_sc = valid_matches[0]
+        best_cand, best_exp, best_act, total_sc, is_direct_clean = valid_matches[0]
+
+        # Pour un match marchand direct et ratio <= 3.0 : auto-liaison directe (score 90).
+        is_standard_deviant = ((best_exp / 3.0) <= best_act <= (best_exp * 3.0))
+        final_score = (90 if not collision else 65) if is_standard_deviant else (70 if not collision else 60)
+        should_auto_commit = is_standard_deviant and not collision
 
         return {
             "id": best_cand.id,
@@ -576,10 +597,10 @@ def check_reconciliation(
             "is_amount_deviant": True,
             "original_forecast_amount": best_exp,
             "actual_amount": best_act,
-            "match_score": 90 if not collision else 65,
+            "match_score": final_score,
             "collision_detected": collision,
-            "suggested_match": collision,
-            "auto_committed": not collision
+            "suggested_match": not should_auto_commit,
+            "auto_committed": should_auto_commit
         }
 
     # Recherche des candidats parmi les prédictions non pointées et les opérations déjà pointées
