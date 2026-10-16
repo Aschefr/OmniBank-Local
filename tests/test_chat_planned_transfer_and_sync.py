@@ -5,13 +5,23 @@ trigger_bank_sync_tool, and their orchestration in chat actions.
 from datetime import date
 from unittest.mock import patch, MagicMock
 import pytest
-from app.database import SessionLocal
-from app.models import Account, Transaction, BankConnection
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from app.database import Base
+from app.models import Account, Transaction, BankConnection, GlobalConfig
 from app.services.chat.tools.write_tools import (
     create_planned_transfer_tool,
     trigger_bank_sync_tool,
 )
 from app.services.chat.chat_orchestrator import execute_chat_action, WRITE_TOOLS
+
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
 def test_write_tools_includes_planned_transfer_and_sync():
@@ -19,14 +29,27 @@ def test_write_tools_includes_planned_transfer_and_sync():
     assert "trigger_bank_sync" in WRITE_TOOLS
 
 
-
 @pytest.fixture
 def db_session():
-    db = SessionLocal()
+    Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
+
+    acc_main = Account(id=1, name="Compte Courant", type="Compte courant", initial_balance=2000.0, is_closed=False)
+    acc_savings = Account(id=2, name="Livret A", type="Livret", initial_balance=5000.0, is_closed=False)
+    db.add_all([
+        acc_main,
+        acc_savings,
+        GlobalConfig(key="base_currency", value="EUR"),
+        GlobalConfig(key="main_account_id", value="1"),
+        GlobalConfig(key="base_pay_day", value="28")
+    ])
+    db.commit()
+
     try:
         yield db
     finally:
         db.close()
+        Base.metadata.drop_all(bind=test_engine)
 
 
 def test_create_planned_transfer_dry_run(db_session):
@@ -42,19 +65,8 @@ def test_create_planned_transfer_dry_run(db_session):
 
 
 def test_create_planned_transfer_execution(db_session):
-    # Ensure two test accounts exist
-    acc1 = db_session.query(Account).filter(Account.type == "savings").first()
-    acc2 = db_session.query(Account).filter(Account.type == "checking").first()
-    
-    if not acc1:
-        acc1 = Account(name="Test Livret Epargne", type="savings", initial_balance=1000.0)
-        db_session.add(acc1)
-        db_session.flush()
-    if not acc2:
-        acc2 = Account(name="Test Compte Courant", type="checking", initial_balance=200.0)
-        db_session.add(acc2)
-        db_session.flush()
-    db_session.commit()
+    acc1 = db_session.query(Account).filter(Account.name == "Livret A").first()
+    acc2 = db_session.query(Account).filter(Account.name == "Compte Courant").first()
 
     res = create_planned_transfer_tool(
         db_session,
@@ -78,10 +90,6 @@ def test_create_planned_transfer_execution(db_session):
     assert tx.from_account_id == acc1.id
     assert tx.to_account_id == acc2.id
     assert tx.reconciliation_date is None
-
-    # Clean up test transaction
-    db_session.delete(tx)
-    db_session.commit()
 
 
 def test_create_planned_transfer_nonexistent_account(db_session):
@@ -144,25 +152,25 @@ def test_trigger_bank_sync_success_when_unlocked(db_session):
 
 def test_execute_chat_action_routing(db_session):
     # Test routing to create_planned_transfer
-    acc1 = db_session.query(Account).filter(Account.type == "savings").first()
-    acc2 = db_session.query(Account).filter(Account.type == "checking").first()
-    if acc1 and acc2:
-        res = execute_chat_action(
-            db_session,
-            action="create_planned_transfer",
-            params={
-                "from_account": acc1.name,
-                "to_account": acc2.name,
-                "amount": 50.0,
-                "description": "Test action routing"
-            }
-        )
-        assert res.get("success") is True
-        tx_id = res.get("transaction_id")
-        tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
-        if tx:
-            db_session.delete(tx)
-            db_session.commit()
+    acc1 = db_session.query(Account).filter(Account.name == "Livret A").first()
+    acc2 = db_session.query(Account).filter(Account.name == "Compte Courant").first()
+    assert acc1 is not None and acc2 is not None
+
+    res = execute_chat_action(
+        db_session,
+        action="create_planned_transfer",
+        params={
+            "from_account": acc1.name,
+            "to_account": acc2.name,
+            "amount": 50.0,
+            "description": "Test action routing"
+        }
+    )
+    assert res.get("success") is True
+    tx_id = res.get("transaction_id")
+    tx = db_session.query(Transaction).filter(Transaction.id == tx_id).first()
+    assert tx is not None
+    assert tx.amount == 50.0
 
 
 def test_register_notify_on_complete_lifecycle(db_session):
@@ -254,7 +262,7 @@ def test_update_recurrence_template_description_fallback(db_session):
 
     # Create a test recurrence
     tpl = RecurrenceTemplate(
-        description="Abonnement Netflix Test",
+        description="Abonnement Unique Streaming Test 999",
         amount=-15.99,
         frequency="Monthly",
         category="Loisirs",
@@ -272,7 +280,7 @@ def test_update_recurrence_template_description_fallback(db_session):
         res = update_recurrence_template_tool(
             db_session,
             template_id=777777,
-            description="Abonnement Netflix Test",
+            description="Abonnement Unique Streaming Test 999",
             amount=-19.99,
             force_write=True
         )
@@ -286,7 +294,7 @@ def test_update_recurrence_template_description_fallback(db_session):
         res_del = delete_recurrence_template_tool(
             db_session,
             template_id=666666,
-            description="Abonnement Netflix Test",
+            description="Abonnement Unique Streaming Test 999",
             force_write=True
         )
         assert res_del.get("success") is True
@@ -303,14 +311,17 @@ def test_transaction_fallback_correction_and_deletion(db_session):
     from app.services.chat.tools.write_tools import apply_transaction_correction_tool, delete_transaction_tool
 
     acc = db_session.query(Account).first()
+    created_acc = None
     if not acc:
-        acc = Account(name="Test Account Tx", type="checking", initial_balance=500.0)
+        acc = Account(name="Test Account Isolation", type="Compte courant", initial_balance=500.0)
         db_session.add(acc)
         db_session.flush()
+        created_acc = acc
+        db_session.commit()
 
     # Create a test transaction
     tx = Transaction(
-        description="Acompte Provisionnel DGFIP",
+        description="Acompte Provisionnel DGFIP Test Fallback",
         amount=331.0,
         category="Inconnu",
         type="expense_var",
@@ -326,7 +337,7 @@ def test_transaction_fallback_correction_and_deletion(db_session):
         res_update = apply_transaction_correction_tool(
             db_session,
             transaction_id=999999,
-            description="Acompte DGFIP",
+            description="Acompte DGFIP Test Fallback",
             amount=331.0,
             category="Impôts",
             force_write=True
@@ -341,7 +352,7 @@ def test_transaction_fallback_correction_and_deletion(db_session):
         res_del = delete_transaction_tool(
             db_session,
             transaction_id=888888,
-            description="DGFIP",
+            description="DGFIP Test Fallback",
             amount=331.0,
             force_write=True
         )
@@ -355,7 +366,9 @@ def test_transaction_fallback_correction_and_deletion(db_session):
         remaining = db_session.query(Transaction).filter(Transaction.id == real_tx_id).first()
         if remaining:
             db_session.delete(remaining)
-            db_session.commit()
+        if created_acc:
+            db_session.delete(created_acc)
+        db_session.commit()
 
 
 def test_store_and_forget_financial_facts(db_session):
@@ -401,18 +414,9 @@ def test_bridge_restitution_briefing_prompt(db_session):
     from app.services.chat.chat_briefing import generate_financial_briefing
     from app.services.chat.tools.write_tools import create_planned_transfer_tool
 
-    # Ensure checking and savings accounts exist
-    savings = db_session.query(Account).filter(Account.type == "savings").first()
-    checking = db_session.query(Account).filter(Account.type == "checking").first()
-    if not savings:
-        savings = Account(name="Livret A Test", type="savings", initial_balance=2000.0)
-        db_session.add(savings)
-        db_session.flush()
-    if not checking:
-        checking = Account(name="Courant Test", type="checking", initial_balance=50.0)
-        db_session.add(checking)
-        db_session.flush()
-    db_session.commit()
+    savings = db_session.query(Account).filter(Account.name == "Livret A").first()
+    checking = db_session.query(Account).filter(Account.name == "Compte Courant").first()
+    assert savings is not None and checking is not None
 
     today = date.today()
 
@@ -421,7 +425,7 @@ def test_bridge_restitution_briefing_prompt(db_session):
         amount=250.0,
         type="transfer",
         category="Virement interne",
-        description="Virement pont Livret A -> Courant",
+        description="Virement pont Livret A -> Courant Isolation Test",
         date_operation=today,
         from_account_id=savings.id,
         to_account_id=checking.id
@@ -429,40 +433,30 @@ def test_bridge_restitution_briefing_prompt(db_session):
     db_session.add(bridge_tx)
     db_session.commit()
 
-    return_tx_id = None
-    try:
-        # 1. Briefing should detect pending restitution
-        briefing_before = generate_financial_briefing(db_session)
-        assert "Pending Savings Restitution" in briefing_before
-        assert "250.00" in briefing_before
-        assert "ACTION REQUIRED: Propose scheduling the return transfer" in briefing_before
+    # 1. Briefing should detect pending restitution
+    briefing_before = generate_financial_briefing(db_session)
+    assert "Pending Savings Restitution" in briefing_before
+    assert "250.00" in briefing_before
+    assert "ACTION REQUIRED: Propose scheduling the return transfer" in briefing_before
 
-        # 2. Schedule the return transfer
-        res_return = create_planned_transfer_tool(
-            db_session,
-            from_account=checking.name,
-            to_account=savings.name,
-            amount=250.0,
-            description="Reconstitution épargne de précaution Livret A",
-            date_operation=(today + timedelta(days=5)).isoformat(),
-            force_write=True
-        )
-        assert res_return.get("success") is True
-        return_tx_id = res_return.get("transaction_id")
+    # 2. Schedule the return transfer
+    res_return = create_planned_transfer_tool(
+        db_session,
+        from_account=checking.name,
+        to_account=savings.name,
+        amount=250.0,
+        description="Reconstitution épargne de précaution Livret A Test",
+        date_operation=(today + timedelta(days=5)).isoformat(),
+        force_write=True
+    )
+    assert res_return.get("success") is True
+    return_tx_id = res_return.get("transaction_id")
+    assert return_tx_id is not None
 
-        # 3. Briefing should now show scheduled restitution instead of pending
-        briefing_after = generate_financial_briefing(db_session)
-        assert "Scheduled Savings Restitution" in briefing_after
-        assert "Pending Savings Restitution" not in briefing_after
-
-    finally:
-        # Cleanup
-        db_session.delete(bridge_tx)
-        if return_tx_id:
-            rtx = db_session.query(Transaction).filter(Transaction.id == return_tx_id).first()
-            if rtx:
-                db_session.delete(rtx)
-        db_session.commit()
+    # 3. Briefing should now show scheduled restitution instead of pending
+    briefing_after = generate_financial_briefing(db_session)
+    assert "Scheduled Savings Restitution" in briefing_after
+    assert "Pending Savings Restitution" not in briefing_after
 
 
 

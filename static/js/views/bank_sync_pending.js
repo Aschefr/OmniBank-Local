@@ -668,11 +668,11 @@ Object.assign(window.BankSyncView, {
             const suggestedTip = (window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique').replace(/"/g, '&quot;');
 
             const comingBadge = g.is_coming
-                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
+                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
                 : '';
 
             const resolvesBadge = g._resolves_diff
-                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
+                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
                 : '';
 
             const rowStyle = g._resolves_diff
@@ -680,33 +680,39 @@ Object.assign(window.BankSyncView, {
                 : 'background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;'
 
             const showRaw = g.raw_description && g.raw_description !== g.description;
-            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
+            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             const gAccObj = (window.app?.accounts || []).find(x => x.id === g.account_id || x.name === g.account_name);
             const gAccColor = gAccObj?.color || '#3366ff';
-            const gAccBadge = g.account_name ? `<span class="account-badge" style="border-color:${gAccColor}40; background:${gAccColor}18; color:${gAccColor};"><span class="acc-badge-dot" style="background:${gAccColor};"></span>${window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name}</span>` : '';
+            const gAccBadge = g.account_name ? `<span class="account-badge" style="border-color:${gAccColor}40; background:${gAccColor}18; color:${gAccColor}; max-width: 100%; display: inline-flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name}"><span class="acc-badge-dot" style="background:${gAccColor}; flex-shrink: 0;"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${window.escapeHtml ? window.escapeHtml(g.account_name) : g.account_name}</span></span>` : '';
 
             return `
             <tr id="ghostRow_${g.csv_id}" class="ghost-row" style="${rowStyle}">
-                <td style="padding: 8px 12px; font-size: 11px; white-space: nowrap;">
-                    <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>${comingBadge}${resolvesBadge}
+                <td class="ghost-col-status" style="padding: 8px 10px; font-size: 11px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        ${comingBadge}
+                        ${resolvesBadge}
+                    </div>
                 </td>
-                <td style="padding: 8px 12px; font-size: 12px; white-space: nowrap; color: var(--text-muted);">${dateStr}</td>
-                <td style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text-main);">
-                    <div style="display: inline-flex; align-items: center; gap: 4px;">
-                        <span>${window.escapeHtml ? window.escapeHtml(g.description) : g.description}</span>
+                <td class="ghost-col-date" style="padding: 8px 10px; font-size: 12px; white-space: nowrap; color: var(--text-muted);">${dateStr}</td>
+                <td class="ghost-col-desc" style="padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600;" title="${window.escapeHtml ? window.escapeHtml(g.description) : g.description}">
+                            ${window.escapeHtml ? window.escapeHtml(g.description) : g.description}
+                        </span>
                         ${this._renderSmartOriginIcon(g)}
                     </div>
                     ${rawSubHtml}
                 </td>
-                <td style="padding: 8px 12px; font-size: 11px;">${gAccBadge}</td>
-                <td style="padding: 8px 12px; font-size: 11px;">
-                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
+                <td class="ghost-col-account" style="padding: 8px 10px; font-size: 11px; overflow: hidden;">${gAccBadge}</td>
+                <td class="ghost-col-category" style="padding: 8px 10px; font-size: 11px; overflow: hidden;">
+                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; max-width: 100%; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${window.escapeHtml ? window.escapeHtml(g.category) : g.category}">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
                 </td>
-                <td style="padding: 8px 12px; font-size: 12px; font-weight: 700; text-align: right; color: ${amtColor}; white-space: nowrap;">${amtFormatted}</td>
-                <td style="padding: 8px 12px; text-align: right; white-space: nowrap;">
+                <td class="ghost-col-amount" style="padding: 8px 10px; font-size: 12px; font-weight: 700; text-align: right; color: ${amtColor}; white-space: nowrap;">${amtFormatted}</td>
+                <td class="ghost-col-actions" style="padding: 8px 10px; text-align: right; white-space: nowrap;">
                     <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
-                        <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11.5px; padding: 0 10px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 0 8px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap;">
                             ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                         </button>
                         <button class="btn-action-icon" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}">
@@ -885,13 +891,13 @@ Object.assign(window.BankSyncView, {
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
                         <tr style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); text-align: left; color: var(--text-muted); font-size: 11px;">
-                            <th style="padding: 6px 12px; width: 60px;">${(window.i18n && window.i18n.t('th_status')) || 'Statut'}</th>
-                            <th style="padding: 6px 12px; width: 90px;">${(window.i18n && window.i18n.t('th_date')) || 'Date'}</th>
-                            <th style="padding: 6px 12px;">${(window.i18n && window.i18n.t('col_description')) || 'Description'}</th>
-                            <th style="padding: 6px 12px; width: 140px;">${(window.i18n && window.i18n.t('th_account')) || 'Compte'}</th>
-                            <th style="padding: 6px 12px; width: 140px;">${(window.i18n && window.i18n.t('col_category')) || 'Catégorie'}</th>
-                            <th style="padding: 6px 12px; width: 100px; text-align: right;">${(window.i18n && window.i18n.t('col_amount')) || 'Montant'}</th>
-                            <th style="padding: 6px 12px; width: 130px; text-align: right;">${(window.i18n && window.i18n.t('th_actions')) || 'Actions'}</th>
+                            <th class="ghost-col-status" style="padding: 6px 10px; width: 140px;">${(window.i18n && window.i18n.t('th_status')) || 'Statut'}</th>
+                            <th class="ghost-col-date" style="padding: 6px 10px; width: 95px;">${(window.i18n && window.i18n.t('th_date')) || 'Date'}</th>
+                            <th class="ghost-col-desc" style="padding: 6px 10px;">${(window.i18n && window.i18n.t('col_description')) || 'Description'}</th>
+                            <th class="ghost-col-account" style="padding: 6px 10px; width: 130px;">${(window.i18n && window.i18n.t('th_account')) || 'Compte'}</th>
+                            <th class="ghost-col-category" style="padding: 6px 10px; width: 130px;">${(window.i18n && window.i18n.t('col_category')) || 'Catégorie'}</th>
+                            <th class="ghost-col-amount" style="padding: 6px 10px; width: 100px; text-align: right;">${(window.i18n && window.i18n.t('col_amount')) || 'Montant'}</th>
+                            <th class="ghost-col-actions" style="padding: 6px 10px; width: 165px; text-align: right;">${(window.i18n && window.i18n.t('th_actions')) || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody>

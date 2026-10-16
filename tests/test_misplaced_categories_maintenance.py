@@ -1,5 +1,7 @@
-import pytest
-from app.database import SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from app.database import Base
 from app.models import Category, Transaction, RecurrenceTemplate
 from app.routers.maintenance import (
     _audit_misplaced_categories,
@@ -9,9 +11,17 @@ from app.routers.maintenance import (
     CategoryFixItem
 )
 
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
 
 def test_misplaced_categories_maintenance_lifecycle():
-    db = SessionLocal()
+    Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
     try:
         # Create a test category with wrong type
         test_cat_name = "Test Virement Interne Anomaly"
@@ -81,3 +91,4 @@ def test_misplaced_categories_maintenance_lifecycle():
 
     finally:
         db.close()
+        Base.metadata.drop_all(bind=test_engine)
