@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Fixed & Critical
+- **Bank Sync Staging Lock & ID Theft Guardrail 🏦🛡️**: Resolved an issue where newer bank transactions with similar descriptions and amounts could preemptively match and hijack the database IDs of older, already-reconciled transactions during reverse-chronological statement evaluation. Implemented strict two-pass reconciliation (exact bank fingerprint `csv_id` pass first, followed by fuzzy/predictive matching) and added cross-contamination guardrails preventing any transaction with an existing bank ID from being stolen. Ghost operations previously stuck in the staging area (sas) now resolve immediately.
+
 ### Added & Improved
 - **Savings Restitution Planned Return Transfer 🔄💰**: Automatic detection of bridge transfers from savings to checking accounts with immediate assistant proposal and scheduling of the planned return transfer (`create_planned_transfer`) on the day following the scheduled paycheck, guaranteeing that emergency reserve funds are replenished.
 - **AI Persistent Financial Memory (`ai_facts`) 🧠📌**: Added long-term contextual memory tools (`store_financial_fact`, `forget_financial_fact`) enabling the assistant to record finite constraints, temporary installments, or life events across sessions and actively factor them into financial briefings and envelope recalibrations.

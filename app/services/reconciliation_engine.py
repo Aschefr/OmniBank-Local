@@ -240,7 +240,8 @@ def check_reconciliation(
     account_id: Optional[int] = None,
     is_coming: bool = False,
     bank_label: Optional[str] = None,
-    csv_id: Optional[str] = None
+    csv_id: Optional[str] = None,
+    exact_only: bool = False
 ) -> Optional[Dict[str, Any]]:
     """
     Vérifie si une transaction correspondante existe en base via un score composite (0-100 pts):
@@ -289,6 +290,7 @@ def check_reconciliation(
             )
 
     # ── PASSE 0 : Correspondance exacte et prioritaire par empreinte bancaire (csv_id) ──
+    target_csv_ids = []
     if csv_id:
         target_csv_ids = [csv_id]
         if csv_id.startswith("woob_") and not csv_id.startswith("woob_coming_"):
@@ -325,6 +327,9 @@ def check_reconciliation(
                 "suggested_match": False,
                 "auto_committed": not is_already
             }
+
+    if exact_only:
+        return None
 
     target_dt = tx_date.date() if hasattr(tx_date, "date") and callable(tx_date.date) else tx_date
 
@@ -363,6 +368,15 @@ def check_reconciliation(
 
         if acc_filter is not None:
             recon_query = recon_query.filter(acc_filter)
+
+        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct
+        if target_csv_ids:
+            recon_query = recon_query.filter(
+                or_(
+                    Transaction.csv_id.is_(None),
+                    Transaction.csv_id.in_(target_csv_ids)
+                )
+            )
 
         # Pour les virements internes, autoriser la détection même si l'ID a déjà été vu dans le lot
         if matched_ids:
@@ -422,6 +436,15 @@ def check_reconciliation(
         if acc_filter is not None:
             op_query = op_query.filter(acc_filter)
 
+        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct
+        if target_csv_ids:
+            op_query = op_query.filter(
+                or_(
+                    Transaction.csv_id.is_(None),
+                    Transaction.csv_id.in_(target_csv_ids)
+                )
+            )
+
         available_op_query = op_query
         if matched_ids:
             available_op_query = op_query.filter(Transaction.id.notin_(matched_ids))
@@ -467,6 +490,15 @@ def check_reconciliation(
         )
         if acc_filter is not None:
             op_query = op_query.filter(acc_filter)
+
+        # Garde-fou anti-usurpation csv_id : ne jamais capturer une transaction DB possédant déjà un csv_id distinct
+        if target_csv_ids:
+            op_query = op_query.filter(
+                or_(
+                    Transaction.csv_id.is_(None),
+                    Transaction.csv_id.in_(target_csv_ids)
+                )
+            )
 
         if matched_ids:
             op_query = op_query.filter(Transaction.id.notin_(matched_ids))
@@ -630,6 +662,14 @@ def check_reconciliation(
                 Transaction.date_operation <= end_orphan,
                 Transaction.amount >= abs_amount - epsilon,
                 Transaction.amount <= abs_amount + epsilon
+            )
+
+        if target_csv_ids:
+            orphan_q = orphan_q.filter(
+                or_(
+                    Transaction.csv_id.is_(None),
+                    Transaction.csv_id.in_(target_csv_ids)
+                )
             )
 
         if matched_ids:

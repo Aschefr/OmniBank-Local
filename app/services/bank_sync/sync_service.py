@@ -598,19 +598,43 @@ class BankSyncService:
                 coming_raw.sort(key=lambda x: x.get("tx_date_obj") or date.min)
 
                 # ── PASSE 1 : Matching des opérations confirmées (historique) en priorité ──
-                for item in history_raw:
+                history_rec = [None] * len(history_raw)
+                for i, item in enumerate(history_raw):
+                    if item.get("csv_id"):
+                        rec_info = check_reconciliation(
+                            db,
+                            item["tx_date_obj"],
+                            item["raw_amount"],
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc.id,
+                            is_coming=False,
+                            bank_label=item.get("raw_description") or item.get("description"),
+                            csv_id=item.get("csv_id"),
+                            exact_only=True
+                        )
+                        if rec_info and rec_info.get("id"):
+                            history_rec[i] = rec_info
+                            matched_ids_global.add(rec_info.get("id"))
+
+                for i, item in enumerate(history_raw):
                     tx_date = item["tx_date_obj"]
                     raw_amount = item["raw_amount"]
-                    rec_info = check_reconciliation(
-                        db,
-                        tx_date,
-                        raw_amount,
-                        matched_ids=matched_ids_global,
-                        account_id=local_acc.id,
-                        is_coming=False,
-                        bank_label=item.get("raw_description") or item.get("description"),
-                        csv_id=item.get("csv_id")
-                    )
+                    rec_info = history_rec[i]
+                    if rec_info is None:
+                        rec_info = check_reconciliation(
+                            db,
+                            tx_date,
+                            raw_amount,
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc.id,
+                            is_coming=False,
+                            bank_label=item.get("raw_description") or item.get("description"),
+                            csv_id=item.get("csv_id"),
+                            exact_only=False
+                        )
+                        if rec_info and rec_info.get("id"):
+                            matched_ids_global.add(rec_info.get("id"))
+
                     is_reconciled = False
                     already_reconciled = False
                     is_mirror = False
@@ -633,8 +657,6 @@ class BankSyncService:
                         db_desc = rec_info.get("description")
                         match_score = rec_info.get("match_score", 0)
                         rec_cat = rec_info.get("category")
-                        if matched_id:
-                            matched_ids_global.add(matched_id)
 
                     parsed_txs.append({
                         "date_operation": item["date_operation"],
@@ -661,19 +683,43 @@ class BankSyncService:
                     })
 
                 # ── PASSE 2 : Matching des opérations à venir (en attente bancaire) ──
-                for item in coming_raw:
+                coming_rec = [None] * len(coming_raw)
+                for i, item in enumerate(coming_raw):
+                    if item.get("csv_id"):
+                        rec_info = check_reconciliation(
+                            db,
+                            item["tx_date_obj"],
+                            item["raw_amount"],
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc.id,
+                            is_coming=True,
+                            bank_label=item.get("raw_description") or item.get("description"),
+                            csv_id=item.get("csv_id"),
+                            exact_only=True
+                        )
+                        if rec_info and rec_info.get("id"):
+                            coming_rec[i] = rec_info
+                            matched_ids_global.add(rec_info.get("id"))
+
+                for i, item in enumerate(coming_raw):
                     tx_date = item["tx_date_obj"]
                     raw_amount = item["raw_amount"]
-                    rec_info = check_reconciliation(
-                        db,
-                        tx_date,
-                        raw_amount,
-                        matched_ids=matched_ids_global,
-                        account_id=local_acc.id,
-                        is_coming=True,
-                        bank_label=item.get("raw_description") or item.get("description"),
-                        csv_id=item.get("csv_id")
-                    )
+                    rec_info = coming_rec[i]
+                    if rec_info is None:
+                        rec_info = check_reconciliation(
+                            db,
+                            tx_date,
+                            raw_amount,
+                            matched_ids=matched_ids_global,
+                            account_id=local_acc.id,
+                            is_coming=True,
+                            bank_label=item.get("raw_description") or item.get("description"),
+                            csv_id=item.get("csv_id"),
+                            exact_only=False
+                        )
+                        if rec_info and rec_info.get("id"):
+                            matched_ids_global.add(rec_info.get("id"))
+
                     is_reconciled = False
                     already_reconciled = False
                     is_mirror = False
@@ -696,8 +742,6 @@ class BankSyncService:
                         db_desc = rec_info.get("description")
                         match_score = rec_info.get("match_score", 0)
                         rec_cat = rec_info.get("category")
-                        if matched_id:
-                            matched_ids_global.add(matched_id)
 
                     parsed_txs.append({
                         "date_operation": item["date_operation"],
