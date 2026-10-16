@@ -2123,11 +2123,22 @@ window.AutopilotView = {
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_pending_review_desc') : 'En attente de vérification dans la file de revue.';
             icon = '⚡';
         } else if (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') {
-            if (d.action === 'LINKED_COMING' || d.action === 'LINKED_COMING_PENDING_REVIEW') {
-                badgeClass = 'badge-amber';
+            const isManuallyLinked = Boolean(d.details && (d.details.linked_to_forecast_id || d.details.decision_reason === 'linked_forecast'));
+            if (isManuallyLinked) {
+                badgeClass = 'badge-emerald';
+                typeLabel = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done') || 'Vérifiée & liée') : 'Vérifiée & liée';
+                tooltipText = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done_desc') || 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.') : 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.';
+                icon = '✓';
+            } else if (d.action === 'LINKED_COMING') {
+                badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? window.i18n.t('autopilot_action_linked_coming') : 'Opération à venir liée';
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_linked_coming_desc') : 'L\'opération prévisionnelle a été rattachée à l\'annonce bancaire à venir.';
                 icon = '⏳';
+            } else if (d.action === 'LINKED_COMING_PENDING_REVIEW') {
+                badgeClass = 'badge-amber';
+                typeLabel = window.i18n ? (window.i18n.t('autopilot_action_pending_review') || 'À vérifier') : 'À vérifier';
+                tooltipText = window.i18n ? window.i18n.t('autopilot_action_pending_review_desc') : 'En attente de vérification dans la file de revue.';
+                icon = '⚡';
             } else if (d.action === 'AUTO_RECONCILED_DEVIANT') {
                 badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? window.i18n.t('autopilot_action_deviant_confirmed') : 'Rapprochement ajusté';
@@ -2196,14 +2207,18 @@ window.AutopilotView = {
                         </div>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}
-                            ${d.raw_label && d.raw_label !== d.label ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal; margin-left: 6px;">(${escapeHtml(d.raw_label)})</span>` : ''}
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;">
+                            <span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>
+                            ${d.raw_label && d.raw_label !== d.label ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(d.raw_label)})</span>` : ''}
                         </div>
                         <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                             <span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.tag} ${escapeHtml(d.category || '—')}</span>
                             ${d.account_name ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
-                            ${this.formatReasonBadge(d.reason)}
+                            ${(d.details && (d.details.linked_to_forecast_description || d.details.forecast_description)) ? `
+                                <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
+                                    🔗 Liée à : ${escapeHtml(d.details.linked_to_forecast_description || d.details.forecast_description)}
+                                </span>
+                            ` : this.formatReasonBadge(d.reason)}
                         </div>
                     </div>
                 </div>

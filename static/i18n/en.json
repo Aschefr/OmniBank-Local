@@ -3693,5 +3693,7 @@
   "chat_btn_sync_now": "Sync now",
   "chat_sync_in_progress": "Syncing in progress...",
   "chat_sync_success_btn": "Sync launched successfully",
-  "chat_btn_sync_retry": "Retry sync"
+  "chat_btn_sync_retry": "Retry sync",
+  "autopilot_action_linked_forecast_done": "Verified & linked",
+  "autopilot_action_linked_forecast_desc": "The transaction was manually verified and linked to its budget forecast."
 }

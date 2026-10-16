@@ -447,16 +447,34 @@ def process_incoming_batch(
                                     )
 
                         if not is_past_cycle:
-                            tx["is_reconciled"] = True
-                            tx["already_reconciled"] = is_already
-                            tx["matched_db_id"] = rec_info["id"]
-                            tx["match_score"] = score
-                            tx["collision_detected"] = rec_info.get("collision_detected", False)
-                            tx["is_amount_deviant"] = rec_info.get("is_amount_deviant", False)
-                            tx["original_forecast_amount"] = rec_info.get("original_forecast_amount")
-                            tx["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
-                            tx["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
-                            tx["orphan_account_id"] = rec_info.get("orphan_account_id")
+                            if is_already:
+                                tx["is_reconciled"] = True
+                                tx["already_reconciled"] = True
+                                tx["matched_db_id"] = rec_info["id"]
+                                tx["match_score"] = score
+                                tx["collision_detected"] = rec_info.get("collision_detected", False)
+                            else:
+                                auto_commit_allowed = bool(rec_info.get("auto_committed", True))
+                                if auto_commit_allowed:
+                                    tx["is_reconciled"] = True
+                                    tx["already_reconciled"] = False
+                                    tx["matched_db_id"] = rec_info["id"]
+                                    tx["match_score"] = score
+                                    tx["collision_detected"] = rec_info.get("collision_detected", False)
+                                    tx["is_amount_deviant"] = rec_info.get("is_amount_deviant", False)
+                                    tx["original_forecast_amount"] = rec_info.get("original_forecast_amount")
+                                    tx["is_mirror_transfer"] = rec_info.get("is_mirror_transfer", False)
+                                    tx["is_orphan_transfer_link"] = rec_info.get("is_orphan_transfer_link", False)
+                                    tx["orphan_account_id"] = rec_info.get("orphan_account_id")
+                                else:
+                                    # Rapprochement suggéré / récurrence fluctuante :
+                                    # Ne pas forcer l'auto-rapprochement direct, mais mémoriser le candidat
+                                    # pour orienter la transaction vers la Review Queue avec score modéré.
+                                    tx["is_reconciled"] = False
+                                    tx["suggested_forecast_id"] = rec_info["id"]
+                                    tx["suggested_match_score"] = score
+                                    tx["is_amount_deviant"] = rec_info.get("is_amount_deviant", False)
+                                    tx["original_forecast_amount"] = rec_info.get("original_forecast_amount")
     except Exception as rec_eval_err:
         logger.debug(f"[AutoPilot] Évaluation réconciliation non appliquée: {rec_eval_err}")
 
@@ -566,6 +584,9 @@ def process_incoming_batch(
                                 snap_tx["audit_category"] = db_t0.category
                             if db_t0.description:
                                 snap_tx["db_description"] = snap_tx.get("db_description") or db_t0.description
+                            if csv_id and (not db_t0.csv_id or not db_t0.csv_id.startswith("woob_")):
+                                db_t0.csv_id = csv_id
+                                db.flush()
                     continue
                 if csv_id and csv_id in existing_unreconciled_csv_ids and is_coming:
                     # Déjà liée/créée en base lors d'une synchronisation précédente, maintien dans le Sas pour badge "À venir"
@@ -786,38 +807,89 @@ def process_incoming_batch(
                 suspected_dup = None
                 if not is_rec and matched_id is None and bool(acc_id) and amt > 0:
                     from sqlalchemy import or_, and_
-                    d_start = op_date - timedelta(days=30)
-                    d_end = op_date + timedelta(days=7)
-                    dup_q = db.query(Transaction).filter(
-                        Transaction.reconciliation_date == None,
-                        Transaction.amount >= amt - 0.01,
-                        Transaction.amount <= amt + 0.01,
-                        Transaction.date_operation >= d_start,
-                        Transaction.date_operation <= d_end
-                    )
-                    if t_type == "income":
-                        dup_q = dup_q.filter(
-                            or_(
-                                Transaction.to_account_id == acc_id,
-                                and_(Transaction.type == "income", Transaction.from_account_id == acc_id)
-                            )
+                    # 1. Candidat identifié lors de l'étape de rapprochement suggéré (ex: _find_deviant_recurrence non auto-committable)
+                    sugg_id = tx.get("suggested_forecast_id")
+                    if sugg_id:
+                        suspected_dup = db.query(Transaction).filter(
+                            Transaction.id == sugg_id,
+                            Transaction.reconciliation_date == None
+                        ).first()
+
+                    # 2. Recherche par montant exact (-30j / +7j)
+                    if not suspected_dup:
+                        d_start = op_date - timedelta(days=30)
+                        d_end = op_date + timedelta(days=7)
+                        dup_q = db.query(Transaction).filter(
+                            Transaction.reconciliation_date == None,
+                            Transaction.amount >= amt - 0.01,
+                            Transaction.amount <= amt + 0.01,
+                            Transaction.date_operation >= d_start,
+                            Transaction.date_operation <= d_end
                         )
-                    else:
-                        dup_q = dup_q.filter(
-                            or_(
-                                and_(Transaction.from_account_id == acc_id, Transaction.type != "income"),
-                                and_(Transaction.to_account_id == None, Transaction.from_account_id == acc_id)
+                        if t_type == "income":
+                            dup_q = dup_q.filter(
+                                or_(
+                                    Transaction.to_account_id == acc_id,
+                                    and_(Transaction.type == "income", Transaction.from_account_id == acc_id)
+                                )
                             )
+                        else:
+                            dup_q = dup_q.filter(
+                                or_(
+                                    and_(Transaction.from_account_id == acc_id, Transaction.type != "income"),
+                                    and_(Transaction.to_account_id == None, Transaction.from_account_id == acc_id)
+                                )
+                            )
+                        if seen_suspected_dup_ids:
+                            dup_q = dup_q.filter(Transaction.id.notin_(seen_suspected_dup_ids))
+                        suspected_dup = dup_q.first()
+
+                    # 3. Recherche par affinité marchande récurrente fluctuante (-7j / +7j)
+                    if not suspected_dup:
+                        d_start_rec = op_date - timedelta(days=7)
+                        d_end_rec = op_date + timedelta(days=7)
+                        fluct_q = db.query(Transaction).filter(
+                            Transaction.reconciliation_date == None,
+                            Transaction.date_operation >= d_start_rec,
+                            Transaction.date_operation <= d_end_rec
                         )
-                    if seen_suspected_dup_ids:
-                        dup_q = dup_q.filter(Transaction.id.notin_(seen_suspected_dup_ids))
-                    suspected_dup = dup_q.first()
+                        if t_type == "income":
+                            fluct_q = fluct_q.filter(
+                                or_(
+                                    Transaction.to_account_id == acc_id,
+                                    and_(Transaction.type == "income", Transaction.from_account_id == acc_id)
+                                )
+                            )
+                        else:
+                            fluct_q = fluct_q.filter(
+                                or_(
+                                    and_(Transaction.from_account_id == acc_id, Transaction.type != "income"),
+                                    and_(Transaction.to_account_id == None, Transaction.from_account_id == acc_id)
+                                )
+                            )
+                        if seen_suspected_dup_ids:
+                            fluct_q = fluct_q.filter(Transaction.id.notin_(seen_suspected_dup_ids))
+
+                        cand_fluct = fluct_q.all()
+                        raw_bank_lbl = tx.get("raw_description") or tx.get("description") or ""
+                        for cand in cand_fluct:
+                            has_rec = (cand.recurrence_id is not None)
+                            txt_sc = 0
+                            try:
+                                from app.services.reconciliation_engine import compute_text_score
+                                txt_sc = compute_text_score(cand.description, raw_bank_lbl, candidate_cat=cand.category, db=db)
+                            except Exception:
+                                pass
+                            if txt_sc >= 20 or (has_rec and txt_sc >= 15):
+                                suspected_dup = cand
+                                break
+
                     if suspected_dup:
                         seen_suspected_dup_ids.add(suspected_dup.id)
                         logger.warning(
-                            f"[AutoPilot] ⚠️ Doublon prévisionnel potentiel détecté pour '{tx.get('raw_description') or tx.get('description')}' "
+                            f"[AutoPilot] ⚠️ Doublon/Collision prévisionnelle potentielle pour '{tx.get('raw_description') or tx.get('description')}' "
                             f"({amt:.2f}€ sur compte #{acc_id}) : correspond à la prévision non pointée #{suspected_dup.id} "
-                            f"'{suspected_dup.description}' du {suspected_dup.date_operation}. Enregistrement en attente de vérification (Review Queue)."
+                            f"'{suspected_dup.description}' ({suspected_dup.amount:.2f}€ du {suspected_dup.date_operation}). Enregistrement en attente de vérification (Review Queue)."
                         )
 
                 # Éligibilité Full-Auto : Toute nouvelle opération bancaire (confirmée ou à venir non rapprochée)
@@ -877,6 +949,10 @@ def process_incoming_batch(
 
                     raw_lbl = tx.get("raw_description") or tx.get("raw_label") or tx.get("description")
                     conf_score = round(confidence * 100, 1) if confidence <= 1.0 else confidence
+                    if suspected_dup is not None:
+                        # Si suspicion de doublon ou collision prévisionnelle fluctuante,
+                        # abaisser le score de confiance sous le seuil pour refléter le besoin de revue
+                        conf_score = min(conf_score, float(tx.get("suggested_match_score") or 65.0))
 
                     # Pointage : aujourd'hui si opération confirmée sans suspicion de doublon prévisionnel,
                     # None si opération à venir ou suspicion de doublon prévisionnel (attente d'arbitrage)
@@ -1869,6 +1945,9 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
         elif has_text_affinity and (rel_diff <= 0.35 or amt_diff <= 15.00):
             # Même marchand/motif identifié avec montant variable ou ajusté
             is_valid_candidate = True
+        elif has_text_affinity and (c.recurrence_id is not None or has_semantic_match):
+            # Récurrence active ou marchand avec alias sémantique avéré (ex: Orange <-> Sosh avec hors-forfait, facture variable)
+            is_valid_candidate = True
 
         if not is_valid_candidate:
             continue
@@ -1882,9 +1961,10 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
             "recurrence_id": c.recurrence_id,
             "amt_diff": amt_diff,
             "date_diff": date_diff,
+            "priority": 0 if (has_exact_amount or (has_text_affinity and (c.recurrence_id is not None or has_semantic_match))) else 1
         })
 
-    results.sort(key=lambda x: (x["amt_diff"], x["date_diff"]))
+    results.sort(key=lambda x: (x.get("priority", 1), x["amt_diff"], x["date_diff"]))
     return results[:limit]
 
 
@@ -2042,11 +2122,18 @@ def link_review_transaction(
         except Exception as ex_l:
             logger.warning(f"[AutoPilot] Échec apprentissage lors de la liaison: {ex_l}")
 
-    dlog = db.query(AutopilotDecisionLog).filter(
+    dlogs = db.query(AutopilotDecisionLog).filter(
         AutopilotDecisionLog.entity_type == "transaction",
-        AutopilotDecisionLog.entity_id == tx_review.id
-    ).first()
-    if dlog:
+        AutopilotDecisionLog.entity_id == tx_review.id,
+        AutopilotDecisionLog.is_undone == False
+    ).order_by(AutopilotDecisionLog.id.desc()).all()
+    if not dlogs:
+        dlogs = db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.entity_type == "transaction",
+            AutopilotDecisionLog.entity_id == tx_review.id
+        ).order_by(AutopilotDecisionLog.id.desc()).limit(1).all()
+
+    for dlog in dlogs:
         dlog.entity_id = tx_forecast.id
         dlog.decision_type = "reconciliation"
         dlog.action = "LINKED_COMING" if tx_forecast.reconciliation_date is None else "AUTO_COMMIT"
@@ -2060,8 +2147,12 @@ def link_review_transaction(
                 "decision_reason": "linked_forecast"
             },
             "linked_to_forecast_id": tx_forecast.id,
+            "linked_to_forecast_description": tx_forecast.description,
             "forecast_description": tx_forecast.description,
             "decision_reason": "linked_forecast",
+            "is_amount_deviant": abs((orig_amt or 0) - (final_amount or 0)) > 0.005,
+            "original_amount": orig_amt,
+            "actual_amount": final_amount,
             "before": before_snap_forecast,
             "after": snapshot_entity(tx_forecast)
         }
@@ -2116,17 +2207,19 @@ def validate_review_transaction(
     after_snap = snapshot_entity(tx)
 
     # Mettre à jour la décision Auto-Pilote associée si présente
-    dlog = db.query(AutopilotDecisionLog).filter(
+    dlogs = db.query(AutopilotDecisionLog).filter(
         AutopilotDecisionLog.entity_type == "transaction",
         AutopilotDecisionLog.entity_id == tx.id,
+        AutopilotDecisionLog.is_undone == False,
         AutopilotDecisionLog.action.in_([
             "AUTO_COMMIT_PENDING_REVIEW",
             "AUTO_COMMIT_COMING_PENDING_REVIEW",
             "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW"
         ])
-    ).first()
-    if dlog:
+    ).order_by(AutopilotDecisionLog.id.desc()).all()
+    for dlog in dlogs:
         dlog.action = "AUTO_COMMIT" if "COMING" not in dlog.action else "AUTO_COMMIT_COMING"
+        dlog.confidence_score = 100.0
 
     # Apprentissage automatique : mémoriser la correspondance si un libellé brut bancaire est présent
     if tx.raw_description and tx.description:
@@ -2235,17 +2328,19 @@ def update_review_transaction(
         except Exception as ex_l:
             logger.warning(f"[AutoPilot] Échec apprentissage lors de la revue: {ex_l}")
 
-    dlog = db.query(AutopilotDecisionLog).filter(
+    dlogs = db.query(AutopilotDecisionLog).filter(
         AutopilotDecisionLog.entity_type == "transaction",
         AutopilotDecisionLog.entity_id == tx.id,
+        AutopilotDecisionLog.is_undone == False,
         AutopilotDecisionLog.action.in_([
             "AUTO_COMMIT_PENDING_REVIEW",
             "AUTO_COMMIT_COMING_PENDING_REVIEW",
             "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW"
         ])
-    ).first()
-    if dlog:
+    ).order_by(AutopilotDecisionLog.id.desc()).all()
+    for dlog in dlogs:
         dlog.action = "AUTO_COMMIT" if "COMING" not in dlog.action else "AUTO_COMMIT_COMING"
+        dlog.confidence_score = 100.0
 
     record_action(
         db,
