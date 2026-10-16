@@ -75,9 +75,46 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             } else if (actionObj.action === 'delete_transaction' || actionObj.action === 'apply_transaction_correction') {
                 try {
                     const tid = parseInt(actionObj.params.transaction_id || actionObj.params.id);
-                    const r = await fetch(`/api/transactions/${tid}`);
-                    if (r.ok) {
-                        currentEntityState = await r.json();
+                    if (!isNaN(tid)) {
+                        const r = await fetch(`/api/transactions/${tid}`);
+                        if (r.ok) {
+                            currentEntityState = await r.json();
+                        }
+                    }
+                    if (!currentEntityState) {
+                        const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                        const pDesc = normalize(actionObj.params.description);
+                        const pAmt = parseFloat(actionObj.params.amount);
+                        const pDate = actionObj.params.date_operation;
+
+                        let searchUrl = '/api/transactions/?limit=100';
+                        if (actionObj.params.description) {
+                            searchUrl += `&search=${encodeURIComponent(actionObj.params.description)}`;
+                        }
+                        const r = await fetch(searchUrl);
+                        if (r.ok) {
+                            const res = await r.json();
+                            const txs = Array.isArray(res) ? res : (res.items || res.transactions || []);
+                            let best = null;
+                            let bestScore = -1;
+                            for (const tx of txs) {
+                                let score = 0;
+                                if (!isNaN(pAmt) && Math.abs(tx.amount - pAmt) < 0.01) score += 50;
+                                const txDesc = normalize(tx.description);
+                                if (pDesc) {
+                                    if (txDesc === pDesc || txDesc.includes(pDesc) || pDesc.includes(txDesc)) score += 40;
+                                }
+                                if (pDate && tx.date_operation === pDate) score += 30;
+                                if (score > bestScore && score >= 30) {
+                                    bestScore = score;
+                                    best = tx;
+                                }
+                            }
+                            if (best) {
+                                currentEntityState = best;
+                                actionObj.params.transaction_id = best.id;
+                            }
+                        }
                     }
                 } catch(e) {}
             } else if (actionObj.action === 'set_predicted_paycheck') {

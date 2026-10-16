@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Added & Improved
+- **Savings Restitution Planned Return Transfer 🔄💰**: Automatic detection of bridge transfers from savings to checking accounts with immediate assistant proposal and scheduling of the planned return transfer (`create_planned_transfer`) on the day following the scheduled paycheck, guaranteeing that emergency reserve funds are replenished.
+- **AI Persistent Financial Memory (`ai_facts`) 🧠📌**: Added long-term contextual memory tools (`store_financial_fact`, `forget_financial_fact`) enabling the assistant to record finite constraints, temporary installments, or life events across sessions and actively factor them into financial briefings and envelope recalibrations.
+- **Resilient Multi-Criteria Transaction Lookup 🛡️🔍**: Added robust fallback search (matching by normalized description, exact/close amount within 1 cent, and operation date) to `apply_transaction_correction` and `delete_transaction` in both assistant backend tools and interactive review modals, preventing errors when transaction IDs are missing or hallucinated.
+
 ## [1.2.3] - 2026-10-16
 
 ### Fixed & Critical

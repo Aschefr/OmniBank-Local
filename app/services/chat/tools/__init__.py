@@ -317,17 +317,18 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "apply_transaction_correction",
-            "description": "Directly modify a transaction category, date, or amount in the database upon user request.",
+            "description": "Modify a transaction category, date, description, or amount in the database upon user request. Identify by transaction_id or by description/amount/date.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to update."},
+                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to update (if known)."},
                     "category": {"type": "string", "description": "New category name (optional)."},
-                    "description": {"type": "string", "description": "New description (optional)."},
-                    "amount": {"type": "number", "description": "New amount (optional)."},
-                    "type": {"type": "string", "description": "New type: expense_var, expense_fixed, income (optional)."}
+                    "description": {"type": "string", "description": "New description or matching description keyword."},
+                    "amount": {"type": "number", "description": "New amount or matching amount."},
+                    "type": {"type": "string", "description": "New type: expense_var, expense_fixed, income (optional)."},
+                    "date_operation": {"type": "string", "description": "New date of the transaction or matching date (YYYY-MM-DD)."}
                 },
-                "required": ["transaction_id"]
+                "required": []
             }
         }
     },
@@ -441,13 +442,16 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "delete_transaction",
-            "description": "Delete a specific transaction from the database (e.g. to resolve a duplicate entry).",
+            "description": "Delete a specific transaction from the database (e.g. to resolve a duplicate entry). Identify by transaction_id or by description/amount/date.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to delete."}
+                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to delete (if known)."},
+                    "description": {"type": "string", "description": "Description of the transaction to identify and delete (optional)."},
+                    "amount": {"type": "number", "description": "Amount of the transaction to delete (optional)."},
+                    "date_operation": {"type": "string", "description": "Date of the transaction (YYYY-MM-DD, optional)."}
                 },
-                "required": ["transaction_id"]
+                "required": []
             }
         }
     },
@@ -641,6 +645,35 @@ TOOLS = [
                 "type": "object",
                 "properties": {},
                 "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "store_financial_fact",
+            "description": "Store a persistent financial fact, context, or temporary situation in long-term memory (e.g. temporary tax installment until December 2026, planned upcoming major expense, job change, debt repayment plan).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "A short snake_case identifier for this fact (e.g. 'impots_ajustement_temporaire_2026')."},
+                    "value": {"type": "string", "description": "The detailed factual statement to remember, including amounts and relevant dates/deadlines."}
+                },
+                "required": ["key", "value"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "forget_financial_fact",
+            "description": "Remove or forget an obsolete financial fact from long-term memory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "The identifier of the fact to remove."}
+                },
+                "required": ["key"]
             }
         }
     }
