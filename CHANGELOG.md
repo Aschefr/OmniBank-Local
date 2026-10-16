@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+## [1.2.3] - 2026-10-16
+
+### Fixed & Critical
+- **Bank Synchronization & 2FA Stream Fix 🏦**: Resolved a critical `UnboundLocalError` crash on real-time SSE stream endpoints (`/sync-stream` and `/test-stream`) that prevented interactive bank synchronization and two-factor authentication (2FA) verification prompts from loading.
+
 ### Added & Improved
 - **AI Assistant Banking Boundaries & 1-Click Bank Sync Workflow 🤖**: Clarified assistant advisory boundaries (strictly read-only banking with zero external wire transfer execution), introduced conversational planned transfer recording (`create_planned_transfer`) to balance projected cash flow, added 1-click direct online bank statement sync (`trigger_bank_sync`) without modal overhead, added resilient name-based fallback resolution for budget envelopes and recurrences, and updated the assistant capabilities modal and documentation.
 - **Dedicated Data Cleanup & Health Toolbox 🧹**: Consolidated fragmented maintenance buttons into a unified diagnostic modal (`#dataCleanupModal`) featuring automated pre-analysis with real-time scan animations, health status pastilles (`✓ Conforme` vs `⚠️ X suggestions`), and interactive remediation. Introduced a new **Abandoned Recurrences Detection Tool** that detects inactive or zeroed-out recurring templates (e.g., stale monthly/yearly charges), provides 1-click template closure, and purges future phantom unreconciled transactions while safely preserving historical records.
