@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 ### [Unreleased]
 
 ### Fixed & Critical
-- **Bank Sync Staging Lock & ID Theft Guardrail 🏦🛡️**: Resolved an issue where newer bank transactions with similar descriptions and amounts could preemptively match and hijack the database IDs of older, already-reconciled transactions during reverse-chronological statement evaluation. Implemented strict two-pass reconciliation (exact bank fingerprint `csv_id` pass first, followed by fuzzy/predictive matching) and added cross-contamination guardrails preventing any transaction with an existing bank ID from being stolen. Ghost operations previously stuck in the staging area (sas) now resolve immediately.
 - **Dashboard Bank Sync Staging Table Ergonomics 📐✨**: Resolved column overlapping in the unrecorded bank transactions staging area (`Statut`, `Date`, and `Description` collision) by allocating explicit column widths, using responsive flex badge containers, and adding graceful text ellipsis. Eliminated the unwanted horizontal scrollbar and nested scroll containers on desktop screens, ensuring a clean 100% responsive width.
 - **Hermetic Test Isolation & Production DB Protection 🧪🛡️**: Migrated chat planned transfer, bank sync tools, and maintenance tests to isolated in-memory SQLite databases (`sqlite:///:memory:` with `StaticPool`), strictly preventing automated test suites from writing or leaving test accounts and fixtures in active profile databases.
+
+## [1.2.4] - 2026-10-16
+
+### Fixed & Critical
+- **Bank Sync Staging Lock & ID Theft Guardrail 🏦🛡️**: Resolved an issue where newer bank transactions with similar descriptions and amounts could preemptively match and hijack the database IDs of older, already-reconciled transactions during reverse-chronological statement evaluation. Implemented strict two-pass reconciliation (exact bank fingerprint `csv_id` pass first, followed by fuzzy/predictive matching) and added cross-contamination guardrails preventing any transaction with an existing bank ID from being stolen. Ghost operations previously stuck in the staging area (sas) due to local storage and sync state mismatches now resolve immediately.
 
 ### Added & Improved
 - **Savings Restitution Planned Return Transfer 🔄💰**: Automatic detection of bridge transfers from savings to checking accounts with immediate assistant proposal and scheduling of the planned return transfer (`create_planned_transfer`) on the day following the scheduled paycheck, guaranteeing that emergency reserve funds are replenished.
