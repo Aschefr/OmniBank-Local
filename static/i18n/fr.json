@@ -3689,5 +3689,9 @@
   "tool_trigger_bank_sync_desc": "Déclenche une synchronisation et un relevé bancaire en arrière-plan pour rapprocher automatiquement les opérations via l'Auto-Pilote.",
   "tool_trigger_bank_sync_title": "Lancement d'un relevé bancaire en ligne",
   "field_label_from_account": "Compte source",
-  "field_label_to_account": "Compte destination"
+  "field_label_to_account": "Compte destination",
+  "chat_btn_sync_now": "Synchroniser maintenant",
+  "chat_sync_in_progress": "Synchronisation en cours...",
+  "chat_sync_success_btn": "Relevé lancé avec succès",
+  "chat_btn_sync_retry": "Réessayer la synchronisation"
 }

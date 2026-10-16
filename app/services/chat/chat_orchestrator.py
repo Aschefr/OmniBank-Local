@@ -105,6 +105,7 @@ def register_notify_on_complete(session_id: int, db: Session, profile_id: Option
             content="Votre conseiller IA a terminé sa réponse. Retrouvez-la dans votre conversation.",
             link_data=json.dumps({"session_id": session_id}),
             is_read=False,
+            created_at=datetime.now(timezone.utc),
         )
         db.add(notif)
         db.commit()
@@ -199,6 +200,15 @@ def detect_mentioned_month_year(text: str, default_year: int, default_month: int
     return detected_year, detected_month or default_month
 
 
+WRITE_TOOLS = {
+    "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
+    "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
+    "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
+    "delete_transaction", "apply_transaction_correction",
+    "create_planned_transfer", "trigger_bank_sync"
+}
+
+
 def execute_chat_action(db: Session, action: str, params: dict) -> dict:
     """
     Exécute de manière transactionnelle une action interactive validée par l'utilisateur.
@@ -225,13 +235,14 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             force_write=True,
         )
     elif action == "delete_budget_envelope":
-        res = delete_budget_envelope_tool(db, budget_id=params.get("budget_id"), force_write=True)
+        res = delete_budget_envelope_tool(db, budget_id=params.get("budget_id"), name=params.get("name"), force_write=True)
     elif action == "allocate_savings_funds":
         res = allocate_savings_funds_tool(
             db,
             budget_id=params.get("budget_id"),
             amount=params.get("amount"),
             note=params.get("note"),
+            name=params.get("name"),
             force_write=True,
         )
     elif action == "create_recurrence_template":
@@ -259,7 +270,7 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             force_write=True,
         )
     elif action == "delete_recurrence_template":
-        res = delete_recurrence_template_tool(db, template_id=params.get("template_id"), force_write=True)
+        res = delete_recurrence_template_tool(db, template_id=params.get("template_id"), description=params.get("description"), force_write=True)
     elif action == "create_category":
         res = create_category_tool(db, name=params.get("name"), type=params.get("type"), force_write=True)
     elif action == "delete_category":
@@ -382,7 +393,9 @@ async def generate_chat_stream(
         else:
             filtered = current_messages
         for m in filtered:
-            payload_msgs.append({"role": m.role, "content": m.content})
+            clean = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', m.content)
+            clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean).strip()
+            payload_msgs.append({"role": m.role, "content": clean})
         return payload_msgs
 
     ollama_msgs = build_ollama_payload(session, messages)
@@ -549,12 +562,7 @@ async def generate_chat_stream(
 
                 yield {"_result": collected_text, "_tool_calls": collected_tool_calls}
 
-            _WRITE_TOOLS = {
-                "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
-                "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
-                "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
-                "delete_transaction", "apply_transaction_correction"
-            }
+            _WRITE_TOOLS = WRITE_TOOLS
             _CACHEABLE_READ_TOOLS = {
                 "get_financial_summary", "get_net_worth", "get_account_balances",
                 "search_transactions", "get_spending_analytics", "get_budgets_status",
@@ -595,10 +603,15 @@ async def generate_chat_stream(
                                     final_text += d['content']
                             except Exception:
                                 pass
-                        if request and await request.is_disconnected():
-                            _client_disconnected = True
-                            return
-                        yield chunk
+                        if request and not _client_disconnected:
+                            try:
+                                if await request.is_disconnected():
+                                    _client_disconnected = True
+                                    logger.info(f"[Chat] Client déconnecté pour session {session_id} — poursuite de la génération en tâche de fond pour notification")
+                            except Exception:
+                                _client_disconnected = True
+                        if not _client_disconnected:
+                            yield chunk
 
                 if not detected_tool_calls:
                     final_text = phase_text
@@ -606,14 +619,18 @@ async def generate_chat_stream(
 
                 if phase_text.strip() or iteration > 0:
                     final_text = ""
-                    yield f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n"
+                    if not _client_disconnected:
+                        yield f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n"
 
                 ollama_msgs.append({"role": "assistant", "tool_calls": detected_tool_calls, "content": phase_text})
 
                 for tool_call in detected_tool_calls:
-                    if request and await request.is_disconnected():
-                        _client_disconnected = True
-                        return
+                    if request and not _client_disconnected:
+                        try:
+                            if await request.is_disconnected():
+                                _client_disconnected = True
+                        except Exception:
+                            _client_disconnected = True
 
                     fn_name = tool_call["function"]["name"]
                     fn_args = tool_call["function"].get("arguments", {})
@@ -636,16 +653,24 @@ async def generate_chat_stream(
                                 pass
 
                     if fn_name in _WRITE_TOOLS:
-                        if request and await request.is_disconnected():
-                            _client_disconnected = True
-                            return
-                        detected_write_actions.append({"action": fn_name, "params": fn_args})
+                        action_params = dict(fn_args) if isinstance(fn_args, dict) else {}
+                        if fn_name == "create_planned_transfer":
+                            if not action_params.get("description"):
+                                action_params["description"] = f"Virement prévisionnel {action_params.get('from_account', '')} -> {action_params.get('to_account', '')}".strip()
+                            if not action_params.get("category"):
+                                action_params["category"] = "Virement interne"
+                            if not action_params.get("date_operation"):
+                                action_params["date_operation"] = date.today().isoformat()
+                        detected_write_actions.append({"action": fn_name, "params": action_params})
 
                     desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
                     if iteration > 0:
                         desc_status = f"🔄 Tour {iteration + 1} — {desc_status}"
-                    yield f"data: {json.dumps({'status': desc_status})}\n\n"
-                    await asyncio.sleep(0.8)
+                    if not _client_disconnected:
+                        yield f"data: {json.dumps({'status': desc_status})}\n\n"
+                        await asyncio.sleep(0.8)
+                    else:
+                        await asyncio.sleep(0.05)
 
                     tool_result = None
                     if fn_name in _CACHEABLE_READ_TOOLS:
@@ -692,15 +717,15 @@ async def generate_chat_stream(
                         elif fn_name == "update_budget_envelope":
                             tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
                         elif fn_name == "delete_budget_envelope":
-                            tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"))
+                            tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"))
                         elif fn_name == "allocate_savings_funds":
-                            tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"))
+                            tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"), fn_args.get("name"))
                         elif fn_name == "create_recurrence_template":
                             tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
                         elif fn_name == "update_recurrence_template":
                             tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
                         elif fn_name == "delete_recurrence_template":
-                            tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"))
+                            tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("description"))
                         elif fn_name == "create_category":
                             tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
                         elif fn_name == "delete_category":
@@ -772,9 +797,10 @@ async def generate_chat_stream(
                     action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
                 if action_str:
                     final_text += action_str
-                    yield f"data: {json.dumps({'content': action_str})}\n\n"
+                    if not _client_disconnected:
+                        yield f"data: {json.dumps({'content': action_str})}\n\n"
 
-            if not final_text:
+            if not final_text and not _client_disconnected:
                 yield f"data: {json.dumps({'error': 'Le modèle n a pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
 
         # Sauvegarde de la réponse finale
@@ -790,9 +816,10 @@ async def generate_chat_stream(
                     snap_y, snap_m = detect_mentioned_month_year(final_text, now_dt.year, now_dt.month)
             snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
             snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
-            if snapshots:
+            if snapshots and not _client_disconnected:
                 yield f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n"
-            bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)
+            clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
+            bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + clean_final_text, entity_snapshots=snapshots_json)
             db.add(bot_msg)
             db.commit()
             _response_saved = True
@@ -809,7 +836,8 @@ async def generate_chat_stream(
         for m in final_msgs_filtered:
             used_tokens += estimate_tokens(m.content)
 
-        yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
+        if not _client_disconnected:
+            yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
 
         if is_first_exchange:
             logger.info(f"[Chat] Lancement de la génération de titre en arrière-plan pour la session {session_id} (profil={active_pid})")
@@ -819,18 +847,20 @@ async def generate_chat_stream(
                 daemon=True,
             ).start()
 
-        yield "data: [DONE]\n\n"
+        if not _client_disconnected:
+            yield "data: [DONE]\n\n"
         _done_sent = True
 
     except GeneratorExit:
         _client_disconnected = True
-        raise
+        logger.info(f"[Chat] GeneratorExit intercepté pour session {session_id} — finalisation en tâche de fond")
     except Exception as e:
         logger.error(f"[Chat] Erreur inattendue dans le flux SSE : {e}", exc_info=True)
-        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        if not _client_disconnected:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     finally:
-        if final_text and not _response_saved and not _client_disconnected:
+        if final_text and not _response_saved:
             try:
                 now_dt = date.today()
                 snap_y = target_period_override["year"]
@@ -843,30 +873,32 @@ async def generate_chat_stream(
                         snap_y, snap_m = detect_mentioned_month_year(final_text, now_dt.year, now_dt.month)
                 snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
-                bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + final_text, entity_snapshots=snapshots_json)
+                clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
+                bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + clean_final_text, entity_snapshots=snapshots_json)
                 db.add(bot_msg)
                 db.commit()
                 _response_saved = True
-                logger.info(f"[Chat] Réponse partielle sauvegardée pour la session {session_id}")
+                logger.info(f"[Chat] Réponse sauvegardée pour la session {session_id}")
             except Exception as save_err:
-                logger.error(f"[Chat] Échec de sauvegarde de la réponse partielle : {save_err}")
+                logger.error(f"[Chat] Échec de sauvegarde de la réponse : {save_err}")
 
-        if session_key in _notify_on_complete:
+        should_notify = (session_key in _notify_on_complete) or _client_disconnected
+        if should_notify and _response_saved:
             _notify_on_complete.discard(session_key)
-            if _response_saved:
-                try:
-                    logger.info(f"[Chat] Génération achevée pour la session {session_id} (profil={active_pid}) — création de notification")
-                    notif = Notification(
-                        type="system",
-                        title="Réponse IA disponible 💬",
-                        content="Votre conseiller IA a terminé sa réponse. Retrouvez-la dans votre conversation.",
-                        link_data=json.dumps({"session_id": session_id}),
-                        is_read=False,
-                    )
-                    db.add(notif)
-                    db.commit()
-                except Exception as notif_err:
-                    logger.error(f"[Chat] Échec de création de la notification de complétion : {notif_err}")
+            try:
+                logger.info(f"[Chat] Génération achevée pour la session {session_id} (profil={active_pid}) — création de notification")
+                notif = Notification(
+                    type="system",
+                    title="Réponse IA disponible 💬",
+                    content="Votre conseiller IA a terminé sa réponse. Retrouvez-la dans votre conversation.",
+                    link_data=json.dumps({"session_id": session_id}),
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc),
+                )
+                db.add(notif)
+                db.commit()
+            except Exception as notif_err:
+                logger.error(f"[Chat] Échec de création de la notification de complétion : {notif_err}")
 
         _generating_sessions.discard(session_key)
 

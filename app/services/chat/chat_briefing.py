@@ -157,11 +157,16 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         from app.routers.budgets import get_budget_status
         b_status = get_budget_status(year=today.year, month=today.month, db=db)
         tight_envelopes = []
+        all_active_envelopes = []
         for b in b_status.get("budgets", []):
             if b.get("envelope_type") != "savings":
+                bid = b.get("id")
+                bname = b.get("name")
+                bamt = b.get("budget_amount", 0.0)
+                all_active_envelopes.append(f'"{bname}" [ID #{bid}] ({bamt:.0f} {base_curr})')
                 pct = b.get("percent", 0.0)
                 if pct >= 80.0:
-                    tight_envelopes.append(f"{b.get('name')}: {b.get('expenses', 0.0):.0f} / {b.get('budget_amount', 0.0):.0f} {base_curr} ({pct:.0f}%)")
+                    tight_envelopes.append(f'"{bname}" [ID #{bid}]: {b.get("expenses", 0.0):.0f} / {bamt:.0f} {base_curr} ({pct:.0f}%)')
 
         # 7. Last Proactive AI Health Report
         last_ai_notif = db.query(Notification).filter(
@@ -215,6 +220,8 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
 
         if tight_envelopes:
             lines.append(f"• Envelopes Under Pressure (>=80% spent): {', '.join(tight_envelopes)}.")
+        if all_active_envelopes:
+            lines.append(f"• All Active Budget Envelopes: {', '.join(all_active_envelopes)}.")
         else:
             lines.append("• Budget Envelopes: All active envelopes currently within normal limits (<80%).")
 

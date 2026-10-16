@@ -3689,5 +3689,9 @@
   "tool_trigger_bank_sync_desc": "Triggers a background online bank statement fetch to automatically reconcile transactions via Auto-Pilot.",
   "tool_trigger_bank_sync_title": "Triggering online bank sync",
   "field_label_from_account": "Source account",
-  "field_label_to_account": "Destination account"
+  "field_label_to_account": "Destination account",
+  "chat_btn_sync_now": "Sync now",
+  "chat_sync_in_progress": "Syncing in progress...",
+  "chat_sync_success_btn": "Sync launched successfully",
+  "chat_btn_sync_retry": "Retry sync"
 }

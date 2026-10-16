@@ -407,18 +407,18 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "update_budget_envelope",
-            "description": "Update details of an existing budget envelope.",
+            "description": "Update details of an existing budget envelope. Identify by budget_id or by name.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "budget_id": {"type": "integer", "description": "The ID of the budget to update."},
-                    "name": {"type": "string", "description": "New name (optional)."},
+                    "budget_id": {"type": "integer", "description": "The ID of the budget to update (if known, or identify by name)."},
+                    "name": {"type": "string", "description": "Name of the budget envelope (used to identify or rename)."},
                     "monthly_amount": {"type": "number", "description": "New budget amount (optional)."},
                     "period": {"type": "string", "description": "New period (optional)."},
                     "categories": {"type": "array", "items": {"type": "string"}, "description": "New list of categories (optional)."},
                     "is_closed": {"type": "boolean", "description": "True to archive/close the budget."}
                 },
-                "required": ["budget_id"]
+                "required": []
             }
         }
     },
@@ -426,13 +426,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "delete_budget_envelope",
-            "description": "Delete a budget envelope from the database.",
+            "description": "Delete a budget envelope from the database. Identify by budget_id or by name.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "budget_id": {"type": "integer", "description": "The ID of the budget to delete."}
+                    "budget_id": {"type": "integer", "description": "The ID of the budget to delete."},
+                    "name": {"type": "string", "description": "Name of the budget envelope to delete."}
                 },
-                "required": ["budget_id"]
+                "required": []
             }
         }
     },
@@ -617,14 +618,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "create_planned_transfer",
-            "description": "Register a planned internal transfer transaction between two accounts in OmniBank (e.g. from a liquid savings account like Livret A to the main checking account) to update projected balances and Reste à Vivre in the application. Note: The actual banking wire transfer must be performed by the user on their bank's application or web portal.",
+            "description": "Register a planned internal transfer transaction between two accounts in OmniBank (e.g. from a liquid savings account like Livret A to the main checking account) to update projected balances and Reste à Vivre in the application. Note: The system automatically assigns the category 'Virement interne'. The actual banking wire transfer must be performed by the user on their bank's application or web portal.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "from_account": {"type": "string", "description": "Source account name or ID (e.g. 'Livret A')."},
                     "to_account": {"type": "string", "description": "Destination account name or ID (e.g. 'CA Centre-Est')."},
                     "amount": {"type": "number", "description": "Amount to transfer in euros."},
-                    "description": {"type": "string", "description": "Label or note for the transfer in OmniBank."},
+                    "description": {"type": "string", "description": "Contextual label for the transfer in OmniBank (e.g. 'Virement de précaution pour solde débiteur')."},
                     "date_operation": {"type": "string", "description": "Date of the transfer in YYYY-MM-DD format (defaults to today)."}
                 },
                 "required": ["from_account", "to_account", "amount"]

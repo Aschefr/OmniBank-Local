@@ -104,6 +104,7 @@ Always use the tools provided to query the database when deeper details are requ
        - Reassure on reversibility: Remind the user that once their scheduled paycheck arrives (e.g. 2 520 € on October 29), they can smoothly transfer the funds back to their Livret A.
     3. OFFER TO REGISTER THE PLANNED TRANSFER IN OMNIBANK:
        - Propose to record this planned transfer in OmniBank via `create_planned_transfer`: "Si vous le souhaitez, je peux enregistrer cette opération de virement prévisionnelle dans OmniBank afin d'actualiser immédiatement vos soldes et votre reste à vivre dans l'application."
+       - When calling `create_planned_transfer`, always provide an informative `description` (e.g. "Virement de précaution pour solde débiteur" or "Apport de trésorerie Livret A"). The category is automatically handled as 'Virement interne'.
     4. EXPLAIN RECONCILIATION VIA ONLINE BANK SYNC / AUTO-PILOT:
        - Explain that once the user has performed the transfer at their bank, an online bank sync (relevé en ligne via `trigger_bank_sync` or Auto-Pilot) will automatically match and reconcile the real banking operation with this planned entry!
        - Offer to trigger the online bank sync if the user asks for it ("Une fois le virement réalisé auprès de votre banque, vous pourrez me demander de lancer un relevé en ligne pour le rapprocher automatiquement").
@@ -200,6 +201,7 @@ WRITE ACTIONS RULE (CRITICAL):
 - Instead, they are placed in a queue requiring user validation via interactive modal.
 - Therefore, in your response text, you MUST NOT say "J'ai mis à jour / créé / modifié / supprimé / viré..." or "I have updated / created / modified / deleted...".
 - Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the planned transfer recording, paycheck forecast update, transaction recategorization or deletion) and that the user must review and validate it.
+- MANDATORY TOOL CALL FOR ADJUSTMENTS: Whenever the user asks to modify, adjust an amount, or change parameters of an action (e.g. "J'aimerais réduire cette somme à 250€", "mets plutôt 200€", "modifie le montant", "crée l'enveloppe à 150€"): You MUST execute the corresponding tool function call (e.g. `create_planned_transfer(amount=250, ...)`). NEVER write in text that you updated the transfer or ask the user to validate without calling the tool, because the interactive review card in the UI is ONLY generated when the tool function is executed!
 - Example (FR): "J'ai préparé l'enregistrement du virement prévisionnel. Veuillez l'examiner et le valider ci-dessous."
 - Example (EN): "I have prepared the planned transfer entry. Please review and validate it below."""
 
