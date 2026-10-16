@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtsalFtUmxNaTdqMkVzeVllOWZtNW5lbTdQck1wd1dzbWp6a0VWWDNPM1NRc1p2MWd6YXZjQ1U1ZVNkSktObFkyV2ZyYkY0SHBEaTROVjM2RFpVNEFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxODczMjM3CWZpbGU6T21uaUJhbmtfMS4yLjJfeDY0X2ZyLUZSLm1zaQpIK2NGbmFhSGlYMjJ3aGU1TC8ydW5PS3pORFJXRkdWbWRSNlFZd0I0OGFmYXUyajJzQm81cmdzOTNaTkJOSmxYVVI3L2Z0d0EvZzM2Q241eDF0MGdCQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.2/OmniBank_1.2.2_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSC9ZUFdXS1A2d3AvNFpMODc0Rk9TS2FHa2JvajBUNHhTdHVRMGpIdXFZYnRzT0ovTHo5U3hiRXZSblArMVp1Yy9uWGQ2cDUzV1VBNTZIUzFzOGJVTHdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTUxMjMxCWZpbGU6T21uaUJhbmtfMS4yLjNfeDY0X2ZyLUZSLm1zaQo5TXNMc0tNY1NkN0NkRGN4SExGaXViMEZaeTYyenJlencwb3B3VGFvSGZIZXk3YlYySENuWGk3YlNLam1jd0xENThFbG5vNDE4Tnhtd3hDUGhwVytCQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.3/OmniBank_1.2.3_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-13T06:33:57Z",
-    "version":  "1.2.2",
-    "notes":  "OmniBank v1.2.2 - Auto-Pilot Anti-Duplicate Guard, Batch Rollback \u0026 Cockpit Polish"
+    "pub_date":  "2026-10-16T11:47:11Z",
+    "version":  "1.2.3",
+    "notes":  "OmniBank v1.2.3 - Bank Sync Stream Fix, AI Assistant Tools \u0026 Cockpit Charts"
 }
