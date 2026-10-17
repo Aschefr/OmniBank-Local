@@ -4628,6 +4628,206 @@ window.OverviewView = {
         const t = (k, fb) => (window.i18n ? window.i18n.t(k) : null) || fb;
         const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
         const isPrivate = document.body.classList.contains('privacy-mode');
+        const isForecastNextMonth = tileKey && tileKey.startsWith('next_month_');
+        const periodGroup = document.getElementById('ovSheetPeriodGroup');
+
+        // ── CAS PARTICULIER : CAP SUR LE MOIS PROCHAIN (next_month_*) ──────────
+        if (isForecastNextMonth) {
+            if (periodGroup) {
+                periodGroup.innerHTML = '';
+            }
+
+            const today = new Date();
+            const curY = today.getFullYear();
+            const curM = today.getMonth(); // 0-11
+            const monthNames = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+            // 6 barres : 4 mois passés + mois en cours + mois prochain (prévisionnel)
+            const monthList = [];
+            for (let offset = -4; offset <= 1; offset++) {
+                const targetD = new Date(curY, curM + offset, 1);
+                const yyyy = targetD.getFullYear();
+                const mm = String(targetD.getMonth() + 1).padStart(2, '0');
+                const mKey = `${yyyy}-${mm}`;
+                const isNext = offset === 1;
+                const isCurrent = offset === 0;
+                let label = `${monthNames[targetD.getMonth()]} ${yyyy !== curY ? yyyy : ''}`.trim();
+                if (isNext) label += ` (${t('cockpit_chart_legend_projected', 'Prévu')})`;
+                else if (isCurrent) label += ` (${t('cockpit_chart_period_current', 'En cours')})`;
+
+                monthList.push({ key: mKey, label, isNext, isCurrent });
+            }
+
+            // Agrégation des transactions par mois
+            const monthIncome = {};
+            const monthFixed = {};
+            const monthVar = {};
+
+            const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+            for (const tx of (this._transactions || [])) {
+                if (tx.is_skipped) continue;
+                if (tx.cross_profile_status === 'pending') continue;
+                if (!tx.date_operation) continue;
+
+                let isIncome = false;
+                let isExpense = false;
+
+                if (accIdStr) {
+                    const isFrom = String(tx.from_account_id) === accIdStr;
+                    const isTo = String(tx.to_account_id) === accIdStr;
+                    if (!isFrom && !isTo) continue;
+                    isIncome = isTo && !isFrom;
+                    isExpense = isFrom && !isTo;
+                } else {
+                    if (tx.from_account_id && tx.to_account_id) continue;
+                    const typeStr = String(tx.type || '');
+                    if (typeStr === 'income' || (tx.to_account_id && !tx.from_account_id)) {
+                        isIncome = true;
+                    } else if (typeStr.startsWith('expense') || (tx.from_account_id && !tx.to_account_id)) {
+                        isExpense = true;
+                    }
+                }
+
+                if (!isIncome && !isExpense) {
+                    const typeStr = String(tx.type || '');
+                    if (typeStr === 'income') isIncome = true;
+                    else if (typeStr.startsWith('expense')) isExpense = true;
+                }
+
+                const mKey = String(tx.date_operation).substring(0, 7);
+                const amt = Math.abs(parseFloat(tx.amount) || 0);
+                const typeStr = String(tx.type || '');
+                const isFixed = typeStr === 'expense_fixed' || tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
+                const isVar = isExpense && (typeStr === 'expense_var' || !isFixed);
+
+                if (isIncome) {
+                    monthIncome[mKey] = (monthIncome[mKey] || 0) + amt;
+                } else if (isExpense) {
+                    if (isFixed) monthFixed[mKey] = (monthFixed[mKey] || 0) + amt;
+                    if (isVar) monthVar[mKey] = (monthVar[mKey] || 0) + amt;
+                }
+            }
+
+            // Si un salaire ou revenu récurrent est attendu d'ici la fin du mois en cours et n'est pas encore versé,
+            // l'intégrer au revenu du mois en cours pour éviter un déficit artificiel (le salaire n'étant pas une transaction passée).
+            const curMonthKey = `${curY}-${String(curM + 1).padStart(2, '0')}`;
+            const todayISO = `${curY}-${String(curM + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const forecast = this._forecastSummary || {};
+            const nextPayDate = this._stats?.next_pay_date || forecast.cycle_forecast?.next_pay_date;
+            const nextPayAmount = Number(this._stats?.next_pay_amount || forecast.cycle_forecast?.projected_income || 0);
+            const mainAccIdStr = String(this._stats?.main_account_id || '1');
+
+            if (!accIdStr || accIdStr === mainAccIdStr) {
+                if (nextPayDate && nextPayAmount > 0 && nextPayDate.startsWith(curMonthKey) && nextPayDate >= todayISO) {
+                    monthIncome[curMonthKey] = (monthIncome[curMonthKey] || 0) + nextPayAmount;
+                }
+            }
+
+            // Données prévisionnelles du mois prochain (extraites de _forecastSummary ou fallback _stats)
+            const nm = forecast.next_month || forecast.trajectory_3m?.months?.[1] || forecast.cycle_forecast || this._stats?.next_month || {};
+            const nmIncome = Number(nm.projected_income ?? nm.income ?? 0);
+            const nmFixed = Number(nm.fixed_charges ?? nm.fixed_expense ?? 0);
+            const nmVar = Number(nm.variable_expenses ?? nm.variable_expense ?? nm.variable_allocated ?? 0);
+            const nmNet = Number(nm.projected_net ?? nm.net_savings ?? (nmIncome - nmFixed - nmVar));
+
+            let chartTitle = '';
+            let metricData = [];
+            let bgColors = [];
+            let borderColors = [];
+            let datasetLabel = '';
+
+            if (tileKey === 'next_month_income') {
+                chartTitle = `📥 ${t('cockpit_forecast_sheet_income_title', 'Recettes prévues')} — ${t('cockpit_chart_history_and_forecast', 'Historique & Prévision')}`;
+                datasetLabel = t('cockpit_forecast_sheet_income_title', 'Recettes');
+                metricData = monthList.map(m => m.isNext ? nmIncome : (Math.round((monthIncome[m.key] || 0) * 100) / 100));
+                bgColors = monthList.map(m => m.isNext ? 'rgba(16, 185, 129, 0.85)' : (m.isCurrent ? 'rgba(16, 185, 129, 0.55)' : 'rgba(16, 185, 129, 0.35)'));
+                borderColors = monthList.map(m => m.isNext ? '#059669' : '#10b981');
+            } else if (tileKey === 'next_month_fixed') {
+                chartTitle = `📌 ${t('cockpit_forecast_sheet_fixed_title', 'Charges fixes prévues')} — ${t('cockpit_chart_history_and_forecast', 'Historique & Prévision')}`;
+                datasetLabel = t('cockpit_forecast_sheet_fixed_title', 'Charges fixes');
+                metricData = monthList.map(m => m.isNext ? nmFixed : (Math.round((monthFixed[m.key] || 0) * 100) / 100));
+                bgColors = monthList.map(m => m.isNext ? 'rgba(99, 102, 241, 0.85)' : (m.isCurrent ? 'rgba(99, 102, 241, 0.55)' : 'rgba(99, 102, 241, 0.35)'));
+                borderColors = monthList.map(m => m.isNext ? '#4f46e5' : '#6366f1');
+            } else if (tileKey === 'next_month_variable') {
+                chartTitle = `🛒 ${t('cockpit_forecast_sheet_variable_title', 'Dépenses variables estimées')} — ${t('cockpit_chart_history_and_forecast', 'Historique & Prévision')}`;
+                datasetLabel = t('cockpit_forecast_sheet_variable_title', 'Dépenses variables');
+                metricData = monthList.map(m => m.isNext ? nmVar : (Math.round((monthVar[m.key] || 0) * 100) / 100));
+                bgColors = monthList.map(m => m.isNext ? 'rgba(245, 158, 11, 0.85)' : (m.isCurrent ? 'rgba(245, 158, 11, 0.55)' : 'rgba(245, 158, 11, 0.35)'));
+                borderColors = monthList.map(m => m.isNext ? '#d97706' : '#f59e0b');
+            } else {
+                // next_month_remaining
+                chartTitle = `💰 ${t('cockpit_forecast_sheet_remaining_title', 'Reste à vivre estimé')} — ${t('cockpit_chart_history_and_forecast', 'Historique & Prévision')}`;
+                datasetLabel = t('cockpit_forecast_sheet_remaining_title', 'Marge nette');
+                metricData = monthList.map(m => {
+                    if (m.isNext) return nmNet;
+                    const inc = monthIncome[m.key] || 0;
+                    const exp = (monthFixed[m.key] || 0) + (monthVar[m.key] || 0);
+                    return Math.round((inc - exp) * 100) / 100;
+                });
+                bgColors = metricData.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)');
+                borderColors = metricData.map(v => v >= 0 ? '#10b981' : '#ef4444');
+            }
+
+            document.getElementById('ovSheetChartTitle').textContent = chartTitle;
+            chartSection.style.display = 'flex';
+
+            this._infoSheetChart = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: monthList.map(m => m.label),
+                    datasets: [{
+                        label: datasetLabel,
+                        data: metricData,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 8,
+                            titleFont: { size: 11, weight: '700' },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                label: (ctx) => {
+                                    const val = ctx.raw;
+                                    if (val === null || val === undefined) return '';
+                                    return `${datasetLabel}: ${isPrivate ? '•••• €' : formatCurrency(val)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(128, 128, 128, 0.08)' },
+                            ticks: {
+                                color: 'rgba(148, 163, 184, 0.7)',
+                                font: { size: 9 },
+                                callback: (v) => isPrivate ? '••••' : formatCurrency(v)
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: 'rgba(148, 163, 184, 0.8)',
+                                font: { size: 9.5, weight: '500' }
+                            }
+                        }
+                    }
+                }
+            });
+            return;
+        }
 
         // Périodes configurables selon le mode
         const periods = isOrgMode ? [
@@ -4641,7 +4841,6 @@ window.OverviewView = {
             { key: '3m', label: t('cockpit_chart_period_3m', '3 mois') }
         ];
 
-        const periodGroup = document.getElementById('ovSheetPeriodGroup');
         if (periodGroup) {
             periodGroup.innerHTML = periods.map(p => `
                 <button type="button" class="cockpit-sheet-period-btn ${p.key === period ? 'active' : ''}" data-period="${p.key}">
@@ -4736,6 +4935,9 @@ window.OverviewView = {
         }
 
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+        const mainAccIdStr = this._stats?.main_account_id ? String(this._stats.main_account_id) : accIdStr;
+        const targetAccId = (tileKey === 'rav' || tileKey === 'projection' || tileKey === 'hero_overdraft') ? (accIdStr || mainAccIdStr) : accIdStr;
+
         for (const tx of (this._transactions || [])) {
             if (tx.is_skipped) continue;
             if (tx.cross_profile_status === 'pending') continue;
@@ -4743,25 +4945,39 @@ window.OverviewView = {
             const txDate = String(tx.date_operation).substring(0, 10);
             if (dailyExpenses[txDate] === undefined) continue;
 
-            if (accIdStr) {
-                const isFrom = String(tx.from_account_id) === accIdStr;
-                const isTo = String(tx.to_account_id) === accIdStr;
+            let isIncoming = false;
+            let isOutgoing = false;
+
+            if (targetAccId) {
+                const isFrom = String(tx.from_account_id) === targetAccId;
+                const isTo = String(tx.to_account_id) === targetAccId;
                 if (!isFrom && !isTo) continue;
+                isIncoming = isTo && !isFrom;
+                isOutgoing = isFrom && !isTo;
             } else {
                 if (tx.from_account_id && tx.to_account_id) continue;
+                const typeStr = String(tx.type || '');
+                if (typeStr === 'income' || (tx.to_account_id && !tx.from_account_id)) {
+                    isIncoming = true;
+                } else if (typeStr.startsWith('expense') || (tx.from_account_id && !tx.to_account_id)) {
+                    isOutgoing = true;
+                }
             }
 
-            const rawAmt = parseFloat(tx.amount) || 0;
-            const amt = Math.abs(rawAmt);
-            const typeStr = String(tx.type || '');
-            const isIncome = typeStr === 'income';
-            const isExpense = typeStr.startsWith('expense') || (!typeStr && rawAmt < 0);
-            const isFixed = typeStr === 'expense_fixed' || tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
-            const isVar = typeStr === 'expense_var' || (isExpense && !isFixed);
+            if (!isIncoming && !isOutgoing) {
+                const typeStr = String(tx.type || '');
+                if (typeStr === 'income') isIncoming = true;
+                else isOutgoing = true;
+            }
 
-            if (isIncome) {
+            const amt = Math.abs(parseFloat(tx.amount) || 0);
+            const typeStr = String(tx.type || '');
+            const isFixed = typeStr === 'expense_fixed' || tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
+            const isVar = isOutgoing && (typeStr === 'expense_var' || !isFixed);
+
+            if (isIncoming) {
                 dailyIncome[txDate] += amt;
-            } else if (isExpense) {
+            } else if (isOutgoing) {
                 dailyExpenses[txDate] += amt;
                 if (isVar) dailyVarExpenses[txDate] += amt;
                 if (tx.reconciliation_date) dailyReconciled[txDate] += amt;
@@ -4814,20 +5030,23 @@ window.OverviewView = {
                 : `💰 ${t('cockpit_chart_title_rav', 'Trajectoire du reste à vivre')}`;
 
             if (!isOrgMode) {
-                // Reste à vivre décroissant au fil des dépenses
-                const initialRav = (this._cockpitGaugeContext?.ravRef && this._cockpitGaugeContext.ravRef > 0)
-                    ? this._cockpitGaugeContext.ravRef
-                    : Math.max(0, (this._cockpitGaugeContext?.ravAmount || 0) + (this._cockpitGaugeContext?.cycleReconciledVarExpenses || 0));
+                // ── Reconstitution dynamique au fil de l'eau du Reste à vivre ──
+                const currentRav = (this._stats?.rest_to_live !== undefined)
+                    ? Number(this._stats.rest_to_live)
+                    : (this._cockpitGaugeContext?.ravAmount || 0);
 
-                let runningRav = initialRav;
-                const ravSeries = [];
-                for (const item of dateList) {
-                    if (item.iso <= todayISO) {
-                        runningRav -= (dailyVarExpenses[item.iso] || 0);
-                        ravSeries.push(Math.round(runningRav * 100) / 100);
-                    } else {
-                        ravSeries.push(null);
-                    }
+                const ravSeries = new Array(dateList.length).fill(null);
+                const todayIdx = dateList.findIndex(item => item.iso === todayISO);
+                const effectiveTodayIdx = todayIdx >= 0 ? todayIdx : (dateList[dateList.length - 1].iso < todayISO ? dateList.length - 1 : 0);
+
+                let runningRav = currentRav;
+                ravSeries[effectiveTodayIdx] = Math.round(runningRav * 100) / 100;
+
+                // Remontée chronologique vers le passé
+                for (let i = effectiveTodayIdx; i > 0; i--) {
+                    const curItem = dateList[i];
+                    runningRav = runningRav + (dailyVarExpenses[curItem.iso] || 0) - (dailyIncome[curItem.iso] || 0);
+                    ravSeries[i - 1] = Math.round(runningRav * 100) / 100;
                 }
 
                 datasets = [
@@ -4838,7 +5057,7 @@ window.OverviewView = {
                         borderColor: '#10b981',
                         backgroundColor: greenGradient,
                         fill: true,
-                        tension: 0.25,
+                        tension: 0.2,
                         pointRadius: dateList.length <= 31 ? 2.5 : 0,
                         pointHoverRadius: 5
                     },
@@ -4846,9 +5065,9 @@ window.OverviewView = {
                         type: 'line',
                         label: 'Seuil 0 €',
                         data: dateList.map(() => 0),
-                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderColor: 'rgba(239, 68, 68, 0.45)',
                         borderDash: [4, 4],
-                        borderWidth: 1,
+                        borderWidth: 1.5,
                         pointRadius: 0,
                         fill: false
                     }
@@ -4859,14 +5078,14 @@ window.OverviewView = {
                 let deltaAfter = 0;
                 for (const item of dateList) {
                     if (item.iso <= todayISO) {
-                        deltaAfter += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                        deltaAfter += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
                     }
                 }
                 let balance = runningBalance - deltaAfter;
                 const series = [];
                 for (const item of dateList) {
                     if (item.iso <= todayISO) {
-                        balance += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                        balance += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
                         series.push(Math.round(balance * 100) / 100);
                     } else {
                         series.push(null);
@@ -4931,19 +5150,150 @@ window.OverviewView = {
                     fill: false
                 });
             }
+        } else if (tileKey === 'projection' || tileKey === 'hero_overdraft') {
+            chartTitle = `🔮 ${t('cockpit_chart_title_projection', 'Solde bancaire prévisionnel')}`;
+
+            const currentBal = (targetAccId && this._accountsMap?.[targetAccId])
+                ? Number(this._accountsMap[targetAccId].balance || 0)
+                : Number(this._stats?.total_balance || 0);
+
+            let sumTxUntilToday = 0;
+            for (const item of dateList) {
+                if (item.iso <= todayISO) {
+                    sumTxUntilToday += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
+                }
+            }
+
+            let balPast = currentBal - sumTxUntilToday;
+            const realBalSeries = [];
+            const projectedBalSeries = [];
+
+            for (const item of dateList) {
+                if (item.iso < todayISO) {
+                    balPast += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
+                    realBalSeries.push(Math.round(balPast * 100) / 100);
+                    projectedBalSeries.push(null);
+                } else if (item.iso === todayISO) {
+                    realBalSeries.push(Math.round(currentBal * 100) / 100);
+                    projectedBalSeries.push(Math.round(currentBal * 100) / 100);
+                } else {
+                    realBalSeries.push(null);
+                    projectedBalSeries.push(null);
+                }
+            }
+
+            // Calcul des opérations futures prévues d'ici la fin de la période
+            const futureDailyIncome = {};
+            const futureDailyExpenses = {};
+            for (const item of dateList) {
+                if (item.iso > todayISO) {
+                    futureDailyIncome[item.iso] = 0;
+                    futureDailyExpenses[item.iso] = 0;
+                }
+            }
+
+            for (const tx of (this._transactions || [])) {
+                if (tx.reconciliation_date) continue;
+                if (tx.is_skipped) continue;
+                if (tx.cross_profile_status === 'pending') continue;
+                if (!tx.date_operation) continue;
+                const txDate = String(tx.date_operation).substring(0, 10);
+                if (txDate <= todayISO || futureDailyIncome[txDate] === undefined) continue;
+
+                const amt = Math.abs(parseFloat(tx.amount) || 0);
+
+                // En cycle de paye : on projette jusqu'au jour de paye en excluant le nouveau salaire
+                if (period === 'current' && this._stats?.next_pay_date && !isOrgMode) {
+                    const cutoffDate = this._stats.next_pay_date;
+                    if (txDate > cutoffDate) continue;
+                    if (txDate === cutoffDate && (tx.is_salary || (tx.type === 'income' && amt >= 1000))) continue;
+                }
+
+                let isInc = false;
+                let isExp = false;
+
+                if (targetAccId) {
+                    const isFrom = String(tx.from_account_id) === targetAccId;
+                    const isTo = String(tx.to_account_id) === targetAccId;
+                    if (!isFrom && !isTo) continue;
+                    isInc = isTo && !isFrom;
+                    isExp = isFrom && !isTo;
+                } else {
+                    if (tx.from_account_id && tx.to_account_id) continue;
+                    const typeStr = String(tx.type || '');
+                    if (typeStr === 'income' || (tx.to_account_id && !tx.from_account_id)) {
+                        isInc = true;
+                    } else if (typeStr.startsWith('expense') || (tx.from_account_id && !tx.to_account_id)) {
+                        isExp = true;
+                    }
+                }
+
+                if (!isInc && !isExp) {
+                    const typeStr = String(tx.type || '');
+                    if (typeStr === 'income') isInc = true;
+                    else isExp = true;
+                }
+
+                if (isInc) futureDailyIncome[txDate] += amt;
+                else if (isExp) futureDailyExpenses[txDate] += amt;
+            }
+
+            let runningFutureBal = currentBal;
+            for (let i = 0; i < dateList.length; i++) {
+                const item = dateList[i];
+                if (item.iso > todayISO) {
+                    runningFutureBal += ((futureDailyIncome[item.iso] || 0) - (futureDailyExpenses[item.iso] || 0));
+                    projectedBalSeries[i] = Math.round(runningFutureBal * 100) / 100;
+                }
+            }
+
+            datasets = [
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_legend_real_balance', 'Solde réel constaté'),
+                    data: realBalSeries,
+                    borderColor: '#3b82f6',
+                    backgroundColor: primaryGradient,
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: dateList.length <= 31 ? 2.5 : 0,
+                    pointHoverRadius: 5
+                },
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_legend_projected_balance', 'Projection fin de cycle'),
+                    data: projectedBalSeries,
+                    borderColor: '#8b5cf6',
+                    borderDash: [5, 4],
+                    borderWidth: 2,
+                    pointRadius: dateList.length <= 31 ? 2.5 : 0,
+                    fill: false,
+                    tension: 0.25
+                },
+                {
+                    type: 'line',
+                    label: 'Seuil 0 €',
+                    data: dateList.map(() => 0),
+                    borderColor: 'rgba(239, 68, 68, 0.45)',
+                    borderDash: [4, 4],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: false
+                }
+            ];
         } else {
-            // Projection ou cartes secondaires
+            // Autres cartes secondaires : solde réel simple
             chartTitle = `🔮 ${t('cockpit_chart_title_projection', 'Solde bancaire')}`;
             let currentBal = this._stats?.total_balance || 0;
             let sumTx = 0;
             for (const item of dateList) {
-                if (item.iso <= todayISO) sumTx += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                if (item.iso <= todayISO) sumTx += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
             }
             let bal = currentBal - sumTx;
             const balSeries = [];
             for (const item of dateList) {
                 if (item.iso <= todayISO) {
-                    bal += (dailyIncome[item.iso] - dailyExpenses[item.iso]);
+                    bal += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
                     balSeries.push(Math.round(bal * 100) / 100);
                 } else {
                     balSeries.push(null);

@@ -468,8 +468,8 @@
   "autopilot_feed_original_amount": "Montant initial : {amount} €",
   "autopilot_feed_original_cat": "Catégorie initiale : {cat}",
   "autopilot_feed_original_label": "Libellé initial : {label}",
-  "autopilot_reason_suspected_duplicate": "Doublon suspecté",
-  "autopilot_reason_suspected_duplicate_desc": "Une prévision budgétaire concurrente a été détectée, requérant une vérification.",
+  "autopilot_reason_suspected_duplicate": "Doublon potentiel",
+  "autopilot_reason_suspected_duplicate_desc": "Une prévision non pointée de même montant a été détectée sur le même compte.",
   "autopilot_reason_user_override": "Modifiée par l'utilisateur",
   "autopilot_reason_user_override_desc": "Opération modifiée manuellement par l'utilisateur (apprentissage mémorisé).",
   "autopilot_reconciled_deviant": "Échéance liée avec ajustement de montant ({expected} € → {actual} €)",
@@ -3682,8 +3682,6 @@
   "autopilot_action_suspected_dup_pending_desc": "En attente de vérification : une prévision de même montant a été détectée.",
   "autopilot_action_pending_review": "À vérifier",
   "autopilot_action_pending_review_desc": "En attente de vérification dans la file de revue.",
-  "autopilot_reason_suspected_duplicate": "Doublon potentiel",
-  "autopilot_reason_suspected_duplicate_desc": "Une prévision non pointée de même montant a été détectée sur le même compte.",
   "maintenance_cleanup_modal_btn": "Boîte à Outils d'Assainissement des Données",
   "maintenance_cleanup_modal_title": "Boîte à Outils d'Assainissement & Santé des Données",
   "maintenance_cleanup_modal_subtitle": "Diagnostic automatique de l'intégrité de vos récurrences, transactions et catégories.",
@@ -3716,5 +3714,8 @@
   "chat_sync_success_btn": "Relevé lancé avec succès",
   "chat_btn_sync_retry": "Réessayer la synchronisation",
   "autopilot_action_linked_forecast_done": "Vérifiée & liée",
-  "autopilot_action_linked_forecast_desc": "L'opération a été vérifiée manuellement et liée à sa prévision budgétaire."
+  "autopilot_action_linked_forecast_desc": "L'opération a été vérifiée manuellement et liée à sa prévision budgétaire.",
+  "cockpit_chart_legend_real_balance": "Solde réel constaté",
+  "cockpit_chart_legend_projected_balance": "Solde projeté",
+  "cockpit_chart_history_and_forecast": "Historique & Prévision"
 }
