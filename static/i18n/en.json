@@ -468,8 +468,8 @@
   "autopilot_feed_original_amount": "Initial amount: {amount} €",
   "autopilot_feed_original_cat": "Initial category: {cat}",
   "autopilot_feed_original_label": "Initial label: {label}",
-  "autopilot_reason_suspected_duplicate": "Suspected duplicate",
-  "autopilot_reason_suspected_duplicate_desc": "A competing budget forecast was detected, requiring review.",
+  "autopilot_reason_suspected_duplicate": "Potential duplicate",
+  "autopilot_reason_suspected_duplicate_desc": "An unreconciled forecast with the same amount was detected on the same account.",
   "autopilot_reason_user_override": "Modified by user",
   "autopilot_reason_user_override_desc": "Transaction manually modified by the user (rule learned).",
   "autopilot_reconciled_deviant": "Forecast linked with adjusted amount ({expected} € → {actual} €)",
@@ -3682,8 +3682,6 @@
   "autopilot_action_suspected_dup_pending_desc": "Pending verification: a forecast with the same amount was detected.",
   "autopilot_action_pending_review": "To review",
   "autopilot_action_pending_review_desc": "Pending verification in review queue.",
-  "autopilot_reason_suspected_duplicate": "Potential duplicate",
-  "autopilot_reason_suspected_duplicate_desc": "An unreconciled forecast with the same amount was detected on the same account.",
   "maintenance_cleanup_modal_btn": "Data Cleanup & Health Toolbox",
   "maintenance_cleanup_modal_title": "Data Cleanup & Health Toolbox",
   "maintenance_cleanup_modal_subtitle": "Automated health check and remediation for recurrences, transactions, and categories.",
@@ -3716,5 +3714,8 @@
   "chat_sync_success_btn": "Sync launched successfully",
   "chat_btn_sync_retry": "Retry sync",
   "autopilot_action_linked_forecast_done": "Verified & linked",
-  "autopilot_action_linked_forecast_desc": "The transaction was manually verified and linked to its budget forecast."
+  "autopilot_action_linked_forecast_desc": "The transaction was manually verified and linked to its budget forecast.",
+  "cockpit_chart_legend_real_balance": "Actual balance",
+  "cockpit_chart_legend_projected_balance": "Projected balance",
+  "cockpit_chart_history_and_forecast": "History & Forecast"
 }
