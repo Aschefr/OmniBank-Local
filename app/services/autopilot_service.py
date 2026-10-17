@@ -1475,6 +1475,74 @@ def get_autopilot_decisions_feed(
             or snap.get("capped_reason")
         )
 
+        # Détection d'un arbitrage ou d'une correction manuelle utilisateur
+        user_override = None
+        saved_override = snap.get("user_override")
+
+        after_snap = snap.get("after") or {}
+        is_reconciliation = (
+            d.decision_type in ["reconciliation", "reconcile"]
+            or (d.action and (d.action.startswith("LINKED_") or "RECONCILED" in d.action))
+        )
+
+        # La référence de départ de la décision Auto-Pilote est ce que le moteur a produit (after_snap),
+        # ou à défaut pour une prévision liée le libellé de la prévision.
+        # Attention : bank_tx contient le libellé bancaire brut avant rapprochement,
+        # qui ne doit JAMAIS être confondu avec un libellé décidé par l'utilisateur.
+        initial_cat = (
+            (saved_override.get("original_category") if saved_override else None)
+            or after_snap.get("category")
+            or snap.get("category")
+            or (snap.get("bank_tx", {}).get("category") if not is_reconciliation else None)
+        )
+        initial_desc = (
+            (saved_override.get("original_description") if saved_override else None)
+            or after_snap.get("description")
+            or (snap.get("forecast_description") if is_reconciliation else None)
+            or snap.get("description")
+            or (snap.get("bank_tx", {}).get("description") if not is_reconciliation else None)
+        )
+        initial_amt = (
+            (saved_override.get("original_amount") if saved_override else None)
+            or after_snap.get("amount")
+            or snap.get("actual_amount")
+            or snap.get("amount")
+            or (snap.get("bank_tx", {}).get("amount") if not is_reconciliation else None)
+        )
+        initial_reason = (saved_override.get("original_reason") if saved_override else None) or snap.get("decision_reason") or reason
+
+        current_cat = live_tx.category if live_tx else None
+        current_desc = live_tx.description if live_tx else None
+        current_amt = live_tx.amount if live_tx else None
+
+        cat_changed = bool(saved_override and saved_override.get("category_changed")) or bool(
+            not is_reconciliation and live_tx and current_cat and initial_cat and current_cat.strip() != initial_cat.strip()
+        )
+        desc_changed = bool(saved_override and saved_override.get("description_changed")) or bool(
+            not is_reconciliation and live_tx and current_desc and initial_desc and current_desc.strip() != initial_desc.strip()
+        )
+        amt_changed = bool(saved_override and saved_override.get("amount_changed")) or bool(
+            not is_reconciliation and live_tx and current_amt is not None and initial_amt is not None and abs(float(current_amt) - abs(float(initial_amt))) > 0.005
+        )
+
+        if saved_override or cat_changed or desc_changed or amt_changed:
+            user_override = {
+                "is_overridden": True,
+                "original_category": initial_cat,
+                "current_category": current_cat or cat,
+                "category_changed": cat_changed,
+                "original_description": initial_desc,
+                "current_description": current_desc or lbl,
+                "description_changed": desc_changed,
+                "original_amount": initial_amt,
+                "current_amount": current_amt or raw_amt,
+                "amount_changed": amt_changed,
+                "original_reason": initial_reason,
+                "learned_rule": saved_override.get("learned_rule", True) if saved_override else True,
+                "overridden_at": saved_override.get("overridden_at") if saved_override else None
+            }
+            snap["user_override"] = user_override
+
         items.append({
             "id": d.id,
             "batch_id": d.batch_id,
@@ -1494,7 +1562,8 @@ def get_autopilot_decisions_feed(
             "is_undone": d.is_undone,
             "undone_at": d.undone_at,
             "created_at": d.created_at,
-            "details": snap
+            "details": snap,
+            "user_override": user_override
         })
 
     return {
@@ -1759,6 +1828,35 @@ def override_autopilot_decision(
                 category=tx.category,
                 is_manual=True
             )
+
+        # Enregistrer l'état de correction dans le snapshot de la décision
+        snap = {}
+        if decision.raw_snapshot:
+            try:
+                snap = json.loads(decision.raw_snapshot)
+            except Exception:
+                pass
+
+        orig_category = before_snap.get("category")
+        orig_description = before_snap.get("description")
+        orig_amount = before_snap.get("amount")
+
+        snap["user_override"] = {
+            "is_overridden": True,
+            "original_category": orig_category,
+            "new_category": tx.category,
+            "category_changed": bool(orig_category != tx.category),
+            "original_description": orig_description,
+            "new_description": tx.description,
+            "description_changed": bool(orig_description != tx.description),
+            "original_amount": orig_amount,
+            "new_amount": tx.amount,
+            "amount_changed": bool(orig_amount is not None and abs(float(orig_amount) - float(tx.amount)) > 0.001),
+            "original_reason": snap.get("decision_reason"),
+            "learned_rule": bool(learned_rule),
+            "overridden_at": datetime.now(timezone.utc).isoformat()
+        }
+        decision.raw_snapshot = json.dumps(snap)
 
         db.commit()
         stats_cache.invalidate(pid)
@@ -2341,6 +2439,31 @@ def update_review_transaction(
     for dlog in dlogs:
         dlog.action = "AUTO_COMMIT" if "COMING" not in dlog.action else "AUTO_COMMIT_COMING"
         dlog.confidence_score = 100.0
+        dlog_snap = {}
+        if dlog.raw_snapshot:
+            try:
+                dlog_snap = json.loads(dlog.raw_snapshot)
+            except Exception:
+                pass
+        orig_cat = before_snap.get("category")
+        orig_desc = before_snap.get("description")
+        orig_amt = before_snap.get("amount")
+        dlog_snap["user_override"] = {
+            "is_overridden": True,
+            "original_category": orig_cat,
+            "new_category": tx.category,
+            "category_changed": bool(orig_cat != tx.category),
+            "original_description": orig_desc,
+            "new_description": tx.description,
+            "description_changed": bool(orig_desc != tx.description),
+            "original_amount": orig_amt,
+            "new_amount": tx.amount,
+            "amount_changed": bool(orig_amt is not None and abs(float(orig_amt) - float(tx.amount)) > 0.001),
+            "original_reason": dlog_snap.get("decision_reason"),
+            "learned_rule": bool(learned),
+            "overridden_at": datetime.utcnow().isoformat()
+        }
+        dlog.raw_snapshot = json.dumps(dlog_snap)
 
     record_action(
         db,

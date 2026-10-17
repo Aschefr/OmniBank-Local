@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Ergonomics & UI
+- **Auto-Pilot User Override Traceability & Audit Progression 👤🔄**: Actions performed via "Modifier et apprendre" or manual review on Auto-Pilot decisions are now visibly tracked in the Decision Feed. Initial reason badges (e.g. `🤖 Catégorisée par IA`), original categories, descriptions, or amounts display with strikethrough typography and directional arrows pointing to the updated values and a dedicated `👤 Modifiée par l'utilisateur` badge. Hover tooltips provide the complete audit history of original values.
+- **Auto-Pilot Decision Feed Reason Badges & Rich Tooltips 🤖💡**: Replaced ambiguous decision reason badges (e.g. `IA existante` → `🤖 Catégorisée par IA`) with clear, icon-prefixed labels and rich contextual hover tooltips explaining the exact arbitration source (AI categorization into existing budget envelopes, new category creation, merchant rules, history matching, and duplicate safeguards).
+
 ## [1.2.5] - 2026-10-16
 
 ### Fixed & Critical

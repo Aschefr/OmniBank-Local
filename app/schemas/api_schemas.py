@@ -456,6 +456,7 @@ class AutopilotDecisionItem(BaseModel):
     undone_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     details: Optional[Dict[str, Any]] = None
+    user_override: Optional[Dict[str, Any]] = None
 
 
 class AutopilotDecisionFeedOut(BaseModel):
