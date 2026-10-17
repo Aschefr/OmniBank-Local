@@ -2088,7 +2088,7 @@ window.AutopilotView = {
         window.i18n.translateDOM(feed);
     },
 
-    formatReasonBadge(reason) {
+    formatReasonBadge(reason, isStrikethrough = false) {
         if (!reason) return '';
         const key = 'autopilot_reason_' + reason;
         const descKey = key + '_desc';
@@ -2096,7 +2096,26 @@ window.AutopilotView = {
         const label = (translated && translated !== key) ? translated : reason;
         const desc = window.i18n ? window.i18n.t(descKey) : null;
         const tooltip = (desc && desc !== descKey) ? desc : (window.i18n ? window.i18n.t('autopilot_feed_reason_title').replace('{reason}', escapeHtml(label)) : `Raison de la décision : ${escapeHtml(label)}`);
-        return `<span class="ap-reason-badge" title="${escapeHtml(tooltip)}">${escapeHtml(label)}</span>`;
+        let icon = '';
+        if (reason === 'ai_existing' || reason === 'ai_new_category' || reason === 'chameleon_ai') {
+            icon = '🤖 ';
+        } else if (reason === 'rule') {
+            icon = '⚙️ ';
+        } else if (reason === 'history') {
+            icon = '🕒 ';
+        } else if (reason === 'linked_forecast' || reason === 'manual_link_review') {
+            icon = '🔗 ';
+        } else if (reason === 'suspected_duplicate') {
+            icon = '⚠️ ';
+        } else if (reason === 'user_override') {
+            icon = '👤 ';
+        }
+        if (!isStrikethrough && reason !== 'user_override') {
+            return `<span class="ap-reason-badge" title="${escapeHtml(tooltip)}">${icon}${escapeHtml(label)}</span>`;
+        }
+        const strikeClass = isStrikethrough ? ' ap-reason-strikethrough' : '';
+        const overrideClass = reason === 'user_override' ? ' ap-reason-override' : '';
+        return `<span class="ap-reason-badge${strikeClass}${overrideClass}" title="${escapeHtml(tooltip)}">${icon}${escapeHtml(label)}</span>`;
     },
 
     _renderDecisionItem(d) {
@@ -2173,8 +2192,10 @@ window.AutopilotView = {
         }
 
         const isUndone = d.is_undone;
+        const uo = d.user_override;
+        const isOverridden = Boolean(uo && uo.is_overridden);
         
-        // Customized display for amounts depending on decision type
+        // Customized display for amounts depending on decision type & manual override
         let amtDisplay = `${d.amount >= 0 ? '+' : ''}${d.amount.toFixed(2)} €`;
         let amtColor = d.amount < 0 ? 'var(--text-main)' : '#10b981';
 
@@ -2196,6 +2217,62 @@ window.AutopilotView = {
                 ? `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`
                 : `${newAmt} €`;
             amtColor = '#10b981';
+        } else if (isOverridden && uo.amount_changed && uo.original_amount !== null && uo.original_amount !== undefined) {
+            const origAmt = Number(uo.original_amount).toFixed(2);
+            const origAmtTip = window.i18n ? window.i18n.t('autopilot_feed_original_amount').replace('{amount}', origAmt) : `Montant initial : ${origAmt} €`;
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.55; font-size: 11px; font-weight: normal; margin-right: 2px;" title="${escapeHtml(origAmtTip)}">${origAmt} €</span> <span class="ap-override-arrow">➔</span> ${amtDisplay}`;
+        }
+
+        // Label display (support manual rename override)
+        let labelHtml = '';
+        if (isOverridden && uo.description_changed && uo.original_description) {
+            const origLblTip = window.i18n ? window.i18n.t('autopilot_feed_original_label').replace('{label}', uo.original_description) : `Libellé initial : ${uo.original_description}`;
+            labelHtml = `
+                <span style="text-decoration: line-through; opacity: 0.55; font-weight: normal;" title="${escapeHtml(origLblTip)}">${escapeHtml(uo.original_description)}</span>
+                <span class="ap-override-arrow">➔</span>
+                <span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>
+            `;
+        } else {
+            labelHtml = `<span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>`;
+        }
+
+        // Category display (support manual re-categorisation override)
+        let categoryHtml = '';
+        if (isOverridden && uo.category_changed && uo.original_category) {
+            const origCatTip = window.i18n ? window.i18n.t('autopilot_feed_original_cat').replace('{cat}', uo.original_category) : `Catégorie initiale : ${uo.original_category}`;
+            categoryHtml = `
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                    ${this._icons.tag}
+                    <span style="text-decoration: line-through; opacity: 0.55;" title="${escapeHtml(origCatTip)}">${escapeHtml(uo.original_category)}</span>
+                    <span class="ap-override-arrow">➔</span>
+                    <span>${escapeHtml(d.category || '—')}</span>
+                </span>
+            `;
+        } else {
+            categoryHtml = `<span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.tag} ${escapeHtml(d.category || '—')}</span>`;
+        }
+
+        // Reason badge display (support initial reason strikethrough -> user override badge)
+        let reasonBadgeHtml = '';
+        if (d.details && (d.details.linked_to_forecast_description || d.details.forecast_description)) {
+            const forecastDesc = d.details.linked_to_forecast_description || d.details.forecast_description;
+            reasonBadgeHtml = `
+                <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
+                    🔗 Liée à : ${escapeHtml(forecastDesc)}
+                </span>
+            `;
+            if (isOverridden) {
+                reasonBadgeHtml += ` <span class="ap-override-arrow">➔</span> ` + this.formatReasonBadge('user_override');
+            }
+        } else if (isOverridden) {
+            const origReason = uo.original_reason || d.reason || 'ai_existing';
+            reasonBadgeHtml = `
+                ${this.formatReasonBadge(origReason, true)}
+                <span class="ap-override-arrow">➔</span>
+                ${this.formatReasonBadge('user_override')}
+            `;
+        } else {
+            reasonBadgeHtml = this.formatReasonBadge(d.reason);
         }
 
         return `
@@ -2208,17 +2285,13 @@ window.AutopilotView = {
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;">
-                            <span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>
-                            ${d.raw_label && d.raw_label !== d.label ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(d.raw_label)})</span>` : ''}
+                            ${labelHtml}
+                            ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(d.raw_label)})</span>` : ''}
                         </div>
                         <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.tag} ${escapeHtml(d.category || '—')}</span>
+                            ${categoryHtml}
                             ${d.account_name ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
-                            ${(d.details && (d.details.linked_to_forecast_description || d.details.forecast_description)) ? `
-                                <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
-                                    🔗 Liée à : ${escapeHtml(d.details.linked_to_forecast_description || d.details.forecast_description)}
-                                </span>
-                            ` : this.formatReasonBadge(d.reason)}
+                            ${reasonBadgeHtml}
                         </div>
                     </div>
                 </div>
