@@ -73,9 +73,9 @@ Write-Host "  All checks passed" -ForegroundColor Green
 # --- Step 1: Version bump ---
 Write-Host "`n[1/8] Bumping version to $Version..." -ForegroundColor Yellow
 
-# package.json + tauri.conf.json - use Python per G-07 rule (safe JSON encoding)
+# package.json + tauri.conf.json + app/main.py - use Python per G-07 rule (safe JSON encoding)
 python -c @"
-import json, sys
+import json, sys, re
 v = sys.argv[1]
 for path in ['package.json', 'src-tauri/tauri.conf.json']:
     with open(path, 'r', encoding='utf-8') as f:
@@ -84,11 +84,17 @@ for path in ['package.json', 'src-tauri/tauri.conf.json']:
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write('\n')
+
+with open('app/main.py', 'r', encoding='utf-8') as f:
+    content = re.sub(r'version="[0-9\.]+"', f'version="{v}"', f.read())
+with open('app/main.py', 'w', encoding='utf-8') as f:
+    f.write(content)
 print(f'Bumped to {v}')
 "@ $Version
 
 Write-Host "  package.json: $Version" -ForegroundColor Green
 Write-Host "  tauri.conf.json: $Version" -ForegroundColor Green
+Write-Host "  app/main.py: $Version" -ForegroundColor Green
 
 # --- Step 2: Build sidecar ---
 if (-not $SkipSidecar) {
