@@ -3,6 +3,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     formatMessageContent(msg) {
         const isUser = msg.role === 'user';
         let displayContent = msg.content;
+        let suggestions = [];
         
         if (!isUser && window.marked && window.DOMPurify) {
             let rawContent = msg.content || '';
@@ -32,6 +33,31 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
             // Strip TOOLS_USED comment (badges are rendered in renderHistory meta-row)
             rawContent = rawContent.replace(/<!--\s*TOOLS_USED:\s*[^>]+?\s*-->\n?/, '');
+
+            // Extract suggestions from ```suggestions ... ``` or ```suggest ... ``` blocks
+            rawContent = rawContent.replace(/```(?:suggestions?|questions?|suggest)\s*([\s\S]*?)\s*```/g, (match, block) => {
+                const trimmed = block.trim();
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed)) {
+                            for (const item of parsed) {
+                                if (typeof item === 'string' && item.trim().length > 2) {
+                                    suggestions.push(item.trim());
+                                }
+                            }
+                            return '';
+                        }
+                    } catch(e) {}
+                }
+                const lines = trimmed.split('\n')
+                    .map(l => l.trim())
+                    .filter(l => l.length > 0)
+                    .map(l => l.replace(/^[-*•\d.]+\s*/, '').replace(/^["']|["']$/g, '').trim())
+                    .filter(l => l.length > 2);
+                suggestions.push(...lines);
+                return '';
+            });
 
             // Robust multi-pass action extractor (supports code-fenced blocks and balanced inline JSON with nested objects)
             // 1. First, extract actions from ```action ... ``` or ```json ... ``` blocks
@@ -174,6 +200,47 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 
                 // Wrap markdown tables for responsive scrolling & beautiful styling
                 displayContent = displayContent.replace(/<table>([\s\S]*?)<\/table>/g, '<div class="chat-table-wrapper"><table class="chat-markdown-table">$1</table></div>');
+
+                // Smart fallback: extract closing questions ending with '?' if no explicit suggestions block
+                if (suggestions.length === 0) {
+                    const textWithoutCode = rawContent.replace(/```[\s\S]*?```/g, '').trim();
+                    const paragraphs = textWithoutCode.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+                    if (paragraphs.length > 0) {
+                        const trailingText = paragraphs.slice(-2).join('\n\n');
+                        const questionRegex = /(?:(?:Souhaitez|Voulez|Préférez)-vous|Est-ce que vous souhaitez|Désirez-vous|Do you want(?: me)? to|Would you like(?: me)? to)\s+([^?]+)\?/gi;
+                        let qMatch;
+                        while ((qMatch = questionRegex.exec(trailingText)) !== null) {
+                            const fullQ = qMatch[0].trim();
+                            let cleanAction = fullQ.replace(/\*\*/g, '').trim();
+                            if (/^souhaitez-vous que nous\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^souhaitez-vous que nous\s+/i, 'Oui, regardons ');
+                            } else if (/^souhaitez-vous que je\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^souhaitez-vous que je\s+/i, 'Oui, faites ');
+                            } else if (/^souhaitez-vous qu'on\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^souhaitez-vous qu'on\s+/i, 'Oui, regardons ');
+                            } else if (/^souhaitez-vous\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^souhaitez-vous\s+/i, 'Oui, ');
+                            } else if (/^voulez-vous que (?:nous|on)\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^voulez-vous que (?:nous|on)\s+/i, 'Oui, regardons ');
+                            } else if (/^voulez-vous que je\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^voulez-vous que je\s+/i, 'Oui, faites ');
+                            } else if (/^voulez-vous\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^voulez-vous\s+/i, 'Oui, ');
+                            } else if (/^désirez-vous\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^désirez-vous\s+/i, 'Oui, ');
+                            } else if (/^do you want(?: me)? to\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^do you want(?: me)? to\s+/i, 'Yes, please ');
+                            } else if (/^would you like(?: me)? to\s+/i.test(cleanAction)) {
+                                cleanAction = cleanAction.replace(/^would you like(?: me)? to\s+/i, 'Yes, please ');
+                            }
+                            cleanAction = cleanAction.replace(/\s*\?$/, '').trim();
+                            suggestions.push({
+                                label: cleanAction,
+                                prompt: cleanAction
+                            });
+                        }
+                    }
+                }
                 
                 // Replace placeholders back to HTML details after sanitization
                 if (hasThink) {
@@ -217,9 +284,20 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         } else if (actionObj.action === 'create_recurrence_template') {
                             desc = window.i18n.tp('chat_action_propose_create_recurrence', { desc: actionObj.params.description, amount: actionObj.params.amount });
                         } else if (actionObj.action === 'update_recurrence_template') {
-                            desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: actionObj.params.description || actionObj.params.template_id });
+                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
+                            if (actionObj.params.is_active === true) {
+                                desc = `Réactivation de la charge récurrente ${recName}`;
+                            } else if (actionObj.params.is_active === false) {
+                                desc = `Désactivation de la charge récurrente ${recName}`;
+                            } else {
+                                desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: recName });
+                            }
+                        } else if (actionObj.action === 'close_recurrence_template') {
+                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
+                            desc = `Clôture de la charge récurrente ${recName} : arrêt des échéances futures et conservation de l'historique`;
                         } else if (actionObj.action === 'delete_recurrence_template') {
-                            desc = window.i18n.tp('chat_action_propose_delete_recurrence', { id: actionObj.params.template_id });
+                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
+                            desc = `Suppression définitive de la charge récurrente ${recName}`;
                         } else if (actionObj.action === 'create_category') {
                             desc = window.i18n.tp('chat_action_propose_create_category', { name: actionObj.params.name });
                         } else if (actionObj.action === 'delete_category') {
@@ -263,8 +341,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
 
                 // Check if assistant promised an action in text but no action card was emitted
-                if (actions.length === 0 && this._hasPromisedAction(rawContent)) {
-                    const msgId = msg.id || 0;
+                // IMPORTANT: Never display the recovery button while streaming or on unpersisted messages.
+                // The AI often outputs the action block at the end of its response, or the backend auto-recovers it upon completion.
+                const isStreamingMsg = !!(this.isStreaming || this._streamReader || window.ChatView?.isStreaming || window.ChatView?._streamReader || (msg && msg._streaming));
+                const hasValidPersistedId = !!(msg && msg.id && typeof msg.id === 'number' && msg.id > 0);
+                const wasStoppedByUser = rawContent.includes('🛑');
+
+                if (!isStreamingMsg && hasValidPersistedId && !wasStoppedByUser && actions.length === 0 && this._hasPromisedAction(rawContent)) {
+                    const msgId = msg.id;
                     const recTitle = window.i18n ? window.i18n.t('chat_missing_action_title') : "Action proposée non générée";
                     const recDesc = window.i18n ? window.i18n.t('chat_missing_action_desc') : "L'assistant a mentionné préparer une opération mais la carte d'action ne s'est pas affichée.";
                     const recBtn = window.i18n ? window.i18n.t('chat_btn_recover_action') : "Générer les cartes d'actions";
@@ -291,6 +375,37 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         if (!isUser) {
             displayContent = this.enrichWithEntityBadges(displayContent, msg.entity_snapshots);
+
+            // Render 1-click follow-up suggestions chips if present and not streaming
+            const isStreamingMsg = !!(this.isStreaming || this._streamReader || window.ChatView?.isStreaming || window.ChatView?._streamReader || (msg && msg._streaming));
+            if (suggestions && suggestions.length > 0 && !isStreamingMsg) {
+                const suggestionsTitle = window.i18n ? window.i18n.t('chat_suggestions_title') : 'Suggestions de suite :';
+                let chipsHtml = '';
+                for (const item of suggestions) {
+                    const label = typeof item === 'string' ? item : (item.label || item.prompt || '');
+                    const prompt = typeof item === 'string' ? item : (item.prompt || item.label || '');
+                    if (!label.trim()) continue;
+                    chipsHtml += `
+                        <button type="button" class="chat-suggestion-chip" data-prompt="${window.escapeHtml(prompt)}" onclick="window.ChatView.sendQuickSuggestion(this.getAttribute('data-prompt'))">
+                            <span class="chat-suggestion-chip-icon">👉</span>
+                            <span class="chat-suggestion-chip-text">${window.escapeHtml(label)}</span>
+                        </button>
+                    `;
+                }
+                if (chipsHtml) {
+                    displayContent += `
+                        <div class="chat-suggestions-container">
+                            <div class="chat-suggestions-header">
+                                <span class="chat-suggestions-icon">✨</span>
+                                <span class="chat-suggestions-title" data-i18n="chat_suggestions_title">${suggestionsTitle}</span>
+                            </div>
+                            <div class="chat-suggestions-list">
+                                ${chipsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
         }
 
         // Append status indicator if present AFTER entity enrichment to prevent badges inside status text
@@ -1650,6 +1765,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
     _hasPromisedAction(rawContent) {
         if (!rawContent || typeof rawContent !== 'string') return false;
+        if (rawContent.includes('🛑')) return false;
         const lower = rawContent.toLowerCase();
         return (
             lower.includes("j'ai préparé l'enregistrement") ||
@@ -1761,6 +1877,19 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (!t) return 'Outil';
         let clean = t.startsWith('tool_') ? t.substring(5) : t;
         return clean.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    },
+
+    sendQuickSuggestion(promptText) {
+        if (!promptText) return;
+        if (this.isStreaming || this._streamReader || window.ChatView?.isStreaming || window.ChatView?._streamReader) return;
+        const input = document.getElementById('chatInput');
+        if (!input) return;
+        input.value = promptText;
+        if (typeof this.sendMessage === 'function') {
+            this.sendMessage();
+        } else if (window.ChatView && typeof window.ChatView.sendMessage === 'function') {
+            window.ChatView.sendMessage();
+        }
     }
 });
 

@@ -25,6 +25,199 @@
     color: var(--text-main);
     border: 1px solid var(--border-color);
     border-bottom-left-radius: 4px;
+    font-size: 14px;
+    line-height: 1.65;
+    letter-spacing: 0.01em;
+}
+
+.chat-bubble.ai p {
+    margin-top: 0;
+    margin-bottom: 16px;
+    line-height: 1.7;
+}
+.chat-bubble.ai p:last-child {
+    margin-bottom: 0;
+}
+
+.chat-bubble.ai h1,
+.chat-bubble.ai h2,
+.chat-bubble.ai h3,
+.chat-bubble.ai h4 {
+    font-family: inherit;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    color: #ffffff;
+}
+
+.chat-bubble.ai h1 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin-top: 28px;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-bubble.ai h2 {
+    font-size: 1.22rem;
+    font-weight: 700;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-bubble.ai h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 22px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+}
+
+.chat-bubble.ai h4 {
+    font-size: 1.02rem;
+    font-weight: 600;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    color: var(--accent);
+}
+
+.chat-bubble.ai > h1:first-child,
+.chat-bubble.ai > h2:first-child,
+.chat-bubble.ai > h3:first-child,
+.chat-bubble.ai > h4:first-child {
+    margin-top: 0;
+}
+
+.chat-bubble.ai ul, .chat-bubble.ai ol {
+    padding-left: 20px;
+    margin: 12px 0 16px 0;
+}
+
+.chat-bubble.ai li {
+    margin-bottom: 10px;
+    line-height: 1.65;
+    padding-left: 2px;
+}
+
+.chat-bubble.ai li:last-child {
+    margin-bottom: 0;
+}
+
+.chat-bubble.ai ul > li::marker {
+    color: var(--accent);
+    font-size: 1.1em;
+}
+
+.chat-bubble.ai ol > li::marker {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* 1-click follow-up suggestions */
+.chat-suggestions-container {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-suggestions-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent, #6366f1);
+}
+
+.chat-suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chat-suggestion-chip {
+    display: inline-flex;
+    align-items: center;
+    text-align: left;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 13px;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-family: inherit;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.chat-suggestion-chip:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.55);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.chat-suggestion-chip:active {
+    transform: translateY(0);
+}
+
+.chat-suggestion-chip-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.chat-suggestion-chip-text {
+    flex: 1;
+}
+
+.chat-bubble.ai strong, .chat-bubble.ai b {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.chat-bubble.ai blockquote {
+    margin: 12px 0;
+    padding: 8px 14px;
+    background: rgba(51, 102, 255, 0.07);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-muted);
+}
+.chat-bubble.ai blockquote p {
+    margin-bottom: 0;
+}
+
+.chat-bubble.ai code:not(pre code) {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    color: #38bdf8;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chat-bubble.ai hr {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+    margin: 18px 0;
 }
 
 /* Markdown Tables in Chat Bubbles */

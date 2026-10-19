@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 
 # Patterns déclencheurs signalant une action promise
 PROMISED_ACTION_PATTERNS = [
-    re.compile(r"j'ai préparé (?:l'enregistrement|le virement|la modification|la création)", re.IGNORECASE),
+    re.compile(r"j'ai préparé (?:l'enregistrement|le virement|la modification|la création|la clôture|la cloture|la réactivation|la reactivation)", re.IGNORECASE),
     re.compile(r"veuillez l'examiner et le valider", re.IGNORECASE),
+    re.compile(r"veuillez l'examiner et la valider", re.IGNORECASE),
     re.compile(r"veuillez examiner et valider", re.IGNORECASE),
     re.compile(r"veuillez valider (?:ces|ce|cette|les)", re.IGNORECASE),
     re.compile(r"valider ci-dessous", re.IGNORECASE),
@@ -32,6 +33,7 @@ PROMISED_ACTION_PATTERNS = [
     re.compile(r"soumis pour validation", re.IGNORECASE),
     re.compile(r"propose d'enregistrer ce virement", re.IGNORECASE),
     re.compile(r"enregistrement d'un virement de précaution", re.IGNORECASE),
+    re.compile(r"enregistrement de ce virement", re.IGNORECASE),
 ]
 
 FRENCH_MONTHS = {
@@ -140,12 +142,16 @@ def extract_unemitted_actions(
     # "virement de précaution de 310 EUR de votre Épargne disponible vers votre compte courant."
     # "virement de retour de 250 EUR de CA Centre-Est vers Livret A, à planifier le 29 octobre 2026."
     transfer_pattern = re.compile(
-        r'virement\s+(?:de\s+[^,.:\n]+?\s+)?de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?(?:\*\*)?\s+de\s+(?:votre\s+)?(.+?)\s+vers\s+(?:votre\s+)?([^,.:\n]+?)(?:,\s*à\s+planifier\s+le\s+([^,.:\n]+))?\.\s*(?:Veuillez|\n|$)',
+        r'virement\s+(?:de\s+[a-zéèêûôîà\-]+\s+)?de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?(?:\*\*)?\s+(?:de|depuis)\s+(?:votre\s+)?([^,.:\n]+?)\s+vers\s+(?:votre\s+)?([^,.:\n]+)(?:,\s*(?:à\s+planifier|programmé|prévu)?\s*(?:pour\s+)?le\s+([^,.:\n()]+))?.*?(?:[\.\n]|$)',
         re.IGNORECASE
     )
 
     seen_transfers = set()
     for m in transfer_pattern.finditer(text):
+        before = text[max(0, m.start() - 60):m.start()].lower()
+        if any(p in before for p in ('nous avons enregistré', 'nous avions enregistré', 'suite au', 'suite à', 'déjà effectué', 'déjà enregistré')):
+            continue
+
         amt_str, from_raw, to_raw, date_raw = m.groups()
         try:
             amt = float(amt_str.replace(',', '.'))
@@ -170,8 +176,8 @@ def extract_unemitted_actions(
 
         # Description claire
         desc = "Virement prévisionnel"
-        if "retour" in m.group(0).lower():
-            desc = f"Virement de retour {from_acc} -> {to_acc}"
+        if any(w in m.group(0).lower() for w in ("reconstitution", "retour")):
+            desc = f"Reconstitution épargne {from_acc} -> {to_acc}"
         elif "précaution" in m.group(0).lower() or "precaution" in m.group(0).lower():
             desc = f"Virement de précaution {from_acc} -> {to_acc}"
         else:
@@ -211,6 +217,56 @@ def extract_unemitted_actions(
             "action": "apply_transaction_correction",
             "params": params
         })
+
+    # ── 3. Extraction Clôture / Réactivation de Récurrences ───────────────────
+    from app.models import RecurrenceTemplate
+    recurrences = db.query(RecurrenceTemplate).all()
+
+    closure_pattern = re.compile(
+        r'(?:clôture|cloture)\s+de\s+(?:la\s+récurrence\s+|l\'abonnement\s+)?(?:\*\*)?([^,.:\n*]+?)(?:\*\*)?\s*(?:\([^\n)]+\))?[\.\n]',
+        re.IGNORECASE
+    )
+    for m in closure_pattern.finditer(text):
+        raw_name = m.group(1).strip()
+        matched_tpl = None
+        norm_target = strip_accents(raw_name)
+        for tpl in recurrences:
+            if tpl.description and (norm_target == strip_accents(tpl.description) or norm_target in strip_accents(tpl.description) or strip_accents(tpl.description) in norm_target):
+                matched_tpl = tpl
+                break
+        if matched_tpl:
+            actions.append({
+                "action": "close_recurrence_template",
+                "params": {
+                    "template_id": matched_tpl.id,
+                    "description": matched_tpl.description,
+                    "amount": matched_tpl.amount,
+                    "is_closed": True
+                }
+            })
+
+    reactivate_pattern = re.compile(
+        r'(?:réactivation|reactivation|réouverture|reouverture)\s+de\s+(?:la\s+récurrence\s+|l\'abonnement\s+)?(?:\*\*)?([^,.:\n*]+?)(?:\*\*)?\s*(?:\([^\n)]+\))?[\.\n]',
+        re.IGNORECASE
+    )
+    for m in reactivate_pattern.finditer(text):
+        raw_name = m.group(1).strip()
+        matched_tpl = None
+        norm_target = strip_accents(raw_name)
+        for tpl in recurrences:
+            if tpl.description and (norm_target == strip_accents(tpl.description) or norm_target in strip_accents(tpl.description) or strip_accents(tpl.description) in norm_target):
+                matched_tpl = tpl
+                break
+        if matched_tpl:
+            actions.append({
+                "action": "update_recurrence_template",
+                "params": {
+                    "template_id": matched_tpl.id,
+                    "description": matched_tpl.description,
+                    "amount": matched_tpl.amount,
+                    "is_active": True
+                }
+            })
 
     logger.debug(f"[Chat Action Recovery] {len(actions)} action(s) extraite(s) depuis le texte.")
     return actions

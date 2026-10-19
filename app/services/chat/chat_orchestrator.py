@@ -31,6 +31,7 @@ from app.services.chat.chat_tools import (
     allocate_savings_funds_tool,
     apply_transaction_correction_tool,
     audit_transactions_integrity_tool,
+    close_recurrence_template_tool,
     create_budget_envelope_tool,
     create_category_tool,
     create_planned_transfer_tool,
@@ -203,8 +204,8 @@ def detect_mentioned_month_year(text: str, default_year: int, default_month: int
 WRITE_TOOLS = {
     "create_budget_envelope", "update_budget_envelope", "delete_budget_envelope",
     "allocate_savings_funds", "create_recurrence_template", "update_recurrence_template",
-    "delete_recurrence_template", "create_category", "delete_category", "set_predicted_paycheck",
-    "delete_transaction", "apply_transaction_correction",
+    "close_recurrence_template", "delete_recurrence_template", "create_category", "delete_category",
+    "set_predicted_paycheck", "delete_transaction", "apply_transaction_correction",
     "create_planned_transfer", "trigger_bank_sync"
 }
 
@@ -268,6 +269,14 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
             day_of_month=params.get("day_of_month"),
             is_active=params.get("is_active"),
             force_write=True,
+        )
+    elif action == "close_recurrence_template":
+        res = close_recurrence_template_tool(
+            db,
+            template_id=params.get("template_id"),
+            description=params.get("description"),
+            closure_date=params.get("closure_date"),
+            force_write=True
         )
     elif action == "delete_recurrence_template":
         res = delete_recurrence_template_tool(db, template_id=params.get("template_id"), description=params.get("description"), force_write=True)
@@ -502,6 +511,7 @@ async def generate_chat_stream(
                 "allocate_savings_funds": "Enregistrement de l'alimentation/retrait de la tirelire...",
                 "create_recurrence_template": "Création du modèle de transaction récurrente...",
                 "update_recurrence_template": "Mise à jour du modèle de récurrence...",
+                "close_recurrence_template": "Clôture de la charge récurrente...",
                 "delete_recurrence_template": "Suppression du modèle de récurrence...",
                 "create_category": "Création de la nouvelle catégorie...",
                 "delete_category": "Suppression de la catégorie...",
@@ -539,6 +549,7 @@ async def generate_chat_stream(
                 "allocate_savings_funds": "Recording piggy bank deposit/withdrawal...",
                 "create_recurrence_template": "Creating recurring transaction template...",
                 "update_recurrence_template": "Updating recurrence template...",
+                "close_recurrence_template": "Closing recurring charge...",
                 "delete_recurrence_template": "Deleting recurrence template...",
                 "create_category": "Creating new category...",
                 "delete_category": "Deleting category...",
@@ -618,7 +629,7 @@ async def generate_chat_stream(
             loop_read_cache = {}
             iteration = 0
             target_period_override = {"year": None, "month": None}
-
+            accumulated_substantive_text = ""
             while iteration < MAX_TOOL_ITERATIONS:
                 payload = {
                     "model": model,
@@ -654,10 +665,35 @@ async def generate_chat_stream(
                             yield chunk
 
                 if not detected_tool_calls:
-                    final_text = phase_text
+                    if accumulated_substantive_text:
+                        p_strip = phase_text.strip()
+                        a_strip = accumulated_substantive_text.strip()
+                        if p_strip == a_strip or p_strip.startswith(a_strip) or a_strip.endswith(p_strip):
+                            final_text = p_strip or a_strip
+                        else:
+                            final_text = f"{accumulated_substantive_text.rstrip()}\n\n{phase_text.lstrip()}".strip()
+                    else:
+                        final_text = phase_text
                     break
 
-                if phase_text.strip() or iteration > 0:
+                # We have tool calls. Check if the text emitted in this phase was a substantial analysis or just a transient scratchpad/preamble.
+                is_substantive = False
+                clean_phase = phase_text.strip()
+                if len(clean_phase) >= 120 or any(m in clean_phase for m in ["\n#", "##", "\n*", "\n- ", "\n1.", "```", "|"]):
+                    is_substantive = True
+
+                if is_substantive:
+                    # Preserve this substantive analysis across iterations so it is never erased from the user's screen or message history!
+                    if accumulated_substantive_text:
+                        accumulated_substantive_text = f"{accumulated_substantive_text.rstrip()}\n\n{clean_phase}"
+                    else:
+                        accumulated_substantive_text = clean_phase
+                    final_text = accumulated_substantive_text
+                    if not _client_disconnected:
+                        sep_payload = json.dumps({'content': '\n\n'})
+                        yield f"data: {sep_payload}\n\n"
+                else:
+                    # Transient preamble (e.g. "Checking accounts..."): clear it so the real answer begins cleanly
                     final_text = ""
                     if not _client_disconnected:
                         yield f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n"
@@ -773,6 +809,14 @@ async def generate_chat_stream(
                             tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
                         elif fn_name == "update_recurrence_template":
                             tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
+                        elif fn_name == "close_recurrence_template":
+                            tool_result = close_recurrence_template_tool(
+                                db,
+                                template_id=fn_args.get("template_id"),
+                                description=fn_args.get("description"),
+                                closure_date=fn_args.get("closure_date"),
+                                force_write=False
+                            )
                         elif fn_name == "delete_recurrence_template":
                             tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("description"))
                         elif fn_name == "create_category":
@@ -852,6 +896,12 @@ async def generate_chat_stream(
                         "name": fn_name,
                         "content": json.dumps(tool_result, ensure_ascii=False),
                     })
+
+                if is_substantive and detected_tool_calls and all(tc["function"]["name"] in _WRITE_TOOLS for tc in detected_tool_calls):
+                    # L'IA a déjà formulé sa réponse complète explicative aux côtés de l'appel d'outil d'écriture.
+                    # Pas besoin d'un second tour de streaming : cela évite toute duplication textuelle et accélère la réponse.
+                    final_text = clean_phase
+                    break
 
                 iteration += 1
 

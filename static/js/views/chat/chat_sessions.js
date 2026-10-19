@@ -197,7 +197,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 name: window.i18n.t('chat_group_write_name') || 'Actions & Modifications',
                 access: 'validation',
                 desc: window.i18n.t('chat_group_write_desc') || 'Création, modification et suppression d\'enveloppes de budget, charges récurrentes, tirelires, enregistrement de virements prévisionnels et déclenchement du relevé bancaire en ligne. (Actions locales soumises à votre validation, réversibles à 100% via l\'historique).',
-                tools: 'apply_transaction_correction, delete_transaction, create_planned_transfer, trigger_bank_sync, create_budget_envelope, update_budget_envelope, delete_budget_envelope, allocate_savings_funds, create_recurrence_template, update_recurrence_template, delete_recurrence_template, create_category, delete_category, set_predicted_paycheck'
+                tools: 'apply_transaction_correction, delete_transaction, create_planned_transfer, trigger_bank_sync, create_budget_envelope, update_budget_envelope, delete_budget_envelope, allocate_savings_funds, create_recurrence_template, update_recurrence_template, close_recurrence_template, delete_recurrence_template, create_category, delete_category, set_predicted_paycheck'
             },
             {
                 emoji: '🧠',
@@ -883,6 +883,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         'allocate_savings_funds': '🐷',
         'create_recurrence_template': '🔁',
         'update_recurrence_template': '✏️',
+        'close_recurrence_template': '⏹️',
         'delete_recurrence_template': '🗑️',
         'create_category': '🏷️',
         'delete_category': '🗑️',

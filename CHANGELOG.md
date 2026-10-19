@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+- **AI Financial Assistant Recurrence Closure, Status Transparency & Stream Speedup 💬⏹️⚡**:
+  - *Recurrence Closure vs Deletion (`close_recurrence_template`)*: The assistant can now cleanly close recurring bills and subscriptions upon request, archiving the contract and purging upcoming unreconciled debits while strictly preserving historical reconciled operations for accounting precision and net worth curves. Added interactive 1-click review cards and reactivation support (`is_active: true`).
+  - *Real-time Closure Status Awareness*: Enhanced recurrence read tools to report explicit `is_closed` status and activity lifecycle (`active`, `closed`, `completed`), eliminating blind spots where cancelled subscriptions were treated as missing or active.
+  - *Technical ID Sanitization & Natural Phrasing*: Formatted user-facing assistant text to strictly reference human-friendly names (e.g. *"Audible Amazon"*, *"YouTube Premium"*) instead of internal database keys (`(ID 21)`, `(ID 63)`).
+  - *Stream Iteration Short-Circuit & Zero-Stutter*: Eliminated duplicate message repetition and shaved 15+ seconds off response times by immediately completing turns when substantive text is paired with write action tool calls, preventing redundant second LLM iterations.
+  - *Enhanced Action Recovery Engine*: Extended proactive extraction for return transfers with flexible date formats, recurrence closures, and reactivations, while filtering past reference phrasing to ensure only valid upcoming operations are proposed.
+
 - **Chat IA Interactive Financial Entities & Action Proposal Recovery Guardrail 💬🔄💳🪄**:
   - *Interactive Recurrence & Transaction Badges*: Recurring operations, subscriptions, and key transactions mentioned in assistant responses (e.g. `"Prêt Famille Jean Bazinet (8000)"`, `"Sosh"`, `"Cotisation Compte CA Centre-Est"`, `"Garage CTM"`) are now automatically recognized as rich interactive badges (`🔄` purple for recurrences, `💳` cyan for operations).
   - *Contextual Entity Popovers & Seamless Navigation*: Hovering or clicking a recurrence or transaction badge opens a dedicated popover detailing amount, cadence, accounts, category, and date. Includes 1-click navigation buttons to manage the template in `#recurrences` (with automatic scroll and glowing row highlight) or filter matching operations in `#all_operations`.

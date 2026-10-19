@@ -358,6 +358,13 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
         (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
     ).order_by(Transaction.date_operation.asc()).all()
 
+    # Integrate upcoming paycheck if main account and not yet manually entered as unreconciled transaction
+    main_acc = get_main_account(db)
+    is_main_account = bool(main_acc and account.id == main_acc.id)
+    pay_info = predict_next_paycheck(db) if is_main_account else None
+    next_pay = pay_info.get("date") if pay_info else None
+    pay_amt = float(pay_info.get("amount", 0.0) or 0.0) if pay_info else 0.0
+
     planned_income_total = sum(t.amount for t in future_income)
     planned_income_before_risk = sum(t.amount for t in future_income if t.date_operation <= conservative_warning["date"])
 
@@ -367,6 +374,15 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
         ops.append((t.date_operation, 1, -t.amount, t))
     for t in future_income:
         ops.append((t.date_operation, 0, t.amount, t))
+
+    if is_main_account and next_pay and pay_amt > 0:
+        has_pay_tx = any(t.date_operation == next_pay and abs(t.amount - pay_amt) < 1.0 for t in future_income)
+        if not has_pay_tx:
+            ops.append((next_pay, 0, pay_amt, None))
+            planned_income_total += pay_amt
+            if next_pay <= conservative_warning["date"]:
+                planned_income_before_risk += pay_amt
+
     ops.sort(key=lambda x: (x[0], x[1]))
 
     horizon_date = conservative_warning["date"]
@@ -386,9 +402,13 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
             first_neg_amount = sim_with_inc
 
     covered_by_income = (min_sim_with_inc >= 0)
+    is_after_next_paycheck = bool(next_pay and conservative_warning["date"] > next_pay)
 
     conservative_warning.update({
         "covered_by_income": covered_by_income,
+        "is_after_next_paycheck": is_after_next_paycheck,
+        "next_paycheck_date": next_pay,
+        "next_paycheck_amount": pay_amt,
         "planned_income_total": round(planned_income_total, 2),
         "planned_income_before_risk": round(planned_income_before_risk, 2),
         "projected_balance_with_income": round(min_sim_with_inc, 2),

@@ -21,6 +21,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 allocate_savings_funds: window.i18n.t('tool_allocate_savings_funds_title') || 'Alimentation / Retrait de tirelire',
                 create_recurrence_template: window.i18n.t('tool_create_recurrence_template_title') || 'Création d\'une charge récurrente',
                 update_recurrence_template: window.i18n.t('tool_update_recurrence_template_title') || 'Modification d\'une charge récurrente',
+                close_recurrence_template: window.i18n.t('tool_close_recurrence_template_title') || 'Clôture d\'une charge récurrente',
                 delete_recurrence_template: window.i18n.t('tool_delete_recurrence_template_title') || 'Suppression d\'une charge récurrente',
                 create_category: window.i18n.t('tool_create_category_title') || 'Création d\'une catégorie',
                 delete_category: window.i18n.t('tool_delete_category_title') || 'Suppression d\'une catégorie',
@@ -54,7 +55,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         }
                     }
                 } catch(e) {}
-            } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template') {
+            } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template' || actionObj.action === 'close_recurrence_template') {
                 try {
                     const r = await fetch('/api/recurrences');
                     if (r.ok) {
@@ -66,8 +67,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             const target = normalize(actionObj.params.description);
                             currentEntityState = list.find(tpl => normalize(tpl.description) === target) ||
                                                  list.find(tpl => normalize(tpl.description).includes(target) || target.includes(normalize(tpl.description)));
-                            if (currentEntityState) {
-                                actionObj.params.template_id = currentEntityState.id;
+                        }
+                        if (currentEntityState) {
+                            actionObj.params.template_id = currentEntityState.id;
+                            if (!actionObj.params.description && currentEntityState.description) {
+                                actionObj.params.description = currentEntityState.description;
                             }
                         }
                     }

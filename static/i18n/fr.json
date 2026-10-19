@@ -3766,5 +3766,9 @@
   "chat_missing_action_desc": "L'assistant mentionne avoir préparé une action mais aucun bouton de validation n'est apparu.",
   "chat_btn_recover_action": "Générer les cartes d'actions",
   "chat_action_recovery_success": "Actions générées avec succès !",
-  "chat_action_recovery_empty": "Aucune action exploitable trouvée"
+  "chat_action_recovery_empty": "Aucune action exploitable trouvée",
+  "chat_suggestions_title": "Suggestions de suite :",
+  "tool_close_recurrence_template_title": "Clôture d'une charge récurrente",
+  "tool_close_recurrence_template": "Clôturer la récurrence",
+  "chat_action_propose_close_recurrence": "Clôture de la récurrence \"{desc}\" (arrêt des échéances futures et conservation de l'historique)"
 }
