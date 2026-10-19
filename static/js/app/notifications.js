@@ -1032,16 +1032,25 @@ window.AppModules.notifications = {
             console.error("Notification data not found for id", notifId);
             return;
         }
-        this.deepenAIReport(n.content || '', n.detailed_content || '');
+        this.deepenAIReport(n.content || '', n.detailed_content || '', n.title || '');
     },
 
-    async deepenAIReport(content, detailedContent) {
+    async deepenAIReport(content, detailedContent, notifTitle = '') {
         try {
             // Close popover
             this.closeNotificationsMenu();
 
             const isEn = window.i18n.lang === 'en';
-            const sessionTitle = isEn ? "AI Financial Report Deepening" : "Approfondissement Bilan IA";
+            let sessionTitle = '';
+            if (notifTitle) {
+                const cleanT = notifTitle.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+                if (cleanT) {
+                    sessionTitle = `${cleanT} (${isEn ? 'Deepening' : 'Approfondissement'})`;
+                }
+            }
+            if (!sessionTitle) {
+                sessionTitle = isEn ? "AI Financial Report Deepening" : "Approfondissement Bilan IA";
+            }
 
             // Helper to extract clean Markdown text from raw/escaped JSON
             const extractCleanText = (text) => {

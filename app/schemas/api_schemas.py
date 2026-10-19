@@ -197,6 +197,9 @@ class ChatSessionUpdate(BaseModel):
     title: Optional[str] = None
     role: Optional[str] = None
 
+class ChatSessionsBulkDelete(BaseModel):
+    session_ids: List[int]
+
 class ChatContextUpdate(BaseModel):
     compressed_context: str
 

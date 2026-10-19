@@ -383,7 +383,21 @@ async def generate_chat_stream(
     db.refresh(user_msg)
 
     messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
-    is_first_exchange = (len(messages) == 1)
+    user_msgs_count = sum(1 for m in messages if m.role == "user")
+    current_title = (session.title or "").strip()
+    is_default_title = (
+        not current_title
+        or current_title in (
+            "Nouvelle conversation",
+            "New conversation",
+            "Approfondissement Bilan IA",
+            "AI Financial Report Deepening",
+        )
+        or current_title.startswith("Nouvelle conversation")
+        or current_title.startswith("Approfondissement")
+        or current_title.startswith("AI Financial Report")
+    )
+    needs_auto_title = is_default_title and (user_msgs_count == 1)
 
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
@@ -892,11 +906,17 @@ async def generate_chat_stream(
         if not _client_disconnected:
             yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
 
-        if is_first_exchange:
-            logger.info(f"[Chat] Lancement de la génération de titre en arrière-plan pour la session {session_id} (profil={active_pid})")
+        if needs_auto_title:
+            context_hint = None
+            assistant_intro = next((m.content for m in messages if m.role == "assistant"), None)
+            if assistant_intro:
+                lines = [l.strip("#* \t") for l in assistant_intro.split("\n") if l.strip("#* \t")]
+                if lines:
+                    context_hint = lines[0][:120]
+            logger.info(f"[Chat] Lancement de la génération de titre intelligente pour session {session_id} (profil={active_pid})")
             threading.Thread(
                 target=generate_session_title,
-                args=(active_pid, session_id, req.content, cfg),
+                args=(active_pid, session_id, req.content, cfg, context_hint),
                 daemon=True,
             ).start()
 

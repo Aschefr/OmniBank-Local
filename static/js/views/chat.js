@@ -134,9 +134,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     box-sizing: border-box;
                 }
                 .chat-sidebar {
-                    width: 250px;
-                    min-width: 250px;
-                    max-width: 250px;
+                    width: 275px;
+                    min-width: 275px;
+                    max-width: 275px;
                     flex-shrink: 0;
                     background: var(--bg-sidebar);
                     border-right: 1px solid var(--border-color);
@@ -161,16 +161,17 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     gap: 6px;
                 }
                 .chat-session-item {
-                    padding: 10px;
+                    position: relative;
+                    padding: 8px 10px;
                     border-radius: 8px;
                     cursor: pointer;
                     display: flex;
-                    justify-content: space-between;
                     align-items: center;
                     gap: 8px;
                     font-size: 13px;
                     color: var(--text-color);
-                    transition: background 0.2s ease;
+                    transition: background 0.15s ease;
+                    min-height: 40px;
                 }
                 .chat-session-item:hover {
                     background: rgba(255, 255, 255, 0.05);
@@ -179,35 +180,271 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     background: rgba(51, 102, 255, 0.15);
                     border: 1px solid rgba(51, 102, 255, 0.3);
                 }
+                .chat-sidebar-group-header {
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    color: var(--text-muted);
+                    padding: 10px 8px 4px 8px;
+                    user-select: none;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .chat-sidebar-group-header:first-child {
+                    padding-top: 2px;
+                }
+                .chat-group-delete-btn {
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 11px;
+                    opacity: 0.45;
+                    padding: 2px 4px;
+                    border-radius: 4px;
+                    transition: opacity 0.15s, background 0.15s;
+                    line-height: 1;
+                }
+                .chat-sidebar-group-header:hover .chat-group-delete-btn {
+                    opacity: 1;
+                }
+                .chat-group-delete-btn:hover {
+                    background: rgba(239, 68, 68, 0.2);
+                    color: #ef4444;
+                }
+                .chat-sidebar-group-header.confirming {
+                    background: rgba(239, 68, 68, 0.12);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    border-radius: 6px;
+                    padding: 4px 8px;
+                    margin: 4px 0;
+                }
+                .chat-group-confirm-label {
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #f87171;
+                    text-transform: none;
+                    letter-spacing: normal;
+                }
+                .chat-group-confirm-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .chat-group-btn-confirm {
+                    background: rgba(239, 68, 68, 0.25);
+                    border: 1px solid rgba(239, 68, 68, 0.5);
+                    color: #fca5a5;
+                    font-size: 11px;
+                    padding: 2px 5px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
+                .chat-group-btn-confirm:hover {
+                    background: rgba(239, 68, 68, 0.45);
+                    color: #fff;
+                }
+                .chat-group-btn-cancel {
+                    background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    color: var(--text-muted);
+                    font-size: 11px;
+                    padding: 2px 5px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                .chat-group-btn-cancel:hover {
+                    background: rgba(255, 255, 255, 0.18);
+                    color: #fff;
+                }
                 .chat-session-title {
                     flex: 1;
+                    min-width: 0;
                     overflow: hidden;
-                    white-space: nowrap;
-                    position: relative;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    line-height: 1.35;
+                    font-size: 13px;
+                    word-break: break-word;
                 }
                 .chat-session-title-inner {
-                    display: inline-block;
-                    transition: transform 0.3s ease;
+                    display: inline;
                 }
-                .chat-session-item:hover .chat-session-title-inner.overflowing {
-                    animation: title-scroll 6s linear infinite alternate;
-                    padding-right: 20px;
+                .chat-session-item.editing {
+                    background: rgba(51, 102, 255, 0.12);
+                    border: 1px solid rgba(51, 102, 255, 0.4);
+                    padding: 6px 8px;
                 }
-                @keyframes title-scroll {
-                    0% { transform: translateX(0); }
-                    10% { transform: translateX(0); }
-                    90% { transform: translate3d(calc(-100% + 150px), 0, 0); }
-                    100% { transform: translate3d(calc(-100% + 150px), 0, 0); }
-                }
-                .chat-session-actions {
+                .chat-session-rename-form {
+                    flex: 1;
                     display: flex;
-                    gap: 4px;
-                    opacity: 0;
-                    transition: opacity 0.2s ease;
+                    align-items: center;
+                    gap: 6px;
+                    min-width: 0;
                 }
-                .chat-session-item:hover .chat-session-actions,
-                .chat-session-item.active .chat-session-actions {
+                .chat-session-rename-input {
+                    flex: 1;
+                    min-width: 0;
+                    background: var(--bg-card, #1e2230);
+                    border: 1px solid rgba(51, 102, 255, 0.5);
+                    border-radius: 4px;
+                    color: var(--text-color, #fff);
+                    font-size: 12px;
+                    padding: 4px 6px;
+                    outline: none;
+                }
+                .chat-session-rename-input:focus {
+                    border-color: #3b82f6;
+                    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+                }
+                .chat-session-rename-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    flex-shrink: 0;
+                }
+                .chat-session-btn-save {
+                    color: #10b981 !important;
+                    font-size: 12px;
+                    padding: 3px 6px;
+                    border-radius: 4px;
+                    background: rgba(16, 185, 129, 0.15) !important;
+                }
+                .chat-session-btn-save:hover {
+                    background: rgba(16, 185, 129, 0.3) !important;
+                }
+                .chat-session-btn-cancel {
+                    color: #ef4444 !important;
+                    font-size: 12px;
+                    padding: 3px 6px;
+                    border-radius: 4px;
+                    background: rgba(239, 68, 68, 0.15) !important;
+                }
+                .chat-session-btn-cancel:hover {
+                    background: rgba(239, 68, 68, 0.3) !important;
+                }
+                .chat-session-more-btn {
+                    background: transparent;
+                    border: none;
+                    color: var(--text-muted, #94a3b8);
+                    font-size: 16px;
+                    font-weight: bold;
+                    line-height: 1;
+                    width: 24px;
+                    height: 28px;
+                    min-width: 24px;
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    opacity: 0.65;
+                    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+                    padding: 0;
+                    margin-left: 2px;
+                    flex-shrink: 0;
+                    user-select: none;
+                }
+                .chat-session-more-btn:hover,
+                .chat-session-more-btn.active,
+                .chat-session-item:hover .chat-session-more-btn {
                     opacity: 1;
+                    color: var(--text-color, #fff);
+                    background: rgba(255, 255, 255, 0.12);
+                }
+                .chat-session-dropdown {
+                    position: absolute;
+                    right: 6px;
+                    top: calc(100% + 2px);
+                    min-width: 175px;
+                    max-width: 230px;
+                    background: var(--bg-card, #1e2230);
+                    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+                    border-radius: 8px;
+                    padding: 5px;
+                    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+                    z-index: 1000;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    backdrop-filter: blur(16px);
+                    animation: chatDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .chat-session-dropdown.dropup {
+                    top: auto;
+                    bottom: calc(100% + 2px);
+                }
+                @keyframes chatDropdownFadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-4px) scale(0.98);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
+                }
+                .chat-session-dropdown-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    width: 100%;
+                    padding: 7px 10px;
+                    border: none;
+                    background: transparent;
+                    color: var(--text-color, #e2e8f0);
+                    font-size: 12px;
+                    font-weight: 500;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    text-align: left;
+                    transition: background 0.12s ease, color 0.12s ease;
+                    user-select: none;
+                }
+                .chat-session-dropdown-item:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                }
+                .chat-session-dropdown-item.danger {
+                    color: #f87171;
+                }
+                .chat-session-dropdown-item.danger:hover {
+                    background: rgba(239, 68, 68, 0.18);
+                    color: #ef4444;
+                }
+                .chat-session-dropdown-icon {
+                    font-size: 13px;
+                    width: 16px;
+                    text-align: center;
+                    flex-shrink: 0;
+                }
+                .chat-session-dropdown-label {
+                    flex: 1;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .chat-session-dropdown-divider {
+                    height: 1px;
+                    background: var(--border-color, rgba(255, 255, 255, 0.08));
+                    margin: 3px 0;
+                }
+                .chat-session-inline-confirm {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    flex-shrink: 0;
+                    background: rgba(239, 68, 68, 0.15);
+                    padding: 2px 4px;
+                    border-radius: 6px;
+                    border: 1px solid rgba(239, 68, 68, 0.35);
+                }
+                .chat-session-item.deleting {
+                    background: rgba(239, 68, 68, 0.08);
+                    border: 1px solid rgba(239, 68, 68, 0.25);
                 }
                 .chat-sidebar-loading {
                     text-align: center;
@@ -221,13 +458,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     border: none;
                     color: var(--text-muted);
                     cursor: pointer;
-                    padding: 2px;
+                    padding: 2px 4px;
                     font-size: 12px;
                     border-radius: 4px;
+                    line-height: 1;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background 0.15s, color 0.15s;
                 }
                 .chat-session-btn:hover {
-                    color: var(--text-color);
-                    background: rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                    background: rgba(255, 255, 255, 0.18);
                 }
                 .chat-main {
                     flex: 1;
@@ -1101,11 +1343,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 <!-- Right Chat Container -->
                 <div class="chat-main">
                     <div class="chat-main-header">
-                        <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
                             <button id="chatMenuBtn" class="btn btn-secondary btn-sm" onclick="window.ChatView.toggleSidebar()" style="display:none; padding:4px 8px;">
                                 ☰
                             </button>
-                            <h3 id="chatSessionActiveTitle" style="margin:0; font-size:16px; font-weight:600;">...</h3>
+                            <h3 id="chatSessionActiveTitle" style="margin:0; font-size:16px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">...</h3>
+                            <button id="chatHeaderRegenBtn" class="chat-session-btn" onclick="window.ChatView.regenerateActiveSessionTitle()" title="${window.i18n ? window.i18n.t('chat_regenerate_title') : 'Régénérer le titre avec l\'IA'}" style="padding: 3px 6px; font-size: 13px; line-height: 1;">🪄</button>
+                            <button class="chat-session-btn" onclick="window.ChatView.startRenameActiveSession()" title="${window.i18n.t('chat_edit_msg') || 'Renommer'}" style="padding: 3px 6px; font-size: 13px; line-height: 1;">✏️</button>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center;">
                             <select id="chatRoleSelect" class="inline-input" onchange="window.ChatView.changeSessionRole(this.value)" style="padding: 6px 12px; border-radius: 6px; font-weight: 500;">

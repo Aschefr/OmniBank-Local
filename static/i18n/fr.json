@@ -3744,5 +3744,22 @@
   "autopilot_action_coming_detected": "Débit à venir",
   "autopilot_action_coming_detected_desc": "Opération bancaire à venir annoncée par la banque (en attente du débit effectif sur le compte).",
   "autopilot_reason_bank_coming": "Annonce bancaire",
-  "autopilot_reason_bank_coming_desc": "Débit futur signalé dans le relevé d'opérations à venir (carte à débit différé ou préavis)."
+  "autopilot_reason_bank_coming_desc": "Débit futur signalé dans le relevé d'opérations à venir (carte à débit différé ou préavis).",
+  "chat_section_today": "Aujourd'hui",
+  "chat_section_yesterday": "Hier",
+  "chat_section_last_7_days": "7 derniers jours",
+  "chat_section_last_30_days": "30 derniers jours",
+  "chat_section_older": "Plus ancien",
+  "chat_rename_save": "Valider le titre",
+  "chat_rename_cancel": "Annuler",
+  "chat_no_sessions": "Aucune conversation",
+  "chat_regenerate_title": "Régénérer le titre avec l'IA",
+  "chat_title_regenerated": "Titre actualisé !",
+  "chat_group_delete_tooltip": "Tout supprimer dans cette section",
+  "chat_group_delete_confirm": "Tout supprimer",
+  "chat_group_delete_success": "Conversations supprimées !",
+  "chat_session_menu_title": "Options de la conversation",
+  "chat_session_rename": "Renommer",
+  "chat_session_delete": "Supprimer",
+  "chat_session_regen_title": "Régénérer le titre (IA)"
 }
