@@ -690,20 +690,65 @@ window.OverviewView = {
                             tooltipText = window.i18n.t('autopilot_action_reconciled_confirmed_desc') || 'Le débit effectif a été pointé et rapproché.';
                             icon = '⚡';
                         }
+                    } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
+                        badgeClass = 'badge-slate';
+                        typeLabel = window.i18n.t('autopilot_action_recurrence_skipped') || 'Échéance ignorée';
+                        tooltipText = window.i18n.t('autopilot_action_recurrence_skipped_desc') || 'Échéance récurrente non débitée après 30 jours : ignorée pour préserver l\'exactitude du solde.';
+                        icon = '⊝';
+                    } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
+                        badgeClass = 'badge-slate';
+                        typeLabel = window.i18n.t('autopilot_action_recurrence_closed') || 'Abonnement clôturé';
+                        tooltipText = window.i18n.t('autopilot_action_recurrence_closed_desc') || 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.';
+                        icon = '🔒';
                     } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
                         badgeClass = 'badge-purple';
                         typeLabel = window.i18n.t('autopilot_action_promoted') || 'Récurrence';
                         icon = '🔄';
+                    } else if (d.decision_type === 'recurrence_hike') {
+                        badgeClass = 'badge-purple';
+                        typeLabel = window.i18n.t('autopilot_action_hike') || 'Hausse propagée';
+                        icon = '🔄';
+                    } else if (d.decision_type === 'budget_recurrence_sync') {
+                        badgeClass = 'badge-amber';
+                        typeLabel = window.i18n.t('autopilot_action_budget_synced') || 'Budget synchronisé';
+                        tooltipText = window.i18n.t('autopilot_action_budget_synced_desc') || 'Enveloppe budgétaire automatiquement mise à jour suite à l\'ajustement ou la promotion d\'une récurrence.';
+                        icon = '🎯';
+                    } else if (d.decision_type === 'budget_enrichment_suggestion') {
+                        badgeClass = 'badge-amber';
+                        typeLabel = window.i18n.t('autopilot_action_budget_enriched') || 'Catégorie rattachée';
+                        tooltipText = window.i18n.t('autopilot_action_budget_enriched_desc') || 'Nouvelle catégorie de dépense récurrente intégrée automatiquement à une enveloppe budgétaire existante.';
+                        icon = '🎯';
                     } else if (d.decision_type === 'budget' || d.decision_type === 'budget_adjustment' || d.decision_type === 'budget_suggestion') {
                         badgeClass = 'badge-amber';
                         typeLabel = window.i18n.t('autopilot_action_budget_recalibrated') || 'Budget';
                         icon = '🎯';
+                    } else if (d.decision_type === 'transfer_link') {
+                        badgeClass = 'badge-blue';
+                        typeLabel = window.i18n.t('autopilot_action_transfer_linked') || 'Virement lié';
+                        tooltipText = window.i18n.t('autopilot_action_transfer_linked_desc') || 'Virement interne détecté et automatiquement rapproché entre vos comptes.';
+                        icon = '🔄';
+                    } else if (d.action === 'AUTO_COMMIT_COMING') {
+                        badgeClass = 'badge-blue';
+                        typeLabel = window.i18n.t('autopilot_action_coming_detected') || 'Débit à venir';
+                        tooltipText = window.i18n.t('autopilot_action_coming_detected_desc') || 'Opération bancaire à venir annoncée par la banque.';
+                        icon = '⏳';
                     }
 
-                    const formattedAmount = (d.amount !== null && d.amount !== undefined)
-                        ? `${d.amount > 0 ? '+' : ''}${formatCurrency(d.amount)}`
-                        : '';
-                    const amountClass = (d.amount !== null && d.amount > 0) ? 'text-green' : 'text-main';
+                    const isSkipped = d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip';
+                    const isClosed = d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close';
+                    let formattedAmount = '';
+                    let amountClass = 'text-main';
+
+                    if (isSkipped || isClosed) {
+                        formattedAmount = `<span style="text-decoration: line-through; opacity: 0.65;">-${formatCurrency(Math.abs(d.amount))}</span>`;
+                        amountClass = 'text-muted';
+                    } else if (d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined) {
+                        formattedAmount = `<span style="font-size: 11px; opacity: 0.7;">${formatCurrency(d.details.old_amount)} ➔</span> ${formatCurrency(d.details.new_amount)}`;
+                        amountClass = 'text-main';
+                    } else if (d.amount !== null && d.amount !== undefined) {
+                        formattedAmount = `${d.amount > 0 ? '+' : ''}${formatCurrency(d.amount)}`;
+                        amountClass = (d.amount > 0 && d.decision_type !== 'transfer_link') ? 'text-green' : 'text-main';
+                    }
                     const timeStr = d.created_at ? this._formatRelativeTime(d.created_at) : '';
 
                     return `

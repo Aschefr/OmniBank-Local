@@ -1458,7 +1458,9 @@ def get_autopilot_decisions_feed(
             or bank_tx.get("description")
             or snap.get("merchant")
             or snap.get("template_description")
+            or snap.get("description")
             or snap.get("budget_name")
+            or snap.get("target_budget_name")
             or snap.get("name")
             or "Décision Auto-Pilote"
         )
@@ -1478,6 +1480,12 @@ def get_autopilot_decisions_feed(
             snap.get("decision_reason")
             or ("linked_forecast" if (live_tx and live_tx.raw_description and d.decision_type == "reconciliation") else None)
             or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else None)
+            or ("unreconciled_overdue" if (d.action == "AUTO_SKIPPED_UNRECONCILED" or d.decision_type == "recurrence_skip") else None)
+            or ("recurrence_closed_3_skips" if (d.action == "AUTO_CLOSED_SKIPPED" or d.decision_type == "recurrence_close") else None)
+            or ("budget_recurrence_sync" if d.decision_type == "budget_recurrence_sync" else None)
+            or ("budget_enrichment" if d.decision_type == "budget_enrichment_suggestion" else None)
+            or ("internal_transfer" if d.decision_type == "transfer_link" else None)
+            or ("bank_coming" if (d.action in ("AUTO_COMMIT_COMING", "AUTO_COMMIT_COMING_PENDING_REVIEW") or (live_tx and live_tx.csv_id and str(live_tx.csv_id).startswith("woob_coming_"))) else None)
             or snap.get("capped_reason")
         )
 
@@ -1665,6 +1673,95 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
                     cur_amt = snap.get("current_amount")
                     if cur_amt is not None:
                         b.monthly_amount = float(cur_amt)
+    elif decision.decision_type == "recurrence_skip" or decision.action == "AUTO_SKIPPED_UNRECONCILED":
+        if decision.entity_id:
+            tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
+            if tx:
+                before_s = snapshot_entity(tx)
+                tx.is_skipped = False
+                if tx.comment == "Auto-sauté (échéance non prélevée)":
+                    tx.comment = None
+                record_action(
+                    db,
+                    "transaction",
+                    tx.id,
+                    "UPDATE",
+                    before_s,
+                    snapshot_entity(tx),
+                    user_name="Rollback Auto-Pilote (Rétablissement échéance)"
+                )
+    elif decision.decision_type == "recurrence_close" or decision.action == "AUTO_CLOSED_SKIPPED":
+        if decision.entity_id:
+            tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == decision.entity_id).first()
+            if tpl:
+                before_s = snapshot_entity(tpl)
+                tpl.is_closed = False
+                record_action(
+                    db,
+                    "recurrence_template",
+                    tpl.id,
+                    "UPDATE",
+                    before_s,
+                    snapshot_entity(tpl),
+                    user_name="Rollback Auto-Pilote (Réouverture abonnement)"
+                )
+    elif decision.decision_type == "budget_recurrence_sync":
+        if decision.entity_id:
+            b = db.query(Budget).filter(Budget.id == decision.entity_id).first()
+            if b:
+                old_amt = snap.get("old_amount")
+                if old_amt is not None:
+                    before_s = snapshot_entity(b)
+                    b.monthly_amount = float(old_amt)
+                    record_action(
+                        db,
+                        "budget",
+                        b.id,
+                        "UPDATE",
+                        before_s,
+                        snapshot_entity(b),
+                        user_name="Rollback Auto-Pilote (Rétablissement montant budget)"
+                    )
+    elif decision.decision_type == "budget_enrichment_suggestion":
+        if decision.entity_id:
+            b = db.query(Budget).filter(Budget.id == decision.entity_id).first()
+            if b:
+                from app.models import BudgetCategory
+                new_cat = snap.get("new_category")
+                cur_amt = snap.get("current_amount")
+                before_s = snapshot_entity(b)
+                if new_cat:
+                    db.query(BudgetCategory).filter(
+                        BudgetCategory.budget_id == b.id,
+                        BudgetCategory.category_name == new_cat
+                    ).delete()
+                if cur_amt is not None:
+                    b.monthly_amount = float(cur_amt)
+                record_action(
+                    db,
+                    "budget",
+                    b.id,
+                    "UPDATE",
+                    before_s,
+                    snapshot_entity(b),
+                    user_name="Rollback Auto-Pilote (Annulation enrichissement budget)"
+                )
+    elif decision.decision_type == "transfer_link":
+        if decision.entity_id:
+            tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
+            if tx:
+                before_s = snapshot_entity(tx)
+                orig_snap = snap.get("before") or {}
+                tx.reconciliation_date = orig_snap.get("reconciliation_date")
+                record_action(
+                    db,
+                    "transaction",
+                    tx.id,
+                    "UPDATE",
+                    before_s,
+                    snapshot_entity(tx),
+                    user_name="Rollback Auto-Pilote (Déliement virement)"
+                )
 
     decision.is_undone = True
     decision.undone_at = datetime.now(timezone.utc)
