@@ -2109,6 +2109,18 @@ window.AutopilotView = {
             icon = '⚠️ ';
         } else if (reason === 'user_override') {
             icon = '👤 ';
+        } else if (reason === 'unreconciled_overdue' || reason === 'recurrence_skip') {
+            icon = '⏳ ';
+        } else if (reason === 'recurrence_closed_3_skips') {
+            icon = '🔒 ';
+        } else if (reason === 'budget_recurrence_sync') {
+            icon = '🔄 ';
+        } else if (reason === 'internal_transfer') {
+            icon = '🔄 ';
+        } else if (reason === 'budget_enrichment') {
+            icon = '➕ ';
+        } else if (reason === 'bank_coming') {
+            icon = '⏳ ';
         }
         if (!isStrikethrough && reason !== 'user_override') {
             return `<span class="ap-reason-badge" title="${escapeHtml(tooltip)}">${icon}${escapeHtml(label)}</span>`;
@@ -2169,6 +2181,16 @@ window.AutopilotView = {
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_reconciled_confirmed_desc') : 'Le débit bancaire effectif a été pointé et rapproché.';
                 icon = '⚡';
             }
+        } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
+            badgeClass = 'badge-slate';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_recurrence_skipped') || 'Échéance ignorée') : 'Échéance ignorée';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_recurrence_skipped_desc') || 'Échéance récurrente non prélevée après 30 jours : ignorée pour préserver l\'exactitude du solde.') : 'Échéance récurrente non prélevée après 30 jours : ignorée pour préserver l\'exactitude du solde.';
+            icon = '⊝';
+        } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
+            badgeClass = 'badge-slate';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed') || 'Abonnement clôturé') : 'Abonnement clôturé';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed_desc') || 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.') : 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.';
+            icon = '🔒';
         } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
             badgeClass = 'badge-purple';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence';
@@ -2179,6 +2201,16 @@ window.AutopilotView = {
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse propagée';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse tarifaire propagée';
             icon = '🔄';
+        } else if (d.decision_type === 'budget_recurrence_sync') {
+            badgeClass = 'badge-amber';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_budget_synced') || 'Budget synchronisé') : 'Budget synchronisé';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_budget_synced_desc') || 'Enveloppe budgétaire automatiquement mise à jour suite à l\'ajustement ou la promotion d\'une récurrence.') : 'Enveloppe budgétaire automatiquement mise à jour suite à l\'ajustement ou la promotion d\'une récurrence.';
+            icon = '🎯';
+        } else if (d.decision_type === 'budget_enrichment_suggestion') {
+            badgeClass = 'badge-amber';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_budget_enriched') || 'Catégorie rattachée') : 'Catégorie rattachée';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_budget_enriched_desc') || 'Nouvelle catégorie de dépense récurrente intégrée automatiquement à une enveloppe budgétaire existante.') : 'Nouvelle catégorie de dépense récurrente intégrée automatiquement à une enveloppe budgétaire existante.';
+            icon = '🎯';
         } else if (d.decision_type === 'budget' || d.decision_type === 'budget_adjustment' || d.decision_type === 'budget_suggestion') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_recalibrated') : 'Budget';
@@ -2189,6 +2221,16 @@ window.AutopilotView = {
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Budget suggéré';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Création d\'enveloppe budgétaire suggérée';
             icon = '🎯';
+        } else if (d.decision_type === 'transfer_link') {
+            badgeClass = 'badge-blue';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked') || 'Virement lié') : 'Virement lié';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked_desc') || 'Virement interne détecté et automatiquement rapproché entre vos comptes.') : 'Virement interne détecté et automatiquement rapproché entre vos comptes.';
+            icon = '🔄';
+        } else if (d.action === 'AUTO_COMMIT_COMING') {
+            badgeClass = 'badge-blue';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_coming_detected') || 'Débit à venir') : 'Débit à venir';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_coming_detected_desc') || 'Opération bancaire à venir annoncée par la banque.') : 'Opération bancaire à venir annoncée par la banque.';
+            icon = '⏳';
         }
 
         const isUndone = d.is_undone;
@@ -2217,6 +2259,20 @@ window.AutopilotView = {
                 ? `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`
                 : `${newAmt} €`;
             amtColor = '#10b981';
+        } else if (d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined) {
+            const oldAmt = Number(d.details.old_amount).toFixed(2);
+            const newAmt = Number(d.details.new_amount).toFixed(2);
+            amtDisplay = `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`;
+            amtColor = 'var(--text-main)';
+        } else if (d.decision_type === 'transfer_link') {
+            amtDisplay = `${d.amount < 0 ? '-' : '+'}${Math.abs(d.amount).toFixed(2)} €`;
+            amtColor = 'var(--text-main)';
+        } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 11px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Ignorée</span>`;
+            amtColor = 'var(--text-muted)';
+        } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 11px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Clôturé</span>`;
+            amtColor = 'var(--text-muted)';
         } else if (isOverridden && uo.amount_changed && uo.original_amount !== null && uo.original_amount !== undefined) {
             const origAmt = Number(uo.original_amount).toFixed(2);
             const origAmtTip = window.i18n ? window.i18n.t('autopilot_feed_original_amount').replace('{amount}', origAmt) : `Montant initial : ${origAmt} €`;
@@ -2324,12 +2380,24 @@ window.AutopilotView = {
                                             ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
                                         </button>
                                     `}
+                                ` : (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') ? `
+                                    <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_restore_recurrence_title') : 'Rétablir cette échéance dans le calendrier budgétaire'}">
+                                        ${this._icons.undo} <span data-i18n="autopilot_feed_btn_restore_recurrence">${window.i18n ? window.i18n.t('autopilot_feed_btn_restore_recurrence') : 'Rétablir'}</span>
+                                    </button>
+                                ` : (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') ? `
+                                    <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_reopen_recurrence_title') : 'Rouvrir ce modèle d\'abonnement récurrent'}">
+                                        ${this._icons.undo} <span data-i18n="autopilot_feed_btn_reopen_recurrence">${window.i18n ? window.i18n.t('autopilot_feed_btn_reopen_recurrence') : 'Rouvrir'}</span>
+                                    </button>
+                                ` : (d.decision_type === 'transfer_link') ? `
+                                    <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
+                                        ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
+                                    </button>
                                 ` : `
                                     <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback_title') : 'Annuler cette décision'}">
                                         ${this._icons.undo} <span data-i18n="autopilot_feed_btn_rollback">${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback') : 'Annuler'}</span>
                                     </button>
                                 `}
-                                ${d.entity_type === 'transaction' ? `
+                                ${d.entity_type === 'transaction' && d.action !== 'AUTO_SKIPPED_UNRECONCILED' && d.decision_type !== 'recurrence_skip' && d.decision_type !== 'recurrence_close' && d.decision_type !== 'transfer_link' ? `
                                     <button class="btn btn-secondary btn-sm ap-btn-override" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_override_title') : 'Modifier et apprendre'}">
                                         ${this._icons.edit}
                                     </button>
@@ -2350,7 +2418,7 @@ window.AutopilotView = {
         const entityType = d.entity_type;
         const decisionType = d.decision_type;
 
-        if (entityType === 'transaction' || decisionType === 'reconciliation' || decisionType === 'new_entry') {
+        if (entityType === 'transaction' || decisionType === 'reconciliation' || decisionType === 'new_entry' || decisionType === 'transfer_link') {
             const txId = d.entity_id || snap.created_tx_id || snap.matched_db_id || (snap.bank_tx && snap.bank_tx.matched_db_id);
             if (!txId) {
                 showToast(window.i18n.t('autopilot_inspect_tx_not_found') || 'Identifiant de transaction introuvable.', 'warning');
@@ -2363,8 +2431,8 @@ window.AutopilotView = {
                 window.app.loadView('all_operations');
             }
         } else if (entityType === 'budget' || (decisionType && decisionType.startsWith('budget_'))) {
-            const budgetId = d.entity_id || snap.budget_id;
-            const budgetName = snap.budget_name || d.label;
+            const budgetId = d.entity_id || snap.budget_id || snap.target_budget_id;
+            const budgetName = snap.budget_name || snap.target_budget_name || d.label;
             if (window.BudgetsView) {
                 window.BudgetsView._pendingHighlightId = budgetId;
                 window.BudgetsView._pendingHighlightName = budgetName;
@@ -2372,7 +2440,7 @@ window.AutopilotView = {
             if (window.app && typeof window.app.loadView === 'function') {
                 window.app.loadView('budgets');
             }
-        } else if (entityType === 'recurrence' || (decisionType && decisionType.startsWith('recurrence_'))) {
+        } else if (entityType === 'recurrence' || entityType === 'recurrence_template' || (decisionType && decisionType.startsWith('recurrence_'))) {
             const templateId = d.entity_id || snap.template_id;
             if (window.RecurrenceView) {
                 window.RecurrenceView._pendingHighlightTemplateId = templateId;
