@@ -382,7 +382,7 @@ window.AutopilotView = {
                                     </div>
                                 </div>
                                 <!-- Filters & Batch Toggle Bar -->
-                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div class="ap-feed-filters-bar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <select id="feedFilterType" class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px;" onchange="window.AutopilotView.onFilterChange()">
                                         <option value="" data-i18n="autopilot_filter_all">${window.i18n.t('autopilot_filter_all') || 'Toutes les décisions'}</option>
                                         <option value="action:AUTO_COMMIT" data-i18n="autopilot_filter_reconciliation_confirmed">${window.i18n.t('autopilot_filter_reconciliation_confirmed') || '⚡ Rapprochements confirmés'}</option>
@@ -391,7 +391,7 @@ window.AutopilotView = {
                                         <option value="type:recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || '🔄 Récurrences'}</option>
                                         <option value="type:budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || '🎯 Budgets'}</option>
                                     </select>
-                                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
+                                    <label class="ap-feed-filter-checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
                                         <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
                                     </label>
@@ -401,7 +401,7 @@ window.AutopilotView = {
                                 </div>
                             </div>
 
-                            <div style="padding: 18px 20px;">
+                            <div class="ap-feed-body-container" style="padding: 18px 20px;">
                                 <!-- Decision Items Container -->
                                 <div id="apDecisionsFeed" style="min-height: 200px;">
                                     <div style="text-align: center; padding: 40px; color: var(--text-muted);" data-i18n="autopilot_feed_loading">
@@ -504,9 +504,9 @@ window.AutopilotView = {
 
             <!-- Settings Drawer (Option B) -->
             <div id="apSettingsDrawer" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); z-index: 99998; justify-content: flex-end;" onclick="if(event.target === this) window.AutopilotView.closeSettingsDrawer()">
-                <div style="background: var(--bg-surface); width: 620px; max-width: 95vw; height: 100%; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.35); border-left: 1px solid var(--border-color); color: var(--text-main); animation: apDrawerSlideIn 0.22s ease-out;">
+                <div class="ap-drawer-panel" style="background: var(--bg-surface); width: 620px; max-width: 95vw; height: 100%; display: flex; flex-direction: column; box-shadow: -10px 0 30px rgba(0,0,0,0.35); border-left: 1px solid var(--border-color); color: var(--text-main); animation: apDrawerSlideIn 0.22s ease-out;">
                     <!-- Drawer Header -->
-                    <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                    <div class="ap-drawer-header" style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                         <div>
                             <h3 style="margin: 0 0 3px 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
                                 <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.settings}</span> <span data-i18n="autopilot_drawer_title">${window.i18n ? window.i18n.t('autopilot_drawer_title') : 'Réglages d\'Autonomie & Automatismes'}</span>
@@ -519,7 +519,7 @@ window.AutopilotView = {
                     </div>
 
                     <!-- Drawer Body (Scrollable) -->
-                    <div style="flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 20px;">
+                    <div class="ap-drawer-body" style="flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 20px;">
                         <!-- Block 1 : Seuil de tolérance -->
                         <div style="background: var(--bg-card, var(--bg-surface)); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -541,11 +541,11 @@ window.AutopilotView = {
                                     <span>99% (${window.i18n.t('autopilot_threshold_strict') || 'Strict'})</span>
                                 </div>
                             </div>
-                            <div id="thresholdLiveImpact" style="margin-top: 12px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: 8px; font-size: 11.5px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                                <div id="thresholdLiveImpactText" style="color: var(--text-main); display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: var(--accent); display: inline-flex;">${this._icons.chart}</span> <span>${window.i18n.t('autopilot_threshold_preview_help') || 'Impact estimé'} : <strong id="previewStatsText">Déplacez le curseur pour simuler</strong></span>
+                            <div id="thresholdLiveImpact" class="ap-threshold-impact-box">
+                                <div id="thresholdLiveImpactText" class="ap-threshold-impact-text">
+                                    <span style="color: var(--accent); display: inline-flex; flex-shrink: 0;">${this._icons.chart}</span> <span>${window.i18n.t('autopilot_threshold_preview_help') || 'Impact estimé'} : <strong id="previewStatsText">Déplacez le curseur pour simuler</strong></span>
                                 </div>
-                                <button id="btnApplyThresholdToExisting" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; white-space: nowrap; display: none;" onclick="window.AutopilotView.applyThresholdToExisting()">
+                                <button id="btnApplyThresholdToExisting" class="btn btn-secondary btn-sm ap-threshold-apply-btn" style="display: none;" onclick="window.AutopilotView.applyThresholdToExisting()">
                                     ${window.i18n.t('autopilot_threshold_apply_button') || 'Appliquer aux écritures existantes'}
                                 </button>
                             </div>
@@ -563,37 +563,37 @@ window.AutopilotView = {
                             <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 12px 0;" data-i18n="autopilot_preset_desc">
                                 ${window.i18n ? window.i18n.t('autopilot_preset_desc') : 'Sélectionnez un mode préconfiguré ou personnalisez vos automatismes :'}
                             </p>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
-                                <button type="button" id="btnPresetBalanced" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('balanced')" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                            <div class="ap-preset-grid">
+                                <button type="button" id="btnPresetBalanced" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('balanced')">
+                                    <div class="ap-preset-btn-top">
+                                        <div class="ap-preset-btn-title">
                                             <span>🛡️</span> <span data-i18n="autopilot_preset_balanced">${window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)'}</span>
                                         </div>
-                                        <span id="presetCheckBalanced" style="font-size: 10.5px; font-weight: 700; color: var(--accent); display: none; background: rgba(99, 102, 241, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                        <span id="presetCheckBalanced" class="ap-preset-active-badge ap-preset-active-balanced">✓ Actif</span>
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_balanced_desc">
+                                    <div class="ap-preset-btn-desc" data-i18n="autopilot_preset_balanced_desc">
                                         ${window.i18n ? window.i18n.t('autopilot_preset_balanced_desc') : 'Flux quotidien & suggestions assistées sans modification structurelle'}
                                     </div>
                                 </button>
-                                <button type="button" id="btnPresetFull" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('full')" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                <button type="button" id="btnPresetFull" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('full')">
+                                    <div class="ap-preset-btn-top">
+                                        <div class="ap-preset-btn-title">
                                             <span>⚡</span> <span data-i18n="autopilot_preset_full">${window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)'}</span>
                                         </div>
-                                        <span id="presetCheckFull" style="font-size: 10.5px; font-weight: 700; color: #10b981; display: none; background: rgba(16, 185, 129, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                        <span id="presetCheckFull" class="ap-preset-active-badge ap-preset-active-full">✓ Actif</span>
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_full_desc">
+                                    <div class="ap-preset-btn-desc" data-i18n="autopilot_preset_full_desc">
                                         ${window.i18n ? window.i18n.t('autopilot_preset_full_desc') : 'Exécution 100% autonome de tous les cycles, récurrences et budgets'}
                                     </div>
                                 </button>
-                                <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); background: var(--bg-base); cursor: pointer; position: relative; width: 100%; box-sizing: border-box;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                                        <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                                <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()">
+                                    <div class="ap-preset-btn-top">
+                                        <div class="ap-preset-btn-title">
                                             <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/14)</span>
                                         </div>
-                                        <span id="presetCheckCustom" style="font-size: 10.5px; font-weight: 700; color: #f59e0b; display: none; background: rgba(245, 158, 11, 0.15); padding: 1px 6px; border-radius: 4px;">✓ Actif</span>
+                                        <span id="presetCheckCustom" class="ap-preset-active-badge ap-preset-active-custom">✓ Actif</span>
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.35;" data-i18n="autopilot_preset_custom_desc">
+                                    <div class="ap-preset-btn-desc" data-i18n="autopilot_preset_custom_desc">
                                         ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous'}
                                     </div>
                                 </button>
@@ -615,7 +615,7 @@ window.AutopilotView = {
                     </div>
 
                     <!-- Drawer Footer -->
-                    <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); flex-shrink: 0;">
+                    <div class="ap-drawer-footer" style="padding: 14px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); flex-shrink: 0;">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.resetToDefaultSubtoggles()" style="display: inline-flex; align-items: center; gap: 6px;">
                             ${this._icons.repeat} <span data-i18n="autopilot_drawer_reset_recommended">${window.i18n ? window.i18n.t('autopilot_drawer_reset_recommended') : 'Rétablir la sélection recommandée'}</span>
                         </button>
@@ -1243,7 +1243,7 @@ window.AutopilotView = {
                     previewText.innerHTML = window.i18n ? window.i18n.t('autopilot_threshold_preview_result').replace('{rel}', rel).replace('{rev}', rev) : `<strong>${rel}</strong> deviendront fiable(s), <strong>${rev}</strong> nécessiteront une vérification.`;
                 }
                 if (btnApply) {
-                    btnApply.style.display = 'inline-block';
+                    btnApply.style.display = 'inline-flex';
                 }
             } catch (e) {
                 console.warn('[AutopilotView] Erreur simulation seuil:', e);
@@ -2123,7 +2123,7 @@ window.AutopilotView = {
         let scoreBadge = '';
         if (score !== null) {
             const color = score >= 90 ? '#10b981' : (score >= 80 ? 'var(--accent)' : '#f59e0b');
-            scoreBadge = `<span style="font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: ${color}22; color: ${color}; border: 1px solid ${color}44;">${score}%</span>`;
+            scoreBadge = `<span class="ap-decision-score-badge" style="background: ${color}22; color: ${color}; border: 1px solid ${color}44;">${score}%</span>`;
         }
 
         let badgeClass = 'badge-blue';
@@ -2276,53 +2276,61 @@ window.AutopilotView = {
         }
 
         return `
-            <div class="ap-decision-row" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color); gap: 12px; opacity: ${isUndone ? '0.5' : '1'};">
-                <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                    <div style="min-width: 175px; flex-shrink: 0; display: flex; align-items: center;">
-                        <div class="ov-ap-decision-badge ${badgeClass}" title="${escapeHtml(tooltipText)}" style="font-size: 11px; padding: 2.5px 8px; border-radius: 6px;">
+            <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}">
+                <div class="ap-decision-header-mobile">
+                    <div class="ap-decision-badge-wrap">
+                        <div class="ov-ap-decision-badge ${badgeClass}" title="${escapeHtml(tooltipText)}">
                             <span>${icon}</span> <span>${typeLabel}</span>
                         </div>
+                        ${scoreBadge ? `<span class="ap-decision-score-mobile">${scoreBadge}</span>` : ''}
                     </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px;">
-                            ${labelHtml}
-                            ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(d.raw_label)})</span>` : ''}
-                        </div>
-                        <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                            ${categoryHtml}
-                            ${d.account_name ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
-                            ${reasonBadgeHtml}
-                        </div>
+                    <div class="ap-decision-amount-mobile">
+                        <span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span class="privacy-blur" style="font-size: 13.5px; font-weight: 700; color: ${amtColor}; min-width: 80px; text-align: right;">${amtDisplay}</span>
-                    ${scoreBadge}
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
+
+                <div class="ap-decision-body">
+                    <div class="ap-decision-title">
+                        ${labelHtml}
+                        ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span class="ap-decision-raw-label">(${escapeHtml(d.raw_label)})</span>` : ''}
+                    </div>
+                    <div class="ap-decision-meta">
+                        ${categoryHtml}
+                        ${d.account_name ? `<span class="ap-decision-acc-badge" style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
+                        ${reasonBadgeHtml}
+                    </div>
+                </div>
+
+                <div class="ap-decision-footer">
+                    <div class="ap-decision-amount-desktop">
+                        <span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span>
+                        ${scoreBadge ? `<span class="ap-decision-score-desktop">${scoreBadge}</span>` : ''}
+                    </div>
+                    <div class="ap-decision-actions">
+                        <button class="btn btn-secondary btn-sm ap-btn-inspect" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
                             ${this._icons.search}
                         </button>
                         ${isUndone ? `
-                            <span class="badge" style="font-size: 10px; background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid #ef4444;" data-i18n="autopilot_feed_badge_undone">${window.i18n ? window.i18n.t('autopilot_feed_badge_undone') : 'Annulé'}</span>
+                            <span class="badge ap-badge-undone" data-i18n="autopilot_feed_badge_undone">${window.i18n ? window.i18n.t('autopilot_feed_badge_undone') : 'Annulé'}</span>
                         ` : `
-                            <div style="display: flex; gap: 6px;">
+                            <div class="ap-decision-action-btns">
                                 ${d.entity_type === 'transaction' && (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') ? `
                                     ${(d.action === 'LINKED_COMING' || d.action === 'LINKED_COMING_PENDING_REVIEW') ? `
-                                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink_title') : 'Délier l\'opération à venir'}">
+                                        <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink_title') : 'Délier l\'opération à venir'}">
                                             ${this._icons.undo} <span data-i18n="autopilot_feed_btn_unlink">${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink') : 'Délier'}</span>
                                         </button>
                                     ` : `
-                                        <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
+                                        <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.unpointDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint_title') : 'Dépointer la transaction'}">
                                             ${this._icons.unpoint} <span data-i18n="autopilot_feed_btn_unpoint">${window.i18n ? window.i18n.t('autopilot_feed_btn_unpoint') : 'Dépointer'}</span>
                                         </button>
                                     `}
                                 ` : `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback_title') : 'Annuler cette décision'}">
+                                    <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback_title') : 'Annuler cette décision'}">
                                         ${this._icons.undo} <span data-i18n="autopilot_feed_btn_rollback">${window.i18n ? window.i18n.t('autopilot_feed_btn_rollback') : 'Annuler'}</span>
                                     </button>
                                 `}
                                 ${d.entity_type === 'transaction' ? `
-                                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; display: inline-flex; align-items: center;" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_override_title') : 'Modifier et apprendre'}">
+                                    <button class="btn btn-secondary btn-sm ap-btn-override" data-decision-id="${d.id}" data-label="${escapeHtml(d.label || '')}" data-category="${escapeHtml(d.category || '')}" data-amount="${d.amount}" onclick="window.AutopilotView.onOverrideClick(this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_override_title') : 'Modifier et apprendre'}">
                                         ${this._icons.edit}
                                     </button>
                                 ` : ''}

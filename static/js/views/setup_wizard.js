@@ -927,7 +927,7 @@ window.SetupWizard = {
             const elAmt = document.getElementById('wizPayAmount');
             if (elAmt) elAmt.value = cfg.base_pay_amount;
         }
-        if (cfg.base_pay_type === 'bimonthly') {
+        if (cfg.base_pay_type === 'bimonthly' && (cfg.enable_bimonthly === 'true' || cfg.enable_bimonthly === true)) {
             const toggle = document.getElementById('wizBimonthlyToggle');
             if (toggle) { toggle.checked = true; this._toggleBimonthly(); }
             if (cfg.base_pay_day_2) {
@@ -950,13 +950,16 @@ window.SetupWizard = {
 
         const configData = {
             base_pay_day: (day || '28').toString(),
-            base_pay_type: isBimonthly ? 'bimonthly' : 'monthly'
+            base_pay_type: isBimonthly ? 'bimonthly' : 'monthly',
+            enable_bimonthly: isBimonthly ? 'true' : 'false'
         };
         if (amount) {
             configData.base_pay_amount = parseFloat(amount).toFixed(2);
         }
         if (isBimonthly && day2) {
             configData.base_pay_day_2 = day2.toString();
+        } else {
+            configData.base_pay_day_2 = '';
         }
 
         try {
