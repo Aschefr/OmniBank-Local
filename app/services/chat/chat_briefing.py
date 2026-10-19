@@ -80,11 +80,27 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         from app.services.finance_engine import get_overdraft_warning
         od_warning = get_overdraft_warning(db)
 
+        # Real overdraft check: only genuine unmitigated overdrafts before next paycheck
+        has_real_overdraft = False
+        is_covered_overdraft = False
+        is_after_pay_overdraft = False
+        if od_warning:
+            is_after_pay_overdraft = bool(od_warning.get("is_after_next_paycheck") or (isinstance(next_pay_date, date) and od_warning["date"] > next_pay_date))
+            is_covered_overdraft = bool(od_warning.get("covered_by_income"))
+            if not is_after_pay_overdraft and not is_covered_overdraft:
+                has_real_overdraft = True
+
         # Recommended Bridge Transfer calculation (Deficit + Vital Daily Living Buffer)
+        # ONLY triggered if there is an actual checking account deficit before payday (negative RTL or unmitigated overdraft)
         rec_bridge_transfer = None
-        if (rtl < 0 or od_warning) and liquid_savings_total > 0:
-            od_amt = abs(od_warning.get("projected_balance", 0.0)) if od_warning else 0.0
-            deficit_to_cover = max(abs(rtl), od_amt)
+        cashflow_deficit = max(0.0, -rtl) if rtl < 0 else 0.0
+        od_deficit = 0.0
+        if has_real_overdraft:
+            od_bal = od_warning.get("with_income_risk_amount", od_warning.get("projected_balance", 0.0))
+            od_deficit = max(0.0, -od_bal)
+            
+        deficit_to_cover = max(cashflow_deficit, od_deficit)
+        if deficit_to_cover > 0 and liquid_savings_total > 0:
             vital_daily_allowance = 15.0  # realistic floor for food and basic transit
             vital_buffer = round(vital_daily_allowance * days_until_paycheck, 2)
             total_transfer_needed = round(deficit_to_cover + vital_buffer, 0)
@@ -200,8 +216,13 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         else:
             lines.append(f"• Daily Spending Ceiling on Checking Account: 0.00 {base_curr}/day (Checking account cash flow deficit until paycheck. Liquid savings must be used to bridge daily essentials).")
 
-        if od_warning:
-            lines.append(f"• Overdraft Risk Alert: Projected negative balance of -{abs(od_warning.get('projected_balance', 0.0)):.2f} {base_curr} on {od_warning.get('date')} (trigger operation: '{od_warning.get('transaction_description', '')}').")
+        if has_real_overdraft:
+            od_neg = abs(od_warning.get("with_income_risk_amount", od_warning.get("projected_balance", 0.0)))
+            lines.append(f"• Overdraft Risk Alert: Projected negative balance of -{od_neg:.2f} {base_curr} on {od_warning.get('date')} (trigger operation: '{od_warning.get('transaction_description', '')}').")
+        elif is_after_pay_overdraft:
+            lines.append(f"• Overdraft Status: No projected overdraft before next paycheck ({next_pay_date}). Note: Charge '{od_warning.get('transaction_description', '')}' occurs on {od_warning.get('date')} after next payday ({next_pay_date}); incoming paycheck of {pay_amount:.2f} {base_curr} funds the account beforehand, leaving a comfortable balance.")
+        elif is_covered_overdraft:
+            lines.append(f"• Overdraft Status: No unmitigated overdraft before next paycheck ({next_pay_date}). Temporary cash dip without receipts on {od_warning.get('date')} is fully absorbed by planned income (+{od_warning.get('planned_income_before_risk', 0.0):.2f} {base_curr}, projected net balance: +{od_warning.get('projected_balance_with_income', 0.0):.2f} {base_curr}).")
         else:
             lines.append(f"• Overdraft Status: No projected overdraft before next paycheck ({next_pay_date}).")
 
@@ -299,8 +320,14 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             lines.append(f"[Simulator Briefing] Disposable monthly capacity: ~{disposable_monthly:.2f} {base_curr}/mo | 33% Borrowing ceiling: ~{max_debt_cap:.2f} {base_curr}/mo | Liquid safety cushion: {savings_total:.2f} {base_curr}.")
         elif role == 'alerts':
             from app.services.chat.chat_tools import get_active_recurrence_templates
-            od = od_warning
-            od_str = f"⚠️ OVERDRAFT RISK DETECTED on {od['date']} ({od['projected_balance']} {base_curr})" if od else "No immediate overdraft detected."
+            if has_real_overdraft:
+                od_str = f"⚠️ OVERDRAFT RISK DETECTED on {od_warning['date']} ({od_warning.get('with_income_risk_amount', od_warning.get('projected_balance'))} {base_curr})"
+            elif is_after_pay_overdraft:
+                od_str = f"✅ No overdraft before payday ({next_pay_date}). Charge on {od_warning['date']} is covered by incoming paycheck."
+            elif is_covered_overdraft:
+                od_str = f"⏳ Temporary cash dip on {od_warning['date']} covered by planned receipts (+{od_warning.get('planned_income_before_risk', 0.0):.2f} {base_curr})"
+            else:
+                od_str = "No immediate overdraft detected."
             active_templates = get_active_recurrence_templates(db)
             unrec_past_txs = db.query(Transaction).filter(
                 Transaction.reconciliation_date == None,

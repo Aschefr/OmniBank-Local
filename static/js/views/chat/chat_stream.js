@@ -1,6 +1,7 @@
 // static/js/views/chat/chat_stream.js — Gestion du streaming SSE, compression de contexte & saisie
 window.ChatView = Object.assign(window.ChatView || {}, {
     stopGeneration() {
+        this.isStreaming = false;
         this._stopRequested = true;
         if (this._streamReader) {
             try { this._streamReader.cancel(); } catch (e) {}
@@ -24,6 +25,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         const aiMsgIndex = this.messages.length - 1;
         if (aiMsgIndex >= 0 && this.messages[aiMsgIndex].role === 'assistant') {
             this.messages[aiMsgIndex].content = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            this.messages[aiMsgIndex]._streaming = true;
             this.renderHistory();
         }
 
@@ -36,6 +38,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             window.app.setFastNotificationsPolling(true);
         }
         try {
+            this.isStreaming = true;
             this._activeAbortController = new AbortController();
             this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate`, {
@@ -55,6 +58,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 this.renderHistory();
             }
         } finally {
+            this.isStreaming = false;
+            if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                delete this.messages[aiMsgIndex]._streaming;
+            }
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
@@ -294,7 +301,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this.messages.push({ role: 'user', content: text });
         input.value = '';
         input.style.height = 'auto';
-        this.messages.push({ role: 'assistant', content: '<div class="typing-indicator"><span></span><span></span><span></span></div>' });
+        this.messages.push({ role: 'assistant', content: '<div class="typing-indicator"><span></span><span></span><span></span></div>', _streaming: true });
         const aiMsgIndex = this.messages.length - 1;
         const isFirstExchange = (this.messages.length <= 2);
         this.renderHistory();
@@ -310,6 +317,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             window.app.setFastNotificationsPolling(true);
         }
         try {
+            this.isStreaming = true;
             this._activeAbortController = new AbortController();
             this._streamDetached = false;
             const response = await fetch(`/api/chat/sessions/${this.activeSessionId}/message`, {
@@ -344,6 +352,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 this.renderHistory();
             }
         } finally {
+            this.isStreaming = false;
+            if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
+                delete this.messages[aiMsgIndex]._streaming;
+            }
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
                 window.app.setFastNotificationsPolling(false);
             }
@@ -426,6 +438,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         const reader = response.body.getReader();
         this._streamReader = reader;
+        this.isStreaming = true;
         const decoder = new TextDecoder('utf-8');
 
         let done = false;
@@ -536,6 +549,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
                 if (this.messages[aiMsgIndex]) {
                     this.messages[aiMsgIndex].content = aiText;
+                    this.messages[aiMsgIndex]._streaming = true;
                 }
                 
                 const bubble = document.getElementById(`msg-${aiMsgIndex}`);
@@ -559,7 +573,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 const writeTools = [
                     'apply_transaction_correction', 'create_budget_envelope', 'update_budget_envelope',
                     'delete_budget_envelope', 'allocate_savings_funds', 'create_recurrence_template',
-                    'update_recurrence_template', 'delete_recurrence_template', 'create_category',
+                    'update_recurrence_template', 'close_recurrence_template', 'delete_recurrence_template', 'create_category',
                     'delete_category', 'set_predicted_paycheck'
                 ];
                 const hasWriteTool = usedTools.some(t => writeTools.includes(t.trim()));
@@ -587,6 +601,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
         } finally {
             this._streamReader = null;
+            this.isStreaming = false;
+            if (this.messages && this.messages[aiMsgIndex]) {
+                delete this.messages[aiMsgIndex]._streaming;
+                const bubble = document.getElementById(`msg-${aiMsgIndex}`);
+                if (bubble) {
+                    bubble.innerHTML = this.formatMessageContent(this.messages[aiMsgIndex]);
+                    if (typeof this.renderMath === 'function') this.renderMath();
+                }
+            }
         }
     }
 });

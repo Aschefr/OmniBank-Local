@@ -29,6 +29,7 @@ from app.services.chat.tools.read_tools import (  # noqa: F401
 from app.services.chat.tools.write_tools import (  # noqa: F401
     allocate_savings_funds_tool,
     apply_transaction_correction_tool,
+    close_recurrence_template_tool,
     create_budget_envelope_tool,
     create_category_tool,
     create_planned_transfer_tool,
@@ -223,8 +224,16 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_recurrence_templates",
-            "description": "Get the list of all active recurrence templates (regular bills, salaries, transfers).",
-            "parameters": {"type": "object", "properties": {}}
+            "description": "Get the list of recurring transaction templates (bills, subscriptions, salaries), including their active/closed status, next expected dates, and occurrence counts.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "include_closed": {
+                        "type": "boolean",
+                        "description": "Whether to include closed/archived recurrence templates (default true)."
+                    }
+                }
+            }
         }
     },
     {
@@ -515,8 +524,24 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "close_recurrence_template",
+            "description": "Close a recurring transaction template to mark it as ended/inactive, stop future scheduled debit projections, and purge upcoming unreconciled instances while keeping historical transactions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_id": {"type": "integer", "description": "The ID of the recurrence template to close."},
+                    "description": {"type": "string", "description": "Description of the recurrence template if ID is not known."},
+                    "closure_date": {"type": "string", "description": "Effective cutoff date (YYYY-MM-DD). Default is today."}
+                },
+                "required": ["template_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delete_recurrence_template",
-            "description": "Delete a recurrence template.",
+            "description": "Delete a recurrence template permanently.",
             "parameters": {
                 "type": "object",
                 "properties": {

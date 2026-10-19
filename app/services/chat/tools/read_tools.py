@@ -540,16 +540,19 @@ def _compute_recurrence_schedule(t, last_tx_date = None) -> tuple:
 
     return applicable_months, freq_human, next_date
 
-def get_recurrence_templates_tool(db: Session, include_completed: bool = False) -> dict:
+def get_recurrence_templates_tool(db: Session, include_completed: bool = False, include_closed: bool = True) -> dict:
     from sqlalchemy import func
     from datetime import date
     from app.models import RecurrenceTemplate, Transaction
 
     today = date.today()
 
-    templates = db.query(RecurrenceTemplate).filter(
-        (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
-    ).all()
+    query = db.query(RecurrenceTemplate)
+    if not include_closed:
+        query = query.filter(
+            (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+        )
+    templates = query.all()
 
     tx_counts = dict(
         db.query(Transaction.recurrence_id, func.count(Transaction.id))
@@ -591,6 +594,7 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False) 
         occ_count = tx_counts.get(t.id, 0)
         is_completed = bool(t.max_occurrences and occ_count >= t.max_occurrences)
         remaining = max(0, t.max_occurrences - occ_count) if t.max_occurrences else None
+        is_closed = bool(t.is_closed)
 
         if is_completed and not include_completed:
             continue
@@ -598,7 +602,7 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False) 
         last_rec = last_reconciled_map.get(t.id)
         last_dt_obj = last_rec.get("date_obj") if last_rec else None
         applicable_months, freq_human, computed_next_date = _compute_recurrence_schedule(t, last_dt_obj)
-        next_expected_date = next_planned_map.get(t.id, computed_next_date)
+        next_expected_date = next_planned_map.get(t.id, computed_next_date) if not is_closed else None
 
         result.append({
             "id": t.id,
@@ -615,7 +619,8 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False) 
             "occurrences_generated": occ_count,
             "remaining_occurrences": remaining,
             "is_completed": is_completed,
-            "status": "completed" if is_completed else "active",
+            "is_closed": is_closed,
+            "status": "closed" if is_closed else ("completed" if is_completed else "active"),
             "last_reconciled_payment": {
                 "date": last_rec["date"],
                 "amount": last_rec["amount"]
@@ -623,7 +628,9 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False) 
             "next_expected_date": next_expected_date
         })
 
-    return {"templates": result, "total_active": len(result)}
+    total_active = sum(1 for item in result if item["status"] == "active")
+    total_closed = sum(1 for item in result if item["is_closed"])
+    return {"templates": result, "total_active": total_active, "total_closed": total_closed}
 
 def get_net_worth_history_tool(db: Session, months: int = 12) -> dict:
     try:
@@ -1318,17 +1325,28 @@ def get_financial_summary_tool(db: Session) -> dict:
     liquid_savings_total = sum(max(balances_reconciled.get(a.id, 0.0), 0.0) for a in savings_accounts)
     savings_breakdown = {a.name: round(balances_reconciled.get(a.id, 0.0), 2) for a in savings_accounts}
     od_warning = get_overdraft_warning(db)
+    has_real_overdraft = False
+    if od_warning:
+        is_after_pay = bool(od_warning.get("is_after_next_paycheck") or (isinstance(next_pay_date, date) and od_warning["date"] > next_pay_date))
+        is_covered = bool(od_warning.get("covered_by_income"))
+        if not is_after_pay and not is_covered:
+            has_real_overdraft = True
 
     rec_bridge = None
-    if (rest_to_live < 0 or od_warning) and liquid_savings_total > 0:
-        od_amt = abs(od_warning.get("projected_balance", 0.0)) if od_warning else 0.0
-        def_cov = max(abs(rest_to_live), od_amt)
+    cashflow_deficit = max(0.0, -rest_to_live) if rest_to_live < 0 else 0.0
+    od_deficit = 0.0
+    if has_real_overdraft:
+        od_bal = od_warning.get("with_income_risk_amount", od_warning.get("projected_balance", 0.0))
+        od_deficit = max(0.0, -od_bal)
+
+    deficit_to_cover = max(cashflow_deficit, od_deficit)
+    if deficit_to_cover > 0 and liquid_savings_total > 0:
         vital_buff = round(15.0 * days_until_paycheck, 2)
-        tot_needed = round(def_cov + vital_buff, 0)
+        tot_needed = round(deficit_to_cover + vital_buff, 0)
         rounded_amt = int(((tot_needed + 9) // 10) * 10)
         rec_bridge = {
             "recommended_amount_euros": rounded_amt,
-            "deficit_to_cover_euros": round(def_cov, 2),
+            "deficit_to_cover_euros": round(deficit_to_cover, 2),
             "vital_living_buffer_euros": round(vital_buff, 2),
             "days_until_paycheck": days_until_paycheck
         }
