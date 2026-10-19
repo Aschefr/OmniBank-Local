@@ -815,3 +815,352 @@ def test_autopilot_threshold_reconciled_and_validated_guardrails(client, test_db
     assert tx_pending.needs_review is True
 
 
+def test_autopilot_recurrence_skip_feed_and_rollback(client, test_db):
+    """Vérifie le traitement, la traçabilité et le rollback d'une échéance récurrente ignorée/sautée."""
+    import json
+    from app.models import Transaction, AutopilotDecisionLog
+    from app.services.autopilot_service import rollback_autopilot_decision
+
+    tx = Transaction(
+        description="AUDIBLE AMAZON SKIPPED",
+        amount=9.95,
+        type="expense_var",
+        category="Abonnement loisir",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        reconciliation_date=None,
+        is_skipped=True,
+        comment="Auto-sauté (échéance non prélevée)",
+        confidence_score=100.0
+    )
+    test_db.add(tx)
+    test_db.commit()
+
+    snap = {
+        "tx_id": tx.id,
+        "template_description": "Audible Amazon",
+        "amount": 9.95,
+        "decision_reason": "unreconciled_overdue"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_skip_123",
+        decision_type="recurrence_skip",
+        action="AUTO_SKIPPED_UNRECONCILED",
+        entity_type="transaction",
+        entity_id=tx.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=100.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    # 1. Vérification dans l'endpoint decisions feed
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["action"] == "AUTO_SKIPPED_UNRECONCILED"
+    assert found["decision_type"] == "recurrence_skip"
+    assert found["reason"] == "unreconciled_overdue"
+
+    # 2. Rollback de la décision -> réactive l'échéance (is_skipped = False)
+    res_rb = client.post(f"/api/autopilot/decisions/{dlog.id}/rollback")
+    assert res_rb.status_code == 200
+    assert res_rb.json()["success"] is True
+
+    test_db.refresh(tx)
+    test_db.refresh(dlog)
+    assert tx.is_skipped is False
+    assert tx.comment is None
+    assert dlog.is_undone is True
+
+
+def test_autopilot_recurrence_close_feed_and_rollback(client, test_db):
+    """Vérifie la traçabilité et le rollback de la clôture automatique d'abonnement après 3 échéances non prélevées."""
+    import json
+    from app.models import RecurrenceTemplate, AutopilotDecisionLog
+
+    tpl = RecurrenceTemplate(
+        description="Netflix Standard",
+        amount=13.49,
+        type="expense_fixe",
+        category="Abonnements",
+        frequency="Monthly",
+        is_closed=True
+    )
+    test_db.add(tpl)
+    test_db.commit()
+
+    snap = {
+        "template_id": tpl.id,
+        "template_description": tpl.description,
+        "amount": tpl.amount,
+        "category": tpl.category,
+        "consecutive_skipped": 3,
+        "decision_reason": "recurrence_closed_3_skips"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_close_123",
+        decision_type="recurrence_close",
+        action="AUTO_CLOSED_SKIPPED",
+        entity_type="recurrence_template",
+        entity_id=tpl.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=100.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    # 1. Vérification dans le feed des décisions
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["action"] == "AUTO_CLOSED_SKIPPED"
+    assert found["decision_type"] == "recurrence_close"
+    assert found["reason"] == "recurrence_closed_3_skips"
+    assert found["label"] == "Netflix Standard"
+    assert abs(found["amount"] - 13.49) < 0.01
+
+    # 2. Rollback -> réouvre le modèle d'abonnement
+    res_rb = client.post(f"/api/autopilot/decisions/{dlog.id}/rollback")
+    assert res_rb.status_code == 200
+    assert res_rb.json()["success"] is True
+
+    test_db.refresh(tpl)
+    test_db.refresh(dlog)
+    assert tpl.is_closed is False
+    assert dlog.is_undone is True
+
+
+def test_autopilot_budget_recurrence_sync_feed_and_rollback(client, test_db):
+    """Vérifie la traçabilité et le rollback de la synchronisation de budget suite à un changement de récurrence."""
+    import json
+    from app.models import Budget, AutopilotDecisionLog
+
+    b = Budget(
+        name="Abonnements Internet & Box",
+        monthly_amount=49.99,
+        period="monthly"
+    )
+    test_db.add(b)
+    test_db.commit()
+
+    snap = {
+        "budget_id": b.id,
+        "budget_name": b.name,
+        "category": "Abonnements",
+        "old_amount": 39.99,
+        "new_amount": 49.99,
+        "amount": 49.99,
+        "decision_reason": "budget_recurrence_sync"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_bsync_123",
+        decision_type="budget_recurrence_sync",
+        action="AUTO_COMMIT",
+        entity_type="budget",
+        entity_id=b.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=100.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    # 1. Vérification dans le feed
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["decision_type"] == "budget_recurrence_sync"
+    assert found["reason"] == "budget_recurrence_sync"
+    assert found["label"] == "Abonnements Internet & Box"
+    assert abs(found["amount"] - 49.99) < 0.01
+
+    # 2. Rollback -> rétablit le montant antérieur
+    res_rb = client.post(f"/api/autopilot/decisions/{dlog.id}/rollback")
+    assert res_rb.status_code == 200
+    assert res_rb.json()["success"] is True
+
+    test_db.refresh(b)
+    test_db.refresh(dlog)
+    assert abs(b.monthly_amount - 39.99) < 0.01
+    assert dlog.is_undone is True
+
+
+def test_autopilot_budget_enrichment_feed_and_rollback(client, test_db):
+    """Vérifie la traçabilité et le rollback du rattachement d'une nouvelle sous-catégorie à une enveloppe budgétaire."""
+    import json
+    from app.models import Budget, BudgetCategory, AutopilotDecisionLog
+
+    b = Budget(
+        name="Loisirs Créatifs",
+        monthly_amount=130.0,
+        period="monthly"
+    )
+    test_db.add(b)
+    test_db.commit()
+
+    bc = BudgetCategory(budget_id=b.id, category_name="Jeux Vidéo")
+    test_db.add(bc)
+    test_db.commit()
+
+    snap = {
+        "target_budget_id": b.id,
+        "target_budget_name": "Loisirs Créatifs",
+        "new_category": "Jeux Vidéo",
+        "current_amount": 100.0,
+        "suggested_amount": 130.0,
+        "additional_amount": 30.0,
+        "decision_reason": "budget_enrichment"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_enrich_123",
+        decision_type="budget_enrichment_suggestion",
+        action="AUTO_COMMIT",
+        entity_type="budget",
+        entity_id=b.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=90.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    # 1. Vérification dans le feed
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["decision_type"] == "budget_enrichment_suggestion"
+    assert found["reason"] == "budget_enrichment"
+    assert found["label"] == "Loisirs Créatifs"
+    assert found["category"] == "Jeux Vidéo"
+
+    # 2. Rollback -> supprime la sous-catégorie rattachée et rétablit le montant d'origine
+    res_rb = client.post(f"/api/autopilot/decisions/{dlog.id}/rollback")
+    assert res_rb.status_code == 200
+    assert res_rb.json()["success"] is True
+
+    test_db.refresh(b)
+    test_db.refresh(dlog)
+    assert abs(b.monthly_amount - 100.0) < 0.01
+    remaining_cats = test_db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()
+    assert len(remaining_cats) == 0
+    assert dlog.is_undone is True
+
+
+def test_autopilot_transfer_link_feed_and_rollback(client, test_db):
+    """Vérifie la traçabilité et le rollback du rapprochement automatique d'un virement interne."""
+    import json
+    from app.models import Transaction, AutopilotDecisionLog
+
+    today_val = date.today()
+    tx = Transaction(
+        description="VIR COMPTE EPARGNE",
+        amount=-250.0,
+        type="transfer",
+        category="Virements internes",
+        date_operation=today_val,
+        date_saisie=today_val,
+        reconciliation_date=today_val,
+        confidence_score=100.0
+    )
+    test_db.add(tx)
+    test_db.commit()
+
+    snap = {
+        "before": {"reconciliation_date": None},
+        "after": {"reconciliation_date": str(today_val)},
+        "is_orphan_transfer_link": True,
+        "actual_amount": -250.0,
+        "decision_reason": "internal_transfer"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_transfer_123",
+        decision_type="transfer_link",
+        action="AUTO_RECONCILED",
+        entity_type="transaction",
+        entity_id=tx.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=98.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    # 1. Vérification dans le feed
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["decision_type"] == "transfer_link"
+    assert found["reason"] == "internal_transfer"
+    assert found["label"] == "VIR COMPTE EPARGNE"
+
+    # 2. Rollback -> dépointe la transaction
+    res_rb = client.post(f"/api/autopilot/decisions/{dlog.id}/rollback")
+    assert res_rb.status_code == 200
+    assert res_rb.json()["success"] is True
+
+    test_db.refresh(tx)
+    test_db.refresh(dlog)
+    assert tx.reconciliation_date is None
+    assert dlog.is_undone is True
+
+
+def test_autopilot_coming_detected_feed(client, test_db):
+    """Vérifie la traçabilité dans le feed d'une annonce bancaire à venir (coming)."""
+    import json
+    from app.models import Transaction, AutopilotDecisionLog
+
+    today_val = date.today()
+    tx = Transaction(
+        description="PRELEVEMENT TOTAL ENERGIES",
+        amount=-84.20,
+        type="expense_fixe",
+        category="Énergie",
+        date_operation=today_val,
+        date_saisie=today_val,
+        csv_id="woob_coming_98765",
+        confidence_score=95.0
+    )
+    test_db.add(tx)
+    test_db.commit()
+
+    snap = {
+        "actual_amount": -84.20,
+        "decision_reason": "bank_coming"
+    }
+    dlog = AutopilotDecisionLog(
+        batch_id="test_batch_coming_123",
+        decision_type="new_entry",
+        action="AUTO_COMMIT_COMING",
+        entity_type="transaction",
+        entity_id=tx.id,
+        raw_snapshot=json.dumps(snap),
+        confidence_score=95.0,
+        is_undone=False
+    )
+    test_db.add(dlog)
+    test_db.commit()
+
+    res_feed = client.get("/api/autopilot/decisions?limit=10")
+    assert res_feed.status_code == 200
+    feed_items = res_feed.json()["items"]
+    found = next((item for item in feed_items if item["id"] == dlog.id), None)
+    assert found is not None
+    assert found["action"] == "AUTO_COMMIT_COMING"
+    assert found["reason"] == "bank_coming"
+    assert found["label"] == "PRELEVEMENT TOTAL ENERGIES"
+
+
+

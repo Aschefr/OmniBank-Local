@@ -752,7 +752,8 @@ def process_auto_skipping(
                 "date_operation": str(tx.date_operation),
                 "limit_date": str(limit_date),
                 "bank_balance": bank_balance,
-                "local_balance": local_reconciled_bal
+                "local_balance": local_reconciled_bal,
+                "decision_reason": "unreconciled_overdue"
             }
             decision = AutopilotDecisionLog(
                 batch_id=bid,
@@ -805,9 +806,13 @@ def process_auto_skipping(
                     closed_templates_count += 1
                     snap_payload = {
                         "template_id": tpl.id,
+                        "template_description": tpl.description,
                         "description": tpl.description,
+                        "amount": tpl.amount,
+                        "category": tpl.category,
                         "consecutive_skipped": 3,
-                        "skipped_tx_ids": [t.id for t in last_3]
+                        "skipped_tx_ids": [t.id for t in last_3],
+                        "decision_reason": "recurrence_closed_3_skips"
                     }
                     decision = AutopilotDecisionLog(
                         batch_id=bid,

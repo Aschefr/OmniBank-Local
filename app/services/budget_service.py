@@ -2667,6 +2667,8 @@ def sync_budget_from_recurrence_change(
         "amount_delta": amount_delta,
         "old_amount": old_amount,
         "new_amount": new_amount,
+        "amount": new_amount,
+        "decision_reason": "budget_recurrence_sync",
     }
     decision = AutopilotDecisionLog(
         batch_id=bid,
