@@ -24,6 +24,7 @@ from app.schemas.api_schemas import (
     ChatSendMessage,
     ChatSessionCreate,
     ChatSessionUpdate,
+    ChatSessionsBulkDelete,
 )
 
 # ─── Re-exports depuis les sous-modules pour rétrocompatibilité ──────────────
@@ -63,14 +64,35 @@ logger = logging.getLogger(__name__)
 
 @router.get("/sessions")
 async def list_sessions(db: Session = Depends(get_db)):
-    sessions = db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+    from sqlalchemy import func
+    # Sous-requête pour récupérer la date du dernier message échangé par session
+    last_msg_sub = (
+        db.query(
+            ChatMessage.session_id,
+            func.max(ChatMessage.timestamp).label("max_ts")
+        )
+        .group_by(ChatMessage.session_id)
+        .subquery()
+    )
+
+    results = (
+        db.query(
+            ChatSession,
+            func.coalesce(last_msg_sub.c.max_ts, ChatSession.created_at).label("last_activity")
+        )
+        .outerjoin(last_msg_sub, ChatSession.id == last_msg_sub.c.session_id)
+        .order_by(func.coalesce(last_msg_sub.c.max_ts, ChatSession.created_at).desc())
+        .all()
+    )
+
     return [{
         "id": s.id,
         "title": s.title,
         "role": s.role,
         "created_at": s.created_at.isoformat() if s.created_at else None,
+        "last_activity_at": (last_act.isoformat() if last_act else (s.created_at.isoformat() if s.created_at else None)),
         "has_compressed_context": bool(s.compressed_context),
-    } for s in sessions]
+    } for s, last_act in results]
 
 
 @router.post("/sessions")
@@ -111,6 +133,61 @@ async def delete_session(id: int, db: Session = Depends(get_db)):
     db.delete(session)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/sessions/bulk-delete")
+async def bulk_delete_sessions(req: ChatSessionsBulkDelete, db: Session = Depends(get_db)):
+    """Supprime un lot de sessions de discussion et leurs messages associés."""
+    if not req.session_ids:
+        return {"deleted_count": 0}
+    sessions = db.query(ChatSession).filter(ChatSession.id.in_(req.session_ids)).all()
+    count = len(sessions)
+    for s in sessions:
+        db.delete(s)
+    db.commit()
+    return {"deleted_count": count}
+
+
+@router.post("/sessions/{id}/regenerate-title")
+async def regenerate_session_title_endpoint(id: int, db: Session = Depends(get_db)):
+    """Régénère un titre concis (3 à 5 mots) à la demande pour une session donnée."""
+    session = db.query(ChatSession).filter(ChatSession.id == id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.asc()).all()
+    first_user_msg = next((m.content for m in messages if m.role == "user"), "")
+    first_asst_msg = next((m.content for m in messages if m.role == "assistant"), "")
+    context_hint = first_asst_msg[:300] if first_asst_msg else None
+
+    from app.services.chat.chat_compression import extract_fallback_title, clean_llm_title
+    from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync
+
+    new_title = extract_fallback_title(first_user_msg, context_hint=context_hint)
+    cfg = get_ollama_config(db)
+
+    prompt = f"""Tu es un assistant bancaire. Résume le sujet de cette conversation financière en un titre ultra-concis de 3 à 5 mots en français.
+Message de l'utilisateur : "{first_user_msg[:200]}"
+{f"Contexte du rapport : {context_hint[:150]}" if context_hint else ""}
+
+RÈGLES STRICTES :
+- 3 à 5 mots maximum
+- Pas de ponctuation finale
+- En français
+- Réponds UNIQUEMENT avec le titre, aucun commentaire, aucune balise, aucune citation.
+
+TITRE :"""
+    try:
+        raw = call_ollama_sync(prompt, cfg, extra_options={"temperature": 0.2, "num_predict": 30})
+        cleaned = clean_llm_title(raw)
+        if cleaned:
+            new_title = cleaned
+    except Exception as e:
+        logger.debug(f"[Chat] Erreur regénération titre LLM pour session {id}: {e}")
+
+    session.title = new_title
+    db.commit()
+    return {"id": session.id, "title": new_title}
 
 
 @router.get("/sessions/{id}/generating")

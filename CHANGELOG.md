@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+- **Chat IA Conversation Management, Auto-Titling & Ergonomics Revamp 💬✨**:
+  - *Date-Based Conversation Grouping*: Discussions in the sidebar are now automatically sorted and grouped chronologically by last activity (`Aujourd'hui`, `Hier`, `7 derniers jours`, `30 derniers jours`, `Plus ancien`).
+  - *Robust Auto-Titling Engine*: Completely overhauled session titling with an instant, domain-aware heuristic generator (e.g. `Calcul du reste à vivre`, `Bilan Octobre (Approfondissement)`, `Audit des abonnements`) refined asynchronously via local LLMs with strict tag stripping (`<think>...</think>`, markdown formatting, and prefixes) capped to 3–5 words. Fixed a bug where deep-dive reports injected into new sessions bypassed the first-message check and never auto-titled.
+  - *2-Line Title Wrapping & Static Typography*: Allowed conversation titles to wrap onto up to two lines with clean word breaks, and eliminated distracting horizontal marquee text scrolling (`title-scroll`) on hover for instant readability.
+  - *Modernized Inline Renaming UX*: Replaced the narrow rename input with an inline edit form featuring auto-selection, validate (`✔️`) and cancel (`✕`) action buttons, double-click activation, and keyboard shortcuts (`Enter` to save, `Escape` to cancel).
+  - *On-Demand AI Title Regeneration 🪄*: Added a 1-click title regeneration button in both sidebar conversation actions and the main chat header, allowing users to instantly re-generate punchy 3–5 word titles using the local LLM.
+  - *Temporal Group Bulk Deletion 🗑️*: Added an inline-confirmed "Tout supprimer" action on each date section header (`Aujourd'hui`, `Hier`, `30 derniers jours`, `Plus ancien`) allowing 1-click batch deletion without intrusive browser dialogs.
+  - *Mobile-Friendly Permanent Context Menu (`⋮`) & Dropdown UX*: Replaced hover-only action bars with a permanently visible, ultra-compact three-dot menu trigger (`⋮`) on every conversation item. Clicking or tapping reveals a glassmorphic dropdown with 1-click access to *🪄 Régénérer le titre (IA)*, *✏️ Renommer*, and *🗑️ Supprimer* (with inline confirmation). Preserves maximum space for 2-line conversation titles while delivering seamless ergonomics across touchscreens and desktop viewports.
+
 - **Auto-Pilot Automation Decisions Feed Harmonization & Lifecycle Reversibility ⏳🔒🔄**: Harmonized metadata traceability, visual status badges, and 1-click rollback actions across all automated engine decisions in both the Auto-Pilot Decision Feed and the Overview popover widget. Specifically resolved cases where non-standard automations defaulted to generic entry creation (`✨ Saisie directe`) with positive green amounts:
   - *Recurrence Auto-Skip (`AUTO_SKIPPED_UNRECONCILED`)*: displays `⊝ Échéance ignorée`, `⏳ Non débitée (+30j)` reason badge, struck-through amount (`-X.XX € Ignorée`), and `↶ Rétablir` button.
   - *Recurrence Auto-Close (`AUTO_CLOSED_SKIPPED`)*: displays `🔒 Abonnement clôturé`, `🔒 3 échéances non prélevées` badge, struck-through amount (`-X.XX € Clôturé`), and `↶ Rouvrir` template rollback button.
