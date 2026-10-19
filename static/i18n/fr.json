@@ -3761,5 +3761,10 @@
   "chat_session_menu_title": "Options de la conversation",
   "chat_session_rename": "Renommer",
   "chat_session_delete": "Supprimer",
-  "chat_session_regen_title": "Régénérer le titre (IA)"
+  "chat_session_regen_title": "Régénérer le titre (IA)",
+  "chat_missing_action_title": "Action proposée dans le texte",
+  "chat_missing_action_desc": "L'assistant mentionne avoir préparé une action mais aucun bouton de validation n'est apparu.",
+  "chat_btn_recover_action": "Générer les cartes d'actions",
+  "chat_action_recovery_success": "Actions générées avec succès !",
+  "chat_action_recovery_empty": "Aucune action exploitable trouvée"
 }

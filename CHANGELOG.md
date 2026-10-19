@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+- **Chat IA Interactive Financial Entities & Action Proposal Recovery Guardrail 💬🔄💳🪄**:
+  - *Interactive Recurrence & Transaction Badges*: Recurring operations, subscriptions, and key transactions mentioned in assistant responses (e.g. `"Prêt Famille Jean Bazinet (8000)"`, `"Sosh"`, `"Cotisation Compte CA Centre-Est"`, `"Garage CTM"`) are now automatically recognized as rich interactive badges (`🔄` purple for recurrences, `💳` cyan for operations).
+  - *Contextual Entity Popovers & Seamless Navigation*: Hovering or clicking a recurrence or transaction badge opens a dedicated popover detailing amount, cadence, accounts, category, and date. Includes 1-click navigation buttons to manage the template in `#recurrences` (with automatic scroll and glowing row highlight) or filter matching operations in `#all_operations`.
+  - *Missing Action Card Detection & 1-Click Recovery*: When local LLMs natural language text mentions preparing an operation (e.g., *"J'ai préparé l'enregistrement d'un virement de précaution..."*) without successfully emitting the review card block, an alert banner (`💡 Action proposée non générée`) is displayed with a `🪄 Générer les cartes d'actions` button. Clicking it instantly extracts and validates the operations via a high-precision backend regex and account-resolving engine, reactively replacing the banner with actionable review cards without page reload. Proactive auto-recovery also runs server-side on new stream generations.
+
 - **Chat IA Conversation Management, Auto-Titling & Ergonomics Revamp 💬✨**:
   - *Date-Based Conversation Grouping*: Discussions in the sidebar are now automatically sorted and grouped chronologically by last activity (`Aujourd'hui`, `Hier`, `7 derniers jours`, `30 derniers jours`, `Plus ancien`).
   - *Robust Auto-Titling Engine*: Completely overhauled session titling with an instant, domain-aware heuristic generator (e.g. `Calcul du reste à vivre`, `Bilan Octobre (Approfondissement)`, `Audit des abonnements`) refined asynchronously via local LLMs with strict tag stripping (`<think>...</think>`, markdown formatting, and prefixes) capped to 3–5 words. Fixed a bug where deep-dive reports injected into new sessions bypassed the first-message check and never auto-titled.

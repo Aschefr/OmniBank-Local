@@ -261,6 +261,29 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         `;
                     }
                 }
+
+                // Check if assistant promised an action in text but no action card was emitted
+                if (actions.length === 0 && this._hasPromisedAction(rawContent)) {
+                    const msgId = msg.id || 0;
+                    const recTitle = window.i18n ? window.i18n.t('chat_missing_action_title') : "Action proposée non générée";
+                    const recDesc = window.i18n ? window.i18n.t('chat_missing_action_desc') : "L'assistant a mentionné préparer une opération mais la carte d'action ne s'est pas affichée.";
+                    const recBtn = window.i18n ? window.i18n.t('chat_btn_recover_action') : "Générer les cartes d'actions";
+                    displayContent += `
+                        <div class="ai-missing-action-box" id="missing-action-${msgId}">
+                            <div class="ai-missing-action-info">
+                                <span class="ai-missing-action-icon">💡</span>
+                                <div class="ai-missing-action-text">
+                                    <strong>${recTitle}</strong><br>
+                                    <span>${recDesc}</span>
+                                </div>
+                            </div>
+                            <button class="ai-btn-recover-action" onclick="window.ChatView.recoverActionsForMessage(${msgId}, this)">
+                                <span>🪄</span>
+                                <span>${recBtn}</span>
+                            </button>
+                        </div>
+                    `;
+                }
             }
         } else if (isUser) {
             displayContent = window.escapeHtml(displayContent);
@@ -741,21 +764,25 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     _entityLoadingPromise: null,
     _popoverInitialized: false,
 
-    async loadEntityCache() {
-        if (this._entityCache) return this._entityCache;
-        if (this._entityLoadingPromise) return this._entityLoadingPromise;
+    async loadEntityCache(force = false) {
+        if (this._entityCache && !force && this._entityCache.recurrences && this._entityCache.transactions) return this._entityCache;
+        if (this._entityLoadingPromise && !force) return this._entityLoadingPromise;
         
         this._entityLoadingPromise = (async () => {
             try {
-                const [bRes, aRes, cRes] = await Promise.all([
+                const [bRes, aRes, cRes, rRes, tRes] = await Promise.all([
                     API.get('/api/budgets/status').catch(() => null),
                     API.get('/api/accounts/').catch(() => null),
-                    API.get('/api/categories/').catch(() => null)
+                    API.get('/api/categories/').catch(() => null),
+                    API.get('/api/recurrences/').catch(() => null),
+                    API.get('/api/transactions/?limit=100').catch(() => null)
                 ]);
                 this._entityCache = {
                     budgets: (bRes?.budgets || []).filter(b => b.name && b.name.trim().length >= 3),
                     accounts: (aRes || []).filter(a => a.name && a.name.trim().length >= 3),
-                    categories: (cRes || []).filter(c => (c.name || c).trim().length >= 3)
+                    categories: (cRes || []).filter(c => (c.name || c).trim().length >= 3),
+                    recurrences: (rRes || []).filter(r => r.description && r.description.trim().length >= 3),
+                    transactions: (tRes || []).filter(t => t.description && t.description.trim().length >= 3)
                 };
                 // If messages are already displayed without full badges, trigger a re-render
                 if (this.messages && this.messages.length > 0 && !this._activeAbortController) {
@@ -793,12 +820,20 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 } else if (snapKey.startsWith('category:')) {
                     type = 'category';
                     name = snapKey.substring(9);
+                } else if (snapKey.startsWith('recurrence:')) {
+                    type = 'recurrence';
+                    name = snapKey.substring(11);
+                } else if (snapKey.startsWith('transaction:')) {
+                    type = 'transaction';
+                    name = snapKey.substring(12);
                 }
                 if (name && name.length >= 3 && !entities.some(e => e.name.toLowerCase() === name.toLowerCase())) {
                     let icon = '🏷️';
                     if (type === 'budget') icon = snapData.envelope_type === 'savings' ? '🎯' : '🏷️';
                     else if (type === 'account') icon = '🏦';
                     else if (type === 'category') icon = '🛒';
+                    else if (type === 'recurrence') icon = '🔄';
+                    else if (type === 'transaction') icon = '💳';
                     entities.push({
                         type,
                         id,
@@ -811,6 +846,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         // 2. Supplement with global cache or live globals
+        if (!this._entityCache || !this._entityCache.recurrences) {
+            this.loadEntityCache();
+        }
         let budgets = this._entityCache?.budgets;
         if (!budgets && window.BudgetsView?.statusData?.budgets) {
             budgets = window.BudgetsView.statusData.budgets;
@@ -823,9 +861,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (!categories && window.categories) {
             categories = window.categories;
         }
+        let recurrences = this._entityCache?.recurrences;
+        let transactions = this._entityCache?.transactions;
 
-        if (!budgets && !accounts && !categories && entities.length === 0) {
-            this.loadEntityCache();
+        if (!budgets && !accounts && !categories && !recurrences && !transactions && entities.length === 0) {
             return html;
         }
 
@@ -865,6 +904,32 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         name: cname,
                         icon: '🛒',
                         data: c
+                    });
+                }
+            }
+        }
+        if (recurrences) {
+            for (const r of recurrences) {
+                if (r.description && r.description.length >= 3 && !entities.some(e => e.name.toLowerCase() === r.description.toLowerCase())) {
+                    entities.push({
+                        type: 'recurrence',
+                        id: r.id,
+                        name: r.description,
+                        icon: '🔄',
+                        data: r
+                    });
+                }
+            }
+        }
+        if (transactions) {
+            for (const t of transactions) {
+                if (t.description && t.description.length >= 3 && !entities.some(e => e.name.toLowerCase() === t.description.toLowerCase())) {
+                    entities.push({
+                        type: 'transaction',
+                        id: t.id,
+                        name: t.description,
+                        icon: '💳',
+                        data: t
                     });
                 }
             }
@@ -979,7 +1044,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             popover.innerHTML = `
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid var(--border-color); padding-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                        <span>${entType === 'budget' ? '🏷️' : entType === 'account' ? '🏦' : '🛒'}</span>
+                        <span>${entType === 'budget' ? '🏷️' : entType === 'account' ? '🏦' : entType === 'recurrence' ? '🔄' : entType === 'transaction' ? '💳' : '🛒'}</span>
                         <span title="${window.escapeHtml(entName)}">${window.escapeHtml(entName)}</span>
                     </div>
                     <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(99,102,241,0.15); color:var(--accent); text-transform:uppercase; font-weight:600;">
@@ -1028,6 +1093,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 await this._renderBudgetPopoverContent(popover, entId, entName, snapshot);
             } else if (entType === 'account') {
                 await this._renderAccountPopoverContent(popover, entId, entName, snapshot);
+            } else if (entType === 'recurrence') {
+                await this._renderRecurrencePopoverContent(popover, entId, entName, snapshot);
+            } else if (entType === 'transaction') {
+                await this._renderTransactionPopoverContent(popover, entId, entName, snapshot);
             } else {
                 await this._renderCategoryPopoverContent(popover, entName, snapshot);
             }
@@ -1350,6 +1419,289 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir les opérations'}
                 </button>
             `;
+        }
+    },
+
+    async _renderRecurrencePopoverContent(popover, recId, recName, snapshot = null) {
+        const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
+        try {
+            let desc = recName, amount = 0, frequency = 'monthly', day = 1, category = '', fromAcc = '', toAcc = '', isHistorical = false;
+            let snapshotDate = '';
+
+            if (snapshot) {
+                isHistorical = true;
+                desc = snapshot.description || recName;
+                amount = snapshot.amount || 0;
+                frequency = snapshot.frequency || 'monthly';
+                day = snapshot.day_of_month || 1;
+                category = snapshot.category || '';
+                fromAcc = snapshot.from_account || '';
+                toAcc = snapshot.to_account || '';
+                snapshotDate = snapshot.snapshot_date || '';
+            } else {
+                const recs = this._entityCache?.recurrences || (await API.get('/api/recurrences/').catch(() => []));
+                const rec = recs.find(r => r.id === recId || (r.description && r.description.toLowerCase() === recName.toLowerCase()));
+                if (rec) {
+                    desc = rec.description || recName;
+                    amount = rec.amount || 0;
+                    frequency = rec.frequency || 'monthly';
+                    day = rec.day_of_month || 1;
+                    category = rec.category || '';
+                    fromAcc = rec.from_account_name || '';
+                    toAcc = rec.to_account_name || '';
+                }
+            }
+
+            const freqMap = {
+                'monthly': 'Mensuel',
+                'weekly': 'Hebdomadaire',
+                'quarterly': 'Trimestriel',
+                'yearly': 'Annuel'
+            };
+            const freqLabel = freqMap[(frequency || 'monthly').toLowerCase()] || frequency;
+
+            const snapshotBadge = isHistorical ? `
+                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
+                    <span>📸</span><span>${snapshotDate}</span>
+                </span>
+            ` : '';
+
+            let accountsStr = '';
+            if (fromAcc && toAcc) {
+                accountsStr = `${window.escapeHtml(fromAcc)} ➔ ${window.escapeHtml(toAcc)}`;
+            } else if (fromAcc || toAcc) {
+                accountsStr = window.escapeHtml(fromAcc || toAcc);
+            }
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); min-width:0; flex:1; overflow:hidden;">
+                        <span style="flex-shrink:0;">🔄</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${window.escapeHtml(desc)}">${window.escapeHtml(desc)}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${snapshotBadge}
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(168,85,247,0.15); color:#a855f7; text-transform:uppercase; font-weight:600; white-space:nowrap;">
+                            Récurrence
+                        </span>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1; display:flex; align-items:center;" title="Fermer">✕</button>
+                    </div>
+                </div>
+
+                <div style="background:rgba(0,0,0,0.15); padding:10px; border-radius:8px; margin-bottom:12px; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Montant :</span>
+                        <span style="font-weight:700; color:var(--text-main);">${fmt(amount)} / ${freqLabel.toLowerCase()}</span>
+                    </div>
+                    ${category ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Catégorie :</span>
+                        <span style="font-weight:600; color:var(--text-main);">${window.escapeHtml(category)}</span>
+                    </div>` : ''}
+                    ${accountsStr ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Compte :</span>
+                        <span style="font-weight:500; color:var(--text-main);">${accountsStr}</span>
+                    </div>` : ''}
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Jour d'échéance :</span>
+                        <span style="font-weight:500; color:var(--text-muted);">Le ${day} du mois</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToRecurrences(${recId || snapshot?.id || 0}, '${window.escapeHtml(desc)}')">
+                        🔄 Gérer dans Récurrences
+                    </button>
+                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(desc)}')">
+                        🔍 Voir opérations
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            popover.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:10px;">🔄 ${window.escapeHtml(recName)}</div>`;
+        }
+    },
+
+    async _renderTransactionPopoverContent(popover, txId, txDescription, snapshot = null) {
+        const fmt = window.formatCurrency || ((v) => `${Number(v).toFixed(2)} €`);
+        try {
+            let desc = txDescription, amount = 0, dateOp = '', category = '', fromAcc = '', toAcc = '', isReconciled = false, isHistorical = false;
+            let snapshotDate = '';
+
+            if (snapshot) {
+                isHistorical = true;
+                desc = snapshot.description || txDescription;
+                amount = snapshot.amount || 0;
+                dateOp = snapshot.date_operation || '';
+                category = snapshot.category || '';
+                fromAcc = snapshot.from_account || '';
+                toAcc = snapshot.to_account || '';
+                isReconciled = !!snapshot.is_reconciled;
+                snapshotDate = snapshot.snapshot_date || '';
+            } else {
+                const txs = this._entityCache?.transactions || (await API.get(`/api/transactions/?search=${encodeURIComponent(txDescription)}&limit=10`).catch(() => []));
+                const tx = txs.find(t => t.id === txId || (t.description && t.description.toLowerCase() === txDescription.toLowerCase()));
+                if (tx) {
+                    desc = tx.description || txDescription;
+                    amount = tx.amount || 0;
+                    dateOp = tx.date_operation ? tx.date_operation.split('T')[0] : '';
+                    category = tx.category || '';
+                    fromAcc = tx.from_account_name || '';
+                    toAcc = tx.to_account_name || '';
+                    isReconciled = !!tx.reconciliation_date;
+                }
+            }
+
+            const snapshotBadge = isHistorical ? `
+                <span title="Données enregistrées lors de cette réponse" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); font-weight:500; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;">
+                    <span>📸</span><span>${snapshotDate}</span>
+                </span>
+            ` : '';
+
+            let accountsStr = '';
+            if (fromAcc && toAcc) {
+                accountsStr = `${window.escapeHtml(fromAcc)} ➔ ${window.escapeHtml(toAcc)}`;
+            } else if (fromAcc || toAcc) {
+                accountsStr = window.escapeHtml(fromAcc || toAcc);
+            }
+
+            const isIncome = amount > 0;
+            const amtColor = isIncome ? '#10b981' : '#ef4444';
+
+            popover.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:var(--text-main); min-width:0; flex:1; overflow:hidden;">
+                        <span style="flex-shrink:0;">💳</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${window.escapeHtml(desc)}">${window.escapeHtml(desc)}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${snapshotBadge}
+                        <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(6,182,212,0.15); color:#06b6d4; text-transform:uppercase; font-weight:600; white-space:nowrap;">
+                            Opération
+                        </span>
+                        <button onclick="document.getElementById('aiEntityPopover').classList.remove('visible'); document.getElementById('aiEntityPopover').style.display='none';" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:0 4px; line-height:1; display:flex; align-items:center;" title="Fermer">✕</button>
+                    </div>
+                </div>
+
+                <div style="background:rgba(0,0,0,0.15); padding:10px; border-radius:8px; margin-bottom:12px; display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Montant :</span>
+                        <span style="font-weight:700; color:${amtColor};">${isIncome ? '+' : '-'}${fmt(Math.abs(amount))}</span>
+                    </div>
+                    ${dateOp ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Date opération :</span>
+                        <span style="font-weight:600; color:var(--text-main);">${dateOp}</span>
+                    </div>` : ''}
+                    ${category ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Catégorie :</span>
+                        <span style="font-weight:600; color:var(--text-main);">${window.escapeHtml(category)}</span>
+                    </div>` : ''}
+                    ${accountsStr ? `
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">Compte :</span>
+                        <span style="font-weight:500; color:var(--text-main);">${accountsStr}</span>
+                    </div>` : ''}
+                    <div style="display:flex; justify-content:space-between; font-size:11px;">
+                        <span style="color:var(--text-muted);">État :</span>
+                        <span style="font-weight:500; color:${isReconciled ? '#10b981' : '#f59e0b'};">${isReconciled ? '✓ Rapprochée' : '⏳ Non pointée'}</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToTransaction(${txId || snapshot?.id || 0}, '${window.escapeHtml(desc)}', '${dateOp}')">
+                        🔍 Voir dans l'historique
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            popover.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:10px;">💳 ${window.escapeHtml(txDescription)}</div>`;
+        }
+    },
+
+    navigateToRecurrences(recId, recName) {
+        const popover = document.getElementById('aiEntityPopover');
+        if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
+        if (window.app) {
+            if (window.RecurrenceView) {
+                if (recId) window.RecurrenceView._pendingHighlightTemplateId = recId;
+                if (recName) window.RecurrenceView.searchQuery = recName;
+            }
+            window.app.loadView('recurrences');
+        }
+    },
+
+    navigateToTransaction(txId, txDescription, dateOperation = null) {
+        const popover = document.getElementById('aiEntityPopover');
+        if (popover) { popover.style.display = 'none'; popover.classList.remove('visible'); }
+        if (window.app) {
+            if (window.AllOperationsView) {
+                const pending = { search: txDescription || '', backToView: 'chat' };
+                if (dateOperation) {
+                    pending.monthKey = dateOperation.substring(0, 7);
+                }
+                window.AllOperationsView.pendingFilter = pending;
+            }
+            window.app.loadView('all_operations');
+        }
+    },
+
+    _hasPromisedAction(rawContent) {
+        if (!rawContent || typeof rawContent !== 'string') return false;
+        const lower = rawContent.toLowerCase();
+        return (
+            lower.includes("j'ai préparé l'enregistrement") ||
+            lower.includes("j’ai préparé l’enregistrement") ||
+            lower.includes("j'ai préparé l'opération") ||
+            lower.includes("j’ai préparé l’opération") ||
+            lower.includes("j'ai préparé un virement") ||
+            lower.includes("j’ai préparé un virement") ||
+            lower.includes("veuillez l'examiner et le valider") ||
+            lower.includes("veuillez l’examiner et le valider") ||
+            lower.includes("veuillez examiner et valider") ||
+            lower.includes("valider ci-dessous") ||
+            lower.includes("valider ces deux transferts") ||
+            lower.includes("propose d'enregistrer ce virement") ||
+            lower.includes("propose d’enregistrer ce virement")
+        );
+    },
+
+    async recoverActionsForMessage(msgId, btnElement = null) {
+        if (!msgId) return;
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.innerHTML = `<span class="spinner-border-sm" style="width:12px; height:12px; border:2px solid; border-right-color:transparent; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block;"></span> <span>${window.i18n.t('budget_loading') || 'Extraction...'}</span>`;
+        }
+
+        try {
+            const res = await API.post(`/api/chat/messages/${msgId}/recover-actions`);
+            if (res && res.ok && res.actions && res.actions.length > 0) {
+                // Update message in memory
+                const msg = (this.messages || []).find(m => m.id === msgId);
+                if (msg) {
+                    msg.content = res.new_content;
+                }
+                const succMsg = window.i18n ? window.i18n.tp('chat_action_recovery_success', { count: res.actions.length }) : `${res.actions.length} action(s) générée(s) avec succès`;
+                if (window.showToast) window.showToast(succMsg, 'success');
+                // Re-render history reactively (Zero F5)
+                this.renderHistory();
+            } else {
+                const emptyMsg = window.i18n ? window.i18n.t('chat_action_recovery_empty') : "Aucune action spécifique n'a pu être extraite du message.";
+                if (window.showToast) window.showToast(emptyMsg, 'warning');
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = `<span>🪄</span> <span>${window.i18n ? window.i18n.t('chat_btn_recover_action') : "Générer les cartes d'actions"}</span>`;
+                }
+            }
+        } catch (e) {
+            console.error('[Chat] Error recovering actions:', e);
+            if (window.showToast) window.showToast("Erreur lors de la récupération des actions", "error");
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = `<span>🪄</span> <span>${window.i18n ? window.i18n.t('chat_btn_recover_action') : "Générer les cartes d'actions"}</span>`;
+            }
         }
     },
 

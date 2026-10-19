@@ -13,15 +13,15 @@ from datetime import date
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.models import Transaction, Account, Category, Budget, BudgetAllocation
+from app.models import Transaction, Account, Category, Budget, BudgetAllocation, RecurrenceTemplate
 
 logger = logging.getLogger(__name__)
 
 
 def build_entity_snapshots(final_text: str, db: Session, year: int, month: int) -> dict:
     """
-    Détecte les noms d'entités (budgets, comptes, catégories) mentionnés dans
-    le texte de la réponse IA et capture leur état financier actuel.
+    Détecte les noms d'entités (budgets, comptes, catégories, récurrences, transactions)
+    mentionnés dans le texte de la réponse IA et capture leur état financier actuel.
 
     Args:
         final_text: Texte brut de la réponse de l'IA (après traitement Markdown).
@@ -31,7 +31,6 @@ def build_entity_snapshots(final_text: str, db: Session, year: int, month: int) 
 
     Returns:
         Dict sérialisable en JSON avec les snapshots, clé = "type:name".
-        Exemple : {"budget:Facture Énergie": {...}, "account:Compte Courant": {...}}
     """
     if not final_text or not final_text.strip():
         return {}
@@ -78,6 +77,43 @@ def build_entity_snapshots(final_text: str, db: Session, year: int, month: int) 
                             snapshots[key] = snap
         except Exception as e:
             logger.warning(f"[Snapshot] Erreur catégories: {e}")
+
+        # ── 4. Récurrences & Abonnements ─────────────────────────────────────
+        try:
+            recurrences = db.query(RecurrenceTemplate).filter(
+                (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
+            ).all()
+            for r in recurrences:
+                if r.description and len(r.description) >= 3 and r.description.lower() in text_lower:
+                    key = f"recurrence:{r.description}"
+                    if key not in snapshots:
+                        snap = _snapshot_recurrence(db, r)
+                        if snap:
+                            snapshots[key] = snap
+        except Exception as e:
+            logger.warning(f"[Snapshot] Erreur récurrences: {e}")
+
+        # ── 5. Opérations & Transactions ─────────────────────────────────────
+        try:
+            start_date = date(year, month, 1)
+            end_date = date(year, month, calendar.monthrange(year, month)[1])
+            month_txs = db.query(Transaction).filter(
+                Transaction.date_operation >= start_date,
+                Transaction.date_operation <= end_date,
+            ).all()
+            recent_txs = db.query(Transaction).order_by(Transaction.id.desc()).limit(150).all()
+            candidate_txs = {t.id: t for t in (month_txs + recent_txs)}.values()
+
+            for t in candidate_txs:
+                desc = (t.description or "").strip()
+                if desc and len(desc) >= 4 and not desc.isdigit() and desc.lower() in text_lower:
+                    key = f"transaction:{desc}"
+                    if key not in snapshots:
+                        snap = _snapshot_transaction(db, t)
+                        if snap:
+                            snapshots[key] = snap
+        except Exception as e:
+            logger.warning(f"[Snapshot] Erreur transactions: {e}")
 
     except Exception as e:
         logger.error(f"[Snapshot] Erreur générale build_entity_snapshots: {e}")
@@ -234,3 +270,49 @@ def _snapshot_category(db: Session, category: Category, year: int = None, month:
     except Exception as e:
         logger.warning(f"[Snapshot] _snapshot_category error: {e}")
         return None
+
+
+def _snapshot_recurrence(db: Session, rec: RecurrenceTemplate) -> Optional[dict]:
+    """Capture le snapshot d'un modèle de récurrence / abonnement."""
+    try:
+        from_acc = db.query(Account).filter(Account.id == rec.from_account_id).first() if rec.from_account_id else None
+        to_acc = db.query(Account).filter(Account.id == rec.to_account_id).first() if rec.to_account_id else None
+        return {
+            "type": "recurrence",
+            "id": rec.id,
+            "description": rec.description,
+            "amount": round(float(rec.amount or 0.0), 2),
+            "frequency": rec.frequency or "Monthly",
+            "category": rec.category or "",
+            "from_account_name": from_acc.name if from_acc else None,
+            "to_account_name": to_acc.name if to_acc else None,
+            "from_account": from_acc.name if from_acc else None,
+            "to_account": to_acc.name if to_acc else None,
+            "day_of_month": rec.day_of_month,
+        }
+    except Exception as e:
+        logger.warning(f"[Snapshot] _snapshot_recurrence error: {e}")
+        return None
+
+
+def _snapshot_transaction(db: Session, tx: Transaction) -> Optional[dict]:
+    """Capture le snapshot d'une transaction."""
+    try:
+        acc_id = tx.from_account_id or tx.to_account_id
+        acc = db.query(Account).filter(Account.id == acc_id).first() if acc_id else None
+        return {
+            "type": "transaction",
+            "id": tx.id,
+            "description": tx.description,
+            "amount": round(float(tx.amount or 0.0), 2),
+            "date": tx.date_operation.isoformat() if tx.date_operation else "",
+            "date_operation": tx.date_operation.isoformat() if tx.date_operation else "",
+            "category": tx.category or "",
+            "account_name": acc.name if acc else None,
+            "from_account": acc.name if acc else None,
+            "is_income": tx.type == "income" or (tx.amount and tx.amount < 0),
+        }
+    except Exception as e:
+        logger.warning(f"[Snapshot] _snapshot_transaction error: {e}")
+        return None
+

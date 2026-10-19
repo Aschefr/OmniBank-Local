@@ -858,6 +858,25 @@ async def generate_chat_stream(
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
+            # Récupération proactive automatique : si l'IA a promis un virement ou une modification dans le texte
+            # sans émettre l'appel d'outil write_tool correspondant, on extrait automatiquement les actions !
+            if not detected_write_actions and final_text:
+                try:
+                    from app.services.chat.chat_action_recovery import has_unemitted_promised_action, extract_unemitted_actions
+                    if has_unemitted_promised_action(final_text):
+                        logger.info("[Chat Auto-Recovery] Détection proactive d'actions promises sans appel d'outil")
+                        recovered = extract_unemitted_actions(
+                            final_text,
+                            db,
+                            target_period_override.get("year"),
+                            target_period_override.get("month")
+                        )
+                        if recovered:
+                            logger.info(f"[Chat Auto-Recovery] {len(recovered)} action(s) récupérée(s) avec succès")
+                            detected_write_actions.extend(recovered)
+                except Exception as e:
+                    logger.warning(f"[Chat Auto-Recovery] Erreur extraction proactive: {e}")
+
             if detected_write_actions:
                 action_str = ""
                 for action in detected_write_actions:
