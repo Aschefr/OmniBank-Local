@@ -368,22 +368,21 @@ window.AppModules.sidebar = {
             const quickSettingsBox = document.getElementById('quickSettingsBox');
             if (quickSettingsBox) quickSettingsBox.style.display = isOrgMode ? 'none' : 'block';
             
+            const isBimonthlyEnabled = configs.enable_bimonthly === 'true' || configs.enable_bimonthly === true;
             const bimonthlyOpt = document.getElementById('quickPayOptBimonthly');
             const typeContainer = document.getElementById('quickPayTypeContainer');
-            if (configs.enable_bimonthly === 'true' || configs.enable_bimonthly === true) {
+            if (isBimonthlyEnabled) {
                 bimonthlyOpt.hidden = false;
                 bimonthlyOpt.disabled = false;
                 typeContainer.style.display = 'flex';
+                document.getElementById('quickPayType').value = configs.base_pay_type || 'monthly';
             } else {
                 bimonthlyOpt.hidden = true;
                 bimonthlyOpt.disabled = true;
                 typeContainer.style.display = 'none';
-                if (document.getElementById('quickPayType').value === 'bimonthly') {
-                    document.getElementById('quickPayType').value = 'monthly';
-                }
+                document.getElementById('quickPayType').value = 'monthly';
             }
             
-            if (configs.base_pay_type) document.getElementById('quickPayType').value = configs.base_pay_type;
             if (configs.base_pay_day) document.getElementById('quickPayDay').value = configs.base_pay_day;
             if (configs.base_pay_day_2) document.getElementById('quickPayDay2').value = configs.base_pay_day_2;
             
@@ -809,16 +808,21 @@ window.AppModules.sidebar = {
     },
     
     onQuickPayTypeChange(save = false) {
-        const isBimonthly = document.getElementById('quickPayType').value === 'bimonthly';
-        document.getElementById('quickPayDay2').style.display = isBimonthly ? 'block' : 'none';
-        document.getElementById('lblQuickPayDay1').textContent = isBimonthly ? window.i18n.t('label_pay_days') : window.i18n.t('label_pay_day');
+        const isBimonthlyEnabled = this.config?.enable_bimonthly === 'true' || this.config?.enable_bimonthly === true;
+        const isBimonthly = isBimonthlyEnabled && document.getElementById('quickPayType').value === 'bimonthly';
+        const day2El = document.getElementById('quickPayDay2');
+        if (day2El) day2El.style.display = isBimonthly ? 'block' : 'none';
+        const lblEl = document.getElementById('lblQuickPayDay1');
+        if (lblEl) lblEl.textContent = isBimonthly ? window.i18n.t('label_pay_days') : window.i18n.t('label_pay_day');
         if (save) this.saveQuickPay();
     },
     
     async saveQuickPay() {
-        const type = document.getElementById('quickPayType').value;
+        const isBimonthlyEnabled = this.config?.enable_bimonthly === 'true' || this.config?.enable_bimonthly === true;
+        const rawType = document.getElementById('quickPayType').value;
+        const type = isBimonthlyEnabled ? rawType : 'monthly';
         const day = document.getElementById('quickPayDay').value;
-        const day2 = document.getElementById('quickPayDay2').value;
+        const day2 = (isBimonthlyEnabled && type === 'bimonthly') ? document.getElementById('quickPayDay2').value : '';
         const payCat = document.getElementById('quickPayCategory').value;
         const payThreshold = document.getElementById('quickPayThreshold').value;
         
@@ -828,7 +832,7 @@ window.AppModules.sidebar = {
             await API.post('/api/config/', { 
                 base_pay_type: type,
                 base_pay_day: day.toString(),
-                base_pay_day_2: day2.toString(),
+                base_pay_day_2: day2 ? day2.toString() : '',
                 pay_category: payCat,
                 pay_threshold_percent: payThreshold ? payThreshold.toString() : '30'
             });
@@ -836,7 +840,7 @@ window.AppModules.sidebar = {
             if (this.config) {
                 this.config.base_pay_type = type;
                 this.config.base_pay_day = day.toString();
-                this.config.base_pay_day_2 = day2.toString();
+                this.config.base_pay_day_2 = day2 ? day2.toString() : '';
                 this.config.pay_category = payCat;
                 this.config.pay_threshold_percent = payThreshold ? payThreshold.toString() : '30';
             }
@@ -845,7 +849,7 @@ window.AppModules.sidebar = {
                 window.TimelineView.loadData();
             }
         } catch (e) {
-            console.error(e);
+            console.error("Failed to save quick pay config", e);
         }
     },
 

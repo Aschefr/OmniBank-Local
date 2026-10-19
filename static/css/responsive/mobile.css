@@ -3860,6 +3860,18 @@ body.theme-titanium-light .notif-card.unread {
         font-size: 12.5px !important;
         border-radius: 8px !important;
     }
+
+    /* ── Auto-Pilote Presets & Threshold Action Button Safeguards ── */
+    .ap-preset-btn {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        line-height: normal !important;
+    }
+    .ap-threshold-apply-btn {
+        height: auto !important;
+        max-height: none !important;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
