@@ -375,4 +375,96 @@ def test_get_recurrence_templates_tool_excludes_completed_occurrences(db_session
     assert tpl_completed_data["remaining_occurrences"] == 0
 
 
+def test_close_recurrence_template_tool(db_session):
+    """Vérifie que close_recurrence_template_tool propose puis clôture correctement une récurrence en purgeant le futur non rapproché tout en préservant le passé."""
+    from app.services.chat.chat_tools import (
+        close_recurrence_template_tool,
+        get_recurrence_templates_tool,
+    )
+
+    today = date.today()
+    tpl = RecurrenceTemplate(
+        id=63,
+        description="Wordpress.com - Domaine Lyris-projet.fr",
+        amount=0.0,
+        type="expense_fixed",
+        category="Abonnements",
+        frequency="Yearly",
+        day_of_month=15,
+        is_closed=False,
+        from_account_id=1,
+    )
+    db_session.add(tpl)
+    db_session.flush()
+
+    # Past reconciled transaction (doit être préservée)
+    past_tx = Transaction(
+        recurrence_id=63,
+        description="Wordpress.com - Domaine Lyris-projet.fr",
+        amount=18.0,
+        date_operation=today - timedelta(days=60),
+        reconciliation_date=today - timedelta(days=60),
+        from_account_id=1,
+        type="expense_fixed",
+        category="Abonnements",
+    )
+    # Future unreconciled transaction (doit être supprimée lors de la clôture)
+    future_tx = Transaction(
+        recurrence_id=63,
+        description="Wordpress.com - Domaine Lyris-projet.fr",
+        amount=18.0,
+        date_operation=today + timedelta(days=30),
+        reconciliation_date=None,
+        from_account_id=1,
+        type="expense_fixed",
+        category="Abonnements",
+    )
+    db_session.add_all([past_tx, future_tx])
+    db_session.commit()
+
+    # 1. Vérification avec get_recurrence_templates_tool
+    overview = get_recurrence_templates_tool(db_session, include_closed=True)
+    tpl_data = next(t for t in overview["templates"] if t["id"] == 63)
+    assert tpl_data["is_closed"] is False
+    assert tpl_data["status"] == "active"
+
+    # 2. Dry run / Proposition de clôture (force_write=False)
+    proposal = close_recurrence_template_tool(db_session, template_id=63, force_write=False)
+    assert proposal["success"] is True
+    assert proposal["pending_validation"] is True
+    assert proposal["template_id"] == 63
+    assert proposal["is_closed"] is True
+    # Le template ne doit pas encore être clôturé en base
+    db_session.refresh(tpl)
+    assert tpl.is_closed is False
+
+    # 3. Exécution de la clôture (force_write=True)
+    result = close_recurrence_template_tool(db_session, template_id=63, force_write=True)
+    assert result["success"] is True
+    assert result["template_id"] == 63
+    assert result["future_transactions_purged"] == 1
+
+    db_session.refresh(tpl)
+    assert tpl.is_closed is True
+
+    # La transaction passée rapprochée est préservée
+    past_db = db_session.query(Transaction).filter(Transaction.recurrence_id == 63, Transaction.reconciliation_date != None).first()
+    assert past_db is not None
+    # La future non rapprochée est supprimée
+    future_db = db_session.query(Transaction).filter(Transaction.recurrence_id == 63, Transaction.reconciliation_date == None).first()
+    assert future_db is None
+
+    # 4. get_recurrence_templates_tool reflète le nouvel état
+    closed_view = get_recurrence_templates_tool(db_session, include_closed=True)
+    closed_tpl_data = next(t for t in closed_view["templates"] if t["id"] == 63)
+    assert closed_tpl_data["is_closed"] is True
+    assert closed_tpl_data["status"] == "closed"
+
+    # Et si include_closed=False, il est exclu
+    active_only_view = get_recurrence_templates_tool(db_session, include_closed=False)
+    active_ids = {t["id"] for t in active_only_view["templates"]}
+    assert 63 not in active_ids
+
+
+
 

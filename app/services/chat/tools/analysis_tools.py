@@ -157,16 +157,46 @@ def detect_anomalies_and_subscriptions_tool(db: Session) -> dict:
     # 3. Overdraft Warning from Engine
     overdraft_info = None
     try:
+        from app.services.finance_engine import predict_next_paycheck
+        pay_info = predict_next_paycheck(db)
+        next_pay = pay_info.get("date") if pay_info else None
+        pay_amount = float(pay_info.get("amount", 0.0) or 0.0) if pay_info else 0.0
+
         od = get_overdraft_warning(db)
         if od:
-            overdraft_info = {
-                "will_overdraft": True,
-                "projected_date": od["date"].isoformat() if isinstance(od["date"], date) else str(od["date"]),
-                "transaction_description": od["transaction_description"],
-                "transaction_amount_euros": od["transaction_amount"],
-                "projected_negative_balance_euros": od["projected_balance"],
-                "transaction_id": od.get("transaction_id")
-            }
+            is_after_pay = bool(od.get("is_after_next_paycheck") or (next_pay and od["date"] > next_pay))
+            is_covered = bool(od.get("covered_by_income"))
+
+            if is_after_pay:
+                overdraft_info = {
+                    "will_overdraft": False,
+                    "scheduled_after_next_paycheck": True,
+                    "next_paycheck_date": next_pay.isoformat() if isinstance(next_pay, date) else str(next_pay),
+                    "next_paycheck_amount_euros": pay_amount,
+                    "projected_date": od["date"].isoformat() if isinstance(od["date"], date) else str(od["date"]),
+                    "transaction_description": od["transaction_description"],
+                    "transaction_amount_euros": od["transaction_amount"],
+                    "status_note": f"L'opération a lieu le {od['date']} après la prochaine paie du {next_pay} ({pay_amount:.2f} €). Le salaire crédité avant cette échéance absorbe la dépense sans aucun découvert."
+                }
+            elif is_covered:
+                overdraft_info = {
+                    "will_overdraft": False,
+                    "covered_by_income": True,
+                    "projected_date": od["date"].isoformat() if isinstance(od["date"], date) else str(od["date"]),
+                    "transaction_description": od["transaction_description"],
+                    "planned_income_before_risk_euros": od.get("planned_income_before_risk", 0.0),
+                    "projected_balance_with_income_euros": od.get("projected_balance_with_income", 0.0),
+                    "status_note": "Creux de trésorerie temporaire absorbé par des recettes prévues d'ici cette date. Aucun découvert réel."
+                }
+            else:
+                overdraft_info = {
+                    "will_overdraft": True,
+                    "projected_date": od["date"].isoformat() if isinstance(od["date"], date) else str(od["date"]),
+                    "transaction_description": od["transaction_description"],
+                    "transaction_amount_euros": od["transaction_amount"],
+                    "projected_negative_balance_euros": od.get("with_income_risk_amount", od["projected_balance"]),
+                    "transaction_id": od.get("transaction_id")
+                }
     except Exception as e:
         logger.warning(f"[detect_anomalies] Error calculating overdraft warning: {e}")
 

@@ -220,3 +220,95 @@ def test_unreconciled_income_dated_in_past_counted_before_next_pay():
     finally:
         db.close()
 
+
+def test_overdraft_after_paycheck_not_alarmist():
+    """
+    Vérifie qu'une dépense située APRÈS la prochaine paie prévue :
+    1. Prend en compte le salaire prévisionnel dans le calcul du solde projeté.
+    2. Porte le marqueur is_after_next_paycheck = True et covered_by_income = True.
+    3. N'est pas considérée comme un risque de découvert dans detect_anomalies_and_subscriptions_tool.
+    """
+    from app.services.chat.tools.analysis_tools import detect_anomalies_and_subscriptions_tool
+    from app.services.chat.tools.read_tools import get_financial_summary_tool
+    from app.services.chat.chat_briefing import generate_financial_briefing
+
+    db = TestingSessionLocal()
+    try:
+        today = date.today()
+        acc = Account(name="Test Compte Courant Paie", type="Compte courant", initial_balance=200.0)
+        db.add(acc)
+        db.commit()
+        db.refresh(acc)
+
+        # Configurer comme compte principal
+        main_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "main_account_id").first()
+        if not main_cfg:
+            main_cfg = GlobalConfig(key="main_account_id", value=str(acc.id))
+            db.add(main_cfg)
+        else:
+            main_cfg.value = str(acc.id)
+
+        # Configurer une paie à J+5 de 2500 €
+        pay_date = today + timedelta(days=5)
+        pay_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_date").first()
+        if not pay_cfg:
+            db.add(GlobalConfig(key="override_paycheck_date", value=pay_date.isoformat()))
+        else:
+            pay_cfg.value = pay_date.isoformat()
+
+        pay_period_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_period").first()
+        period_str = f"{today.year:04d}-{today.month:02d}"
+        if not pay_period_cfg:
+            db.add(GlobalConfig(key="override_paycheck_period", value=period_str))
+        else:
+            pay_period_cfg.value = period_str
+
+        pay_amt_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "override_paycheck_amount").first()
+        if not pay_amt_cfg:
+            db.add(GlobalConfig(key="override_paycheck_amount", value="2500.0"))
+        else:
+            pay_amt_cfg.value = "2500.0"
+
+        # Dépense non rapprochée de 300 € à J+8 (après la paie) -> solde sans recettes = -100 €, mais avec paie = +2400 €
+        post_pay_expense = Transaction(
+            date_saisie=today,
+            date_operation=today + timedelta(days=8),
+            description="Pret Remboursement J+8",
+            amount=300.0,
+            type="expense_fixed",
+            from_account_id=acc.id,
+            to_account_id=None,
+            reconciliation_date=None
+        )
+        db.add(post_pay_expense)
+        db.commit()
+        stats_cache.invalidate()
+
+        # 1. Vérification dans finance_engine
+        warning = get_overdraft_warning(db, account_id=acc.id)
+        assert warning is not None
+        assert warning["is_after_next_paycheck"] is True
+        assert warning["covered_by_income"] is True
+        assert warning["planned_income_total"] >= 2500.0
+        assert warning["projected_balance_with_income"] > 0
+
+        # 2. Vérification dans detect_anomalies_and_subscriptions_tool
+        anomalies = detect_anomalies_and_subscriptions_tool(db)
+        od_info = anomalies.get("overdraft_warning")
+        assert od_info is not None
+        assert od_info["will_overdraft"] is False
+        assert od_info["scheduled_after_next_paycheck"] is True
+
+        # 3. Vérification dans get_financial_summary_tool
+        summary = get_financial_summary_tool(db)
+        assert summary["recommended_bridge_transfer"] is None
+
+        # 4. Vérification dans generate_financial_briefing
+        briefing = generate_financial_briefing(db, role="advisor")
+        assert "Overdraft Risk Alert" not in briefing
+        assert "Recommended Bridge Transfer" not in briefing
+        assert "No projected overdraft before next paycheck" in briefing
+    finally:
+        db.close()
+
+

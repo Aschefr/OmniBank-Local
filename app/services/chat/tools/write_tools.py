@@ -426,7 +426,14 @@ def update_recurrence_template_tool(db: Session, template_id: int = None, amount
         return {"success": False, "error": "Recurrence template not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True, "template_id": tpl.id}
+        return {
+            "success": True,
+            "pending_validation": True,
+            "template_id": tpl.id,
+            "description": tpl.description,
+            "amount": amount if amount is not None else tpl.amount,
+            "is_active": is_active
+        }
 
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(tpl)
@@ -444,12 +451,69 @@ def update_recurrence_template_tool(db: Session, template_id: int = None, amount
     if day_of_month is not None:
         tpl.day_of_month = int(day_of_month)
     if is_active is not None:
-        tpl.is_active = is_active
+        tpl.is_closed = not bool(is_active)
         
     db.flush()
     action_id = record_action(db, "recurrence_template", tpl.id, "UPDATE", old_snapshot, snapshot_entity(tpl))
     db.commit()
     return {"success": True, "template_id": tpl.id, "action_id": action_id}
+
+
+def close_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, closure_date: str = None, force_write: bool = False) -> dict:
+    from app.models import RecurrenceTemplate, Transaction
+    from datetime import date
+    
+    tpl = None
+    if template_id is not None:
+        try:
+            tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == int(template_id)).first()
+        except (ValueError, TypeError):
+            pass
+
+    if not tpl and description:
+        target_norm = _normalize_name(description)
+        for cand in db.query(RecurrenceTemplate).all():
+            if cand.description and (_normalize_name(cand.description) == target_norm or target_norm in _normalize_name(cand.description) or _normalize_name(cand.description) in target_norm):
+                tpl = cand
+                break
+
+    if not tpl:
+        return {"success": False, "error": "Recurrence template not found"}
+        
+    if not force_write:
+        return {
+            "success": True,
+            "pending_validation": True,
+            "template_id": tpl.id,
+            "description": tpl.description,
+            "amount": tpl.amount,
+            "is_closed": True
+        }
+
+    from app.services.history_service import record_action, snapshot_entity
+    old_snapshot = snapshot_entity(tpl)
+    tpl.is_closed = True
+    
+    cutoff_date = date.fromisoformat(closure_date) if closure_date else date.today()
+    
+    # Purge future unreconciled transactions strictly after cutoff date
+    deleted_count = db.query(Transaction).filter(
+        Transaction.recurrence_id == tpl.id,
+        Transaction.reconciliation_date == None,
+        Transaction.date_operation > cutoff_date
+    ).delete()
+    
+    db.flush()
+    action_id = record_action(db, "recurrence_template", tpl.id, "CLOSE", old_snapshot, snapshot_entity(tpl))
+    db.commit()
+    return {
+        "success": True,
+        "template_id": tpl.id,
+        "description": tpl.description,
+        "is_closed": True,
+        "action_id": action_id,
+        "future_transactions_purged": deleted_count
+    }
 
 
 def delete_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, force_write: bool = False) -> dict:
@@ -473,7 +537,13 @@ def delete_recurrence_template_tool(db: Session, template_id: int = None, descri
         return {"success": False, "error": "Recurrence template not found"}
         
     if not force_write:
-        return {"success": True, "pending_validation": True, "template_id": tpl.id}
+        return {
+            "success": True,
+            "pending_validation": True,
+            "template_id": tpl.id,
+            "description": tpl.description,
+            "amount": tpl.amount
+        }
 
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(tpl)
