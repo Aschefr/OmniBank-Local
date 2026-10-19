@@ -120,9 +120,15 @@ def set_auto_reconcile_threshold(db: Session, threshold: float, apply_to_existin
     applied_count = 0
     if apply_to_existing:
         from app.models import Transaction
-        txs = db.query(Transaction).filter(Transaction.confidence_score.isnot(None)).all()
+        txs = db.query(Transaction).filter(
+            Transaction.confidence_score.isnot(None),
+            Transaction.reconciliation_date.is_(None)
+        ).all()
         for t in txs:
             score = t.confidence_score or 0.0
+            # Les opérations validées manuellement (score >= 100%) ne doivent jamais être rétroactivement réouvertes
+            if score >= 100.0:
+                continue
             old_needs_review = t.needs_review
             new_needs_review = (score < val)
             if old_needs_review != new_needs_review:
@@ -2157,6 +2163,7 @@ def link_review_transaction(
     if bank_csv_id:
         tx_forecast.csv_id = bank_csv_id
     tx_forecast.needs_review = False
+    tx_forecast.confidence_score = 100.0  # Validation / liaison humaine = 100%
 
     is_coming = bool(bank_csv_id and str(bank_csv_id).startswith("woob_coming_"))
     if not is_coming:
@@ -2299,6 +2306,7 @@ def validate_review_transaction(
 
     before_snap = snapshot_entity(tx)
     tx.needs_review = False
+    tx.confidence_score = 100.0  # Validation humaine = certitude 100%
     if tx.reconciliation_date is None and not (tx.csv_id and str(tx.csv_id).startswith("woob_coming_")):
         tx.reconciliation_date = tx.date_operation or date.today()
     db.flush()
@@ -2405,6 +2413,7 @@ def update_review_transaction(
         tx.category = cleaned_cat
 
     tx.needs_review = False
+    tx.confidence_score = 100.0  # Validation / correction humaine = certitude 100%
     if tx.reconciliation_date is None and not (tx.csv_id and str(tx.csv_id).startswith("woob_coming_")):
         tx.reconciliation_date = tx.date_operation or date.today()
     db.flush()
@@ -2483,13 +2492,19 @@ def preview_threshold_impact(db: Session, simulated_threshold: float) -> Dict[st
     from app.models import Transaction
     current_threshold = get_auto_reconcile_threshold(db)
 
-    txs = db.query(Transaction).filter(Transaction.confidence_score.isnot(None)).all()
+    txs = db.query(Transaction).filter(
+        Transaction.confidence_score.isnot(None),
+        Transaction.reconciliation_date.is_(None)
+    ).all()
 
     becoming_reliable = []
     becoming_review = []
 
     for t in txs:
         score = t.confidence_score or 0.0
+        # Les opérations validées manuellement (score >= 100%) ne basculent jamais en revue
+        if score >= 100.0:
+            continue
         if t.needs_review and score >= simulated_threshold:
             becoming_reliable.append({
                 "id": t.id,
