@@ -5,12 +5,7 @@ class I18nManager {
         this.availableLangs = [];
         this.knownLangs = [
             { code: 'fr', flag: 'fr', label: 'Français' },
-            { code: 'en', flag: 'gb', label: 'English' },
-            { code: 'es', flag: 'es', label: 'Español' },
-            { code: 'de', flag: 'de', label: 'Deutsch' },
-            { code: 'it', flag: 'it', label: 'Italiano' },
-            { code: 'pt', flag: 'pt', label: 'Português' },
-            { code: 'nl', flag: 'nl', label: 'Nederlands' }
+            { code: 'en', flag: 'gb', label: 'English' }
         ];
     }
 

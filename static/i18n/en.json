@@ -3744,5 +3744,22 @@
   "autopilot_action_coming_detected": "Upcoming debit",
   "autopilot_action_coming_detected_desc": "Upcoming bank transaction announced by the bank (awaiting settled debit on account).",
   "autopilot_reason_bank_coming": "Bank pre-notice",
-  "autopilot_reason_bank_coming_desc": "Future debit reported in upcoming operations statement (deferred debit card or pending notice)."
+  "autopilot_reason_bank_coming_desc": "Future debit reported in upcoming operations statement (deferred debit card or pending notice).",
+  "chat_section_today": "Today",
+  "chat_section_yesterday": "Yesterday",
+  "chat_section_last_7_days": "Previous 7 days",
+  "chat_section_last_30_days": "Previous 30 days",
+  "chat_section_older": "Older",
+  "chat_rename_save": "Save title",
+  "chat_rename_cancel": "Cancel",
+  "chat_no_sessions": "No conversations",
+  "chat_regenerate_title": "Regenerate title with AI",
+  "chat_title_regenerated": "Title updated!",
+  "chat_group_delete_tooltip": "Delete all in this section",
+  "chat_group_delete_confirm": "Delete all",
+  "chat_group_delete_success": "Conversations deleted!",
+  "chat_session_menu_title": "Conversation options",
+  "chat_session_rename": "Rename",
+  "chat_session_delete": "Delete",
+  "chat_session_regen_title": "Regenerate title (AI)"
 }
