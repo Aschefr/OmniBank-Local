@@ -3761,5 +3761,10 @@
   "chat_session_menu_title": "Conversation options",
   "chat_session_rename": "Rename",
   "chat_session_delete": "Delete",
-  "chat_session_regen_title": "Regenerate title (AI)"
+  "chat_session_regen_title": "Regenerate title (AI)",
+  "chat_missing_action_title": "Proposed action in text",
+  "chat_missing_action_desc": "The assistant mentions preparing an action but no review card was generated.",
+  "chat_btn_recover_action": "Generate action cards",
+  "chat_action_recovery_success": "Action cards generated successfully!",
+  "chat_action_recovery_empty": "No actionable operations found"
 }

@@ -342,6 +342,34 @@ async def delete_message(id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+@router.post("/messages/{id}/recover-actions")
+async def recover_message_actions(id: int, db: Session = Depends(get_db)):
+    """
+    Détecte et extrait les actions promises dans le texte d'un message assistant,
+    met à jour le contenu du message en base et retourne les actions pour affichage immédiat.
+    """
+    message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message non trouvé")
+    if message.role != "assistant":
+        raise HTTPException(status_code=400, detail="Seuls les messages de l'assistant peuvent être analysés")
+
+    from app.services.chat.chat_action_recovery import extract_unemitted_actions, append_actions_to_text
+    actions = extract_unemitted_actions(message.content, db)
+    if not actions:
+        return {"ok": False, "message": "Aucune action exploitable n'a été trouvée dans ce message.", "actions": []}
+
+    new_content = append_actions_to_text(message.content, actions)
+    message.content = new_content
+    db.commit()
+
+    return {
+        "ok": True,
+        "actions": actions,
+        "new_content": new_content
+    }
+
+
 @router.post("/sessions/{id}/system-message")
 async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depends(get_db)):
     """Insère un message système ou assistant sans déclencher de génération IA."""
