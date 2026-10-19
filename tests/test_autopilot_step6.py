@@ -742,3 +742,76 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     active_custom = sum(1 for v in data_custom["managed_subtoggles"].values() if v)
     assert active_custom == 13
 
+
+def test_autopilot_threshold_reconciled_and_validated_guardrails(client, test_db):
+    """Vérifie que la modification et l'application du seuil de tolérance n'impactent JAMAIS :
+    1. Les opérations déjà rapprochées en banque (reconciliation_date != None).
+    2. Les opérations acquittées manuellement par l'utilisateur (score = 100%).
+    """
+    from app.models import Transaction
+    from app.services.autopilot_service import set_auto_reconcile_threshold
+
+    # Créer 3 transactions :
+    # tx_reconciled : 65% de score mais déjà rapprochée et acquittée
+    tx_reconciled = Transaction(
+        description="OCTOPUS ENERGIE RECONCILED",
+        amount=171.07,
+        type="expense_var",
+        category="Logement",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        reconciliation_date=date.today(),
+        needs_review=False,
+        confidence_score=65.0
+    )
+    # tx_validated : score passé à 100% lors de la validation en revue
+    tx_validated = Transaction(
+        description="FULLI VALIDATED",
+        amount=38.90,
+        type="expense_var",
+        category="Transport",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        reconciliation_date=None,
+        needs_review=False,
+        confidence_score=100.0
+    )
+    # tx_pending : non rapprochée, score 75% -> doit pouvoir basculer
+    tx_pending = Transaction(
+        description="PENDING REVIEW UNRECONCILED",
+        amount=50.0,
+        type="expense_var",
+        category="Divers",
+        date_operation=date.today(),
+        date_saisie=date.today(),
+        reconciliation_date=None,
+        needs_review=False,
+        confidence_score=75.0
+    )
+    test_db.add_all([tx_reconciled, tx_validated, tx_pending])
+    test_db.commit()
+
+    # 1. Prévisualisation à 85% : seule tx_pending doit basculer en revue (count = 1)
+    res_prev = client.get("/api/autopilot/threshold-preview?threshold=85.0")
+    assert res_prev.status_code == 200
+    data_prev = res_prev.json()
+    # tx_reconciled et tx_validated ne doivent pas apparaître dans becoming_review
+    rev_ids = [s["id"] for s in data_prev.get("becoming_review_samples", [])]
+    assert tx_reconciled.id not in rev_ids
+    assert tx_validated.id not in rev_ids
+    assert tx_pending.id in rev_ids
+
+    # 2. Application rétroactive du seuil à 85%
+    res_apply = client.put("/api/autopilot/threshold", json={"threshold": 85.0, "apply_to_existing": True})
+    assert res_apply.status_code == 200
+    assert res_apply.json()["applied_count"] == 1  # Seule tx_pending a basculé
+
+    test_db.refresh(tx_reconciled)
+    test_db.refresh(tx_validated)
+    test_db.refresh(tx_pending)
+
+    assert tx_reconciled.needs_review is False
+    assert tx_validated.needs_review is False
+    assert tx_pending.needs_review is True
+
+
