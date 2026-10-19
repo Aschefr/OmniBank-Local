@@ -85,6 +85,76 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     border-color: #f59e0b;
                     box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
                 }
+                .ai-entity-badge.type-recurrence {
+                    background: rgba(168, 85, 247, 0.14);
+                    border-color: rgba(168, 85, 247, 0.38);
+                }
+                .ai-entity-badge.type-recurrence:hover {
+                    background: rgba(168, 85, 247, 0.28);
+                    border-color: #a855f7;
+                    box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+                }
+                .ai-entity-badge.type-transaction {
+                    background: rgba(6, 182, 212, 0.14);
+                    border-color: rgba(6, 182, 212, 0.38);
+                }
+                .ai-entity-badge.type-transaction:hover {
+                    background: rgba(6, 182, 212, 0.28);
+                    border-color: #06b6d4;
+                    box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+                }
+                .ai-missing-action-box {
+                    margin-top: 14px;
+                    padding: 12px 14px;
+                    background: rgba(245, 158, 11, 0.08);
+                    border: 1px dashed rgba(245, 158, 11, 0.4);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                .ai-missing-action-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex: 1;
+                    min-width: 220px;
+                }
+                .ai-missing-action-icon {
+                    font-size: 20px;
+                    line-height: 1;
+                    flex-shrink: 0;
+                }
+                .ai-missing-action-text {
+                    font-size: 12px;
+                    color: var(--text-color, #e2e8f0);
+                    line-height: 1.35;
+                }
+                .ai-missing-action-text strong {
+                    color: #f59e0b;
+                }
+                .ai-btn-recover-action {
+                    padding: 6px 14px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    border-radius: 6px;
+                    background: rgba(245, 158, 11, 0.2);
+                    border: 1px solid #f59e0b;
+                    color: #fbbf24;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.15s ease;
+                    white-space: nowrap;
+                }
+                .ai-btn-recover-action:hover {
+                    background: rgba(245, 158, 11, 0.35);
+                    color: #fff;
+                    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+                }
                 .ai-entity-icon {
                     font-size: 0.9em;
                     opacity: 0.9;
