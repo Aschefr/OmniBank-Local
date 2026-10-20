@@ -804,9 +804,9 @@ window.TimelineView = {
             });
         }
 
-        // Split into unreconciled and reconciled
-        let unreconciled = filtered.filter(tx => !tx.reconciliation_date);
-        let reconciled = filtered.filter(tx => tx.reconciliation_date);
+        // Split into unreconciled and reconciled (skipped operations are resolved and belong to past/reconciled section)
+        let unreconciled = filtered.filter(tx => !tx.reconciliation_date && !tx.is_skipped);
+        let reconciled = filtered.filter(tx => tx.reconciliation_date || tx.is_skipped);
         
         // Hide unreconciled transactions strictly AFTER next pay date
         if (!isOrgMode && window.app.nextPayDate) {

@@ -350,12 +350,14 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
                                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
                                     <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" style="border: 1px solid var(--border-color); padding: 8px;" onchange="window.ConfigView.save()">
-                                    <div style="display: flex; gap: 5px;">
+                                    <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                                         <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
                                         <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
                                         <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
                                         <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
                                         <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='65536'; window.ConfigView.save()">64K</button>
+                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='131072'; window.ConfigView.save()">128K</button>
                                     </div>
                                 </div>
                                 <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
