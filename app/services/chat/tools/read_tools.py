@@ -325,26 +325,25 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         avg_3m = round(spent_by_b_3m.get(b_id, 0.0) / 3.0, 2) if b_id else 0.0
         avg_6m = round(spent_by_b_6m.get(b_id, 0.0) / 6.0, 2) if b_id else 0.0
 
-        envelopes.append({
+        envelope_entry = {
             "id": b_id,
             "name": b.get("name"),
             "envelope_type": b.get("envelope_type", "spending"),
             "limit": limit_val,
             "spent": display_spent,
-            "actual_spent_in_db": actual_spent,
             "planned_uncommitted_recurring": planned_rec,
             "total_projected_spent": round(actual_spent + planned_rec, 2),
             "reconciled_spent": reconciled_spent,
             "remaining": remaining_val,
             "percent": pct_val,
             "is_future_period": is_future,
-            "planned_recurring_commitments": planned_rec,
             "period": b.get("period", "monthly"),
             "status": "exceeded" if display_spent > limit_val else ("warning" if pct_val >= 80 else "ok"),
             "categories": b.get("categories", []),
             "historical_monthly_avg_spent_3m": avg_3m,
             "historical_monthly_avg_spent_6m": avg_6m
-        })
+        }
+        envelopes.append(envelope_entry)
 
     net_spent_committed = round(total_spent_committed - total_income, 2)
     net_spent_reconciled = round(total_spent_reconciled - total_income, 2)
@@ -386,14 +385,16 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
             "note": "Historique réel récent insuffisant. Étalonnage standard 50/30/20 proposé à titre indicatif."
         }
 
-    return {
+    res_dict = {
         "target_period": target_period,
         "year": y,
         "month": m,
         "summary": summary,
         "budgets": envelopes,
-        "reference_guidance": reference_guidance
     }
+    if reference_guidance:
+        res_dict["reference_guidance"] = reference_guidance
+    return res_dict
 
 def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) -> dict:
     import calendar
@@ -604,29 +605,33 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False, 
         applicable_months, freq_human, computed_next_date = _compute_recurrence_schedule(t, last_dt_obj)
         next_expected_date = next_planned_map.get(t.id, computed_next_date) if not is_closed else None
 
-        result.append({
+        tpl_dict = {
             "id": t.id,
             "description": t.description,
             "amount": t.amount,
-            "type": t.type,
             "category": t.category,
             "frequency": t.frequency,
-            "frequency_human": freq_human,
-            "applicable_months": applicable_months,
-            "day_of_month": t.day_of_month,
-            "month_of_year": t.month_of_year,
-            "max_occurrences": t.max_occurrences,
-            "occurrences_generated": occ_count,
-            "remaining_occurrences": remaining,
             "is_completed": is_completed,
             "is_closed": is_closed,
             "status": "closed" if is_closed else ("completed" if is_completed else "active"),
-            "last_reconciled_payment": {
-                "date": last_rec["date"],
-                "amount": last_rec["amount"]
-            } if last_rec else None,
-            "next_expected_date": next_expected_date
-        })
+        }
+        if t.day_of_month:
+            tpl_dict["day_of_month"] = t.day_of_month
+        if t.month_of_year:
+            tpl_dict["month_of_year"] = t.month_of_year
+        if applicable_months and len(applicable_months) < 12:
+            tpl_dict["applicable_months"] = applicable_months
+        if t.max_occurrences:
+            tpl_dict["max_occurrences"] = t.max_occurrences
+            tpl_dict["occurrences_generated"] = occ_count
+            tpl_dict["remaining_occurrences"] = remaining
+        if last_rec and last_rec.get("date"):
+            tpl_dict["last_payment_date"] = last_rec["date"]
+            tpl_dict["last_payment_amount"] = last_rec["amount"]
+        if next_expected_date:
+            tpl_dict["next_expected_date"] = next_expected_date
+
+        result.append(tpl_dict)
 
     total_active = sum(1 for item in result if item["status"] == "active")
     total_closed = sum(1 for item in result if item["is_closed"])
