@@ -3770,5 +3770,15 @@
   "chat_suggestions_title": "Suggested follow-ups:",
   "tool_close_recurrence_template_title": "Closure of a recurring charge",
   "tool_close_recurrence_template": "Close recurrence",
-  "chat_action_propose_close_recurrence": "Closure of recurrence \"{desc}\" (stopping future payments while keeping history)"
+  "chat_action_propose_close_recurrence": "Closing recurring transaction {desc} (stopping future occurrences while keeping history)",
+  "chat_action_already_applied": "Action applied",
+  "chat_action_applied_feedback": "This action has already been executed and saved in the database.",
+  "chat_action_success_feedback": "✅ Action **{action}** was successfully executed and validated.",
+  "chat_action_sync_success_feedback": "✅ Action **{action}** was successfully executed. Bank sync and Autopilot reconciliation are running in the background.",
+  "chat_action_tx_updated_feedback": "✅ Transaction **#{id}** was successfully updated in the database.",
+  "chat_action_propose_reactivate_recurrence": "Reactivating recurring transaction {desc}",
+  "chat_action_propose_deactivate_recurrence": "Deactivating recurring transaction {desc}",
+  "chat_action_propose_delete_recurrence_def": "Permanent deletion of recurring transaction {desc}",
+  "chat_action_propose_create_transfer": "Recording a planned transfer of {amount} ({from} ➔ {to})",
+  "chat_action_propose_sync_bank": "Triggering online bank sync and statement download (Autopilot reconciliation)"
 }

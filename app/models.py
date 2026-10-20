@@ -219,6 +219,7 @@ class ChatMessage(Base):
     content = Column(Text)
     timestamp = Column(DateTime, default=_utcnow)
     entity_snapshots = Column(Text, nullable=True)  # JSON: {type:name -> {type,id,name,snapshot_year,snapshot_month,...}}
+    applied_actions = Column(Text, nullable=True)   # JSON: list of executed action IDs, e.g. ["act_12_0"]
 
     session = relationship("ChatSession", back_populates="messages")
 

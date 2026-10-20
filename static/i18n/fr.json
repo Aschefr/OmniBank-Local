@@ -3770,5 +3770,15 @@
   "chat_suggestions_title": "Suggestions de suite :",
   "tool_close_recurrence_template_title": "Clôture d'une charge récurrente",
   "tool_close_recurrence_template": "Clôturer la récurrence",
-  "chat_action_propose_close_recurrence": "Clôture de la récurrence \"{desc}\" (arrêt des échéances futures et conservation de l'historique)"
+  "chat_action_propose_close_recurrence": "Clôture de la charge récurrente {desc} (arrêt des échéances futures et conservation de l'historique)",
+  "chat_action_already_applied": "Action appliquée",
+  "chat_action_applied_feedback": "Cette action a déjà été exécutée et enregistrée en base.",
+  "chat_action_success_feedback": "✅ L'action **{action}** a été exécutée et validée avec succès.",
+  "chat_action_sync_success_feedback": "✅ L'action **{action}** a été exécutée avec succès. Le relevé bancaire et le rapprochement Auto-Pilote sont en cours en arrière-plan.",
+  "chat_action_tx_updated_feedback": "✅ La transaction **#{id}** a été mise à jour avec succès dans la base de données.",
+  "chat_action_propose_reactivate_recurrence": "Réactivation de la charge récurrente {desc}",
+  "chat_action_propose_deactivate_recurrence": "Désactivation de la charge récurrente {desc}",
+  "chat_action_propose_delete_recurrence_def": "Suppression définitive de la charge récurrente {desc}",
+  "chat_action_propose_create_transfer": "Enregistrement d'un virement prévisionnel de {amount} ({from} ➔ {to})",
+  "chat_action_propose_sync_bank": "Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)"
 }

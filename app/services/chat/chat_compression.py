@@ -13,7 +13,11 @@ from app.services.chat.ollama_client import call_ollama_sync
 logger = logging.getLogger(__name__)
 
 def estimate_tokens(text: str) -> int:
-    return len(text) // 4
+    if not text:
+        return 0
+    # En français et JSON structuré (accents utf-8, ponctuation, guillemets, indentation),
+    # le ratio moyen mesuré est d'environ 3.0 à 3.2 caractères par token.
+    return max(1, int(len(text) / 3.2))
 
 def start_compression(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict, lang: str = "fr", custom_instruction: str = None, trigger_msg_id: int = None) -> str | None:
     """Compress conversation history into compressed_context without deleting any messages.
