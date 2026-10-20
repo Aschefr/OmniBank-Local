@@ -169,16 +169,29 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
             }
 
-            // Check for thinking blocks - use placeholders to bypass DOMPurify stripping
-            let hasThink = false;
-            let isOpenThink = false;
+            // Normalize legacy or raw placeholders if any
+            rawContent = rawContent
+                .replace(/___THINK_START___/g, '<think>')
+                .replace(/___THINK_END(?:_ACTIVE)?___/g, '</think>');
+
+            let thinkHtml = '';
             if (rawContent.includes('<think>')) {
-                hasThink = true;
-                if (rawContent.includes('</think>')) {
-                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___').replace(/<\/think>/g, '___THINK_END___');
-                } else {
-                    isOpenThink = true;
-                    rawContent = rawContent.replace(/<think>/g, '___THINK_START___') + '___THINK_END_ACTIVE___';
+                const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/);
+                if (thinkMatch) {
+                    const thinkContent = thinkMatch[1].trim();
+                    const isOpenThink = !rawContent.includes('</think>');
+                    const defaultInProgress = '🧠 Réflexion en cours...';
+                    const defaultPhase = '🧠 Phase de réflexion';
+                    const thinkTitle = isOpenThink 
+                        ? (window.i18n ? (window.i18n.t('chat_thinking_in_progress') || defaultInProgress) : defaultInProgress)
+                        : (window.i18n ? (window.i18n.t('chat_thinking_phase') || defaultPhase) : defaultPhase);
+                    const openAttr = isOpenThink ? "open" : "";
+                    
+                    if (thinkContent) {
+                        const parsedThinkContent = DOMPurify.sanitize(marked.parse(thinkContent));
+                        thinkHtml = `<details class="ai-think-details" ${openAttr}><summary class="ai-think-summary"><span>${thinkTitle}</span></summary><div class="ai-think-content">${parsedThinkContent}</div></details>`;
+                    }
+                    rawContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trimStart();
                 }
             }
 
@@ -203,7 +216,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
                 // Smart fallback: extract closing questions ending with '?' if no explicit suggestions block
                 if (suggestions.length === 0) {
-                    const textWithoutCode = rawContent.replace(/```[\s\S]*?```/g, '').trim();
+                    const textWithoutCode = rawContent
+                        .replace(/```[\s\S]*?```/g, '')
+                        .trim();
                     const paragraphs = textWithoutCode.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
                     if (paragraphs.length > 0) {
                         const trailingText = paragraphs.slice(-2).join('\n\n');
@@ -241,19 +256,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         }
                     }
                 }
-                
-                // Replace placeholders back to HTML details after sanitization
-                if (hasThink) {
-                    const defaultInProgress = '🧠 Réflexion en cours...';
-                    const defaultPhase = '🧠 Phase de réflexion';
-                    const thinkTitle = isOpenThink 
-                        ? (window.i18n ? (window.i18n.t('chat_thinking_in_progress') || defaultInProgress) : defaultInProgress)
-                        : (window.i18n ? (window.i18n.t('chat_thinking_phase') || defaultPhase) : defaultPhase);
-                    const openAttr = isOpenThink ? "open" : "";
-                    displayContent = displayContent
-                        .replace(/___THINK_START___/g, `<details class="ai-think-details" ${openAttr}><summary class="ai-think-summary"><span>${thinkTitle}</span></summary><div class="ai-think-content">`)
-                        .replace(/___THINK_END___/g, '</div></details>')
-                        .replace(/___THINK_END_ACTIVE___/g, '</div></details>');
+
+                if (thinkHtml) {
+                    displayContent = thinkHtml + displayContent;
                 }
 
                 for (const actionObj of actions) {

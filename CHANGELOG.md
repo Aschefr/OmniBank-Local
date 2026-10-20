@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Added & Improved
+- **Large Ollama Model (31B+) Support & Dynamic Context Budgeting 🧠⚡**: Full streaming support for large reasoning models (e.g. Gemma 4 31B, DeepSeek-R1) with native `thinking` token streaming and dynamic context budgeting reserving at least 3,500 tokens of generation headroom. Compacted analytical tool payloads (`get_recurrence_templates`, `get_budgets_status`) to prevent context window saturation and false connection errors.
+- **Collapsible AI Reasoning Details View (`💭 Phase de réflexion`) 💭🔽**: Cleanly isolated internal model reasoning into semantic HTML5 `<details>` blocks collapsed by default (open while streaming), eliminating placeholder leaks (`THINK_START`) and raw tags.
+- **Ollama Context Presets (64K & 128K) 🚀⚙️**: Added 64K and 128K quick-select buttons in *Settings > AI Assistant* to easily unlock larger context windows on capable hardware.
+- **Extended Streaming Timeouts ⏱️🛡️**: Increased reverse proxy read timeouts to 600s in Nginx to ensure uninterrupted long-context evaluations and cold model loads.
+
+### Fixed & Ergonomics
+- **Dashboard Skipped Operations Classification 📊🧹**: Resolved recurrence occurrences marked as skipped (`is_skipped`) now properly transition into the settled operations history instead of lingering in the upcoming/unreconciled operations block.
+
 ## [1.2.6] - 2026-10-19
 
 ### Added & Improved

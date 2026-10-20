@@ -361,6 +361,55 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
     return res
 
 
+def budget_messages_for_context(messages: List[Dict[str, Any]], num_ctx: int, min_headroom: int = 3500) -> List[Dict[str, Any]]:
+    """
+    Garantit que le payload envoyé à Ollama ne sature pas la fenêtre de contexte num_ctx,
+    en réservant au moins min_headroom tokens pour la réflexion et la génération de la réponse.
+    1. Tronque les retours d'outils massifs (> 4000 caractères).
+    2. Si le total reste excessif, condense les messages intermédiaires d'historique.
+    """
+    max_prompt_tokens = max(1000, num_ctx - min_headroom)
+
+    pruned = [dict(m) for m in messages]
+    current_tokens = estimate_tokens(json.dumps(pruned, ensure_ascii=False))
+    if current_tokens <= max_prompt_tokens:
+        return pruned
+
+    logger.info(f"[Chat Context Budget] Poids initial {current_tokens} tokens > limite {max_prompt_tokens} (num_ctx={num_ctx}). Optimisation du payload...")
+
+    # Passe 1 : Réduire les sorties d'outils massives (> 4000 chars)
+    for m in pruned:
+        if m.get("role") == "tool" and isinstance(m.get("content"), str):
+            c = m["content"]
+            if len(c) > 4000:
+                logger.info(f"[Chat Context Budget] Rognage outil '{m.get('name')}' : {len(c)} chars -> 4000 chars")
+                m["content"] = c[:4000] + "\n[...données tronquées pour respecter la fenêtre mémoire...]"
+
+    current_tokens = estimate_tokens(json.dumps(pruned, ensure_ascii=False))
+    if current_tokens <= max_prompt_tokens:
+        logger.info(f"[Chat Context Budget] Payload optimisé à {current_tokens} tokens après rognage d'outils")
+        return pruned
+
+    # Passe 2 : Prunage de l'historique conversationnel intermédiaire
+    sys_msg = pruned[0] if pruned and pruned[0].get("role") == "system" else None
+    rest = pruned[1:] if sys_msg else pruned
+
+    # Les messages récents (les 3 derniers : requête utilisateur active + tool calls actuels) sont intangibles
+    preserve_count = min(3, len(rest))
+    tail = rest[-preserve_count:]
+    middle = rest[:-preserve_count]
+
+    while middle and estimate_tokens(json.dumps([sys_msg] + middle + tail if sys_msg else middle + tail, ensure_ascii=False)) > max_prompt_tokens:
+        removed = middle.pop(0)
+        logger.info(f"[Chat Context Budget] Élagage message ancien ({removed.get('role')}) pour libérer de la mémoire")
+
+    summary_notice = {"role": "system", "content": "[Historique antérieur condensé pour respecter la fenêtre de contexte]"}
+    final_msgs = ([sys_msg] if sys_msg else []) + ([summary_notice] if len(middle) < len(rest) - preserve_count else []) + middle + tail
+    final_tokens = estimate_tokens(json.dumps(final_msgs, ensure_ascii=False))
+    logger.info(f"[Chat Context Budget] Payload final ajusté à {final_tokens} tokens (marge garantie: {num_ctx - final_tokens} tokens)")
+    return final_msgs
+
+
 async def generate_chat_stream(
     session_id: int,
     req: ChatSendMessage,
@@ -486,6 +535,10 @@ async def generate_chat_stream(
 
             yield f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n"
 
+        if not _client_disconnected:
+            init_status = "Consultation de l'assistant IA..." if req.lang == "fr" else "Consulting AI assistant..."
+            yield f"data: {json.dumps({'status': init_status})}\n\n"
+
         async with httpx.AsyncClient() as client:
             tool_desc_map_fr = {
                 "get_financial_summary": "Analyse du reste à vivre et des prévisions de salaire...",
@@ -569,10 +622,11 @@ async def generate_chat_stream(
                 collected_text = ""
                 collected_tool_calls = []
                 in_thinking = False
+                done_reason = None
 
-                async with client.stream("POST", f"{url}/api/chat", json=payload_data, timeout=httpx.Timeout(300.0, connect=10.0)) as stream_resp:
+                async with client.stream("POST", f"{url}/api/chat", json=payload_data, timeout=httpx.Timeout(300.0, connect=15.0)) as stream_resp:
                     if stream_resp.status_code != 200:
-                        yield f"data: {json.dumps({'error': 'Ollama error: ' + str(stream_resp.status_code)})}\n\n"
+                        yield f"data: {json.dumps({'error': 'Erreur Ollama (HTTP ' + str(stream_resp.status_code) + ')'})}\n\n"
                         return
                     async for line in stream_resp.aiter_lines():
                         if not line:
@@ -582,13 +636,20 @@ async def generate_chat_stream(
                         except json.JSONDecodeError:
                             continue
 
+                        if "error" in json_chunk:
+                            err_msg = json_chunk["error"]
+                            logger.error(f"[Chat] Erreur Ollama reçue dans le flux: {err_msg}")
+                            yield f"data: {json.dumps({'error': f'Erreur Ollama: {err_msg}'})}\n\n"
+                            return
+
                         msg_obj = json_chunk.get("message", {})
                         tc_list = msg_obj.get("tool_calls")
                         if tc_list:
                             collected_tool_calls.extend(tc_list)
                             continue
 
-                        reasoning = msg_obj.get("reasoning_content", "")
+                        # Support both reasoning_content and Ollama native thinking field
+                        reasoning = msg_obj.get("reasoning_content") or msg_obj.get("thinking") or ""
                         content = msg_obj.get("content", "")
 
                         chunk_to_send = ""
@@ -607,11 +668,16 @@ async def generate_chat_stream(
                             collected_text += chunk_to_send
                             yield f"data: {json.dumps({'content': chunk_to_send})}\n\n"
 
+                        if json_chunk.get("done"):
+                            done_reason = json_chunk.get("done_reason")
+                            if done_reason == "length":
+                                logger.warning("[Chat] Génération Ollama interrompue par la limite de contexte (done_reason=length)")
+
                 if in_thinking:
                     collected_text += "\n</think>\n\n"
                     yield f"data: {json.dumps({'content': chr(10) + '</think>' + chr(10) + chr(10)})}\n\n"
 
-                yield {"_result": collected_text, "_tool_calls": collected_tool_calls}
+                yield {"_result": collected_text, "_tool_calls": collected_tool_calls, "_done_reason": done_reason}
 
             _WRITE_TOOLS = WRITE_TOOLS
             _CACHEABLE_READ_TOOLS = {
@@ -630,10 +696,15 @@ async def generate_chat_stream(
             iteration = 0
             target_period_override = {"year": None, "month": None}
             accumulated_substantive_text = ""
+            context_length_reached = False
+            last_iteration_phase_text = ""
+            error_yielded = False
             while iteration < MAX_TOOL_ITERATIONS:
+                # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
+                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"])
                 payload = {
                     "model": model,
-                    "messages": ollama_msgs,
+                    "messages": budgeted_msgs,
                     "tools": TOOLS,
                     "stream": True,
                     "options": options,
@@ -646,12 +717,17 @@ async def generate_chat_stream(
                     if isinstance(chunk, dict) and "_result" in chunk:
                         phase_text = chunk["_result"]
                         detected_tool_calls = chunk["_tool_calls"]
+                        last_iteration_phase_text = phase_text
+                        if chunk.get("_done_reason") == "length":
+                            context_length_reached = True
                     else:
                         if isinstance(chunk, str) and chunk.startswith('data: '):
                             try:
                                 d = json.loads(chunk[6:].strip())
                                 if d.get('content'):
                                     final_text += d['content']
+                                if d.get('error'):
+                                    error_yielded = True
                             except Exception:
                                 pass
                         if request and not _client_disconnected:
@@ -936,11 +1012,22 @@ async def generate_chat_stream(
                     if not _client_disconnected:
                         yield f"data: {json.dumps({'content': action_str})}\n\n"
 
-            if not final_text and not _client_disconnected:
-                yield f"data: {json.dumps({'error': 'Le modèle n a pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
+            clean_answer = re.sub(r'<think>.*?</think>', '', final_text, flags=re.DOTALL).strip()
+            if not clean_answer and not _client_disconnected and not error_yielded:
+                if context_length_reached:
+                    err_msg = (
+                        "La fenêtre de contexte du modèle a été atteinte pendant l'analyse ou la réflexion. "
+                        "Vous pouvez augmenter la taille de contexte (ex: 64K ou 128K) dans la Configuration Ollama, "
+                        "ou reformuler votre demande de manière plus ciblée."
+                    )
+                    yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                    error_yielded = True
+                elif not final_text:
+                    yield f"data: {json.dumps({'error': 'Le modèle n a pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
+                    error_yielded = True
 
         # Sauvegarde de la réponse finale
-        if final_text:
+        if final_text and clean_answer and not error_yielded:
             now_dt = date.today()
             snap_y = target_period_override["year"]
             snap_m = target_period_override["month"]
