@@ -34,6 +34,7 @@ from app.migrations.versions import (
     v28_autopilot_step5_5_toggles,
     v29_transaction_raw_description,
     v30_transaction_needs_review,
+    v31_chat_applied_actions,
 )
 
 ALL_MIGRATIONS: List[Migration] = [
@@ -66,4 +67,5 @@ ALL_MIGRATIONS: List[Migration] = [
     Migration(v28_autopilot_step5_5_toggles.VERSION, v28_autopilot_step5_5_toggles.DESCRIPTION, v28_autopilot_step5_5_toggles.upgrade),
     Migration(v29_transaction_raw_description.VERSION, v29_transaction_raw_description.DESCRIPTION, v29_transaction_raw_description.upgrade),
     Migration(v30_transaction_needs_review.VERSION, v30_transaction_needs_review.DESCRIPTION, v30_transaction_needs_review.upgrade),
+    Migration(v31_chat_applied_actions.VERSION, v31_chat_applied_actions.DESCRIPTION, v31_chat_applied_actions.upgrade),
 ]

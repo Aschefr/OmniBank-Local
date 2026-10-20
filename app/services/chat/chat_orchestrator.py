@@ -210,10 +210,34 @@ WRITE_TOOLS = {
 }
 
 
-def execute_chat_action(db: Session, action: str, params: dict) -> dict:
+def execute_chat_action(
+    db: Session,
+    action: str,
+    params: dict,
+    message_id: Optional[int] = None,
+    action_id: Optional[str] = None
+) -> dict:
     """
     Exécute de manière transactionnelle une action interactive validée par l'utilisateur.
+    Garantit l'idempotence (anti-double application), la traçabilité et l'invalidation de cache.
     """
+    msg = None
+    if message_id:
+        msg = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+        if msg and action_id:
+            try:
+                applied = json.loads(msg.applied_actions) if msg.applied_actions else []
+            except Exception:
+                applied = []
+            if action_id in applied:
+                logger.info(f"[Chat Action] Action {action_id} déjà appliquée sur le message {message_id}. Rejet idempotent.")
+                return {
+                    "success": True,
+                    "already_applied": True,
+                    "message": "Cette action a déjà été exécutée.",
+                    "action_id": action_id
+                }
+
     if action == "create_budget_envelope":
         res = create_budget_envelope_tool(
             db,
@@ -304,10 +328,10 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
     elif action == "apply_transaction_correction":
         t_id = params.get("transaction_id") or params.get("id")
         updates = params.get("updates", {}) if isinstance(params.get("updates"), dict) else {}
-        cat = params.get("category") or updates.get("category")
+        cat = params.get("category") if params.get("category") is not None else updates.get("category")
         if cat and isinstance(cat, str):
             cat = cat.strip()
-        desc = params.get("description") or updates.get("description")
+        desc = params.get("description") if params.get("description") is not None else updates.get("description")
         if desc and isinstance(desc, str):
             desc = desc.strip()
         amt = params.get("amount") if params.get("amount") is not None else updates.get("amount")
@@ -358,24 +382,50 @@ def execute_chat_action(db: Session, action: str, params: dict) -> dict:
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error", "Erreur lors de l'exécution"))
 
+    # Invalidation du cache statistique de bord de l'application (Zero F5)
+    try:
+        from app.services import stats_cache
+        stats_cache.invalidate()
+    except Exception as e:
+        logger.warning(f"[Chat Action] Échec invalidation cache stats: {e}")
+
+    # Enregistrement de l'action appliquée sur le message
+    if msg and action_id:
+        try:
+            applied = json.loads(msg.applied_actions) if msg.applied_actions else []
+        except Exception:
+            applied = []
+        if action_id not in applied:
+            applied.append(action_id)
+            msg.applied_actions = json.dumps(applied)
+            db.commit()
+
     return res
 
 
-def budget_messages_for_context(messages: List[Dict[str, Any]], num_ctx: int, min_headroom: int = 3500) -> List[Dict[str, Any]]:
+def budget_messages_for_context(
+    messages: List[Dict[str, Any]],
+    num_ctx: int,
+    min_headroom: int = 3500,
+    tools: Optional[List[Dict[str, Any]]] = None
+) -> List[Dict[str, Any]]:
     """
     Garantit que le payload envoyé à Ollama ne sature pas la fenêtre de contexte num_ctx,
-    en réservant au moins min_headroom tokens pour la réflexion et la génération de la réponse.
-    1. Tronque les retours d'outils massifs (> 4000 caractères).
-    2. Si le total reste excessif, condense les messages intermédiaires d'historique.
+    en réservant au moins min_headroom tokens pour la réflexion et la génération de la réponse,
+    ainsi que l'empreinte mémoire des outils (tools schema).
+    1. Déduit l'empreinte des outils du budget total disponible.
+    2. Tronque les retours d'outils massifs (> 4000 caractères).
+    3. Si le total reste excessif, condense les messages intermédiaires d'historique.
     """
-    max_prompt_tokens = max(1000, num_ctx - min_headroom)
+    tools_tokens = estimate_tokens(json.dumps(tools, ensure_ascii=False)) if tools else 0
+    max_prompt_tokens = max(1000, num_ctx - min_headroom - tools_tokens)
 
     pruned = [dict(m) for m in messages]
     current_tokens = estimate_tokens(json.dumps(pruned, ensure_ascii=False))
     if current_tokens <= max_prompt_tokens:
         return pruned
 
-    logger.info(f"[Chat Context Budget] Poids initial {current_tokens} tokens > limite {max_prompt_tokens} (num_ctx={num_ctx}). Optimisation du payload...")
+    logger.info(f"[Chat Context Budget] Poids initial {current_tokens} tokens (+ {tools_tokens} tokens outils) > limite {max_prompt_tokens} (num_ctx={num_ctx}). Optimisation du payload...")
 
     # Passe 1 : Réduire les sorties d'outils massives (> 4000 chars)
     for m in pruned:
@@ -406,7 +456,7 @@ def budget_messages_for_context(messages: List[Dict[str, Any]], num_ctx: int, mi
     summary_notice = {"role": "system", "content": "[Historique antérieur condensé pour respecter la fenêtre de contexte]"}
     final_msgs = ([sys_msg] if sys_msg else []) + ([summary_notice] if len(middle) < len(rest) - preserve_count else []) + middle + tail
     final_tokens = estimate_tokens(json.dumps(final_msgs, ensure_ascii=False))
-    logger.info(f"[Chat Context Budget] Payload final ajusté à {final_tokens} tokens (marge garantie: {num_ctx - final_tokens} tokens)")
+    logger.info(f"[Chat Context Budget] Payload final ajusté à {final_tokens} tokens (marge garantie: {num_ctx - final_tokens - tools_tokens} tokens)")
     return final_msgs
 
 
@@ -701,7 +751,7 @@ async def generate_chat_stream(
             error_yielded = False
             while iteration < MAX_TOOL_ITERATIONS:
                 # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
-                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"])
+                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=TOOLS)
                 payload = {
                     "model": model,
                     "messages": budgeted_msgs,
@@ -981,6 +1031,52 @@ async def generate_chat_stream(
 
                 iteration += 1
 
+            # P1.6: Tour de synthèse forcée si le nombre maximal d'itérations a été atteint sans texte final
+            clean_check = re.sub(r'<think>.*?</think>', '', final_text, flags=re.DOTALL).strip()
+            if not clean_check and all_tool_names and not error_yielded and not _client_disconnected and not context_length_reached:
+                logger.info(f"[Chat] Limite d'itérations ({MAX_TOOL_ITERATIONS}) atteinte sans texte final — Déclenchement de la synthèse forcée sans outil")
+                status_synth = "Synthèse finale de vos données en cours..." if req.lang != "en" else "Synthesizing final answer..."
+                yield f"data: {json.dumps({'status': status_synth})}\n\n"
+                synth_instruction = (
+                    "Synthétise maintenant clairement et exhaustivement ta réponse finale pour l'utilisateur "
+                    "à partir de l'ensemble des données financières collectées ci-dessus. Ne formule aucun nouvel appel d'outil."
+                    if req.lang != "en" else
+                    "Synthesize now a clear, complete and helpful final answer for the user based on all the financial data collected above. Do not call any tools."
+                )
+                ollama_msgs.append({"role": "user", "content": synth_instruction})
+                budgeted_synth = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=None)
+                synth_payload = {
+                    "model": model,
+                    "messages": budgeted_synth,
+                    "stream": True,
+                    "options": options,
+                    "keep_alive": "30m",
+                }
+                synth_text = ""
+                async for chunk in _stream_ollama(synth_payload):
+                    if isinstance(chunk, dict) and "_result" in chunk:
+                        synth_text = chunk["_result"]
+                    else:
+                        if isinstance(chunk, str) and chunk.startswith('data: '):
+                            try:
+                                d = json.loads(chunk[6:].strip())
+                                if d.get('content'):
+                                    final_text += d['content']
+                            except Exception:
+                                pass
+                        if not _client_disconnected:
+                            yield chunk
+                if synth_text:
+                    if accumulated_substantive_text:
+                        p_strip = synth_text.strip()
+                        a_strip = accumulated_substantive_text.strip()
+                        if p_strip == a_strip or p_strip.startswith(a_strip):
+                            final_text = p_strip
+                        else:
+                            final_text = f"{accumulated_substantive_text.rstrip()}\n\n{synth_text.lstrip()}".strip()
+                    else:
+                        final_text = synth_text
+
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
@@ -1103,13 +1199,21 @@ async def generate_chat_stream(
                 snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                 clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
+                if not _done_sent:
+                    badge = (
+                        "\n\n*(⚠️ Réponse interrompue suite à une déconnexion)*"
+                        if req.lang != "en" else
+                        "\n\n*(⚠️ Response interrupted due to disconnection)*"
+                    )
+                    if badge not in clean_final_text:
+                        clean_final_text += badge
                 bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + clean_final_text, entity_snapshots=snapshots_json)
                 db.add(bot_msg)
                 db.commit()
                 _response_saved = True
-                logger.info(f"[Chat] Réponse sauvegardée pour la session {session_id}")
+                logger.info(f"[Chat] Réponse partielle sauvegardée avec résilience pour la session {session_id}")
             except Exception as save_err:
-                logger.error(f"[Chat] Échec de sauvegarde de la réponse : {save_err}")
+                logger.error(f"[Chat] Échec de sauvegarde de la réponse partielle : {save_err}")
 
         should_notify = (session_key in _notify_on_complete) or _client_disconnected
         if should_notify and _response_saved:

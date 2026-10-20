@@ -261,20 +261,39 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     displayContent = thinkHtml + displayContent;
                 }
 
-                for (const actionObj of actions) {
+                for (let actionIdx = 0; actionIdx < actions.length; actionIdx++) {
+                    const actionObj = actions[actionIdx];
+                    const msgKey = (msg && msg.id) ? `msg_${msg.id}` : 'temp';
+                    const actionId = `act_${msgKey}_${actionIdx}`;
+                    actionObj._actionId = actionId;
+                    actionObj._messageId = (msg && msg.id) ? msg.id : null;
+                    this.pendingActions[actionId] = actionObj;
+
+                    const isApplied = !!(msg && Array.isArray(msg.applied_actions) && msg.applied_actions.includes(actionId));
+
                     if (actionObj.id !== undefined) {
                         this.pendingActions[actionObj.id] = actionObj;
-                        displayContent += `
-                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
-                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
-                                <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
-                                <button class="btn btn-primary" data-action-id="${actionObj.id}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
-                            </div>
-                        `;
+                        if (isApplied) {
+                            displayContent += `
+                                <div class="ai-action-box ai-action-box-applied" style="margin-top: 15px; padding: 15px; background: rgba(40, 167, 69, 0.08); border: 1px solid rgba(40, 167, 69, 0.4); border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div style="font-weight: 600; color: var(--success, #28a745);">${window.i18n.t('chat_ai_recommendation')}</div>
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--success, #28a745); background: rgba(40, 167, 69, 0.15); padding: 2px 8px; border-radius: 4px;">✓ ${window.i18n.t('chat_action_already_applied') || 'Appliquée'}</span>
+                                    </div>
+                                    <div style="font-size: 12px; margin-bottom: 4px; color: var(--text-muted);">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                                    <div style="font-size: 11px; color: var(--success, #28a745); font-weight: 500;">✓ ${window.i18n.t('chat_action_applied_feedback') || 'Cette action a déjà été exécutée et enregistrée en base.'}</div>
+                                </div>
+                            `;
+                        } else {
+                            displayContent += `
+                                <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                    <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                                    <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
+                                </div>
+                            `;
+                        }
                     } else if (actionObj.action !== undefined) {
-                        const actionId = 'act_' + Math.random().toString(36).substr(2, 9);
-                        this.pendingActions[actionId] = actionObj;
-                        
                         let desc = window.i18n.tp('chat_action_generic_propose', { action: actionObj.action });
                         if (actionObj.action === 'create_budget_envelope') {
                             desc = window.i18n.tp('chat_action_propose_create_budget', { name: actionObj.params.name, amount: actionObj.params.monthly_amount });
@@ -291,18 +310,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         } else if (actionObj.action === 'update_recurrence_template') {
                             const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
                             if (actionObj.params.is_active === true) {
-                                desc = `Réactivation de la charge récurrente ${recName}`;
+                                desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_reactivate_recurrence', { desc: recName }) : `Réactivation de la charge récurrente ${recName}`;
                             } else if (actionObj.params.is_active === false) {
-                                desc = `Désactivation de la charge récurrente ${recName}`;
+                                desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_deactivate_recurrence', { desc: recName }) : `Désactivation de la charge récurrente ${recName}`;
                             } else {
                                 desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: recName });
                             }
                         } else if (actionObj.action === 'close_recurrence_template') {
                             const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
-                            desc = `Clôture de la charge récurrente ${recName} : arrêt des échéances futures et conservation de l'historique`;
+                            desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_close_recurrence', { desc: recName }) : `Clôture de la charge récurrente ${recName} : arrêt des échéances futures et conservation de l'historique`;
                         } else if (actionObj.action === 'delete_recurrence_template') {
                             const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
-                            desc = `Suppression définitive de la charge récurrente ${recName}`;
+                            desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_delete_recurrence_def', { desc: recName }) : `Suppression définitive de la charge récurrente ${recName}`;
                         } else if (actionObj.action === 'create_category') {
                             desc = window.i18n.tp('chat_action_propose_create_category', { name: actionObj.params.name });
                         } else if (actionObj.action === 'delete_category') {
@@ -323,9 +342,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             const fromA = actionObj.params.from_account || 'Compte source';
                             const toA = actionObj.params.to_account || 'Compte destination';
                             const amt = actionObj.params.amount !== undefined ? `${actionObj.params.amount} €` : '';
-                            desc = `Enregistrement d'un virement prévisionnel de ${amt} (${fromA} ➔ ${toA})`;
+                            desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_create_transfer', { amount: amt, from: fromA, to: toA }) : `Enregistrement d'un virement prévisionnel de ${amt} (${fromA} ➔ ${toA})`;
                         } else if (actionObj.action === 'trigger_bank_sync') {
-                            desc = `Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)`;
+                            desc = window.i18n.t('chat_action_propose_sync_bank') || `Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)`;
                         }
 
                         let btnIcon = '';
@@ -335,13 +354,26 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             btnLabel = window.i18n.t('chat_btn_sync_now') || 'Synchroniser maintenant';
                         }
 
-                        displayContent += `
-                            <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
-                                <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
-                                <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
-                                <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${btnIcon}${btnLabel}</button>
-                            </div>
-                        `;
+                        if (isApplied) {
+                            displayContent += `
+                                <div class="ai-action-box ai-action-box-applied" style="margin-top: 15px; padding: 15px; background: rgba(40, 167, 69, 0.08); border: 1px solid rgba(40, 167, 69, 0.4); border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div style="font-weight: 600; color: var(--success, #28a745);">${window.i18n.t('chat_ai_recommendation')}</div>
+                                        <span style="font-size: 11px; font-weight: 600; color: var(--success, #28a745); background: rgba(40, 167, 69, 0.15); padding: 2px 8px; border-radius: 4px;">✓ ${window.i18n.t('chat_action_already_applied') || 'Appliquée'}</span>
+                                    </div>
+                                    <div style="font-size: 12px; margin-bottom: 4px; color: var(--text-muted);">${desc}.</div>
+                                    <div style="font-size: 11px; color: var(--success, #28a745); font-weight: 500;">✓ ${window.i18n.t('chat_action_applied_feedback') || 'Cette action a déjà été exécutée et enregistrée en base.'}</div>
+                                </div>
+                            `;
+                        } else {
+                            displayContent += `
+                                <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
+                                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
+                                    <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
+                                    <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${btnIcon}${btnLabel}</button>
+                                </div>
+                            `;
+                        }
                     }
                 }
 

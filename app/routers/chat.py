@@ -239,6 +239,7 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
             "content": m.content,
             "timestamp": m.timestamp.isoformat() if m.timestamp else None,
             "entity_snapshots": json.loads(m.entity_snapshots) if m.entity_snapshots else None,
+            "applied_actions": json.loads(m.applied_actions) if m.applied_actions else [],
         } for m in messages],
         "token_usage": {
             "used": used,
@@ -395,12 +396,14 @@ async def add_system_message(id: int, req: ChatSendMessage, db: Session = Depend
 class ChatApplyActionRequest(BaseModel):
     action: str
     params: dict
+    message_id: Optional[int] = None
+    action_id: Optional[str] = None
 
 
 @router.post("/apply-action")
 async def apply_chat_action(req: ChatApplyActionRequest, db: Session = Depends(get_db)):
     """Exécute une action financière interactive validée par l'utilisateur."""
-    return execute_chat_action(db, req.action, req.params)
+    return execute_chat_action(db, req.action, req.params, message_id=req.message_id, action_id=req.action_id)
 
 
 @router.post("/sessions/{id}/message")
