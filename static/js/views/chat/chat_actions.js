@@ -297,31 +297,50 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         document.getElementById('aiActionDetails').innerHTML = detailsHtml;
         document.getElementById('aiActionModal').style.display = 'flex';
-        document.getElementById('aiActionConfirmBtn').onclick = () => this.applyAiAction(actionObj);
+        document.getElementById('aiActionConfirmBtn').onclick = () => this.applyAiAction(actionObj, txId);
     },
 
     closeActionModal() {
         document.getElementById('aiActionModal').style.display = 'none';
     },
 
-    async applyAiAction(actionObj) {
+    async applyAiAction(actionObj, actionId) {
         const btn = document.getElementById('aiActionConfirmBtn');
         btn.disabled = true;
-        btn.innerText = window.i18n.t('msg_applying');
+        btn.innerText = window.i18n.t('msg_applying') || 'Application...';
 
         try {
-            const response = await fetch(`/api/transactions/${actionObj.id}`, {
-                method: 'PUT',
+            const actId = actionId || actionObj._actionId;
+            const response = await fetch('/api/chat/apply-action', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(actionObj.updates)
+                body: JSON.stringify({
+                    action: 'apply_transaction_correction',
+                    params: {
+                        transaction_id: actionObj.id,
+                        updates: actionObj.updates
+                    },
+                    message_id: actionObj._messageId,
+                    action_id: actId
+                })
             });
 
-            if (!response.ok) throw new Error("Erreur API");
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || "Erreur de validation");
+            }
 
             this.closeActionModal();
-            
-            // Add a feedback message in DB and reload
-            const successMsg = `✅ La transaction **#${actionObj.id}** a été mise à jour avec succès dans la base de données.`;
+
+            // Zero F5 custom event & views refresh
+            window.dispatchEvent(new CustomEvent('omnibank:data-changed', {
+                detail: { action: 'apply_transaction_correction', entity_id: actionObj.id }
+            }));
+
+            // Add a localized feedback message in DB and reload
+            const successMsg = window.i18n.tp
+                ? window.i18n.tp('chat_action_tx_updated_feedback', { id: actionObj.id })
+                : `✅ La transaction **#${actionObj.id}** a été mise à jour avec succès dans la base de données.`;
             await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -329,11 +348,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             });
             await this.loadMessages();
 
+            if (window.app && typeof window.app.refreshSidebar === 'function') {
+                await window.app.refreshSidebar();
+            }
+            if (window.app && window.app.currentView && typeof window.app.currentView.loadData === 'function') {
+                try { await window.app.currentView.loadData(); } catch(e) {}
+            }
+
         } catch (error) {
-            showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_edit_error', {error: error.message}));
+            showInlineMessage(window.i18n.t('title_error') || 'Erreur', window.i18n.tp ? window.i18n.tp('msg_edit_error', {error: error.message}) : error.message);
         } finally {
             btn.disabled = false;
-            btn.innerText = window.i18n.t('btn_validate_edit');
+            btn.innerText = window.i18n.t('btn_validate_edit') || 'Valider';
         }
     },
 
@@ -348,7 +374,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: actionObj.action,
-                    params: actionObj.params
+                    params: actionObj.params,
+                    message_id: actionObj._messageId,
+                    action_id: actionId
                 })
             });
 
@@ -358,17 +386,24 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
 
             this.closeActionModal();
-            
-            // Add a feedback message in DB and reload
+
+            // Zero F5 custom event & views refresh
+            window.dispatchEvent(new CustomEvent('omnibank:data-changed', {
+                detail: { action: actionObj.action }
+            }));
+
+            // Add a localized feedback message in DB and reload
             const actionTitle = window.i18n.t(`tool_${actionObj.action}_title`) || window.i18n.t(`tool_${actionObj.action}`) || actionObj.action;
-            const successMsg = `✅ L'action **${actionTitle}** a été exécutée et validée avec succès.`;
+            const successMsg = window.i18n.tp
+                ? window.i18n.tp('chat_action_success_feedback', { action: actionTitle })
+                : `✅ L'action **${actionTitle}** a été exécutée et validée avec succès.`;
             await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: successMsg, lang: window.i18n.lang || 'fr' })
             });
             await this.loadMessages();
-            
+
             // Refresh sidebar/views
             if (window.app && typeof window.app.refreshSidebar === 'function') {
                 await window.app.refreshSidebar();
@@ -381,7 +416,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             showInlineMessage(window.i18n.t('title_error') || 'Erreur', error.message);
         } finally {
             btn.disabled = false;
-            btn.innerText = 'Valider';
+            btn.innerText = window.i18n.t('btn_validate') || 'Valider';
         }
     },
 
@@ -398,7 +433,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: actionObj.action,
-                    params: actionObj.params || {}
+                    params: actionObj.params || {},
+                    message_id: actionObj._messageId,
+                    action_id: actionId
                 })
             });
 
@@ -413,8 +450,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 btn.style.borderColor = 'var(--success, #28a745)';
             }
 
+            // Zero F5 custom event & views refresh
+            window.dispatchEvent(new CustomEvent('omnibank:data-changed', {
+                detail: { action: actionObj.action }
+            }));
+
             const actionTitle = window.i18n.t(`tool_${actionObj.action}_title`) || window.i18n.t(`tool_${actionObj.action}`) || actionObj.action;
-            const successMsg = `✅ L'action **${actionTitle}** a été exécutée avec succès. Le relevé bancaire et le rapprochement Auto-Pilote sont en cours en arrière-plan.`;
+            const successMsg = window.i18n.tp
+                ? window.i18n.tp('chat_action_sync_success_feedback', { action: actionTitle })
+                : `✅ L'action **${actionTitle}** a été exécutée avec succès. Le relevé bancaire et le rapprochement Auto-Pilote sont en cours en arrière-plan.`;
             await fetch(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
