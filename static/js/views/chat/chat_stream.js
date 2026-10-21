@@ -3,6 +3,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     stopGeneration() {
         this.isStreaming = false;
         this._stopRequested = true;
+        if (this.activeSessionId) {
+            fetch(`/api/chat/sessions/${this.activeSessionId}/stop`, { method: 'POST' }).catch(() => {});
+        }
         if (this._streamReader) {
             try { this._streamReader.cancel(); } catch (e) {}
             this._streamReader = null;
@@ -49,11 +52,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             this._activeAbortController = null;
         } catch (e) {
             this._activeAbortController = null;
-            if (this._streamDetached) { console.log('[Chat] Regenerate completed after user left'); return; }
-            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) { console.log('[Chat] Regenerate aborted by user'); return; }
+            const isDisconnect = window._isPageUnloading || this._streamDetached || this._stopRequested ||
+                e.name === 'AbortError' ||
+                /input stream|aborted|cancel|failed to fetch|networkerror|load failed/i.test(e.message || '');
+            if (isDisconnect) {
+                console.log('[Chat] Regenerate stream disconnected or aborted:', e.message);
+                return;
+            }
             console.error(e);
             if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
-                this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection')}: ${e.message}*`;
+                this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
                 this.messages[aiMsgIndex]._isError = true;
                 this.renderHistory();
             }
@@ -94,17 +102,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         await this.loadMessages();
                     }
                 } else {
-                    if (aiMsgIndex >= 0 && this.messages && this.messages[aiMsgIndex]) {
-                        const hasError = !!this.messages[aiMsgIndex]._isError;
-                        if (hasError) {
-                            try {
-                                await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                                    content: this.messages[aiMsgIndex].content,
-                                    role: "assistant"
-                                });
-                            } catch (e) { console.error("Failed to persist error:", e); }
-                        }
-                    }
+                    // Do not persist client-side transport errors into SQLite DB
                     await this.loadMessages();
                 }
             }
@@ -335,17 +333,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         } catch (e) {
             this._activeAbortController = null;
-            if (this._streamDetached) {
-                console.log('[Chat] Stream completed after user left the view');
-                return;
-            }
-            if (this._stopRequested || e.name === 'AbortError' || (e.message && (e.message.includes('aborted') || e.message.includes('cancel')))) {
-                console.log('[Chat] Stream aborted by user');
+            this._unmarkLastUserPending();
+            const isDisconnect = window._isPageUnloading || this._streamDetached || this._stopRequested ||
+                e.name === 'AbortError' ||
+                /input stream|aborted|cancel|failed to fetch|networkerror|load failed/i.test(e.message || '');
+            if (isDisconnect) {
+                console.log('[Chat] Stream disconnected or aborted:', e.message);
                 return;
             }
             console.error(e);
-            // Unmark pending if compression failed mid-way
-            this._unmarkLastUserPending();
             if (this.messages && this.messages[aiMsgIndex]) {
                 this.messages[aiMsgIndex].content = `*${window.i18n.t('chat_error_connection') || "Erreur de connexion"}: ${e.message}*`;
                 this.messages[aiMsgIndex]._isError = true;
@@ -397,17 +393,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         }
                     }
                 } else {
+                    // Do not persist client-side transport errors into SQLite DB
                     const hasError = this.messages && this.messages[aiMsgIndex] && !!this.messages[aiMsgIndex]._isError;
-                    
-                    if (hasError) {
-                        try {
-                            await API.post(`/api/chat/sessions/${this.activeSessionId}/system-message`, {
-                                content: this.messages[aiMsgIndex].content,
-                                role: "assistant"
-                            });
-                        } catch (e) { console.error("Failed to persist error:", e); }
-                    }
-                    
                     if (isFirstExchange) {
                         await this.loadSessions(hasError);
                         setTimeout(() => this.loadSessions(true), 6000);
@@ -539,13 +526,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
                 if (this._streamDetached) continue;
 
-                const container = document.getElementById('chatMessages');
-                if (container && !this.userHasScrolledUp) {
-                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 150;
-                    if (!isAtBottom) {
-                        this.userHasScrolledUp = true;
-                    }
-                }
+                // Autoscroll is released only by genuine user scroll-up (see scroll/wheel/touch listeners)
+                this._suppressScrollDetect();
 
                 if (this.messages[aiMsgIndex]) {
                     this.messages[aiMsgIndex].content = aiText;
@@ -554,6 +536,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 
                 const bubble = document.getElementById(`msg-${aiMsgIndex}`);
                 if (bubble) {
+                    const prevDetails = bubble.querySelector('.ai-think-details');
+                    if (prevDetails) {
+                        this.messages[aiMsgIndex]._thinkOpen = prevDetails.open;
+                    }
                     bubble.innerHTML = this.formatMessageContent(this.messages[aiMsgIndex]);
                     this.renderMath();
                 }
@@ -606,6 +592,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 delete this.messages[aiMsgIndex]._streaming;
                 const bubble = document.getElementById(`msg-${aiMsgIndex}`);
                 if (bubble) {
+                    const prevDetails = bubble.querySelector('.ai-think-details');
+                    if (prevDetails) {
+                        this.messages[aiMsgIndex]._thinkOpen = prevDetails.open;
+                    }
                     bubble.innerHTML = this.formatMessageContent(this.messages[aiMsgIndex]);
                     if (typeof this.renderMath === 'function') this.renderMath();
                 }

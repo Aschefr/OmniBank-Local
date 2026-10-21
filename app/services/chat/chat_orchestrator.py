@@ -14,9 +14,9 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 import httpx
 from fastapi import HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.database import SessionLocal
+from app.database import get_engine, SessionLocal
 from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notification, OrgUser
 from app.schemas.api_schemas import ChatSendMessage
 from app.services.chat.chat_compression import (
@@ -85,12 +85,33 @@ def _resolve_profile_id(profile_id: Optional[str] = None) -> str:
 # Ensembles en mémoire pour le suivi des générations en cours et notifications : {(profile_id, session_id)}
 _generating_sessions = set()
 _notify_on_complete = set()
+_running_tasks: Dict[Tuple[str, int], asyncio.Task] = {}
 
 
 def is_session_generating(session_id: int, profile_id: Optional[str] = None) -> bool:
     """Indique si une génération IA est actuellement en cours pour cette session dans le profil donné."""
     pid = _resolve_profile_id(profile_id)
-    return (pid, session_id) in _generating_sessions
+    key = (pid, session_id)
+    task = _running_tasks.get(key)
+    if task and task.done():
+        _running_tasks.pop(key, None)
+        _generating_sessions.discard(key)
+        return False
+    return key in _generating_sessions
+
+
+def stop_session_generation(session_id: int, profile_id: Optional[str] = None) -> bool:
+    """Arrête immédiatement la génération IA en cours pour une session donnée."""
+    pid = _resolve_profile_id(profile_id)
+    key = (pid, session_id)
+    _generating_sessions.discard(key)
+    _notify_on_complete.discard(key)
+    task = _running_tasks.pop(key, None)
+    if task and not task.done():
+        task.cancel()
+        logger.info(f"[Chat] Tâche de génération annulée pour session {session_id} (profil={pid})")
+        return True
+    return False
 
 
 def register_notify_on_complete(session_id: int, db: Session, profile_id: Optional[str] = None) -> dict:
@@ -543,113 +564,115 @@ def budget_messages_for_context(
     return final_msgs
 
 
-async def generate_chat_stream(
+async def _run_generation_task(
     session_id: int,
     req: ChatSendMessage,
-    request: Optional[Request],
-    db: Session,
-) -> AsyncGenerator[str, None]:
-    """
-    Générateur de flux SSE pour l'orchestration complète d'une réponse de conseiller IA :
-    1. Vérification configuration Ollama & récupération des messages
-    2. Compression automatique si le budget token dépasse 85%
-    3. Boucle agentique multi-tours d'appel d'outils (jusqu'à 4 itérations)
-    4. Synthèse des actions interactives, snapshots financiers et sauvegarde finale
-    """
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session non trouvée")
+    queue: asyncio.Queue,
+    status: dict,
+    active_pid: str,
+    user_msg_id: int,
+):
+    session_key = (active_pid, session_id)
+    _generating_sessions.add(session_key)
 
-    cfg = get_ollama_config(db)
-    if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
-        raise HTTPException(status_code=400, detail="Ollama URL ou Modèle non configuré.")
+    eng = get_engine(active_pid)
+    SessionMaker = sessionmaker(autocommit=False, autoflush=False, bind=eng)
+    db = SessionMaker()
 
-    url = cfg["url"].rstrip("/")
-    model = cfg["model"]
-
-    # Enregistrer le message utilisateur
-    user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
-    db.add(user_msg)
-    db.commit()
-    db.refresh(user_msg)
-
-    messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
-    user_msgs_count = sum(1 for m in messages if m.role == "user")
-    current_title = (session.title or "").strip()
-    is_default_title = (
-        not current_title
-        or current_title in (
-            "Nouvelle conversation",
-            "New conversation",
-            "Approfondissement Bilan IA",
-            "AI Financial Report Deepening",
-        )
-        or current_title.startswith("Nouvelle conversation")
-        or current_title.startswith("Approfondissement")
-        or current_title.startswith("AI Financial Report")
-    )
-    needs_auto_title = is_default_title and (user_msgs_count == 1)
-
-    categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
-    options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
-
-    session_tools = get_tools_for_role(session.role)
-    tools_tokens = estimate_tokens(json.dumps(session_tools))
-    total_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
-    if session.compressed_context:
-        total_tokens += estimate_tokens(session.compressed_context)
-    if session.last_compressed_message_id:
-        messages_after_compression = [m for m in messages if m.id > session.last_compressed_message_id]
-    else:
-        messages_after_compression = messages
-    for m in messages_after_compression:
-        total_tokens += estimate_tokens(m.content)
-
-    needs_compression = (total_tokens > int(cfg["num_ctx"] * 0.85))
-
-    def build_ollama_payload(current_session, current_messages):
-        sys_content = sys_prompt
-        if current_session.compression_stack:
+    async def _emit(chunk: str):
+        if not status.get("client_disconnected"):
             try:
-                stack = json.loads(current_session.compression_stack)
-                for entry in stack:
-                    sys_content += f"\n\n[COMPRESSED HISTORY]\n{entry['context']}"
+                queue.put_nowait(chunk)
             except Exception:
                 pass
-        if current_session.compressed_context:
-            sys_content += f"\n\n[CONTEXT SUMMARY — earlier conversation]\n{current_session.compressed_context}"
-        payload_msgs = [{"role": "system", "content": sys_content}]
-        if current_session.last_compressed_message_id:
-            filtered = [m for m in current_messages if m.id > current_session.last_compressed_message_id]
-        else:
-            filtered = current_messages
-        for m in filtered:
-            clean = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', m.content)
-            clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean).strip()
-            payload_msgs.append({"role": m.role, "content": clean})
-        return payload_msgs
-
-    ollama_msgs = build_ollama_payload(session, messages)
 
     final_text = ""
     _response_saved = False
     _done_sent = False
     error_yielded = False
-    _client_disconnected = False
     _tools_meta = ""
-    active_pid = _resolve_profile_id()
-    session_key = (active_pid, session_id)
-    _generating_sessions.add(session_key)
+    target_period_override = {"year": None, "month": None}
 
     try:
+        session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if not session:
+            await _emit(f"data: {json.dumps({'error': 'Session non trouvée'})}\n\n")
+            return
+
+        cfg = get_ollama_config(db)
+        if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
+            await _emit(f"data: {json.dumps({'error': 'Ollama URL ou Modèle non configuré.'})}\n\n")
+            return
+
+        url = cfg["url"].rstrip("/")
+        model = cfg["model"]
+
+        messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
+        user_msgs_count = sum(1 for m in messages if m.role == "user")
+        current_title = (session.title or "").strip()
+        is_default_title = (
+            not current_title
+            or current_title in (
+                "Nouvelle conversation",
+                "New conversation",
+                "Approfondissement Bilan IA",
+                "AI Financial Report Deepening",
+            )
+            or current_title.startswith("Nouvelle conversation")
+            or current_title.startswith("Approfondissement")
+            or current_title.startswith("AI Financial Report")
+        )
+        needs_auto_title = is_default_title and (user_msgs_count == 1)
+
+        categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
+        sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
+        options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
+
+        session_tools = get_tools_for_role(session.role)
+        tools_tokens = estimate_tokens(json.dumps(session_tools))
+        total_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
+        if session.compressed_context:
+            total_tokens += estimate_tokens(session.compressed_context)
+        if session.last_compressed_message_id:
+            messages_after_compression = [m for m in messages if m.id > session.last_compressed_message_id]
+        else:
+            messages_after_compression = messages
+        for m in messages_after_compression:
+            total_tokens += estimate_tokens(m.content)
+
+        needs_compression = (total_tokens > int(cfg["num_ctx"] * 0.85))
+
+        def build_ollama_payload(current_session, current_messages):
+            sys_content = sys_prompt
+            if current_session.compression_stack:
+                try:
+                    stack = json.loads(current_session.compression_stack)
+                    for entry in stack:
+                        sys_content += f"\n\n[COMPRESSED HISTORY]\n{entry['context']}"
+                except Exception:
+                    pass
+            if current_session.compressed_context:
+                sys_content += f"\n\n[CONTEXT SUMMARY — earlier conversation]\n{current_session.compressed_context}"
+            payload_msgs = [{"role": "system", "content": sys_content}]
+            if current_session.last_compressed_message_id:
+                filtered = [m for m in current_messages if m.id > current_session.last_compressed_message_id]
+            else:
+                filtered = current_messages
+            for m in filtered:
+                clean = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', m.content)
+                clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean).strip()
+                payload_msgs.append({"role": m.role, "content": clean})
+            return payload_msgs
+
+        ollama_msgs = build_ollama_payload(session, messages)
+
         if needs_compression:
             session.compressing = True
             session.compression_started_at = datetime.now(timezone.utc)
             db.commit()
-            yield f"data: {json.dumps({'compressing': True})}\n\n"
+            await _emit(f"data: {json.dumps({'compressing': True})}\n\n")
 
-            new_context = start_compression(db, session, messages, cfg, lang=req.lang, trigger_msg_id=user_msg.id)
+            new_context = start_compression(db, session, messages, cfg, lang=req.lang, trigger_msg_id=user_msg_id)
             db.refresh(session)
 
             updated_messages = db.query(ChatMessage).filter(
@@ -668,11 +691,10 @@ async def generate_chat_stream(
             for m in post_msgs:
                 used_post += estimate_tokens(m.content)
 
-            yield f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n"
+            await _emit(f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n")
 
-        if not _client_disconnected:
-            init_status = "Consultation de l'assistant IA..." if req.lang == "fr" else "Consulting AI assistant..."
-            yield f"data: {json.dumps({'status': init_status})}\n\n"
+        init_status = "Consultation de l'assistant IA..." if req.lang == "fr" else "Consulting AI assistant..."
+        await _emit(f"data: {json.dumps({'status': init_status})}\n\n")
 
         async with httpx.AsyncClient() as client:
             tool_desc_map_fr = {
@@ -865,15 +887,7 @@ async def generate_chat_stream(
                                     error_yielded = True
                             except Exception:
                                 pass
-                        if request and not _client_disconnected:
-                            try:
-                                if await request.is_disconnected():
-                                    _client_disconnected = True
-                                    logger.info(f"[Chat] Client déconnecté pour session {session_id} — poursuite de la génération en tâche de fond pour notification")
-                            except Exception:
-                                _client_disconnected = True
-                        if not _client_disconnected:
-                            yield chunk
+                        await _emit(chunk)
 
                 if not detected_tool_calls:
                     if accumulated_substantive_text:
@@ -900,25 +914,16 @@ async def generate_chat_stream(
                     else:
                         accumulated_substantive_text = clean_phase
                     final_text = accumulated_substantive_text
-                    if not _client_disconnected:
-                        sep_payload = json.dumps({'content': '\n\n'})
-                        yield f"data: {sep_payload}\n\n"
+                    sep_payload = json.dumps({'content': '\n\n'})
+                    await _emit(f"data: {sep_payload}\n\n")
                 else:
                     # Transient preamble (e.g. "Checking accounts..."): clear it so the real answer begins cleanly
                     final_text = ""
-                    if not _client_disconnected:
-                        yield f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n"
+                    await _emit(f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n")
 
                 ollama_msgs.append({"role": "assistant", "tool_calls": detected_tool_calls, "content": phase_text})
 
                 for tool_call in detected_tool_calls:
-                    if request and not _client_disconnected:
-                        try:
-                            if await request.is_disconnected():
-                                _client_disconnected = True
-                        except Exception:
-                            _client_disconnected = True
-
                     fn_name = tool_call["function"]["name"]
                     fn_args = tool_call["function"].get("arguments", {})
                     if isinstance(fn_args, str):
@@ -953,8 +958,8 @@ async def generate_chat_stream(
                     desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
                     if iteration > 0:
                         desc_status = f"🔄 Tour {iteration + 1} — {desc_status}"
-                    if not _client_disconnected:
-                        yield f"data: {json.dumps({'status': desc_status})}\n\n"
+                    await _emit(f"data: {json.dumps({'status': desc_status})}\n\n")
+                    if not status.get("client_disconnected"):
                         await asyncio.sleep(0.8)
                     else:
                         await asyncio.sleep(0.05)
@@ -968,25 +973,69 @@ async def generate_chat_stream(
 
                     if tool_result is None:
                         if fn_name == "get_financial_summary":
-                            tool_result = get_financial_summary_tool(db)
-                        elif fn_name == "get_spending_trends":
-                            tool_result = get_spending_trends_tool(db)
-                        elif fn_name == "get_dashboard_synthesis":
-                            tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            tool_result = get_financial_summary_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "get_net_worth":
                             tool_result = get_net_worth_tool(db)
                         elif fn_name == "get_account_balances":
-                            tool_result = get_balances_tool(db)
+                            tool_result = get_account_balances_tool(db)
                         elif fn_name == "search_transactions":
-                            tool_result = search_transactions_tool(db, fn_args.get("description_query"), fn_args.get("category"), fn_args.get("type"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("min_amount"), fn_args.get("max_amount"), fn_args.get("limit", 50))
+                            tool_result = search_transactions_tool(
+                                db,
+                                query=fn_args.get("query"),
+                                category=fn_args.get("category"),
+                                account_id=fn_args.get("account_id"),
+                                date_min=fn_args.get("date_min"),
+                                date_max=fn_args.get("date_max"),
+                                min_amount=fn_args.get("min_amount"),
+                                max_amount=fn_args.get("max_amount"),
+                                type=fn_args.get("type"),
+                                limit=fn_args.get("limit", 20)
+                            )
                         elif fn_name == "get_spending_analytics":
-                            tool_result = get_spending_analytics_tool(db, fn_args.get("start_date"), fn_args.get("end_date"))
+                            tool_result = get_spending_analytics_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "get_budgets_status":
-                            tool_result = get_budgets_status_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            tool_result = get_budgets_status_tool(db, fn_args.get("month"), fn_args.get("year"))
                         elif fn_name == "get_monthly_overview":
                             tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
+                        elif fn_name == "get_spending_trends":
+                            tool_result = get_spending_trends_tool(db, fn_args.get("months", 3))
+                        elif fn_name == "get_dashboard_synthesis":
+                            tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
+                        elif fn_name == "audit_transactions_integrity":
+                            tool_result = audit_transactions_integrity_tool(db)
+                        elif fn_name == "simulate_financial_scenario":
+                            tool_result = simulate_financial_scenario_tool(
+                                db,
+                                scenario_type=fn_args.get("scenario_type"),
+                                amount=fn_args.get("amount", 0.0),
+                                monthly_impact=fn_args.get("monthly_impact", 0.0),
+                                horizon_months=fn_args.get("horizon_months", 6),
+                                description=fn_args.get("description", "")
+                            )
+                        elif fn_name == "get_application_knowledge":
+                            tool_result = get_application_knowledge_tool(fn_args.get("topic"))
                         elif fn_name == "get_recurrence_templates":
-                            tool_result = get_recurrence_templates_tool(db)
+                            tool_result = get_recurrence_templates_tool(db, fn_args.get("is_active"))
+                        elif fn_name == "get_saving_recommendations":
+                            tool_result = get_saving_recommendations_tool(db)
+                        elif fn_name == "search_similar_past_spends":
+                            tool_result = search_similar_past_spends_tool(db, fn_args.get("description"), fn_args.get("amount"), fn_args.get("category"))
+                        elif fn_name == "generate_csv_export_link":
+                            tool_result = generate_csv_export_link_tool(
+                                db,
+                                account_id=fn_args.get("account_id"),
+                                category=fn_args.get("category"),
+                                date_min=fn_args.get("date_min"),
+                                date_max=fn_args.get("date_max"),
+                                type=fn_args.get("type")
+                            )
+                        elif fn_name == "simulate_loan_amortization":
+                            tool_result = simulate_loan_amortization_tool(
+                                amount=fn_args.get("amount", 0.0),
+                                annual_rate=fn_args.get("annual_rate", 0.0),
+                                duration_months=fn_args.get("duration_months", 12),
+                                insurance_rate=fn_args.get("insurance_rate", 0.0)
+                            )
                         elif fn_name == "get_net_worth_history":
                             tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
                         elif fn_name == "get_envelopes_impact":
@@ -1040,43 +1089,27 @@ async def generate_chat_stream(
                             tool_result = delete_transaction_tool(
                                 db,
                                 transaction_id=fn_args.get("transaction_id"),
-                                description=fn_args.get("description"),
-                                amount=fn_args.get("amount"),
-                                date_operation=fn_args.get("date_operation"),
                                 force_write=False
                             )
-                        elif fn_name == "get_saving_recommendations":
-                            tool_result = get_saving_recommendations_tool(db)
-                        elif fn_name == "search_similar_past_spends":
-                            tool_result = search_similar_past_spends_tool(db, fn_args.get("keyword"))
-                        elif fn_name == "generate_csv_export_link":
-                            tool_result = generate_csv_export_link_tool(db, fn_args.get("category"), fn_args.get("start_date"), fn_args.get("end_date"), fn_args.get("type"))
-                        elif fn_name == "simulate_loan_amortization":
-                            tool_result = simulate_loan_amortization_tool(db, fn_args.get("principal"), fn_args.get("rate_percent"), fn_args.get("years"))
-                        elif fn_name == "audit_transactions_integrity":
-                            tool_result = audit_transactions_integrity_tool(db)
-                        elif fn_name == "simulate_financial_scenario":
-                            tool_result = simulate_financial_scenario_tool(db, fn_args.get("horizon_months", 12), fn_args.get("project_name"), fn_args.get("one_off_amount", 0.0), fn_args.get("recurring_monthly_amount", 0.0), fn_args.get("recurring_duration_months", 12))
-                        elif fn_name == "get_application_knowledge":
-                            tool_result = get_application_knowledge_tool(fn_args.get("topic"))
                         elif fn_name == "create_planned_transfer":
                             tool_result = create_planned_transfer_tool(
                                 db,
                                 from_account=fn_args.get("from_account"),
                                 to_account=fn_args.get("to_account"),
                                 amount=fn_args.get("amount"),
-                                description=fn_args.get("description"),
                                 date_operation=fn_args.get("date_operation"),
+                                description=fn_args.get("description"),
+                                category=fn_args.get("category"),
                                 force_write=False
                             )
                         elif fn_name == "trigger_bank_sync":
                             tool_result = trigger_bank_sync_tool(db, force_write=False)
                         elif fn_name == "store_financial_fact":
                             tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
-                            yield f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n"
+                            await _emit(f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n")
                         elif fn_name == "forget_financial_fact":
                             tool_result = forget_financial_fact_tool(db, fn_args.get("key"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
-                            yield f"data: {json.dumps({'fact_update': {'action': 'forget', 'key': fn_args.get('key')}})}\n\n"
+                            await _emit(f"data: {json.dumps({'fact_update': {'action': 'forget', 'key': fn_args.get('key')}})}\n\n")
                         else:
                             tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
 
@@ -1109,8 +1142,6 @@ async def generate_chat_stream(
                     })
 
                 if is_substantive and detected_tool_calls and all(tc["function"]["name"] in _WRITE_TOOLS for tc in detected_tool_calls):
-                    # L'IA a déjà formulé sa réponse complète explicative aux côtés de l'appel d'outil d'écriture.
-                    # Pas besoin d'un second tour de streaming : cela évite toute duplication textuelle et accélère la réponse.
                     final_text = clean_phase
                     break
 
@@ -1118,10 +1149,10 @@ async def generate_chat_stream(
 
             # P1.6: Tour de synthèse forcée si le nombre maximal d'itérations a été atteint sans texte final
             clean_check = re.sub(r'<think>.*?</think>', '', final_text, flags=re.DOTALL).strip()
-            if not clean_check and all_tool_names and not error_yielded and not _client_disconnected and not context_length_reached:
+            if not clean_check and all_tool_names and not error_yielded and not context_length_reached:
                 logger.info(f"[Chat] Limite d'itérations ({MAX_TOOL_ITERATIONS}) atteinte sans texte final — Déclenchement de la synthèse forcée sans outil")
                 status_synth = "Synthèse finale de vos données en cours..." if req.lang != "en" else "Synthesizing final answer..."
-                yield f"data: {json.dumps({'status': status_synth})}\n\n"
+                await _emit(f"data: {json.dumps({'status': status_synth})}\n\n")
                 synth_instruction = (
                     "Synthétise maintenant clairement et exhaustivement ta réponse finale pour l'utilisateur "
                     "à partir de l'ensemble des données financières collectées ci-dessus. Ne formule aucun nouvel appel d'outil."
@@ -1149,8 +1180,7 @@ async def generate_chat_stream(
                                     final_text += d['content']
                             except Exception:
                                 pass
-                        if not _client_disconnected:
-                            yield chunk
+                        await _emit(chunk)
                 if synth_text:
                     if accumulated_substantive_text:
                         p_strip = synth_text.strip()
@@ -1165,8 +1195,7 @@ async def generate_chat_stream(
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
-            # Récupération proactive automatique : si l'IA a promis un virement ou une modification dans le texte
-            # sans émettre l'appel d'outil write_tool correspondant, on extrait automatiquement les actions !
+            # Récupération proactive automatique d'actions promises
             if not detected_write_actions and final_text:
                 try:
                     from app.services.chat.chat_action_recovery import has_unemitted_promised_action, extract_unemitted_actions
@@ -1190,21 +1219,20 @@ async def generate_chat_stream(
                     action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
                 if action_str:
                     final_text += action_str
-                    if not _client_disconnected:
-                        yield f"data: {json.dumps({'content': action_str})}\n\n"
+                    await _emit(f"data: {json.dumps({'content': action_str})}\n\n")
 
             clean_answer = re.sub(r'<think>.*?</think>', '', final_text, flags=re.DOTALL).strip()
-            if not clean_answer and not _client_disconnected and not error_yielded:
+            if not clean_answer and not error_yielded:
                 if context_length_reached:
                     err_msg = (
                         "La fenêtre de contexte du modèle a été atteinte pendant l'analyse ou la réflexion. "
                         "Vous pouvez augmenter la taille de contexte (ex: 64K ou 128K) dans la Configuration Ollama, "
                         "ou reformuler votre demande de manière plus ciblée."
                     )
-                    yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                    await _emit(f"data: {json.dumps({'error': err_msg})}\n\n")
                     error_yielded = True
                 elif not final_text:
-                    yield f"data: {json.dumps({'error': 'Le modèle n a pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n"
+                    await _emit(f"data: {json.dumps({'error': 'Le modèle n a pas fourni de réponse. Vérifiez votre configuration Ollama.'})}\n\n")
                     error_yielded = True
 
         # Sauvegarde de la réponse finale
@@ -1220,8 +1248,8 @@ async def generate_chat_stream(
                     snap_y, snap_m = detect_mentioned_month_year(final_text, now_dt.year, now_dt.month)
             snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
             snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
-            if snapshots and not _client_disconnected:
-                yield f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n"
+            if snapshots:
+                await _emit(f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n")
             clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
             bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + clean_final_text, entity_snapshots=snapshots_json)
             db.add(bot_msg)
@@ -1240,8 +1268,7 @@ async def generate_chat_stream(
         for m in final_msgs_filtered:
             used_tokens += estimate_tokens(m.content)
 
-        if not _client_disconnected:
-            yield f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n"
+        await _emit(f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n")
 
         if needs_auto_title:
             context_hint = None
@@ -1257,17 +1284,14 @@ async def generate_chat_stream(
                 daemon=True,
             ).start()
 
-        if not _client_disconnected:
-            yield "data: [DONE]\n\n"
+        await _emit("data: [DONE]\n\n")
         _done_sent = True
 
-    except GeneratorExit:
-        _client_disconnected = True
-        logger.info(f"[Chat] GeneratorExit intercepté pour session {session_id} — finalisation en tâche de fond")
+    except asyncio.CancelledError:
+        logger.info(f"[Chat] Génération annulée pour session {session_id}")
     except Exception as e:
-        logger.error(f"[Chat] Erreur inattendue dans le flux SSE : {e}", exc_info=True)
-        if not _client_disconnected:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        logger.error(f"[Chat] Erreur inattendue dans la génération IA pour session {session_id} : {e}", exc_info=True)
+        await _emit(f"data: {json.dumps({'error': str(e)})}\n\n")
 
     finally:
         if final_text and not _response_saved:
@@ -1285,7 +1309,7 @@ async def generate_chat_stream(
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                 clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
                 if not _done_sent or error_yielded:
-                    # Marqueur de réponse incomplète (coupure Ollama, exception, ou déconnexion) pour permettre la relance
+                    # Marqueur de réponse incomplète (uniquement si non achevé et non annulé)
                     badge = (
                         "\n\n*(⚠️ Réponse incomplète — génération interrompue. Vous pouvez relancer la question.)*"
                         if req.lang != "en" else
@@ -1301,7 +1325,7 @@ async def generate_chat_stream(
             except Exception as save_err:
                 logger.error(f"[Chat] Échec de sauvegarde de la réponse partielle : {save_err}")
 
-        should_notify = (session_key in _notify_on_complete) or _client_disconnected
+        should_notify = (session_key in _notify_on_complete) or status.get("client_disconnected")
         if should_notify and _response_saved:
             _notify_on_complete.discard(session_key)
             try:
@@ -1320,6 +1344,72 @@ async def generate_chat_stream(
                 logger.error(f"[Chat] Échec de création de la notification de complétion : {notif_err}")
 
         _generating_sessions.discard(session_key)
+        _running_tasks.pop(session_key, None)
+        db.close()
+        try:
+            queue.put_nowait(None)
+        except Exception:
+            pass
+
+
+async def generate_chat_stream(
+    session_id: int,
+    req: ChatSendMessage,
+    request: Optional[Request],
+    db: Session,
+) -> AsyncGenerator[str, None]:
+    """
+    Générateur de flux SSE pour l'orchestration complète d'une réponse de conseiller IA :
+    1. Vérification configuration Ollama & récupération des messages
+    2. Enregistrement immédiat du message utilisateur en base
+    3. Lancement d'une tâche d'arrière-plan résiliente aux déconnexions client (F5, navigation)
+    4. Diffusion des événements SSE via queue asyncio avec gestion gracieuse de GeneratorExit
+    """
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session non trouvée")
+
+    cfg = get_ollama_config(db)
+    if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
+        raise HTTPException(status_code=400, detail="Ollama URL ou Modèle non configuré.")
+
+    # Enregistrer le message utilisateur immédiatement
+    user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
+    db.add(user_msg)
+    db.commit()
+    db.refresh(user_msg)
+
+    active_pid = _resolve_profile_id()
+    session_key = (active_pid, session_id)
+    _generating_sessions.add(session_key)
+
+    queue: asyncio.Queue = asyncio.Queue()
+    status = {"client_disconnected": False}
+
+    task = asyncio.create_task(
+        _run_generation_task(
+            session_id=session_id,
+            req=req,
+            queue=queue,
+            status=status,
+            active_pid=active_pid,
+            user_msg_id=user_msg.id,
+        )
+    )
+    _running_tasks[session_key] = task
+
+    try:
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break
+            yield chunk
+    except GeneratorExit:
+        status["client_disconnected"] = True
+        logger.info(f"[Chat] Client SSE déconnecté pour session {session_id} — la génération continue en tâche de fond pour notification")
+    except Exception as e:
+        logger.error(f"[Chat] Erreur flux SSE pour session {session_id} : {e}")
+
 
 
 async def autocategorize_transaction(db: Session, description: str, amount: Optional[float] = None) -> dict:

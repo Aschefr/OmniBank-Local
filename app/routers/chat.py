@@ -52,6 +52,7 @@ from app.services.chat.chat_orchestrator import (  # noqa: F401
     generate_chat_stream,
     is_session_generating,
     register_notify_on_complete,
+    stop_session_generation,
 )
 
 # Alias de compatibilité
@@ -201,6 +202,13 @@ async def is_session_generating_endpoint(id: int):
 async def notify_on_complete_endpoint(id: int, db: Session = Depends(get_db)):
     """Enregistre qu'une notification doit être créée lorsque la génération se termine."""
     return register_notify_on_complete(id, db)
+
+
+@router.post("/sessions/{id}/stop")
+async def stop_generation_endpoint(id: int):
+    """Arrête immédiatement la génération IA en cours pour cette session."""
+    stopped = stop_session_generation(id)
+    return {"ok": True, "stopped": stopped}
 
 
 # ─── Messages & Contexte ───────────────────────────────────────────────────

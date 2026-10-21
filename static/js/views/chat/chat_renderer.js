@@ -185,7 +185,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     const thinkTitle = isOpenThink 
                         ? (window.i18n ? (window.i18n.t('chat_thinking_in_progress') || defaultInProgress) : defaultInProgress)
                         : (window.i18n ? (window.i18n.t('chat_thinking_phase') || defaultPhase) : defaultPhase);
-                    const openAttr = isOpenThink ? "open" : "";
+                    const openAttr = (msg && msg._thinkOpen) ? "open" : "";
                     
                     if (thinkContent) {
                         const parsedThinkContent = DOMPurify.sanitize(marked.parse(thinkContent));
@@ -645,6 +645,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         // Snapshot scroll position before re-rendering
         const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
 
+        this._suppressScrollDetect();
         container.innerHTML = html;
         this._updateCompressionUI();
         this.updateTokenUsageIndicator();
@@ -660,7 +661,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
         } else {
             // Only auto-scroll if user hasn't manually scrolled up
-            if (!this.userHasScrolledUp && wasAtBottom) {
+            if (!this.userHasScrolledUp && (wasAtBottom || this.isStreaming)) {
                 this.scrollToBottom();
             }
         }
@@ -675,29 +676,34 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     else sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
                 }
                 const currentScrollTop = container.scrollTop;
-                const scrollingUp = currentScrollTop < lastScrollTop;
+                const scrollingUp = currentScrollTop < lastScrollTop - 1;
                 lastScrollTop = currentScrollTop;
 
-                if (scrollingUp) {
-                    // Instantly lock autoscroll when user scrolls up
+                const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
+                if (atBottom) {
+                    // Re-engage autoscroll when user comes back to the bottom
+                    this.userHasScrolledUp = false;
+                } else if (scrollingUp && !this._isProgrammaticScroll && Date.now() >= (this._ignoreScrollUntil || 0)) {
+                    // Instantly release autoscroll on genuine upward user scroll
                     this.userHasScrolledUp = true;
-                } else {
-                    // Re-engage autoscroll only if scrolling down and hitting the bottom within 30px
-                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 30;
+                }
+            });
+
+            // 2. Wheel listener to detect instant scroll-up intent and re-engage on scroll-down
+            container.addEventListener('wheel', (e) => {
+                if (e.deltaY < 0) {
+                    // User wheeling UP: immediately disengage auto-scroll
+                    this.userHasScrolledUp = true;
+                } else if (e.deltaY > 0) {
+                    // User wheeling DOWN: if within bottom reach, re-engage
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
                     if (atBottom) {
                         this.userHasScrolledUp = false;
                     }
                 }
-            });
-
-            // 2. Wheel listener to detect instant scroll-up intent
-            container.addEventListener('wheel', (e) => {
-                if (e.deltaY < 0) {
-                    this.userHasScrolledUp = true;
-                }
             }, { passive: true });
 
-            // 3. Touch move listener to detect instant swipe-down (which scrolls up) intent on mobile
+            // 3. Touch move listener to detect instant swipe-down (scrolls up) and swipe-up (scrolls down)
             let touchStartY = 0;
             container.addEventListener('touchstart', (e) => {
                 if (e.touches.length > 0) {
@@ -707,8 +713,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             container.addEventListener('touchmove', (e) => {
                 if (e.touches.length > 0) {
                     const touchY = e.touches[0].clientY;
-                    if (touchY > touchStartY) { // Swipe down -> scrolls up
+                    if (touchY > touchStartY + 4) { // Swipe down -> scrolls up
                         this.userHasScrolledUp = true;
+                    } else if (touchY < touchStartY - 4) { // Swipe up -> scrolls down
+                        const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
+                        if (atBottom) {
+                            this.userHasScrolledUp = false;
+                        }
                     }
                 }
             }, { passive: true });
@@ -883,10 +894,20 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
+    _suppressScrollDetect(ms = 80) {
+        this._ignoreScrollUntil = Date.now() + ms;
+    },
+
     scrollToBottom() {
         const container = document.getElementById('chatMessages');
         if (container) {
+            this._isProgrammaticScroll = true;
+            this._suppressScrollDetect(80);
             container.scrollTop = container.scrollHeight;
+            clearTimeout(this._programmaticScrollTimer);
+            this._programmaticScrollTimer = setTimeout(() => {
+                this._isProgrammaticScroll = false;
+            }, 80);
         }
     },
 
