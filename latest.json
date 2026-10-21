@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDI1OUdhNTRBSkJaYkZmcTI2TTI4OGUyWmpyRm8xY0xJdjFmeXIxMXJac3FlOER1M3IvZ3JMN0ZoblFpcitOc2x1MHZTK0pYcXM1bkt6S3d4TUF0YXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNDM5MjcyCWZpbGU6T21uaUJhbmtfMS4yLjZfeDY0X2ZyLUZSLm1zaQoxU01HSThGWUw4akRrdDhCVXdRMGt5MndaTW5Za1h4Y2MyVUNBQlFIamFBck5HZkFPajRhZzU4QVhZdHU2d3Y2QkE4K1FJa0lVNEdhR2NaTDBQZVNBQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.6/OmniBank_1.2.6_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHgzaGxaQUJma2t1MTcxVmswMXh0RVpyNVB1dkwrNE1Hdi9RYk5VZW9WUTZoMmVteTc5NklsME1LRXFlVFZNN3RteDRmRm85MnNTWTFHeno1V0Q2SkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjA2MjU2CWZpbGU6T21uaUJhbmtfMS4yLjdfeDY0X2ZyLUZSLm1zaQpRR2Y3NzUwc3YzQWFNNTlJdWdhZTBWOWxEZVo1RlQzSzJGUkg1eUpaTTB1VGJaTGthQysrMzJ5U0ViYmZGSGdCZ0xiakM3SDNRRU4zN1ovWlVOQ1BDZz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.7/OmniBank_1.2.7_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-19T19:47:52Z",
-    "version":  "1.2.6",
-    "notes":  "AI Financial Assistant Recurrence Closure, Stream Speedup \u0026 Auto-Pilot Reversibility"
+    "pub_date":  "2026-10-21T18:10:56Z",
+    "version":  "1.2.7",
+    "notes":  "AI Assistant Audit, DeepSeek-R1 Thinking Folding, Stream Resilience \u0026 Action Traceability"
 }
