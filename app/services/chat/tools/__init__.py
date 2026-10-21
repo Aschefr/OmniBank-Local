@@ -1,6 +1,7 @@
 """
 app/services/chat/tools/__init__.py — Registry central des outils IA et re-exports.
 """
+from typing import Any, Dict, List, Optional
 
 from app.services.chat.tools.read_tools import (  # noqa: F401
     _compute_recurrence_schedule,
@@ -672,35 +673,117 @@ TOOLS = [
                 "required": []
             }
         }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "store_financial_fact",
-            "description": "Store a persistent financial fact, context, or temporary situation in long-term memory (e.g. temporary tax installment until December 2026, planned upcoming major expense, job change, debt repayment plan).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "key": {"type": "string", "description": "A short snake_case identifier for this fact (e.g. 'impots_ajustement_temporaire_2026')."},
-                    "value": {"type": "string", "description": "The detailed factual statement to remember, including amounts and relevant dates/deadlines."}
-                },
-                "required": ["key", "value"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "forget_financial_fact",
-            "description": "Remove or forget an obsolete financial fact from long-term memory.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "key": {"type": "string", "description": "The identifier of the fact to remove."}
-                },
-                "required": ["key"]
-            }
-        }
     }
 ]
+
+TOOL_MAP: Dict[str, dict] = {t["function"]["name"]: t for t in TOOLS}
+
+ROLE_TOOL_NAMES: Dict[str, List[str]] = {
+    "advisor": [t["function"]["name"] for t in TOOLS],
+    "simulator": [
+        "simulate_financial_scenario",
+        "simulate_loan_amortization",
+        "get_envelopes_impact",
+        "get_financial_summary",
+        "get_account_balances",
+        "get_net_worth",
+        "get_net_worth_history",
+        "get_budgets_status",
+        "forecast_balances_history",
+        "get_spending_trends",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+    "alerts": [
+        "detect_anomalies_and_subscriptions",
+        "audit_transactions_integrity",
+        "get_spending_trends",
+        "get_budgets_status",
+        "search_transactions",
+        "get_financial_summary",
+        "get_account_balances",
+        "delete_transaction",
+        "get_recurrence_templates",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+    "optimizer": [
+        "detect_anomalies_and_subscriptions",
+        "get_recurrence_templates",
+        "get_spending_trends",
+        "search_similar_past_spends",
+        "get_saving_recommendations",
+        "close_recurrence_template",
+        "update_recurrence_template",
+        "delete_recurrence_template",
+        "create_recurrence_template",
+        "get_budgets_status",
+        "get_financial_summary",
+        "get_account_balances",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+    "budget_planner": [
+        "get_budgets_status",
+        "get_spending_trends",
+        "get_monthly_overview",
+        "get_spending_analytics",
+        "create_budget_envelope",
+        "update_budget_envelope",
+        "delete_budget_envelope",
+        "allocate_savings_funds",
+        "get_saving_recommendations",
+        "get_financial_summary",
+        "get_account_balances",
+        "create_category",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+    "forecaster": [
+        "forecast_balances_history",
+        "get_spending_trends",
+        "get_recurrence_templates",
+        "get_financial_summary",
+        "get_account_balances",
+        "get_net_worth_history",
+        "set_predicted_paycheck",
+        "create_planned_transfer",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+    "auditor": [
+        "audit_transactions_integrity",
+        "detect_anomalies_and_subscriptions",
+        "search_transactions",
+        "apply_transaction_correction",
+        "delete_transaction",
+        "suggest_transaction_category",
+        "create_category",
+        "get_recurrence_templates",
+        "get_account_balances",
+        "get_financial_summary",
+        "get_application_knowledge",
+        "store_financial_fact",
+        "forget_financial_fact",
+    ],
+}
+
+
+def get_tools_for_role(role: Optional[str] = None) -> List[dict]:
+    """
+    Retourne la liste d'outils filtrée pour le rôle actif d'une session de chat.
+    Réduit drastiquement l'empreinte de prompt (~1 500 à 2 500 tokens au lieu de 7 200+ tokens)
+    et la latence de pré-remplissage sur les gros modèles Ollama (31B+).
+    """
+    normalized = (role or "advisor").strip().lower()
+    tool_names = ROLE_TOOL_NAMES.get(normalized)
+    if not tool_names:
+        return list(TOOLS)
+    return [TOOL_MAP[name] for name in tool_names if name in TOOL_MAP]
+
 

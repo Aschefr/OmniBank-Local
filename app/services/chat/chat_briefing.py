@@ -294,9 +294,12 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
 
         if tight_envelopes:
             lines.append(f"• Envelopes Under Pressure (>=80% spent): {', '.join(tight_envelopes)}.")
-        if all_active_envelopes:
-            lines.append(f"• All Active Budget Envelopes: {', '.join(all_active_envelopes)}.")
-        else:
+        if role in ('advisor', 'budget_planner', 'optimizer'):
+            if all_active_envelopes:
+                lines.append(f"• All Active Budget Envelopes: {', '.join(all_active_envelopes)}.")
+            else:
+                lines.append("• Budget Envelopes: All active envelopes currently within normal limits (<80%).")
+        elif not tight_envelopes:
             lines.append("• Budget Envelopes: All active envelopes currently within normal limits (<80%).")
 
         if active_savings_goals:

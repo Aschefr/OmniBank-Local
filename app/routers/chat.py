@@ -34,7 +34,8 @@ from app.services.chat.ollama_client import (  # noqa: F401
     get_ollama_config,
 )
 from app.services.chat.chat_tools import *  # noqa: F401,F403
-from app.services.chat.chat_tools import TOOLS  # noqa: F401
+from app.services.chat.chat_tools import TOOLS, get_tools_for_role  # noqa: F401
+
 from app.services.chat.chat_prompt import load_system_prompt  # noqa: F401
 from app.services.chat.chat_snapshot import build_entity_snapshots  # noqa: F401
 from app.services.chat.chat_compression import (  # noqa: F401
@@ -215,7 +216,8 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     sys_prompt = load_system_prompt(session.role, categories, 'fr', db=db, session_id=session.id, user_name=user_name)
 
-    tools_tokens = estimate_tokens(json.dumps(TOOLS))
+    session_tools = get_tools_for_role(session.role)
+    tools_tokens = estimate_tokens(json.dumps(session_tools))
     used = estimate_tokens(sys_prompt) + tools_tokens + 500
     if session.compressed_context:
         used += estimate_tokens(session.compressed_context)
@@ -398,12 +400,24 @@ class ChatApplyActionRequest(BaseModel):
     params: dict
     message_id: Optional[int] = None
     action_id: Optional[str] = None
+    user_name: Optional[str] = None
 
 
 @router.post("/apply-action")
-async def apply_chat_action(req: ChatApplyActionRequest, db: Session = Depends(get_db)):
+async def apply_chat_action(req: ChatApplyActionRequest, request: Request, db: Session = Depends(get_db)):
     """Exécute une action financière interactive validée par l'utilisateur."""
-    return execute_chat_action(db, req.action, req.params, message_id=req.message_id, action_id=req.action_id)
+    user_name = req.user_name or request.headers.get("x-user-name")
+    if user_name:
+        from urllib.parse import unquote
+        user_name = unquote(user_name).strip()
+    return execute_chat_action(
+        db,
+        req.action,
+        req.params,
+        message_id=req.message_id,
+        action_id=req.action_id,
+        user_name=user_name,
+    )
 
 
 @router.post("/sessions/{id}/message")
