@@ -747,7 +747,7 @@ window.AutopilotView = {
                                         id="btnOverrideAiClassify" 
                                         class="ap-override-ai-btn" 
                                         onclick="window.AutopilotView.classifyOverrideWithAI(this)" 
-                                        title="${window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA'}">
+                                        title="${window.i18n ? (window.i18n.t('smart_label_ai_suggest_cat_tooltip') || 'Suggérer la catégorie avec l\'IA') : 'Suggérer la catégorie avec l\'IA'}">
                                     ${this._icons.sparkles}
                                 </button>
                             </div>
@@ -2645,7 +2645,7 @@ window.AutopilotView = {
         const isAiActive = Boolean(window.app?.config?.enable_ai === 'true' || window.app?.config?.enable_ai === true);
         if (aiBtn) {
             aiBtn.title = isAiActive
-                ? (window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA')
+                ? (window.i18n ? (window.i18n.t('smart_label_ai_suggest_cat_tooltip') || 'Suggérer la catégorie avec l\'IA') : 'Suggérer la catégorie avec l\'IA')
                 : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
         }
 
@@ -2840,7 +2840,7 @@ window.AutopilotView = {
         const isAiActive = Boolean(window.app?.config?.enable_ai === 'true' || window.app?.config?.enable_ai === true);
         if (aiBtn) {
             aiBtn.title = isAiActive
-                ? (window.i18n ? (window.i18n.t('smart_label_ai_classify_tooltip') || 'Nommer et classifier avec l\'IA') : 'Nommer et classifier avec l\'IA')
+                ? (window.i18n ? (window.i18n.t('smart_label_ai_suggest_cat_tooltip') || 'Suggérer la catégorie avec l\'IA') : 'Suggérer la catégorie avec l\'IA')
                 : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
         }
 
@@ -2901,9 +2901,7 @@ window.AutopilotView = {
             });
 
             if (res) {
-                if (res.description && descInput) {
-                    descInput.value = res.description;
-                }
+                // Ne jamais écraser le libellé saisi par l'utilisateur : le bouton est situé sur le champ Catégorie
                 if (res.category && window.CategoryPicker) {
                     window.CategoryPicker.setValue('overrideCategory', res.category, true);
                     const isAiSource = (res.source === 'ai');
@@ -2911,6 +2909,10 @@ window.AutopilotView = {
                         ? (window.i18n ? (window.i18n.t('smart_label_ai_suggested') || 'Classification IA appliquée') : 'Classification IA appliquée')
                         : (window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée');
                     showToast(successMsg, 'success');
+                } else if (res.category) {
+                    const catInput = document.getElementById('overrideCategory');
+                    if (catInput) catInput.value = res.category;
+                    showToast(window.i18n ? (window.i18n.t('smart_label_suggested_success') || 'Catégorie suggérée appliquée') : 'Catégorie suggérée appliquée', 'success');
                 } else {
                     showToast(window.i18n ? (window.i18n.t('smart_label_no_category_found') || 'Aucune catégorie correspondante trouvée') : 'Aucune catégorie correspondante trouvée', 'info');
                 }

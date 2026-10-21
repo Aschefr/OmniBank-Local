@@ -11,4 +11,5 @@ Les implémentations ont été déplacées dans les sous-modules :
 Ce fichier re-exporte tout pour que les imports existants continuent de fonctionner.
 """
 from app.services.chat.tools import *  # noqa: F401,F403
-from app.services.chat.tools import TOOLS  # noqa: F401
+from app.services.chat.tools import TOOLS, get_tools_for_role, ROLE_TOOL_NAMES  # noqa: F401
+

@@ -1,5 +1,180 @@
 // static/js/views/chat/chat_actions.js — Cartes d'action interactives (création/modification proposée par l'IA)
 window.ChatView = Object.assign(window.ChatView || {}, {
+    /**
+     * Mini-diff « Avant ➔ Après » affiché directement sur les cartes d'action en attente (audit #7).
+     * Ne liste que les champs réellement modifiés ; silencieux si l'état actuel est introuvable.
+     */
+    async hydrateActionDiffs() {
+        const nodes = document.querySelectorAll('.ai-action-diff[data-diff-action-id]:not([data-diff-done])');
+        const labels = {
+            category: window.i18n.t('field_label_category') || 'Catégorie',
+            description: window.i18n.t('field_label_description') || 'Libellé',
+            amount: window.i18n.t('field_label_amount') || 'Montant',
+            monthly_amount: window.i18n.t('field_label_amount') || 'Montant',
+            new_limit: window.i18n.t('field_label_new_limit') || 'Nouvelle limite',
+            date_operation: window.i18n.t('field_label_date') || 'Date',
+            name: window.i18n.t('field_label_name') || 'Nom',
+            period: window.i18n.t('field_label_period') || 'Période',
+            frequency: window.i18n.t('field_label_frequency') || 'Fréquence',
+            type: window.i18n.t('field_label_type') || 'Type',
+            day_of_month: window.i18n.t('field_label_day_of_month') || 'Jour du mois',
+            date_override: window.i18n.t('field_label_date_override') || 'Date spécifique',
+            is_active: window.i18n.t('field_label_is_active') || 'Est actif',
+            is_closed: window.i18n.t('field_label_is_closed') || 'Est clôturé',
+            categories: window.i18n.t('field_label_categories') || 'Catégories'
+        };
+        const moneyKeys = ['amount', 'monthly_amount', 'new_limit'];
+        const skipKeys = ['id', 'budget_id', 'template_id', 'transaction_id', 'force_write'];
+        const fmt = (k, v) => {
+            if (v === null || v === undefined || v === '') return '—';
+            if (Array.isArray(v)) v = v.join(', ');
+            if (typeof v === 'boolean') return v ? (window.i18n.t('val_true') || 'Oui') : (window.i18n.t('val_false') || 'Non');
+            if (moneyKeys.includes(k) && !isNaN(parseFloat(v))) return `${parseFloat(v).toFixed(2)} €`;
+            return String(v);
+        };
+        for (const node of nodes) {
+            node.setAttribute('data-diff-done', '1');
+            try {
+                const actionObj = this.pendingActions?.[node.getAttribute('data-diff-action-id')];
+                if (!actionObj) continue;
+                let current = null;
+                let changes = {};
+                if (actionObj.action === undefined && actionObj.id !== undefined) {
+                    const r = await fetch(`/api/transactions/${actionObj.id}`);
+                    if (r.ok) current = await r.json();
+                    changes = actionObj.updates || {};
+                } else {
+                    current = await this.resolveActionCurrentState(actionObj);
+                    const p = actionObj.params || {};
+                    changes = (p.updates && typeof p.updates === 'object') ? { ...p, ...p.updates } : p;
+                }
+                if (!current) continue;
+                const rows = [];
+                for (const [k, newVal] of Object.entries(changes)) {
+                    if (skipKeys.includes(k) || k === 'updates' || newVal === null || newVal === undefined) continue;
+                    let oldVal = current[k];
+                    if (oldVal === undefined && k === 'new_limit') oldVal = current.monthly_amount;
+                    if (oldVal === undefined && k === 'categories' && Array.isArray(current.categories)) oldVal = current.categories;
+                    const a = fmt(k, oldVal), b = fmt(k, newVal);
+                    if (a === b) continue;
+                    rows.push(`<div style="display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; font-size:12px; margin-bottom:4px;">
+                        <span style="font-weight:600; min-width:90px;">${window.escapeHtml(labels[k] || k)}</span>
+                        <span style="color:var(--text-muted); text-decoration:line-through;">${window.escapeHtml(a)}</span>
+                        <span aria-hidden="true">➔</span>
+                        <span style="color:var(--accent); font-weight:600;">${window.escapeHtml(b)}</span>
+                    </div>`);
+                }
+                if (rows.length) {
+                    node.style.cssText = 'margin-bottom:12px; padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:6px;';
+                    node.innerHTML = rows.join('');
+                }
+            } catch (e) { /* le diff est un confort : jamais bloquant */ }
+        }
+    },
+
+    async resolveActionCurrentState(actionObj) {
+        actionObj.params = actionObj.params || {};
+                let currentEntityState = null;
+                if (actionObj.action === 'update_budget_envelope' || actionObj.action === 'delete_budget_envelope' || actionObj.action === 'allocate_savings_funds') {
+                    try {
+                        const r = await fetch('/api/budgets');
+                        if (r.ok) {
+                            const list = await r.json();
+                            const bid = parseInt(actionObj.params.budget_id || actionObj.params.id);
+                            currentEntityState = list.find(b => b.id === bid);
+                            if (!currentEntityState && actionObj.params.name) {
+                                const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                                const target = normalize(actionObj.params.name);
+                                currentEntityState = list.find(b => normalize(b.name) === target) ||
+                                                     list.find(b => normalize(b.name).includes(target) || target.includes(normalize(b.name)));
+                                if (currentEntityState) {
+                                    actionObj.params.budget_id = currentEntityState.id;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template' || actionObj.action === 'close_recurrence_template') {
+                    try {
+                        const r = await fetch('/api/recurrences');
+                        if (r.ok) {
+                            const list = await r.json();
+                            const tid = parseInt(actionObj.params.template_id || actionObj.params.id);
+                            currentEntityState = list.find(tpl => tpl.id === tid);
+                            if (!currentEntityState && actionObj.params.description) {
+                                const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                                const target = normalize(actionObj.params.description);
+                                currentEntityState = list.find(tpl => normalize(tpl.description) === target) ||
+                                                     list.find(tpl => normalize(tpl.description).includes(target) || target.includes(normalize(tpl.description)));
+                            }
+                            if (currentEntityState) {
+                                actionObj.params.template_id = currentEntityState.id;
+                                if (!actionObj.params.description && currentEntityState.description) {
+                                    actionObj.params.description = currentEntityState.description;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                } else if (actionObj.action === 'delete_transaction' || actionObj.action === 'apply_transaction_correction') {
+                    try {
+                        const tid = parseInt(actionObj.params.transaction_id || actionObj.params.id);
+                        if (!isNaN(tid)) {
+                            const r = await fetch(`/api/transactions/${tid}`);
+                            if (r.ok) {
+                                currentEntityState = await r.json();
+                            }
+                        }
+                        if (!currentEntityState) {
+                            const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+                            const pDesc = normalize(actionObj.params.description);
+                            const pAmt = parseFloat(actionObj.params.amount);
+                            const pDate = actionObj.params.date_operation;
+
+                            let searchUrl = '/api/transactions/?limit=100';
+                            if (actionObj.params.description) {
+                                searchUrl += `&search=${encodeURIComponent(actionObj.params.description)}`;
+                            }
+                            const r = await fetch(searchUrl);
+                            if (r.ok) {
+                                const res = await r.json();
+                                const txs = Array.isArray(res) ? res : (res.items || res.transactions || []);
+                                let best = null;
+                                let bestScore = -1;
+                                for (const tx of txs) {
+                                    let score = 0;
+                                    if (!isNaN(pAmt) && Math.abs(tx.amount - pAmt) < 0.01) score += 50;
+                                    const txDesc = normalize(tx.description);
+                                    if (pDesc) {
+                                        if (txDesc === pDesc || txDesc.includes(pDesc) || pDesc.includes(txDesc)) score += 40;
+                                    }
+                                    if (pDate && tx.date_operation === pDate) score += 30;
+                                    if (score > bestScore && score >= 30) {
+                                        bestScore = score;
+                                        best = tx;
+                                    }
+                                }
+                                if (best) {
+                                    currentEntityState = best;
+                                    actionObj.params.transaction_id = best.id;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                } else if (actionObj.action === 'set_predicted_paycheck') {
+                    try {
+                        const r = await fetch('/api/config/');
+                        if (r.ok) {
+                            const cfg = await r.json();
+                            currentEntityState = {
+                                amount: parseFloat(cfg.override_paycheck_amount) || null,
+                                day_of_month: parseInt(cfg.base_pay_day) || null,
+                                date_override: cfg.override_paycheck_date || null
+                            };
+                        }
+                    } catch(e) {}
+                }
+        return currentEntityState;
+    },
+
     async openActionModal(txId) {
         const actionObj = this.pendingActions[txId];
         if (!actionObj) return;
@@ -35,105 +210,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             };
             const friendlyName = actionNames[actionObj.action] || actionObj.action;
             
-            // Try to resolve current state for update actions
-            let currentEntityState = null;
-            if (actionObj.action === 'update_budget_envelope' || actionObj.action === 'delete_budget_envelope' || actionObj.action === 'allocate_savings_funds') {
-                try {
-                    const r = await fetch('/api/budgets');
-                    if (r.ok) {
-                        const list = await r.json();
-                        const bid = parseInt(actionObj.params.budget_id || actionObj.params.id);
-                        currentEntityState = list.find(b => b.id === bid);
-                        if (!currentEntityState && actionObj.params.name) {
-                            const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-                            const target = normalize(actionObj.params.name);
-                            currentEntityState = list.find(b => normalize(b.name) === target) ||
-                                                 list.find(b => normalize(b.name).includes(target) || target.includes(normalize(b.name)));
-                            if (currentEntityState) {
-                                actionObj.params.budget_id = currentEntityState.id;
-                            }
-                        }
-                    }
-                } catch(e) {}
-            } else if (actionObj.action === 'update_recurrence_template' || actionObj.action === 'delete_recurrence_template' || actionObj.action === 'close_recurrence_template') {
-                try {
-                    const r = await fetch('/api/recurrences');
-                    if (r.ok) {
-                        const list = await r.json();
-                        const tid = parseInt(actionObj.params.template_id || actionObj.params.id);
-                        currentEntityState = list.find(tpl => tpl.id === tid);
-                        if (!currentEntityState && actionObj.params.description) {
-                            const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-                            const target = normalize(actionObj.params.description);
-                            currentEntityState = list.find(tpl => normalize(tpl.description) === target) ||
-                                                 list.find(tpl => normalize(tpl.description).includes(target) || target.includes(normalize(tpl.description)));
-                        }
-                        if (currentEntityState) {
-                            actionObj.params.template_id = currentEntityState.id;
-                            if (!actionObj.params.description && currentEntityState.description) {
-                                actionObj.params.description = currentEntityState.description;
-                            }
-                        }
-                    }
-                } catch(e) {}
-            } else if (actionObj.action === 'delete_transaction' || actionObj.action === 'apply_transaction_correction') {
-                try {
-                    const tid = parseInt(actionObj.params.transaction_id || actionObj.params.id);
-                    if (!isNaN(tid)) {
-                        const r = await fetch(`/api/transactions/${tid}`);
-                        if (r.ok) {
-                            currentEntityState = await r.json();
-                        }
-                    }
-                    if (!currentEntityState) {
-                        const normalize = s => (s || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-                        const pDesc = normalize(actionObj.params.description);
-                        const pAmt = parseFloat(actionObj.params.amount);
-                        const pDate = actionObj.params.date_operation;
-
-                        let searchUrl = '/api/transactions/?limit=100';
-                        if (actionObj.params.description) {
-                            searchUrl += `&search=${encodeURIComponent(actionObj.params.description)}`;
-                        }
-                        const r = await fetch(searchUrl);
-                        if (r.ok) {
-                            const res = await r.json();
-                            const txs = Array.isArray(res) ? res : (res.items || res.transactions || []);
-                            let best = null;
-                            let bestScore = -1;
-                            for (const tx of txs) {
-                                let score = 0;
-                                if (!isNaN(pAmt) && Math.abs(tx.amount - pAmt) < 0.01) score += 50;
-                                const txDesc = normalize(tx.description);
-                                if (pDesc) {
-                                    if (txDesc === pDesc || txDesc.includes(pDesc) || pDesc.includes(txDesc)) score += 40;
-                                }
-                                if (pDate && tx.date_operation === pDate) score += 30;
-                                if (score > bestScore && score >= 30) {
-                                    bestScore = score;
-                                    best = tx;
-                                }
-                            }
-                            if (best) {
-                                currentEntityState = best;
-                                actionObj.params.transaction_id = best.id;
-                            }
-                        }
-                    }
-                } catch(e) {}
-            } else if (actionObj.action === 'set_predicted_paycheck') {
-                try {
-                    const r = await fetch('/api/config/');
-                    if (r.ok) {
-                        const cfg = await r.json();
-                        currentEntityState = {
-                            amount: parseFloat(cfg.override_paycheck_amount) || null,
-                            day_of_month: parseInt(cfg.base_pay_day) || null,
-                            date_override: cfg.override_paycheck_date || null
-                        };
-                    }
-                } catch(e) {}
-            }
+            // Résolution de l'état actuel (partagée avec le mini-diff des cartes)
+            const currentEntityState = await this.resolveActionCurrentState(actionObj);
 
             // For planned transfer, ensure user sees default label, system category and date if omitted
             if (actionObj.action === 'create_planned_transfer') {
@@ -300,6 +378,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         document.getElementById('aiActionConfirmBtn').onclick = () => this.applyAiAction(actionObj, txId);
     },
 
+    getActiveUserName() {
+        return (window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem('omni_current_user') : sessionStorage.getItem('omni_current_user')) || '';
+    },
+
     closeActionModal() {
         document.getElementById('aiActionModal').style.display = 'none';
     },
@@ -311,9 +393,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         try {
             const actId = actionId || actionObj._actionId;
+            const userName = this.getActiveUserName();
+            const headers = { 'Content-Type': 'application/json' };
+            if (userName) headers['X-User-Name'] = encodeURIComponent(userName);
+
             const response = await fetch('/api/chat/apply-action', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'apply_transaction_correction',
                     params: {
@@ -321,7 +407,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         updates: actionObj.updates
                     },
                     message_id: actionObj._messageId,
-                    action_id: actId
+                    action_id: actId,
+                    user_name: userName || undefined
                 })
             });
 
@@ -330,7 +417,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 throw new Error(err.detail || "Erreur de validation");
             }
 
+            const result = await response.json().catch(() => ({}));
             this.closeActionModal();
+            if (result.already_applied) {
+                await this.loadMessages();
+                return;
+            }
 
             // Zero F5 custom event & views refresh
             window.dispatchEvent(new CustomEvent('omnibank:data-changed', {
@@ -369,14 +461,19 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         btn.innerText = window.i18n.t('msg_applying') || 'Application...';
 
         try {
+            const userName = this.getActiveUserName();
+            const headers = { 'Content-Type': 'application/json' };
+            if (userName) headers['X-User-Name'] = encodeURIComponent(userName);
+
             const response = await fetch('/api/chat/apply-action', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: actionObj.action,
                     params: actionObj.params,
                     message_id: actionObj._messageId,
-                    action_id: actionId
+                    action_id: actionId,
+                    user_name: userName || undefined
                 })
             });
 
@@ -385,7 +482,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 throw new Error(err.detail || "Erreur de validation");
             }
 
+            const result = await response.json().catch(() => ({}));
             this.closeActionModal();
+            if (result.already_applied) {
+                await this.loadMessages();
+                return;
+            }
 
             // Zero F5 custom event & views refresh
             window.dispatchEvent(new CustomEvent('omnibank:data-changed', {
@@ -428,20 +530,31 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         try {
+            const userName = this.getActiveUserName();
+            const headers = { 'Content-Type': 'application/json' };
+            if (userName) headers['X-User-Name'] = encodeURIComponent(userName);
+
             const response = await fetch('/api/chat/apply-action', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: actionObj.action,
                     params: actionObj.params || {},
                     message_id: actionObj._messageId,
-                    action_id: actionId
+                    action_id: actionId,
+                    user_name: userName || undefined
                 })
             });
 
             if (!response.ok) {
                 const err = await response.json();
                 throw new Error(err.detail || "Erreur lors de la synchronisation");
+            }
+
+            const result = await response.json().catch(() => ({}));
+            if (result.already_applied) {
+                await this.loadMessages();
+                return;
             }
 
             if (btn) {

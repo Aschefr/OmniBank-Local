@@ -5,7 +5,7 @@ import json
 import logging
 import calendar
 import statistics as _stats
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 from collections import defaultdict
 from sqlalchemy.orm import Session
@@ -134,7 +134,8 @@ def apply_transaction_correction_tool(
     amount: float = None,
     type: str = None,
     date_operation: str = None,
-    force_write: bool = False
+    force_write: bool = False,
+    user_name: Optional[str] = None
 ) -> dict:
     from app.models import Transaction, Category
     from app.services.history_service import record_action, snapshot_entity
@@ -195,15 +196,18 @@ def apply_transaction_correction_tool(
             pass
 
     if changes:
+        if user_name:
+            tx.modified_by = user_name
+            tx.modified_at = datetime.now().strftime("%Y-%m-%d %H:%M")
         db.flush()
-        action_id = record_action(db, "transaction", tx.id, "UPDATE", old_snapshot, snapshot_entity(tx))
+        action_id = record_action(db, "transaction", tx.id, "UPDATE", old_snapshot, snapshot_entity(tx), user_name=user_name)
         db.commit()
         return {"success": True, "transaction_id": tx.id, "updated_fields": changes, "action_id": action_id}
 
     return {"success": True, "transaction_id": tx.id, "message": "Aucune modification nécessaire"}
 
 
-def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, period: str = "monthly", categories: list = None, is_project: bool = False, force_write: bool = False) -> dict:
+def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, period: str = "monthly", categories: list = None, is_project: bool = False, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Budget
     
     dup = db.query(Budget).filter(Budget.name == name, Budget.is_closed == False).first()
@@ -230,13 +234,13 @@ def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, p
             db.add(BudgetCategory(budget_id=b.id, category_name=cat_name))
         db.flush()
         
-    action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+    action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db), user_name=user_name)
     db.commit()
     return {"success": True, "budget_id": b.id, "name": name, "action_id": action_id}
 
 
 
-def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False) -> dict:
+def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, monthly_amount: float = None, period: str = None, categories: list = None, is_closed: bool = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Budget
     
     b = None
@@ -299,12 +303,12 @@ def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = 
             db.add(BudgetCategory(budget_id=b.id, category_name=cat_name))
             
     db.flush()
-    action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+    action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db), user_name=user_name)
     db.commit()
     return {"success": True, "budget_id": b.id, "action_id": action_id}
 
 
-def delete_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, force_write: bool = False) -> dict:
+def delete_budget_envelope_tool(db: Session, budget_id: int = None, name: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Budget
     
     b = None
@@ -336,12 +340,12 @@ def delete_budget_envelope_tool(db: Session, budget_id: int = None, name: str = 
     db.delete(b)
     db.flush()
     
-    action_id = record_action(db, "budget", b_id, "DELETE", old_snapshot, None)
+    action_id = record_action(db, "budget", b_id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
     return {"success": True, "budget_id": b_id, "action_id": action_id}
 
 
-def allocate_savings_funds_tool(db: Session, budget_id: int = None, amount: float = 0.0, note: str = None, name: str = None, force_write: bool = False) -> dict:
+def allocate_savings_funds_tool(db: Session, budget_id: int = None, amount: float = 0.0, note: str = None, name: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Budget
     
     b = None
@@ -376,12 +380,12 @@ def allocate_savings_funds_tool(db: Session, budget_id: int = None, amount: floa
     db.add(alloc)
     db.flush()
     
-    action_id = record_action(db, "budget_allocation", alloc.id, "CREATE", None, snapshot_entity(alloc))
+    action_id = record_action(db, "budget_allocation", alloc.id, "CREATE", None, snapshot_entity(alloc), user_name=user_name)
     db.commit()
     return {"success": True, "budget_id": b.id, "allocation_id": alloc.id, "amount": amount, "action_id": action_id}
 
 
-def create_recurrence_template_tool(db: Session, amount: float, description: str, frequency: str, category: str, type: str, day_of_month: int, force_write: bool = False) -> dict:
+def create_recurrence_template_tool(db: Session, amount: float, description: str, frequency: str, category: str, type: str, day_of_month: int, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     if not force_write:
         return {"success": True, "pending_validation": True}
 
@@ -400,12 +404,12 @@ def create_recurrence_template_tool(db: Session, amount: float, description: str
     db.add(tpl)
     db.flush()
     
-    action_id = record_action(db, "recurrence_template", tpl.id, "CREATE", None, snapshot_entity(tpl))
+    action_id = record_action(db, "recurrence_template", tpl.id, "CREATE", None, snapshot_entity(tpl), user_name=user_name)
     db.commit()
     return {"success": True, "template_id": tpl.id, "description": description, "action_id": action_id}
 
 
-def update_recurrence_template_tool(db: Session, template_id: int = None, amount: float = None, description: str = None, frequency: str = None, category: str = None, type: str = None, day_of_month: int = None, is_active: bool = None, force_write: bool = False) -> dict:
+def update_recurrence_template_tool(db: Session, template_id: int = None, amount: float = None, description: str = None, frequency: str = None, category: str = None, type: str = None, day_of_month: int = None, is_active: bool = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import RecurrenceTemplate
     
     tpl = None
@@ -454,12 +458,12 @@ def update_recurrence_template_tool(db: Session, template_id: int = None, amount
         tpl.is_closed = not bool(is_active)
         
     db.flush()
-    action_id = record_action(db, "recurrence_template", tpl.id, "UPDATE", old_snapshot, snapshot_entity(tpl))
+    action_id = record_action(db, "recurrence_template", tpl.id, "UPDATE", old_snapshot, snapshot_entity(tpl), user_name=user_name)
     db.commit()
     return {"success": True, "template_id": tpl.id, "action_id": action_id}
 
 
-def close_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, closure_date: str = None, force_write: bool = False) -> dict:
+def close_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, closure_date: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import RecurrenceTemplate, Transaction
     from datetime import date
     
@@ -504,7 +508,7 @@ def close_recurrence_template_tool(db: Session, template_id: int = None, descrip
     ).delete()
     
     db.flush()
-    action_id = record_action(db, "recurrence_template", tpl.id, "CLOSE", old_snapshot, snapshot_entity(tpl))
+    action_id = record_action(db, "recurrence_template", tpl.id, "CLOSE", old_snapshot, snapshot_entity(tpl), user_name=user_name)
     db.commit()
     return {
         "success": True,
@@ -516,7 +520,7 @@ def close_recurrence_template_tool(db: Session, template_id: int = None, descrip
     }
 
 
-def delete_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, force_write: bool = False) -> dict:
+def delete_recurrence_template_tool(db: Session, template_id: int = None, description: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import RecurrenceTemplate
     
     tpl = None
@@ -551,12 +555,12 @@ def delete_recurrence_template_tool(db: Session, template_id: int = None, descri
     db.delete(tpl)
     db.flush()
     
-    action_id = record_action(db, "recurrence_template", tpl_id, "DELETE", old_snapshot, None)
+    action_id = record_action(db, "recurrence_template", tpl_id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
     return {"success": True, "template_id": tpl_id, "action_id": action_id}
 
 
-def create_category_tool(db: Session, name: str, type: str, force_write: bool = False) -> dict:
+def create_category_tool(db: Session, name: str, type: str, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Category
     
     dup = db.query(Category).filter(Category.name == name).first()
@@ -571,12 +575,12 @@ def create_category_tool(db: Session, name: str, type: str, force_write: bool = 
     db.add(cat)
     db.flush()
     
-    action_id = record_action(db, "category", cat.id, "CREATE", None, snapshot_entity(cat))
+    action_id = record_action(db, "category", cat.id, "CREATE", None, snapshot_entity(cat), user_name=user_name)
     db.commit()
     return {"success": True, "category_id": cat.id, "name": name, "action_id": action_id}
 
 
-def delete_category_tool(db: Session, name: str, force_write: bool = False) -> dict:
+def delete_category_tool(db: Session, name: str, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     from app.models import Category
     
     cat = db.query(Category).filter(Category.name == name).first()
@@ -591,7 +595,7 @@ def delete_category_tool(db: Session, name: str, force_write: bool = False) -> d
     db.delete(cat)
     db.flush()
     
-    action_id = record_action(db, "category", cat.id, "DELETE", old_snapshot, None)
+    action_id = record_action(db, "category", cat.id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
     return {"success": True, "name": name, "action_id": action_id}
 
@@ -602,7 +606,8 @@ def delete_transaction_tool(
     description: str = None,
     amount: float = None,
     date_operation: str = None,
-    force_write: bool = False
+    force_write: bool = False,
+    user_name: Optional[str] = None
 ) -> dict:
     from app.models import Transaction
     from app.services.history_service import record_action, snapshot_entity
@@ -632,12 +637,12 @@ def delete_transaction_tool(
     db.delete(tx)
     db.flush()
 
-    action_id = record_action(db, "transaction", real_id, "DELETE", old_snapshot, None)
+    action_id = record_action(db, "transaction", real_id, "DELETE", old_snapshot, None, user_name=user_name)
     db.commit()
     return {"success": True, "transaction_id": real_id, "action_id": action_id}
 
 
-def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, date_override: str = None, force_write: bool = False) -> dict:
+def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, date_override: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     if not force_write:
         return {"success": True, "pending_validation": True}
 
@@ -689,7 +694,7 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
         "override_paycheck_period": period,
         "override_paycheck_date": actual_date_override,
         "amount": amount,
-    })
+    }, user_name=user_name)
         
     db.flush()
     db.commit()
@@ -818,7 +823,7 @@ def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool =
         return {"success": False, "ok": False, "error": str(e)}
 
 
-def create_planned_transfer_tool(db: Session, from_account: str, to_account: str, amount: float, description: str = None, date_operation: str = None, force_write: bool = False) -> dict:
+def create_planned_transfer_tool(db: Session, from_account: str, to_account: str, amount: float, description: str = None, date_operation: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
     """
     Enregistre une opération de virement prévisionnelle entre deux comptes dans OmniBank.
     Cette action est purement locale à OmniBank pour actualiser les soldes prévisionnels et le Reste à Vivre.
@@ -826,7 +831,7 @@ def create_planned_transfer_tool(db: Session, from_account: str, to_account: str
     """
     from app.models import Transaction, Account
     from app.services.history_service import record_action, snapshot_entity
-    from datetime import date as dt_date
+    from datetime import date as dt_date, datetime as dt_datetime
     
     if not force_write:
         return {
@@ -879,12 +884,14 @@ def create_planned_transfer_tool(db: Session, from_account: str, to_account: str
         date_saisie=today,
         from_account_id=from_acc.id,
         to_account_id=to_acc.id,
-        reconciliation_date=None  # Non rapproché tant que le relevé bancaire n'est pas synchronisé
+        reconciliation_date=None,  # Non rapproché tant que le relevé bancaire n'est pas synchronisé
+        created_by=user_name,
+        created_at=dt_datetime.now().strftime("%Y-%m-%d %H:%M") if user_name else None
     )
     db.add(tx)
     db.flush()
 
-    action_id = record_action(db, "transaction", tx.id, "CREATE", None, snapshot_entity(tx))
+    action_id = record_action(db, "transaction", tx.id, "CREATE", None, snapshot_entity(tx), user_name=user_name)
     db.commit()
     return {
         "success": True,

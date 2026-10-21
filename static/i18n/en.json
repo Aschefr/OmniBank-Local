@@ -3780,5 +3780,6 @@
   "chat_action_propose_deactivate_recurrence": "Deactivating recurring transaction {desc}",
   "chat_action_propose_delete_recurrence_def": "Permanent deletion of recurring transaction {desc}",
   "chat_action_propose_create_transfer": "Recording a planned transfer of {amount} ({from} ➔ {to})",
-  "chat_action_propose_sync_bank": "Triggering online bank sync and statement download (Autopilot reconciliation)"
+  "chat_action_propose_sync_bank": "Triggering online bank sync and statement download (Autopilot reconciliation)",
+  "smart_label_ai_suggest_cat_tooltip": "Suggest category with AI"
 }

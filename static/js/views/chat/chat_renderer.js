@@ -289,6 +289,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                                 <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
                                     <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
                                     <div style="font-size: 12px; margin-bottom: 12px;">${window.i18n.t('chat_ai_propose_modify')} #${actionObj.id}.</div>
+                                    <div class="ai-action-diff" data-diff-action-id="${actionId}"></div>
                                     <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${window.i18n.t('chat_btn_review')}</button>
                                 </div>
                             `;
@@ -370,6 +371,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                                 <div class="ai-action-box" style="margin-top: 15px; padding: 15px; background: rgba(51, 102, 255, 0.08); border: 1px solid var(--accent); border-radius: 8px;">
                                     <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px;">${window.i18n.t('chat_ai_recommendation')}</div>
                                     <div style="font-size: 12px; margin-bottom: 12px;">${desc}.</div>
+                                    ${['apply_transaction_correction', 'update_budget_envelope', 'update_recurrence_template', 'set_predicted_paycheck'].includes(actionObj.action) ? `<div class="ai-action-diff" data-diff-action-id="${actionId}"></div>` : ''}
                                     <button class="btn btn-primary" data-action-id="${actionId}" style="padding: 6px 12px; font-size: 12px;">${btnIcon}${btnLabel}</button>
                                 </div>
                             `;
@@ -867,6 +869,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
 
     renderMath() {
+        // Point d'entrée post-rendu commun (historique + streaming) : hydrate aussi les mini-diffs des cartes d'action
+        if (typeof this.hydrateActionDiffs === 'function') this.hydrateActionDiffs();
         if (window.renderMathInElement) {
             renderMathInElement(document.getElementById('chatMessages'), {
                 delimiters: [
