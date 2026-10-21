@@ -793,10 +793,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 this._checkCompressionStatus();
 
                 // Check if the server is still generating a response for this session
-                const lastMsg = this.messages[this.messages.length - 1];
-                if (lastMsg && lastMsg.role === 'user') {
-                    await this._checkAndPollGeneration();
-                }
+                await this._checkAndPollGeneration();
             }
         } catch (e) {
             console.error("Error loading messages:", e);
@@ -808,13 +805,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         try {
             const statusResp = await API.get(`/api/chat/sessions/${this.activeSessionId}/generating`);
             if (statusResp && statusResp.generating) {
-                // Show typing indicator as a placeholder AI message
-                this.messages.push({
-                    role: 'assistant',
-                    content: '<div class="typing-indicator"><span></span><span></span><span></span></div>'
-                });
-                this.renderHistory();
+                // Show typing indicator as a placeholder AI message if not already present
+                if (!this.messages.some(m => m.role === 'assistant' && m.content && m.content.includes('typing-indicator'))) {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: '<div class="typing-indicator"><span></span><span></span><span></span></div>'
+                    });
+                    this.renderHistory();
+                }
 
+                if (this._generationPollTimer) {
+                    clearInterval(this._generationPollTimer);
+                }
                 // Start polling until generation completes
                 this._generationPollTimer = setInterval(async () => {
                     try {
@@ -828,7 +830,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         clearInterval(this._generationPollTimer);
                         this._generationPollTimer = null;
                     }
-                }, 2000);
+                }, 1500);
             }
         } catch (e) {
             console.error("Error checking generation status:", e);

@@ -186,3 +186,18 @@ def test_bulk_delete_sessions():
     fastapi_app.dependency_overrides.clear()
 
 
+def test_generating_and_stop_endpoints():
+    client = TestClient(fastapi_app)
+    # Check generating status
+    resp = client.get("/api/chat/sessions/999/generating")
+    assert resp.status_code == 200
+    assert resp.json()["generating"] is False
+
+    # Check stop endpoint
+    resp = client.post("/api/chat/sessions/999/stop")
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    assert resp.json()["stopped"] is False
+
+
+

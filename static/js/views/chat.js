@@ -1340,6 +1340,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     margin-bottom: 12px;
                     padding: 6px 10px;
                     width: 100%;
+                    transition: background 0.15s ease, border-color 0.15s ease;
+                }
+                .ai-think-details:hover {
+                    background: rgba(255, 255, 255, 0.04);
                 }
                 .ai-think-summary {
                     font-size: 12px;
@@ -1351,6 +1355,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     gap: 6px;
                     user-select: none;
                     outline: none;
+                    transition: color 0.15s ease;
+                }
+                .ai-think-summary:hover {
+                    color: var(--text-main, #e5e7eb);
                 }
                 .ai-think-content {
                     font-size: 12.5px;
@@ -1756,6 +1764,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             window.removeEventListener('pagehide', this._onChatPageHide);
             this._onChatPageHide = null;
         }
+        if (this._onChatBeforeUnload) {
+            window.removeEventListener('beforeunload', this._onChatBeforeUnload);
+            this._onChatBeforeUnload = null;
+        }
         document.body.classList.remove('in-chat-view');
     },
 
@@ -1792,7 +1804,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         };
         document.addEventListener('visibilitychange', this._onChatVisibilityChange);
 
+        this._onChatBeforeUnload = () => {
+            window._isPageUnloading = true;
+            this._streamDetached = true;
+            if (this._activeAbortController && this.activeSessionId) {
+                fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
+            }
+        };
+        window.addEventListener('beforeunload', this._onChatBeforeUnload);
+
         this._onChatPageHide = () => {
+            window._isPageUnloading = true;
+            this._streamDetached = true;
             if (this._activeAbortController && this.activeSessionId) {
                 fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
             }
