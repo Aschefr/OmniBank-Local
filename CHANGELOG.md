@@ -4,20 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+## [1.2.7] - 2026-10-21
+
 ### Added & Improved
-- **AI Chat Action Card Deduplication & Persistent Applied State 💬🛡️**: Added deterministic action IDs, schema migration v31 (`applied_actions`), and backend idempotency preventing duplicate financial operations on accidental double clicks. Action cards persist and visually transition into disabled `✓ Action appliquée` badges.
-- **AI Financial Writes Traceability & Undo Support (Zero F5) ↶🔄**: All assistant write actions (envelope creation, recurrence updates, transaction corrections, planned transfers) now record full before/after snapshots in `ActionHistory` for complete reversibility, automatically invalidate dashboard caches, and emit DOM `omnibank:data-changed` events for instantaneous zero-reload UI reactivity.
-- **Organisation Mode AI Action Security & Audit Traceability 🏢👥**: Enforced role-based access control and active user validation on `/api/chat/apply-action` when Organisation Mode is active, rejecting unauthorized or inactive requests with HTTP 403. Financial mutations cleanly tag `created_by` / `modified_by` on transactions and record operator identity in `ActionHistory`.
-- **Accurate Token Budgeting & Forced Synthesis Round 🧠⚡**: Integrated tools schema weight into context budgeting with calibrated ~3.2 chars/token ratio for French and JSON. If the multi-turn agentic loop reaches its iteration limit without text, a forced tool-free synthesis round triggers automatically, eliminating empty response errors on large models.
-- **Stream Disconnect Resilience & Bilingual Action Feedback 🛡️🌐**: Interrupted streams preserve partial reasoning and text in the conversation with explicit notice badges, and all action status and confirmation labels have been standardized across French and English dictionaries.
-- **Large Ollama Model (31B+) Support & Dynamic Context Budgeting 🧠⚡**: Full streaming support for large reasoning models (e.g. Gemma 4 31B, DeepSeek-R1) with native `thinking` token streaming and dynamic context budgeting reserving at least 3,500 tokens of generation headroom. Compacted analytical tool payloads (`get_recurrence_templates`, `get_budgets_status`) to prevent context window saturation and false connection errors.
-- **Collapsible AI Reasoning Details View (`💭 Phase de réflexion`) 💭🔽**: Cleanly isolated internal model reasoning into semantic HTML5 `<details>` blocks collapsed by default (open while streaming), eliminating placeholder leaks (`THINK_START`) and raw tags.
-- **Ollama Context Presets (64K & 128K) 🚀⚙️**: Added 64K and 128K quick-select buttons in *Settings > AI Assistant* to easily unlock larger context windows on capable hardware.
-- **Extended Streaming Timeouts ⏱️🛡️**: Increased reverse proxy read timeouts to 600s in Nginx to ensure uninterrupted long-context evaluations and cold model loads.
+- **AI Chat Background Generation Resilience & Reload Recovery 💬🔄🛡️**: Ollama generation is now decoupled from the client HTTP connection via independent background workers. Refreshing (<kbd>F5</kbd>), navigating away, or closing the tab no longer cancels generation; the assistant completes its reasoning and tools, saves the message, and delivers a completion notification. Reopening the session automatically polls and renders the response. Added an explicit conversational generation cancellation endpoint (`/stop`).
+- **Collapsible Thinking View & Stream Autoscroll Overhaul 💭🔽📜**: Model reasoning tokens (e.g. DeepSeek-R1) are neatly folded into a collapsible `<details>` disclosure collapsed by default for a clutter-free chat experience. Chat autoscroll remains firmly pinned during generation and seamlessly disengages upon upward scroll.
+- **AI Financial Writes Traceability & Complete Undo Support (Zero F5) ↶🔄**: Deterministic action IDs prevent duplicate operations from double clicks. All assistant mutations (envelopes, recurrences, transactions, planned transfers) record full snapshots in `ActionHistory` for complete reversibility, reactive cache invalidation, and zero-reload UI updates (`omnibank:data-changed`).
+- **Organisation Mode AI Security & Dynamic Token Budgeting 🏢👥🧠**: Enforced active user authorization and role checks on financial actions under Organisation Mode (HTTP 403 on invalid requests) with complete operator traceability. Dynamic context budgeting accounts for tool schema weight with 64K/128K presets and triggers an automatic forced tool-free synthesis round if iteration limits are reached.
 
 ### Fixed & Ergonomics
-- **Transaction Category Suggestion Label Preservation 🏷️✨**: Fixed an issue where requesting an AI category suggestion on a new or edited operation would overwrite the user's custom description with the suggested category name.
-- **Dashboard Skipped Operations Classification 📊🧹**: Resolved recurrence occurrences marked as skipped (`is_skipped`) now properly transition into the settled operations history instead of lingering in the upcoming/unreconciled operations block.
+- **Transaction Category Suggestion Label Preservation 🏷️✨**: Operation descriptions are no longer overwritten with the category name when requesting an AI category suggestion.
+- **Dashboard Skipped Operations Classification 📊🧹**: Recurrence occurrences marked as skipped (`is_skipped`) properly transition into settled history instead of lingering in upcoming operations.
 
 ## [1.2.6] - 2026-10-19
 
