@@ -75,6 +75,49 @@ def clean_and_prepare_e2e_db(mode="fresh"):
             else:
                 db.add(GlobalConfig(key=k, value=v))
         db.commit()
+
+        if mode == "chat_diff":
+            from datetime import date
+            # Comptes et catégories
+            acc = Account(id=1, name="Compte Courant Test", type="Compte courant", initial_balance=1500.0)
+            cat1 = Category(id=1, name="Alimentation", type="expense_var")
+            cat2 = Category(id=2, name="Loisirs", type="expense_var")
+            db.add_all([acc, cat1, cat2])
+            db.commit()
+
+            # Transaction initiale
+            tx = Transaction(
+                id=1,
+                from_account_id=1,
+                amount=54.20,
+                type="expense_var",
+                category="Alimentation",
+                description="Courses Supermarché",
+                date_operation=date(2026, 10, 15)
+            )
+            db.add(tx)
+
+            # Session de chat avec message proposant une action de correction
+            session = ChatSession(id=1, title="Audit Chat Diff E2E", role="advisor")
+            db.add(session)
+            db.commit()
+
+            action_content = (
+                "Voici l'ajustement que je vous recommande pour cette opération :\n\n"
+                "```action\n"
+                "{\n"
+                '  "action": "apply_transaction_correction",\n'
+                '  "params": {\n'
+                '    "transaction_id": 1,\n'
+                '    "category": "Loisirs",\n'
+                '    "amount": 75.0\n'
+                "  }\n"
+                "}\n"
+                "```"
+            )
+            msg = ChatMessage(id=1, session_id=1, role="assistant", content=action_content)
+            db.add(msg)
+            db.commit()
     finally:
         db.close()
 

@@ -17,7 +17,7 @@ from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notification
+from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notification, OrgUser
 from app.schemas.api_schemas import ChatSendMessage
 from app.services.chat.chat_compression import (
     estimate_tokens,
@@ -28,6 +28,7 @@ from app.services.chat.chat_prompt import load_system_prompt
 from app.services.chat.chat_snapshot import build_entity_snapshots
 from app.services.chat.chat_tools import (
     TOOLS,
+    get_tools_for_role,
     allocate_savings_funds_tool,
     apply_transaction_correction_tool,
     audit_transactions_integrity_tool,
@@ -210,17 +211,66 @@ WRITE_TOOLS = {
 }
 
 
+_ACTIONS_IN_FLIGHT: set = set()
+_ACTIONS_LOCK = threading.Lock()
+
+
 def execute_chat_action(
     db: Session,
     action: str,
     params: dict,
     message_id: Optional[int] = None,
-    action_id: Optional[str] = None
+    action_id: Optional[str] = None,
+    user_name: Optional[str] = None
 ) -> dict:
     """
     Exécute de manière transactionnelle une action interactive validée par l'utilisateur.
-    Garantit l'idempotence (anti-double application), la traçabilité et l'invalidation de cache.
+    Garantit l'idempotence (anti-double application, y compris requêtes concurrentes),
+    la traçabilité et l'invalidation de cache.
     """
+    if not (message_id and action_id):
+        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name)
+
+    key = (_resolve_profile_id(), message_id, action_id)
+    with _ACTIONS_LOCK:
+        if key in _ACTIONS_IN_FLIGHT:
+            logger.info(f"[Chat Action] Action {action_id} déjà en cours d'exécution (message {message_id}). Rejet concurrent.")
+            raise HTTPException(status_code=409, detail="Action déjà en cours d'exécution.")
+        _ACTIONS_IN_FLIGHT.add(key)
+    try:
+        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name)
+    finally:
+        with _ACTIONS_LOCK:
+            _ACTIONS_IN_FLIGHT.discard(key)
+
+
+def _execute_chat_action_unlocked(
+    db: Session,
+    action: str,
+    params: dict,
+    message_id: Optional[int] = None,
+    action_id: Optional[str] = None,
+    user_name: Optional[str] = None
+) -> dict:
+    # Validation du mode Organisation (audit point #9)
+    org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
+    is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+    if is_org_mode:
+        active_users = db.query(OrgUser).filter(OrgUser.is_active == True).all()
+        if active_users:
+            effective_user = (user_name or (params.get("user_name") if isinstance(params, dict) else None) or "").strip()
+            if not effective_user:
+                raise HTTPException(status_code=403, detail="Action non autorisée : veuillez sélectionner un utilisateur actif en mode Organisation.")
+            matched = next((u for u in active_users if u.name.strip().lower() == effective_user.lower()), None)
+            if not matched:
+                raise HTTPException(status_code=403, detail=f"Action non autorisée : l'utilisateur '{effective_user}' est inactif ou introuvable en mode Organisation.")
+            user_name = matched.name
+    elif not user_name and isinstance(params, dict):
+        user_name = params.get("user_name")
+
+    if user_name and isinstance(user_name, str):
+        user_name = user_name.strip() or None
+
     msg = None
     if message_id:
         msg = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
@@ -247,6 +297,7 @@ def execute_chat_action(
             categories=params.get("categories"),
             is_project=params.get("is_project", False),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "update_budget_envelope":
         res = update_budget_envelope_tool(
@@ -258,9 +309,16 @@ def execute_chat_action(
             categories=params.get("categories"),
             is_closed=params.get("is_closed"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "delete_budget_envelope":
-        res = delete_budget_envelope_tool(db, budget_id=params.get("budget_id"), name=params.get("name"), force_write=True)
+        res = delete_budget_envelope_tool(
+            db,
+            budget_id=params.get("budget_id"),
+            name=params.get("name"),
+            force_write=True,
+            user_name=user_name,
+        )
     elif action == "allocate_savings_funds":
         res = allocate_savings_funds_tool(
             db,
@@ -269,6 +327,7 @@ def execute_chat_action(
             note=params.get("note"),
             name=params.get("name"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "create_recurrence_template":
         res = create_recurrence_template_tool(
@@ -280,6 +339,7 @@ def execute_chat_action(
             type=params.get("type"),
             day_of_month=params.get("day_of_month"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "update_recurrence_template":
         res = update_recurrence_template_tool(
@@ -293,6 +353,7 @@ def execute_chat_action(
             day_of_month=params.get("day_of_month"),
             is_active=params.get("is_active"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "close_recurrence_template":
         res = close_recurrence_template_tool(
@@ -300,14 +361,32 @@ def execute_chat_action(
             template_id=params.get("template_id"),
             description=params.get("description"),
             closure_date=params.get("closure_date"),
-            force_write=True
+            force_write=True,
+            user_name=user_name,
         )
     elif action == "delete_recurrence_template":
-        res = delete_recurrence_template_tool(db, template_id=params.get("template_id"), description=params.get("description"), force_write=True)
+        res = delete_recurrence_template_tool(
+            db,
+            template_id=params.get("template_id"),
+            description=params.get("description"),
+            force_write=True,
+            user_name=user_name,
+        )
     elif action == "create_category":
-        res = create_category_tool(db, name=params.get("name"), type=params.get("type"), force_write=True)
+        res = create_category_tool(
+            db,
+            name=params.get("name"),
+            type=params.get("type"),
+            force_write=True,
+            user_name=user_name,
+        )
     elif action == "delete_category":
-        res = delete_category_tool(db, name=params.get("name"), force_write=True)
+        res = delete_category_tool(
+            db,
+            name=params.get("name"),
+            force_write=True,
+            user_name=user_name,
+        )
     elif action == "set_predicted_paycheck":
         res = set_predicted_paycheck_tool(
             db,
@@ -315,6 +394,7 @@ def execute_chat_action(
             day_of_month=params.get("day_of_month"),
             date_override=params.get("date_override"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "delete_transaction":
         res = delete_transaction_tool(
@@ -323,7 +403,8 @@ def execute_chat_action(
             description=params.get("description"),
             amount=params.get("amount"),
             date_operation=params.get("date_operation"),
-            force_write=True
+            force_write=True,
+            user_name=user_name,
         )
     elif action == "apply_transaction_correction":
         t_id = params.get("transaction_id") or params.get("id")
@@ -346,6 +427,7 @@ def execute_chat_action(
             type=ttype,
             date_operation=date_op,
             force_write=True,
+            user_name=user_name,
         )
     elif action == "create_planned_transfer":
         res = create_planned_transfer_tool(
@@ -356,6 +438,7 @@ def execute_chat_action(
             description=params.get("description"),
             date_operation=params.get("date_operation"),
             force_write=True,
+            user_name=user_name,
         )
     elif action == "trigger_bank_sync":
         res = trigger_bank_sync_tool(db, force_write=True)
@@ -366,7 +449,7 @@ def execute_chat_action(
             value=params.get("value"),
             private_to_session=params.get("private_to_session", False),
             session_id=params.get("session_id"),
-            user_name=params.get("user_name"),
+            user_name=user_name or params.get("user_name"),
         )
     elif action == "forget_financial_fact":
         res = forget_financial_fact_tool(
@@ -374,7 +457,7 @@ def execute_chat_action(
             key=params.get("key"),
             private_to_session=params.get("private_to_session", False),
             session_id=params.get("session_id"),
-            user_name=params.get("user_name"),
+            user_name=user_name or params.get("user_name"),
         )
     else:
         raise HTTPException(status_code=400, detail=f"Action '{action}' non reconnue")
@@ -511,7 +594,8 @@ async def generate_chat_stream(
     sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
     options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
 
-    tools_tokens = estimate_tokens(json.dumps(TOOLS))
+    session_tools = get_tools_for_role(session.role)
+    tools_tokens = estimate_tokens(json.dumps(session_tools))
     total_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
     if session.compressed_context:
         total_tokens += estimate_tokens(session.compressed_context)
@@ -551,6 +635,7 @@ async def generate_chat_stream(
     final_text = ""
     _response_saved = False
     _done_sent = False
+    error_yielded = False
     _client_disconnected = False
     _tools_meta = ""
     active_pid = _resolve_profile_id()
@@ -572,7 +657,7 @@ async def generate_chat_stream(
             ).order_by(ChatMessage.timestamp.asc()).all()
             ollama_msgs = build_ollama_payload(session, updated_messages)
 
-            tools_tokens_post = estimate_tokens(json.dumps(TOOLS))
+            tools_tokens_post = estimate_tokens(json.dumps(session_tools))
             used_post = estimate_tokens(sys_prompt) + tools_tokens_post + 500
             if session.compressed_context:
                 used_post += estimate_tokens(session.compressed_context)
@@ -751,11 +836,11 @@ async def generate_chat_stream(
             error_yielded = False
             while iteration < MAX_TOOL_ITERATIONS:
                 # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
-                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=TOOLS)
+                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=session_tools)
                 payload = {
                     "model": model,
                     "messages": budgeted_msgs,
-                    "tools": TOOLS,
+                    "tools": session_tools,
                     "stream": True,
                     "options": options,
                     "keep_alive": "30m",
@@ -1144,7 +1229,7 @@ async def generate_chat_stream(
             _response_saved = True
 
         final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
-        tools_tokens_final = estimate_tokens(json.dumps(TOOLS))
+        tools_tokens_final = estimate_tokens(json.dumps(session_tools))
         used_tokens = estimate_tokens(sys_prompt) + tools_tokens_final + 500
         if session.compressed_context:
             used_tokens += estimate_tokens(session.compressed_context)
@@ -1199,11 +1284,12 @@ async def generate_chat_stream(
                 snapshots = build_entity_snapshots(final_text, db, snap_y, snap_m)
                 snapshots_json = json.dumps(snapshots, ensure_ascii=False) if snapshots else None
                 clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
-                if not _done_sent:
+                if not _done_sent or error_yielded:
+                    # Marqueur de réponse incomplète (coupure Ollama, exception, ou déconnexion) pour permettre la relance
                     badge = (
-                        "\n\n*(⚠️ Réponse interrompue suite à une déconnexion)*"
+                        "\n\n*(⚠️ Réponse incomplète — génération interrompue. Vous pouvez relancer la question.)*"
                         if req.lang != "en" else
-                        "\n\n*(⚠️ Response interrupted due to disconnection)*"
+                        "\n\n*(⚠️ Incomplete response — generation was interrupted. You can retry the question.)*"
                     )
                     if badge not in clean_final_text:
                         clean_final_text += badge

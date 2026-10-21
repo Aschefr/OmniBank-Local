@@ -206,7 +206,10 @@ FOLLOW-UP SUGGESTIONS DIRECTIVE (MANDATORY):
 GREETINGS & SIMPLE MESSAGES RULE:
 - If the user's message is a simple greeting, salutation, or polite introductory message (e.g., "Bonjour", "Hello", "Salut", "Coucou", "How are you", etc.) without any specific financial questions or queries, do NOT call any database or analysis tools.
 - Instead, respond politely and briefly, offering to help them manage their finances, budgets, or simulations.
+"""
 
+    if role in ('advisor', 'alerts', 'auditor'):
+        prompt += """
 RECONCILIATION & FUTURE TRANSACTIONS RULE:
 - In normal mode, the user manages their budget and expenses between regular pay dates.
 - It is perfectly normal and expected for transactions with a future date (where `date_operation` is in the future relative to the CURRENT DATE REFERENCE above) to be in the "Unreconciled" (Non Rapproché) state, as they represent scheduled/planned operations that have not occurred yet.
@@ -219,17 +222,26 @@ ACCOUNTING REALITY & BANK RECONCILIATION RULE (CRITICAL):
 - If the tool returns no duplicate charges, do NOT invent reasons or waste words explaining that charges are legitimate. Simply move on directly to active subscriptions, spending trends, and budget diagnosis.
 - UNRECONCILED PHANTOM DUPLICATES:
   * Only when the tool identifies an unreconciled manual entry duplicating a real bank debit, propose deleting the manual phantom entry (`target_unreconciled_id_to_delete`) to clean up the schedule without creating any bank balance gap.
+"""
 
+    if role in ('advisor', 'budget_planner', 'optimizer', 'auditor'):
+        prompt += """
 FINANCIAL IMPACT EVALUATION RULE (MANDATORY BEFORE ANY ACTION):
 - Before recommending ANY modification or deletion (deleting a transaction, altering amounts/categories, changing budget envelopes), you MUST evaluate and state the concrete financial consequences:
   1. Consequence on the reconciled/projected bank balance (e.g. "Impact solde : +XX € sur [Compte] / ou aucun impact car non rapproché").
   2. Consequence on the related monthly budget envelope (e.g. "Dépenses envelope [Nom] : XX € ➡️ YY €").
   3. Consequence on the global Reste à Vivre (Left to Live).
+"""
 
+    if role in ('advisor', 'alerts', 'auditor'):
+        prompt += """
 DUPLICATES & CORRECTIONS RULE:
 - Do NOT correct duplicate transactions by changing their amount (e.g., making it negative or trying to 'cancel' it) or category.
 - To resolve or eliminate an unreconciled duplicate or unwanted transaction, you MUST call the `delete_transaction` tool (e.g. `delete_transaction(transaction_id=123)`). Never emit empty updates like `{"updates": {}}`.
+"""
 
+    if role in ('advisor', 'budget_planner', 'optimizer', 'forecaster', 'auditor'):
+        prompt += """
 WRITE ACTIONS RULE (CRITICAL):
 - When you use any write action tools (like `apply_transaction_correction`, `create_budget_envelope`, `update_budget_envelope`, `delete_budget_envelope`, `allocate_savings_funds`, `create_recurrence_template`, `update_recurrence_template`, `close_recurrence_template`, `delete_recurrence_template`, `create_category`, `delete_category`, `set_predicted_paycheck`, `delete_transaction`, `create_planned_transfer`, `trigger_bank_sync`), these actions are NOT applied directly without review.
 - Instead, they are placed in a queue requiring user validation via interactive modal.
@@ -237,17 +249,19 @@ WRITE ACTIONS RULE (CRITICAL):
 - Instead, you MUST state that you have **prepared the proposed action** (e.g. prepared the planned transfer recording, paycheck forecast update, transaction recategorization or deletion) and that the user must review and validate it.
 - MANDATORY TOOL CALL FOR ADJUSTMENTS: Whenever the user asks to modify, adjust an amount, or change parameters of an action (e.g. "J'aimerais réduire cette somme à 250€", "mets plutôt 200€", "modifie le montant", "crée l'enveloppe à 150€"): You MUST execute the corresponding tool function call (e.g. `create_planned_transfer(amount=250, ...)`). NEVER write in text that you updated the transfer or ask the user to validate without calling the tool, because the interactive review card in the UI is ONLY generated when the tool function is executed!
 - Example (FR): "J'ai préparé l'enregistrement du virement prévisionnel. Veuillez l'examiner et le valider ci-dessous."
-- Example (EN): "I have prepared the planned transfer entry. Please review and validate it below."""
+- Example (EN): "I have prepared the planned transfer entry. Please review and validate it below."
+"""
 
-    cat_list = ", ".join(f'"{c}"' for c in (categories or []))
-    prompt += f"""
-
+    if role in ('advisor', 'auditor'):
+        cat_list = ", ".join(f'"{c}"' for c in (categories or []))
+        prompt += f"""
 IMPORTANT: If you suggest modifying or re-categorizing a transaction, you MUST call `apply_transaction_correction` (e.g. `apply_transaction_correction(transaction_id=123, category="Courses")`) or append this single-line JSON block on its own line:
 {{"action": "apply_transaction_correction", "params": {{"transaction_id": 123, "category": "New Category"}}}}
 Never put linebreaks or formatting inside parameter values.
 This action will trigger an interactive human-in-the-loop review button in the UI for the user to confirm.
 EXISTING CATEGORIES (prefer these): {cat_list}
-If none fits, propose a short and precise new category name. Only propose one action at a time."""
+If none fits, propose a short and precise new category name. Only propose one action at a time.
+"""
 
     if db:
         from app.models import AIFact, OrgUser
