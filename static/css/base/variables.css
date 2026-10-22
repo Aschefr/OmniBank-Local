@@ -13,6 +13,7 @@
     --bg-sidebar: #ffffff;
     --text-main: #212b36;
     --text-muted: #637381;
+    --text-color: #212b36;
     --border-color: #dfe3e8;
     --border-subtle: rgba(0, 0, 0, 0.06);
     --bg-surface-hover: rgba(0, 0, 0, 0.025);
@@ -52,6 +53,7 @@ body.theme-dark {
     --bg-sidebar: #1c252e;
     --text-main: #f9fafb;
     --text-muted: #919eab;
+    --text-color: #f9fafb;
     --border-color: #333d48;
     --border-subtle: rgba(255, 255, 255, 0.07);
     --bg-surface-hover: rgba(255, 255, 255, 0.035);

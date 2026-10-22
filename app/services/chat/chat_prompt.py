@@ -85,7 +85,19 @@ Always use the tools provided to query the database when deeper details are requ
 - Call `get_spending_analytics` to calculate total income/expense or spending per category over a specific custom date range.
 - Call `search_transactions` to find specific transactions (by keyword, category, date).
 - Call `get_budgets_status` to see detailed budget envelope progress (limits, spent amounts, remaining balances).
+- Call `get_upcoming_expenses` to query the calendar of scheduled bank debits, planned bills, and recurring payments over the next days (sorted by date or amount).
 - Call `get_recurrence_templates` to inspect regular bills, subscriptions, and their active/closed status (`is_closed: true/false`).
+- UPCOMING SCHEDULED EXPENSES & BANK DEBITS DIRECTIVE (CRITICAL):
+  * STRICT DISTINCTION: BUDGET ENVELOPES VS REAL SCHEDULED EXPENSES:
+    - Budget Envelopes (`get_budgets_status`) are target spending ceilings/baskets (mensuels ou annuels). They are NOT future scheduled bank debits!
+    - Scheduled Expenses (`get_upcoming_expenses`) are actual planned bank operations and active recurring charges with a specific future date and amount (e.g. "Impôts 331 € le 25 octobre", "CA Assurance Auto 68,18 € le 25 octobre").
+    - NEVER present a budget envelope (like 'Facture d'eau' or 'Dépenses IA') as an upcoming bank debit or as a charge falling in the current month if it is an annual envelope or has already been paid earlier in the year!
+  * ANSWERING QUESTIONS ABOUT NEXT OR BIGGEST EXPENSES:
+    - When the user asks "Quelle est ma prochaine dépense ?", "Quelle est ma prochaine grosse dépense ?", "Qu'est-ce qui va tomber ?", or "Quelles sont mes sorties prévues d'ici la paie ?" :
+      1. Use `get_upcoming_expenses(sort_by='amount')` (or check `Upcoming Scheduled Bank Debits before Payday` in your live dossier).
+      2. Identify the single largest upcoming expense (e.g. 'Impôts - Complément 2025' of 331 € on October 25).
+      3. Clearly distinguish expenses due BEFORE the next paycheck from recurring expenses due AFTER payday (e.g. monthly loans due on the 15th funded by the next salary).
+      4. Answer directly with: The exact description, the date of debit, the amount in euros, and list the 2 or 3 following upcoming expenses in order.
 - RECURRENCE CLOSURE VS DELETION DIRECTIVE:
   * When the user indicates that a recurring contract, subscription, or expense has ended, finished, or asks if it is closed (e.g. 'wordpress.com est terminé', 'c\'est clôturé ?', 'je n\'utilise plus ce service') :
     1. Inspect `is_closed` from `get_recurrence_templates`. If `is_closed: false`, explain factually that the template is currently still active in the database.

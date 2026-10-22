@@ -168,8 +168,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 emoji: '📊',
                 name: window.i18n.t('chat_group_analysis_name') || 'Analyse & Soldes',
                 access: 'readonly',
-                desc: window.i18n.t('chat_group_analysis_desc') || 'Consultation en temps réel du reste à vivre, du patrimoine net global, des soldes de comptes bancaires et de l\'état d\'avancement des enveloppes budgétaires.',
-                tools: 'get_financial_summary, get_spending_trends, get_dashboard_synthesis, get_monthly_overview, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history, get_recent_transactions'
+                desc: window.i18n.t('chat_group_analysis_desc') || 'Consultation en temps réel du reste à vivre, du calendrier des dépenses à venir, du patrimoine net global, des soldes de comptes bancaires et de l\'état d\'avancement des enveloppes budgétaires.',
+                tools: 'get_financial_summary, get_upcoming_expenses, get_spending_trends, get_dashboard_synthesis, get_monthly_overview, get_net_worth, get_account_balances, get_spending_analytics, get_budgets_status, get_recurrence_templates, get_net_worth_history, get_recent_transactions'
             },
             {
                 emoji: '🔍',
@@ -861,6 +861,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     // Tool emoji map — shared by badges and info panel
     _toolEmojiMap: {
         'get_financial_summary': '💰',
+        'get_upcoming_expenses': '🗓️',
         'get_net_worth': '🏦',
         'get_account_balances': '💳',
         'search_transactions': '🔍',

@@ -21,6 +21,7 @@ from app.services.chat.tools.read_tools import (  # noqa: F401
     get_saving_recommendations_tool,
     get_spending_analytics_tool,
     get_spending_trends_tool,
+    get_upcoming_expenses_tool,
     get_application_knowledge_tool,
     search_similar_past_spends_tool,
     search_transactions_tool,
@@ -80,6 +81,30 @@ TOOLS = [
                     "one_off_amount": {"type": "number", "description": "Initial one-off expense or down payment."},
                     "recurring_monthly_amount": {"type": "number", "description": "Monthly recurring cost or loan repayment."},
                     "recurring_duration_months": {"type": "integer", "description": "Duration in months of the recurring monthly cost."}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_upcoming_expenses",
+            "description": "Get the unified list of all upcoming scheduled bank debits, bills, loan payments, and planned expenses over the next X days (default 30 days). Includes both scheduled bank operations already in the database (like tax complements or one-off planned bills) and projected recurring templates (loans, rent, subscriptions). Can sort by 'amount' (to identify the biggest upcoming expenses) or 'date' (chronological). ALWAYS use this tool when the user asks about their next upcoming expense(s), upcoming bills, or cash outflows before payday.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days ahead to look (e.g. 15, 30, 60). Default is 30."
+                    },
+                    "sort_by": {
+                        "type": "string",
+                        "description": "Sorting order: 'amount' (largest expenses first, ideal for 'quelle est ma plus grosse dépense') or 'date' (chronological order). Default is 'date'."
+                    },
+                    "min_amount": {
+                        "type": "number",
+                        "description": "Optional minimum amount filter in euros (e.g. 50 to see only significant expenses)."
+                    }
                 }
             }
         }
@@ -699,6 +724,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
         "detect_anomalies_and_subscriptions",
         "audit_transactions_integrity",
         "get_spending_trends",
+        "get_upcoming_expenses",
         "get_budgets_status",
         "search_transactions",
         "get_financial_summary",
@@ -712,6 +738,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
     "optimizer": [
         "detect_anomalies_and_subscriptions",
         "get_recurrence_templates",
+        "get_upcoming_expenses",
         "get_spending_trends",
         "search_similar_past_spends",
         "get_saving_recommendations",
@@ -729,6 +756,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
     "budget_planner": [
         "get_budgets_status",
         "get_spending_trends",
+        "get_upcoming_expenses",
         "get_monthly_overview",
         "get_spending_analytics",
         "create_budget_envelope",
@@ -745,6 +773,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
     ],
     "forecaster": [
         "forecast_balances_history",
+        "get_upcoming_expenses",
         "get_spending_trends",
         "get_recurrence_templates",
         "get_financial_summary",
@@ -760,6 +789,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
         "audit_transactions_integrity",
         "detect_anomalies_and_subscriptions",
         "search_transactions",
+        "get_upcoming_expenses",
         "apply_transaction_correction",
         "delete_transaction",
         "suggest_transaction_category",

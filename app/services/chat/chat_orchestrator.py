@@ -57,6 +57,7 @@ from app.services.chat.chat_tools import (
     get_saving_recommendations_tool,
     get_spending_analytics_tool,
     get_spending_trends_tool,
+    get_upcoming_expenses_tool,
     get_application_knowledge_tool,
     search_similar_past_spends_tool,
     search_transactions_tool,
@@ -705,6 +706,7 @@ async def _run_generation_task(
                 "get_spending_analytics": "Calcul des statistiques de dépenses...",
                 "get_budgets_status": "Vérification de l'état des budgets...",
                 "get_recurrence_templates": "Examen des charges récurrentes...",
+                "get_upcoming_expenses": "Consultation des prochaines dépenses et échéances prévues...",
                 "get_net_worth_history": "Analyse de l'historique du patrimoine...",
                 "get_envelopes_impact": "Simulation de l'impact sur vos enveloppes budgétaires...",
                 "suggest_transaction_category": "Recherche d'une suggestion de catégorie...",
@@ -743,6 +745,7 @@ async def _run_generation_task(
                 "get_spending_analytics": "Calculating spending statistics...",
                 "get_budgets_status": "Verifying budget envelopes...",
                 "get_recurrence_templates": "Checking recurring charges...",
+                "get_upcoming_expenses": "Fetching upcoming planned expenses and bills...",
                 "get_net_worth_history": "Analyzing net worth history...",
                 "get_envelopes_impact": "Simulating budget impact...",
                 "suggest_transaction_category": "Looking for category suggestion...",
@@ -840,7 +843,7 @@ async def _run_generation_task(
             _CACHEABLE_READ_TOOLS = {
                 "get_financial_summary", "get_net_worth", "get_account_balances",
                 "search_transactions", "get_spending_analytics", "get_budgets_status",
-                "get_monthly_overview", "get_recurrence_templates", "get_net_worth_history",
+                "get_monthly_overview", "get_recurrence_templates", "get_upcoming_expenses", "get_net_worth_history",
                 "get_saving_recommendations", "search_similar_past_spends",
                 "detect_anomalies_and_subscriptions", "get_spending_trends",
                 "get_dashboard_synthesis", "audit_transactions_integrity",
@@ -1016,6 +1019,14 @@ async def _run_generation_task(
                             tool_result = get_application_knowledge_tool(fn_args.get("topic"))
                         elif fn_name == "get_recurrence_templates":
                             tool_result = get_recurrence_templates_tool(db, fn_args.get("is_active"))
+                        elif fn_name == "get_upcoming_expenses":
+                            tool_result = get_upcoming_expenses_tool(
+                                db,
+                                days=fn_args.get("days", 30),
+                                min_amount=fn_args.get("min_amount"),
+                                sort_by=fn_args.get("sort_by", "date"),
+                                account_id=fn_args.get("account_id")
+                            )
                         elif fn_name == "get_saving_recommendations":
                             tool_result = get_saving_recommendations_tool(db)
                         elif fn_name == "search_similar_past_spends":
