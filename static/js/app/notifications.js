@@ -237,6 +237,31 @@ window.AppModules.notifications = {
                                     }
                                 }
                             }
+                    } else if (newUnread.some(n => n.type === 'chat_variant')) {
+                        const variantNotif = newUnread.find(n => n.type === 'chat_variant');
+                        let linkData = {};
+                        try {
+                            linkData = typeof variantNotif.link_data === 'string' ? JSON.parse(variantNotif.link_data) : (variantNotif.link_data || {});
+                        } catch (_) {}
+                        window.dispatchEvent(new CustomEvent('chat:variant_ready', { detail: linkData }));
+                        const variantToast = window.i18n ? window.i18n.t('chat_variant_ready_toast') || "Version optimisée prête ✨" : "Version optimisée prête ✨";
+                        showToast(variantToast, 'info', 5000, {
+                            action: {
+                                text: window.i18n ? window.i18n.t('chat_variant_switch_btn') || 'Afficher' : 'Afficher',
+                                callback: () => {
+                                    if (window.ChatView && linkData.session_id) {
+                                        window.location.hash = '#chat';
+                                        if (window.ChatView.activeSessionId !== linkData.session_id) {
+                                            window.ChatView.selectSession(linkData.session_id);
+                                        }
+                                        if (linkData.message_id && linkData.variant_index !== undefined) {
+                                            setTimeout(() => {
+                                                window.ChatView.switchMessageVariant(linkData.message_id, linkData.variant_index);
+                                            }, 300);
+                                        }
+                                    }
+                                }
+                            }
                         });
                     } else {
                         showToast(window.i18n ? window.i18n.t('notif_new_received') || "Nouvelle notification reçue" : "Nouvelle notification reçue", 'info');

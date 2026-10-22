@@ -6,7 +6,7 @@ import logging
 import calendar
 import statistics as _stats
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from collections import defaultdict
 from sqlalchemy.orm import Session
 
@@ -823,7 +823,18 @@ def forget_financial_fact_tool(db: Session, key: str, private_to_session: bool =
         return {"success": False, "ok": False, "error": str(e)}
 
 
-def create_planned_transfer_tool(db: Session, from_account: str, to_account: str, amount: float, description: str = None, date_operation: str = None, force_write: bool = False, user_name: Optional[str] = None) -> dict:
+def create_planned_transfer_tool(
+    db: Session,
+    from_account: str,
+    to_account: str,
+    amount: float,
+    description: str = None,
+    date_operation: str = None,
+    category: str = "Virement interne",
+    force_write: bool = False,
+    user_name: Optional[str] = None,
+    **kwargs: Any
+) -> dict:
     """
     Enregistre une opération de virement prévisionnelle entre deux comptes dans OmniBank.
     Cette action est purement locale à OmniBank pour actualiser les soldes prévisionnels et le Reste à Vivre.
@@ -833,6 +844,8 @@ def create_planned_transfer_tool(db: Session, from_account: str, to_account: str
     from app.services.history_service import record_action, snapshot_entity
     from datetime import date as dt_date, datetime as dt_datetime
     
+    cat = category or "Virement interne"
+
     if not force_write:
         return {
             "success": True,
@@ -841,7 +854,8 @@ def create_planned_transfer_tool(db: Session, from_account: str, to_account: str
             "to_account": to_account,
             "amount": float(amount),
             "description": description or f"Virement prévisionnel {from_account} -> {to_account}",
-            "date_operation": date_operation or dt_date.today().isoformat()
+            "date_operation": date_operation or dt_date.today().isoformat(),
+            "category": cat
         }
 
     def _find_acc(acc_identifier):
@@ -878,7 +892,7 @@ def create_planned_transfer_tool(db: Session, from_account: str, to_account: str
     tx = Transaction(
         amount=amt,
         type="transfer",
-        category="Virement interne",
+        category=cat,
         description=desc,
         date_operation=op_date,
         date_saisie=today,

@@ -316,10 +316,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             this.fetchFacts();
         }
 
-        this.userHasScrolledUp = false;
+        if (this.autoScrollEnabled) {
+            this.userHasScrolledUp = false;
+        }
         this.renderSidebarList();
         await this.loadMessages(isRestore);
-        this.scrollToBottom();
+        if (this.autoScrollEnabled && !isRestore) {
+            this.scrollToBottom();
+        }
+        this.updateAutoScrollUI?.();
     },
 
     async createNewSession() {

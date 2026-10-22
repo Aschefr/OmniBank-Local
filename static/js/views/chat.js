@@ -1570,6 +1570,89 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     color: var(--text-muted);
                     white-space: nowrap;
                 }
+
+                /* ── Auto-Scroll Toggle Switch ── */
+                .chat-autoscroll-container {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    user-select: none;
+                    font-size: 11.5px;
+                    font-weight: 500;
+                }
+                .chat-autoscroll-label {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 7px;
+                    cursor: pointer;
+                    margin: 0;
+                    color: var(--text-muted);
+                    transition: color 0.2s ease;
+                }
+                .chat-autoscroll-label:hover {
+                    color: var(--text-main);
+                }
+                .chat-autoscroll-switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 28px;
+                    height: 16px;
+                    flex-shrink: 0;
+                }
+                .chat-autoscroll-switch input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                    position: absolute;
+                    margin: 0;
+                }
+                .chat-autoscroll-slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: var(--border-color, rgba(128, 128, 128, 0.35));
+                    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+                    border-radius: 16px;
+                }
+                .chat-autoscroll-slider::before {
+                    position: absolute;
+                    content: "";
+                    height: 12px;
+                    width: 12px;
+                    left: 2px;
+                    bottom: 2px;
+                    background-color: #ffffff;
+                    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                    border-radius: 50%;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+                }
+                .chat-autoscroll-switch input:checked + .chat-autoscroll-slider {
+                    background-color: #10b981;
+                }
+                .chat-autoscroll-switch input:checked + .chat-autoscroll-slider::before {
+                    transform: translateX(12px);
+                }
+                .chat-autoscroll-container.debraye .chat-autoscroll-switch input:checked + .chat-autoscroll-slider {
+                    background-color: #f59e0b !important;
+                    box-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
+                }
+                .chat-autoscroll-container.debraye .chat-autoscroll-text {
+                    color: #f59e0b !important;
+                    font-weight: 600;
+                    cursor: pointer;
+                    text-decoration: underline dotted;
+                    text-underline-offset: 3px;
+                }
+                .chat-autoscroll-container.debraye .chat-autoscroll-text:hover {
+                    color: #d97706 !important;
+                }
+                .chat-autoscroll-container.disabled .chat-autoscroll-text {
+                    color: var(--text-muted);
+                    opacity: 0.75;
+                }
             </style>
 
             <div class="chat-wrapper">
@@ -1625,7 +1708,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         <span id="chatTimelineIndicatorText"></span>
                     </div>
 
-                    <div style="padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="padding: 12px 15px 10px 15px; border-top: 1px solid var(--border-color); background: var(--bg-sidebar); display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; gap: 10px;">
                             <textarea id="chatInput" class="inline-input" data-i18n-placeholder="chat_ph_message" placeholder="Posez une question sur vos finances..." 
                                 style="flex: 1; resize: none; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; min-height: 44px; max-height: 120px;" 
@@ -1640,14 +1723,28 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                                 ${window.i18n.t('chat_btn_send')}
                             </button>
                         </div>
-                        <!-- Compression Status -->
-                        <div id="chatCompressionStatus" style="display:none; font-size:11px; text-align:right; font-weight:500; color:#f59e0b;">
-                            <span style="display:inline-block; width:10px; height:10px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:4px;"></span>
-                            <span id="chatCompressionStatusText"></span>
-                        </div>
-                        <!-- Token Usage Indicator -->
-                        <div id="chatTokenIndicator" style="font-size: 11px; text-align: right; font-weight: 500; transition: color 0.3s ease;">
-                            <!-- Set dynamically -->
+                        <!-- Status Bar: AutoScroll on Left, Compression & Tokens on Right -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 18px; font-size: 11px;">
+                            <div id="chatAutoScrollContainer" class="chat-autoscroll-container" title="${window.i18n ? window.i18n.t('chat_autoscroll_tooltip_active') : 'Auto-scroll actif lors de la génération'}">
+                                <label class="chat-autoscroll-label" for="chatAutoScrollToggle">
+                                    <span class="chat-autoscroll-switch">
+                                        <input type="checkbox" id="chatAutoScrollToggle" checked onchange="window.ChatView.toggleAutoScroll(this.checked)">
+                                        <span class="chat-autoscroll-slider"></span>
+                                    </span>
+                                    <span id="chatAutoScrollText" class="chat-autoscroll-text" onclick="window.ChatView.onAutoScrollTextClick(event)">${window.i18n ? window.i18n.t('chat_autoscroll_active') : 'Auto-scroll'}</span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
+                                <!-- Compression Status -->
+                                <div id="chatCompressionStatus" style="display:none; font-size:11px; text-align:right; font-weight:500; color:#f59e0b;">
+                                    <span style="display:inline-block; width:10px; height:10px; border:2px solid #f59e0b; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:4px;"></span>
+                                    <span id="chatCompressionStatusText"></span>
+                                </div>
+                                <!-- Token Usage Indicator -->
+                                <div id="chatTokenIndicator" style="font-size: 11px; text-align: right; font-weight: 500; transition: color 0.3s ease;">
+                                    <!-- Set dynamically -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1815,8 +1912,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         // Register notify-on-complete if user hides tab or unloads during generation
         this._onChatVisibilityChange = () => {
-            if (document.hidden && this._activeAbortController && this.activeSessionId) {
+            if (document.hidden && this.isStreaming && this.activeSessionId) {
                 fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
+            } else if (!document.hidden && this.activeSessionId) {
+                fetch(`/api/chat/sessions/${this.activeSessionId}/cancel-notify-on-complete`, { method: 'POST' }).catch(() => {});
             }
         };
         document.addEventListener('visibilitychange', this._onChatVisibilityChange);
@@ -1824,7 +1923,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this._onChatBeforeUnload = () => {
             window._isPageUnloading = true;
             this._streamDetached = true;
-            if (this._activeAbortController && this.activeSessionId) {
+            if (this.isStreaming && this.activeSessionId) {
                 fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
             }
         };
@@ -1833,7 +1932,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this._onChatPageHide = () => {
             window._isPageUnloading = true;
             this._streamDetached = true;
-            if (this._activeAbortController && this.activeSessionId) {
+            if (this.isStreaming && this.activeSessionId) {
                 fetch(`/api/chat/sessions/${this.activeSessionId}/notify-on-complete`, { method: 'POST', keepalive: true }).catch(() => {});
             }
         };
@@ -1868,7 +1967,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     const vpHeight = window.visualViewport.height;
                     chatWrapper.style.height = `${Math.max(200, vpHeight - 65)}px`;
                     const messagesEl = document.getElementById('chatMessages');
-                    if (messagesEl) {
+                    if (messagesEl && !window.ChatView?.userHasScrolledUp && window.ChatView?.autoScrollEnabled !== false) {
                         messagesEl.scrollTop = messagesEl.scrollHeight;
                     }
                 }
@@ -1883,8 +1982,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             chatInput.addEventListener('focus', () => {
                 setTimeout(() => {
                     const messagesEl = document.getElementById('chatMessages');
-                    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
-                    chatInput.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                    if (messagesEl && !window.ChatView?.userHasScrolledUp && window.ChatView?.autoScrollEnabled !== false) {
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                        chatInput.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                    }
                 }, 300);
             });
         }

@@ -136,6 +136,14 @@ def register_notify_on_complete(session_id: int, db: Session, profile_id: Option
     return {"ok": True}
 
 
+def cancel_notify_on_complete(session_id: int, profile_id: Optional[str] = None) -> dict:
+    """Annule la demande de notification de fin de génération si l'utilisateur est revenu sur la vue."""
+    pid = _resolve_profile_id(profile_id)
+    key = (pid, session_id)
+    _notify_on_complete.discard(key)
+    return {"ok": True}
+
+
 def detect_mentioned_month_year(text: str, default_year: int, default_month: int) -> Tuple[int, int]:
     """
     Détecte les mentions de mois/années dans une question utilisateur ou une réponse.
@@ -1206,31 +1214,38 @@ async def _run_generation_task(
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
-            # Récupération proactive automatique d'actions promises
-            if not detected_write_actions and final_text:
+            # Récupération proactive automatique d'actions promises (support N-actions et actions manquantes)
+            if final_text:
                 try:
-                    from app.services.chat.chat_action_recovery import has_unemitted_promised_action, extract_unemitted_actions
-                    if has_unemitted_promised_action(final_text):
-                        logger.info("[Chat Auto-Recovery] Détection proactive d'actions promises sans appel d'outil")
-                        recovered = extract_unemitted_actions(
-                            final_text,
-                            db,
-                            target_period_override.get("year"),
-                            target_period_override.get("month")
-                        )
-                        if recovered:
-                            logger.info(f"[Chat Auto-Recovery] {len(recovered)} action(s) récupérée(s) avec succès")
-                            detected_write_actions.extend(recovered)
+                    from app.services.chat.chat_action_recovery import find_missing_promised_actions
+                    missing_actions = find_missing_promised_actions(
+                        final_text,
+                        db,
+                        existing_actions=detected_write_actions,
+                        target_year=target_period_override.get("year"),
+                        target_month=target_period_override.get("month")
+                    )
+                    if missing_actions:
+                        logger.info(f"[Chat Auto-Recovery] {len(missing_actions)} action(s) promise(s) manquante(s) récupérée(s)")
+                        detected_write_actions.extend(missing_actions)
                 except Exception as e:
                     logger.warning(f"[Chat Auto-Recovery] Erreur extraction proactive: {e}")
 
             if detected_write_actions:
-                action_str = ""
+                # N'émettre et concaténer que les actions qui ne sont pas déjà sérialisées dans final_text
+                actions_to_emit = []
                 for action in detected_write_actions:
-                    action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
-                if action_str:
-                    final_text += action_str
-                    await _emit(f"data: {json.dumps({'content': action_str})}\n\n")
+                    act_json = json.dumps(action, ensure_ascii=False)
+                    if act_json not in final_text:
+                        actions_to_emit.append(action)
+
+                if actions_to_emit:
+                    action_str = ""
+                    for action in actions_to_emit:
+                        action_str += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
+                    if action_str:
+                        final_text += action_str
+                        await _emit(f"data: {json.dumps({'content': action_str})}\n\n")
 
             clean_answer = re.sub(r'<think>.*?</think>', '', final_text, flags=re.DOTALL).strip()
             if not clean_answer and not error_yielded:
@@ -1262,9 +1277,43 @@ async def _run_generation_task(
             if snapshots:
                 await _emit(f"data: {json.dumps({'entity_snapshots': snapshots})}\n\n")
             clean_final_text = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', final_text)
-            bot_msg = ChatMessage(session_id=session_id, role="assistant", content=_tools_meta + clean_final_text, entity_snapshots=snapshots_json)
-            db.add(bot_msg)
-            db.commit()
+            new_content = _tools_meta + clean_final_text
+
+            target_msg = None
+            if getattr(req, "target_message_id", None):
+                target_msg = db.query(ChatMessage).filter(ChatMessage.id == req.target_message_id).first()
+
+            if target_msg:
+                # Ajout de la nouvelle variante tout en préservant l'historique de la réponse précédente
+                v_list = target_msg.get_variants_list()
+                v_list.append({
+                    "content": new_content,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "origin": "regenerated"
+                })
+                target_msg.variants = json.dumps(v_list, ensure_ascii=False)
+                target_msg.active_variant_index = len(v_list) - 1
+                target_msg.content = new_content
+                target_msg.entity_snapshots = snapshots_json
+                db.commit()
+                bot_msg = target_msg
+            else:
+                initial_v = [{
+                    "index": 0,
+                    "content": new_content,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "origin": "initial"
+                }]
+                bot_msg = ChatMessage(
+                    session_id=session_id,
+                    role="assistant",
+                    content=new_content,
+                    entity_snapshots=snapshots_json,
+                    variants=json.dumps(initial_v, ensure_ascii=False),
+                    active_variant_index=0
+                )
+                db.add(bot_msg)
+                db.commit()
             _response_saved = True
 
         final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
@@ -1295,8 +1344,22 @@ async def _run_generation_task(
                 daemon=True,
             ).start()
 
+        # Lancement asynchrone non-bloquant de l'audit critic / auto-correction
+        if bot_msg and bot_msg.id:
+            try:
+                from app.services.chat.chat_critic import should_critique, run_background_critic
+                if should_critique(bot_msg.content, bot_msg.role):
+                    threading.Thread(
+                        target=run_background_critic,
+                        args=(active_pid, session_id, bot_msg.id),
+                        daemon=True,
+                    ).start()
+            except Exception as e_crit:
+                logger.debug(f"[Chat] Erreur lancement critic background: {e_crit}")
+
         await _emit("data: [DONE]\n\n")
         _done_sent = True
+        status["stream_completed_normally"] = True
 
     except asyncio.CancelledError:
         logger.info(f"[Chat] Génération annulée pour session {session_id}")
@@ -1336,7 +1399,13 @@ async def _run_generation_task(
             except Exception as save_err:
                 logger.error(f"[Chat] Échec de sauvegarde de la réponse partielle : {save_err}")
 
-        should_notify = (session_key in _notify_on_complete) or status.get("client_disconnected")
+        # Une notification n'est envoyée que si le client s'est déconnecté prématurément avant la fin normale du flux
+        # (ex: F5, fermeture d'onglet, changement de vue) ou s'il a expressément demandé d'être notifié en quittant la vue
+        # et que le flux n'a pas pu être achevé en direct vers son navigateur.
+        should_notify = (
+            status.get("client_disconnected") or
+            ((session_key in _notify_on_complete) and not status.get("stream_completed_normally"))
+        )
         if should_notify and _response_saved:
             _notify_on_complete.discard(session_key)
             try:
@@ -1384,11 +1453,19 @@ async def generate_chat_stream(
     if not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
         raise HTTPException(status_code=400, detail="Ollama URL ou Modèle non configuré.")
 
-    # Enregistrer le message utilisateur immédiatement
-    user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
-    db.add(user_msg)
-    db.commit()
-    db.refresh(user_msg)
+    # Enregistrer le message utilisateur immédiatement (sauf si régénération ciblée où le message user existe déjà)
+    if not getattr(req, "target_message_id", None):
+        user_msg = ChatMessage(session_id=session_id, role="user", content=req.content)
+        db.add(user_msg)
+        db.commit()
+        db.refresh(user_msg)
+        user_msg_id = user_msg.id
+    else:
+        existing_user_msg = db.query(ChatMessage).filter(
+            ChatMessage.session_id == session_id,
+            ChatMessage.role == "user"
+        ).order_by(ChatMessage.timestamp.desc()).first()
+        user_msg_id = existing_user_msg.id if existing_user_msg else 0
 
     active_pid = _resolve_profile_id()
     session_key = (active_pid, session_id)
@@ -1404,7 +1481,7 @@ async def generate_chat_stream(
             queue=queue,
             status=status,
             active_pid=active_pid,
-            user_msg_id=user_msg.id,
+            user_msg_id=user_msg_id,
         )
     )
     _running_tasks[session_key] = task
@@ -1416,8 +1493,11 @@ async def generate_chat_stream(
                 break
             yield chunk
     except GeneratorExit:
-        status["client_disconnected"] = True
-        logger.info(f"[Chat] Client SSE déconnecté pour session {session_id} — la génération continue en tâche de fond pour notification")
+        if not status.get("stream_completed_normally"):
+            status["client_disconnected"] = True
+            logger.info(f"[Chat] Client SSE déconnecté prématurément pour session {session_id} — la génération continue en tâche de fond pour notification")
+        else:
+            logger.debug(f"[Chat] Clôture normale du flux SSE pour session {session_id}")
     except Exception as e:
         logger.error(f"[Chat] Erreur flux SSE pour session {session_id} : {e}")
 

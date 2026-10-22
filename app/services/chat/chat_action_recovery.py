@@ -21,8 +21,9 @@ from app.models import Account, Transaction, Budget, Category
 
 logger = logging.getLogger(__name__)
 
-# Patterns déclencheurs signalant une action promise
+# Patterns déclencheurs signalant une action promise (Français & Anglais)
 PROMISED_ACTION_PATTERNS = [
+    # Français
     re.compile(r"j'ai préparé (?:l'enregistrement|le virement|la modification|la création|la clôture|la cloture|la réactivation|la reactivation)", re.IGNORECASE),
     re.compile(r"veuillez l'examiner et le valider", re.IGNORECASE),
     re.compile(r"veuillez l'examiner et la valider", re.IGNORECASE),
@@ -34,13 +35,34 @@ PROMISED_ACTION_PATTERNS = [
     re.compile(r"propose d'enregistrer ce virement", re.IGNORECASE),
     re.compile(r"enregistrement d'un virement de précaution", re.IGNORECASE),
     re.compile(r"enregistrement de ce virement", re.IGNORECASE),
+    re.compile(r"j'ai également préparé l'enregistrement", re.IGNORECASE),
+    re.compile(r"je prépare également l'enregistrement", re.IGNORECASE),
+    re.compile(r"veuillez examiner les deux virement", re.IGNORECASE),
+    # English
+    re.compile(r"i have prepared (?:the recording|the transfer|the modification|the creation|the closure|the reactivation)", re.IGNORECASE),
+    re.compile(r"please review and validate", re.IGNORECASE),
+    re.compile(r"please review and confirm", re.IGNORECASE),
+    re.compile(r"please validate (?:this|these|the)", re.IGNORECASE),
+    re.compile(r"validate below", re.IGNORECASE),
+    re.compile(r"review and validate below", re.IGNORECASE),
+    re.compile(r"submitted for validation", re.IGNORECASE),
+    re.compile(r"propose to record this transfer", re.IGNORECASE),
+    re.compile(r"i also prepared the recording", re.IGNORECASE),
+    re.compile(r"i am also preparing the recording", re.IGNORECASE),
 ]
 
-FRENCH_MONTHS = {
+MONTH_NAMES = {
+    # Français
     'janvier': 1, 'février': 2, 'fevrier': 2, 'mars': 3, 'avril': 4,
     'mai': 5, 'juin': 6, 'juillet': 7, 'août': 8, 'aout': 8,
-    'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12, 'decembre': 12
+    'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12, 'decembre': 12,
+    # English
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12
 }
+# Alias rétrocompatible
+FRENCH_MONTHS = MONTH_NAMES
 
 
 def strip_accents(s: str) -> str:
@@ -49,17 +71,44 @@ def strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').lower().strip()
 
 
-def has_unemitted_promised_action(text: str) -> bool:
-    """Retourne True si le texte mentionne avoir préparé des actions sans bloc ```action déjà présent."""
-    if not text or "```action" in text:
+def extract_existing_action_blocks(text: str) -> List[Dict[str, Any]]:
+    """Extrait tous les blocs JSON ```action ... ``` ou ```json ... ``` déjà présents dans le texte."""
+    if not text:
+        return []
+    actions = []
+    for m in re.finditer(r'```(?:action|json)?\s*(\{[\s\S]*?\})\s*```', text):
+        try:
+            d = json.loads(m.group(1))
+            if isinstance(d, dict) and "action" in d:
+                actions.append(d)
+        except Exception:
+            pass
+    return actions
+
+
+def has_unemitted_promised_action(text: str, db: Optional[Session] = None) -> bool:
+    """
+    Retourne True si le texte mentionne avoir préparé des actions sans que l'ensemble
+    de ces actions n'ait été matérialisé par des blocs ```action associés.
+    Gère aussi bien l'absence totale d'action que le cas où 1 action sur 2 a été omise.
+    """
+    if not text:
         return False
-    # Vérifie si un bloc JSON d'action existe déjà
-    if '"action":' in text and ('"params":' in text or '"id":' in text):
+
+    if db is not None:
+        missing = find_missing_promised_actions(text, db)
+        return len(missing) > 0
+
+    # Heuristique textuelle rapide sans DB (ex: tests unitaires isolés)
+    existing_blocks = extract_existing_action_blocks(text)
+    promise_count = sum(1 for pat in PROMISED_ACTION_PATTERNS if pat.search(text))
+
+    if promise_count == 0:
         return False
-    for pat in PROMISED_ACTION_PATTERNS:
-        if pat.search(text):
-            return True
-    return False
+    if not existing_blocks:
+        return True
+
+    return promise_count > len(existing_blocks)
 
 
 def resolve_account_name(raw_name: str, accounts: List[Account]) -> str:
@@ -93,17 +142,27 @@ def resolve_account_name(raw_name: str, accounts: List[Account]) -> str:
 
 
 def parse_french_date(date_str: str, default_date: Optional[date] = None) -> str:
-    """Tente de parser une date en français (ex: '29 octobre 2026') en format ISO YYYY-MM-DD."""
+    """Tente de parser une date en français (ex: '29 octobre 2026', '30/10/2026') en format ISO YYYY-MM-DD."""
     if not date_str:
         return (default_date or date.today()).isoformat()
 
-    cleaned = strip_accents(date_str)
-    # Match: (le )?(\d{1,2}) (mois) (\d{4})
-    m = re.search(r'(\d{1,2})\s+([a-z]+)\s+(\d{4})', cleaned)
+    cleaned = strip_accents(date_str).strip('.,;:() ')
+
+    # 1. Match DD/MM/YYYY ou DD-MM-YYYY
+    m_fr = re.search(r'(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})', cleaned)
+    if m_fr:
+        d, mo, y = int(m_fr.group(1)), int(m_fr.group(2)), int(m_fr.group(3))
+        try:
+            return date(y, mo, d).isoformat()
+        except ValueError:
+            pass
+
+    # 2. Match (le )?(\d{1,2}) (mois) (\d{4})?
+    m = re.search(r'(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?', cleaned)
     if m:
         day = int(m.group(1))
         month_name = m.group(2)
-        year = int(m.group(3))
+        year = int(m.group(3)) if m.group(3) else (default_date or date.today()).year
         month = FRENCH_MONTHS.get(month_name)
         if month:
             try:
@@ -111,7 +170,7 @@ def parse_french_date(date_str: str, default_date: Optional[date] = None) -> str
             except ValueError:
                 pass
 
-    # Match YYYY-MM-DD
+    # 3. Match YYYY-MM-DD
     m_iso = re.search(r'(\d{4})-(\d{2})-(\d{2})', date_str)
     if m_iso:
         return m_iso.group(0)
@@ -138,65 +197,75 @@ def extract_unemitted_actions(
     today = date.today()
 
     # ── 1. Extraction des Virements Prévisionnels ──────────────────────────────
-    # Pattern couvrant:
+    # Pattern 1 : formulation standard
     # "virement de précaution de 310 EUR de votre Épargne disponible vers votre compte courant."
     # "virement de retour de 250 EUR de CA Centre-Est vers Livret A, à planifier le 29 octobre 2026."
-    transfer_pattern = re.compile(
-        r'virement\s+(?:de\s+[a-zéèêûôîà\-]+\s+)?de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?(?:\*\*)?\s+(?:de|depuis)\s+(?:votre\s+)?([^,.:\n]+?)\s+vers\s+(?:votre\s+)?([^,.:\n]+)(?:,\s*(?:à\s+planifier|programmé|prévu)?\s*(?:pour\s+)?le\s+([^,.:\n()]+))?.*?(?:[\.\n]|$)',
+    p1 = re.compile(
+        r'virement\s+(?:[a-zéèêûôîà\-]+\s+)?(?:de\s+[a-zéèêûôîà\-]+\s+)?de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?(?:\*\*)?\s+(?:de|depuis)\s+(?:votre\s+)?([^,.:\n()]+?)\s+vers\s+(?:votre\s+)?([^,.:\n()]+)(?:,\s*(?:à\s+planifier|programmé|prévu)?\s*(?:pour\s+)?le\s+([^,.:\n()]+))?.*?(?:[\.\n]|$)',
+        re.IGNORECASE
+    )
+
+    # Pattern 2 : formulation condensée / parenthésée
+    # "virement prévisionnel de 366 € (Livret A -> Compte Courant)"
+    # "virement de reconstitution de 366 € (Compte Courant -> Livret A) pour le 30/10/2026"
+    p2 = re.compile(
+        r'virement\s+(?:[a-zéèêûôîà\-]+\s+)?(?:de\s+[a-zéèêûôîà\-]+\s+)?de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?(?:\*\*)?\s*\(\s*(?:votre\s+)?([^,.:\n()]+?)\s*(?:->|vers)\s*(?:votre\s+)?([^,.:\n()]+?)\s*\)(?:[^\n.]*?(?:pour\s+le|le|au)\s+([0-9a-zéèêûôîà/.\-]+))?',
         re.IGNORECASE
     )
 
     seen_transfers = set()
-    for m in transfer_pattern.finditer(text):
-        before = text[max(0, m.start() - 60):m.start()].lower()
-        if any(p in before for p in ('nous avons enregistré', 'nous avions enregistré', 'suite au', 'suite à', 'déjà effectué', 'déjà enregistré')):
-            continue
+    for transfer_pattern in (p1, p2):
+        for m in transfer_pattern.finditer(text):
+            before = text[max(0, m.start() - 60):m.start()].lower()
+            if any(p in before for p in ('nous avons enregistré', 'nous avions enregistré', 'suite au', 'suite à', 'déjà effectué', 'déjà enregistré')):
+                continue
 
-        amt_str, from_raw, to_raw, date_raw = m.groups()
-        try:
-            amt = float(amt_str.replace(',', '.'))
-        except ValueError:
-            continue
+            amt_str, from_raw, to_raw, date_raw = m.groups()
+            try:
+                amt = float(amt_str.replace(',', '.'))
+            except ValueError:
+                continue
 
-        if amt <= 0:
-            continue
+            if amt <= 0:
+                continue
 
-        from_acc = resolve_account_name(from_raw, accounts)
-        to_acc = resolve_account_name(to_raw, accounts)
+            from_acc = resolve_account_name(from_raw, accounts)
+            to_acc = resolve_account_name(to_raw, accounts)
 
-        # Si les deux comptes résolus sont identiques, éviter l'auto-virement incohérent
-        if from_acc.lower() == to_acc.lower() and len(accounts) >= 2:
-            # Tenter d'inverser avec compte d'épargne ou courant disponible
-            for a in accounts:
-                if a.name != from_acc:
-                    to_acc = a.name
-                    break
+            # Si les deux comptes résolus sont identiques, éviter l'auto-virement incohérent
+            if from_acc.lower() == to_acc.lower() and len(accounts) >= 2:
+                # Tenter d'inverser avec compte d'épargne ou courant disponible
+                for a in accounts:
+                    if a.name != from_acc:
+                        to_acc = a.name
+                        break
 
-        dt_iso = parse_french_date(date_raw, default_date=today)
+            dt_iso = parse_french_date(date_raw, default_date=today)
 
-        # Description claire
-        desc = "Virement prévisionnel"
-        if any(w in m.group(0).lower() for w in ("reconstitution", "retour")):
-            desc = f"Reconstitution épargne {from_acc} -> {to_acc}"
-        elif "précaution" in m.group(0).lower() or "precaution" in m.group(0).lower():
-            desc = f"Virement de précaution {from_acc} -> {to_acc}"
-        else:
-            desc = f"Virement interne {from_acc} -> {to_acc}"
+            # Description claire
+            desc = "Virement prévisionnel"
+            matched_text = m.group(0).lower()
+            if any(w in matched_text for w in ("reconstitution", "retour")):
+                desc = f"Reconstitution épargne {from_acc} -> {to_acc}"
+            elif "précaution" in matched_text or "precaution" in matched_text:
+                desc = f"Virement de précaution {from_acc} -> {to_acc}"
+            else:
+                desc = f"Virement interne {from_acc} -> {to_acc}"
 
-        transfer_key = (round(amt, 2), from_acc.lower(), to_acc.lower(), dt_iso)
-        if transfer_key not in seen_transfers:
-            seen_transfers.add(transfer_key)
-            actions.append({
-                "action": "create_planned_transfer",
-                "params": {
-                    "from_account": from_acc,
-                    "to_account": to_acc,
-                    "amount": round(amt, 2),
-                    "description": desc,
-                    "date_operation": dt_iso,
-                    "category": "Virement interne"
-                }
-            })
+            transfer_key = (round(amt, 2), from_acc.lower(), to_acc.lower(), dt_iso)
+            if transfer_key not in seen_transfers:
+                seen_transfers.add(transfer_key)
+                actions.append({
+                    "action": "create_planned_transfer",
+                    "params": {
+                        "from_account": from_acc,
+                        "to_account": to_acc,
+                        "amount": round(amt, 2),
+                        "description": desc,
+                        "date_operation": dt_iso,
+                        "category": "Virement interne"
+                    }
+                })
 
     # ── 2. Extraction des Corrections d'Opérations (#ID ou transaction) ───────
     # Ex: "corriger l'opération #3355 en catégorie Automobile" ou "modifier la transaction #123"
@@ -270,6 +339,89 @@ def extract_unemitted_actions(
 
     logger.debug(f"[Chat Action Recovery] {len(actions)} action(s) extraite(s) depuis le texte.")
     return actions
+
+
+def find_missing_promised_actions(
+    text: str,
+    db: Session,
+    existing_actions: Optional[List[Dict[str, Any]]] = None,
+    target_year: Optional[int] = None,
+    target_month: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """
+    Compare l'ensemble des actions promises dans le texte avec les actions déjà existantes
+    (soit passées en paramètre, soit extraites des blocs ```action du texte).
+    Retourne la liste des actions promises qui ne sont pas encore matérialisées.
+    Supporte 1, 2, 3 ou N actions sans limite.
+    """
+    if not text:
+        return []
+
+    # 1. Collecter les actions déjà émises / existantes
+    known_actions: List[Dict[str, Any]] = []
+    if existing_actions:
+        known_actions.extend(existing_actions)
+    known_actions.extend(extract_existing_action_blocks(text))
+
+    # 2. Extraire toutes les actions promises dans le texte
+    candidates = extract_unemitted_actions(text, db, target_year=target_year, target_month=target_month)
+    if not candidates:
+        return []
+    if not known_actions:
+        return candidates
+
+    accounts = db.query(Account).all()
+
+    # 3. Filtrer les candidats qui correspondent déjà à une action existante
+    missing: List[Dict[str, Any]] = []
+    for cand in candidates:
+        cand_action = cand.get("action")
+        cand_params = cand.get("params", {})
+        is_matched = False
+
+        for ex in known_actions:
+            ex_action = ex.get("action")
+            ex_params = ex.get("params", {})
+            if ex_action != cand_action:
+                continue
+
+            if cand_action == "create_planned_transfer":
+                c_amt = round(float(cand_params.get("amount") or 0), 2)
+                e_amt = round(float(ex_params.get("amount") or 0), 2)
+                c_from = resolve_account_name(cand_params.get("from_account", ""), accounts).lower()
+                e_from = resolve_account_name(ex_params.get("from_account", ""), accounts).lower()
+                c_to = resolve_account_name(cand_params.get("to_account", ""), accounts).lower()
+                e_to = resolve_account_name(ex_params.get("to_account", ""), accounts).lower()
+
+                if c_amt == e_amt and c_from == e_from and c_to == e_to:
+                    is_matched = True
+                    break
+
+            elif cand_action in ("apply_transaction_correction", "delete_transaction"):
+                if str(cand_params.get("transaction_id")) == str(ex_params.get("transaction_id")):
+                    is_matched = True
+                    break
+
+            elif cand_action in ("close_recurrence_template", "update_recurrence_template", "delete_recurrence_template"):
+                if str(cand_params.get("template_id")) == str(ex_params.get("template_id")):
+                    is_matched = True
+                    break
+
+            elif cand_action in ("update_budget_envelope", "delete_budget_envelope"):
+                if (cand_params.get("budget_id") and str(cand_params.get("budget_id")) == str(ex_params.get("budget_id"))) or (
+                    cand_params.get("name") and strip_accents(cand_params.get("name")) == strip_accents(ex_params.get("name"))
+                ):
+                    is_matched = True
+                    break
+            else:
+                if cand_params == ex_params:
+                    is_matched = True
+                    break
+
+        if not is_matched:
+            missing.append(cand)
+
+    return missing
 
 
 def append_actions_to_text(text: str, actions: List[Dict[str, Any]]) -> str:

@@ -20,6 +20,7 @@ from app.schemas.api_schemas import (
     AIFactOut,
     ChatContextUpdate,
     ChatMessageUpdate,
+    ChatMessageVariantSwitch,
     ChatRegenerateContext,
     ChatSendMessage,
     ChatSessionCreate,
@@ -52,6 +53,7 @@ from app.services.chat.chat_orchestrator import (  # noqa: F401
     generate_chat_stream,
     is_session_generating,
     register_notify_on_complete,
+    cancel_notify_on_complete,
     stop_session_generation,
 )
 
@@ -204,6 +206,12 @@ async def notify_on_complete_endpoint(id: int, db: Session = Depends(get_db)):
     return register_notify_on_complete(id, db)
 
 
+@router.post("/sessions/{id}/cancel-notify-on-complete")
+async def cancel_notify_on_complete_endpoint(id: int):
+    """Annule la demande de notification si l'utilisateur est revenu sur la vue du chat."""
+    return cancel_notify_on_complete(id)
+
+
 @router.post("/sessions/{id}/stop")
 async def stop_generation_endpoint(id: int):
     """Arrête immédiatement la génération IA en cours pour cette session."""
@@ -250,6 +258,8 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
             "timestamp": m.timestamp.isoformat() if m.timestamp else None,
             "entity_snapshots": json.loads(m.entity_snapshots) if m.entity_snapshots else None,
             "applied_actions": json.loads(m.applied_actions) if m.applied_actions else [],
+            "variants": m.get_variants_list() if m.variants else None,
+            "active_variant_index": m.active_variant_index or 0,
         } for m in messages],
         "token_usage": {
             "used": used,
@@ -365,10 +375,10 @@ async def recover_message_actions(id: int, db: Session = Depends(get_db)):
     if message.role != "assistant":
         raise HTTPException(status_code=400, detail="Seuls les messages de l'assistant peuvent être analysés")
 
-    from app.services.chat.chat_action_recovery import extract_unemitted_actions, append_actions_to_text
-    actions = extract_unemitted_actions(message.content, db)
+    from app.services.chat.chat_action_recovery import find_missing_promised_actions, append_actions_to_text
+    actions = find_missing_promised_actions(message.content, db)
     if not actions:
-        return {"ok": False, "message": "Aucune action exploitable n'a été trouvée dans ce message.", "actions": []}
+        return {"ok": False, "message": "Toutes les actions promises sont déjà présentes ou aucune action exploitable n'a été trouvée.", "actions": []}
 
     new_content = append_actions_to_text(message.content, actions)
     message.content = new_content
@@ -440,24 +450,76 @@ async def send_message(id: int, req: ChatSendMessage, request: Request = None, d
 
 @router.post("/sessions/{id}/regenerate")
 async def regenerate_response(id: int, request: Request = None, db: Session = Depends(get_db)):
+    """Régénère la dernière réponse de l'assistant sous forme d'une nouvelle variante sans perdre l'ancienne."""
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
 
-    last_msg = db.query(ChatMessage).filter(ChatMessage.session_id == id).order_by(ChatMessage.timestamp.desc()).first()
-    if last_msg and last_msg.role == "assistant":
-        db.delete(last_msg)
-        db.commit()
+    last_assistant_msg = db.query(ChatMessage).filter(
+        ChatMessage.session_id == id,
+        ChatMessage.role == "assistant"
+    ).order_by(ChatMessage.timestamp.desc()).first()
 
-    last_user_msg = db.query(ChatMessage).filter(ChatMessage.session_id == id, ChatMessage.role == "user").order_by(ChatMessage.timestamp.desc()).first()
+    last_user_msg = db.query(ChatMessage).filter(
+        ChatMessage.session_id == id,
+        ChatMessage.role == "user"
+    ).order_by(ChatMessage.timestamp.desc()).first()
     if not last_user_msg:
         raise HTTPException(status_code=400, detail="Aucun message utilisateur à régénérer")
 
-    req = ChatSendMessage(content=last_user_msg.content)
-    db.delete(last_user_msg)
+    # Cibler le message assistant existant pour créer une variante v2, v3... sans supprimer l'historique
+    target_id = last_assistant_msg.id if last_assistant_msg else None
+    req = ChatSendMessage(content=last_user_msg.content, target_message_id=target_id)
+    return await send_message(id, req, request=request, db=db)
+
+
+@router.patch("/messages/{id}/variant")
+async def switch_message_variant(id: int, req: ChatMessageVariantSwitch, db: Session = Depends(get_db)):
+    """Bascule la variante active d'un message assistant et synchronise son contenu affiché."""
+    message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message non trouvé")
+    if not message.set_active_variant(req.variant_index):
+        raise HTTPException(status_code=400, detail="Index de variante invalide")
+    db.commit()
+    return {
+        "ok": True,
+        "message_id": message.id,
+        "active_variant_index": message.active_variant_index,
+        "content": message.content
+    }
+
+
+@router.delete("/messages/{id}/variants/{index}")
+async def delete_message_variant(id: int, index: int, db: Session = Depends(get_db)):
+    """Supprime une variante spécifique d'un message assistant (si au moins 2 variantes existent)."""
+    message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message non trouvé")
+
+    v_list = message.get_variants_list()
+    if len(v_list) <= 1:
+        raise HTTPException(status_code=400, detail="Impossible de supprimer la seule version existante")
+    if not (0 <= index < len(v_list)):
+        raise HTTPException(status_code=400, detail="Index de variante invalide")
+
+    v_list.pop(index)
+    message.variants = json.dumps(v_list, ensure_ascii=False)
+    new_active = message.active_variant_index
+    if new_active >= len(v_list):
+        new_active = len(v_list) - 1
+    elif new_active > index:
+        new_active -= 1
+    message.set_active_variant(new_active)
     db.commit()
 
-    return await send_message(id, req, request=request, db=db)
+    return {
+        "ok": True,
+        "message_id": message.id,
+        "active_variant_index": message.active_variant_index,
+        "content": message.content,
+        "variants_count": len(v_list)
+    }
 
 
 @router.put("/messages/{id}")

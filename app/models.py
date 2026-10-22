@@ -220,8 +220,36 @@ class ChatMessage(Base):
     timestamp = Column(DateTime, default=_utcnow)
     entity_snapshots = Column(Text, nullable=True)  # JSON: {type:name -> {type,id,name,snapshot_year,snapshot_month,...}}
     applied_actions = Column(Text, nullable=True)   # JSON: list of executed action IDs, e.g. ["act_12_0"]
+    variants = Column(Text, nullable=True)          # JSON list: [{"content": "...", "timestamp": "...", "origin": "initial|regenerated|auto_correction"}]
+    active_variant_index = Column(Integer, default=0, nullable=False)
 
     session = relationship("ChatSession", back_populates="messages")
+
+    def get_variants_list(self) -> list:
+        """Retourne la liste structurée des variantes du message (ou 1 variante initiale si non défini)."""
+        if self.variants:
+            try:
+                import json
+                data = json.loads(self.variants)
+                if isinstance(data, list) and len(data) > 0:
+                    return data
+            except Exception:
+                pass
+        return [{
+            "content": self.content or "",
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "origin": "initial"
+        }]
+
+    def set_active_variant(self, index: int) -> bool:
+        """Bascule la variante active et met à jour content en miroir direct."""
+        v_list = self.get_variants_list()
+        if 0 <= index < len(v_list):
+            self.active_variant_index = index
+            self.content = v_list[index].get("content", self.content)
+            return True
+        return False
+
 
 
 class Notification(Base):

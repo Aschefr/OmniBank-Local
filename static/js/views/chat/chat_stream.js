@@ -24,11 +24,25 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (!this.activeSessionId) return;
         this.userHasScrolledUp = false; // Reset scroll lock on user action
 
-        // Set last AI message bubble to typing indicator
+        // Set last AI message bubble to typing indicator while preserving previous versions
         const aiMsgIndex = this.messages.length - 1;
         if (aiMsgIndex >= 0 && this.messages[aiMsgIndex].role === 'assistant') {
-            this.messages[aiMsgIndex].content = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-            this.messages[aiMsgIndex]._streaming = true;
+            const aiMsg = this.messages[aiMsgIndex];
+            if (!aiMsg.variants || aiMsg.variants.length === 0) {
+                aiMsg.variants = [{
+                    content: aiMsg.content,
+                    timestamp: aiMsg.timestamp,
+                    origin: 'initial'
+                }];
+            }
+            aiMsg.variants.push({
+                content: '<div class="typing-indicator"><span></span><span></span><span></span></div>',
+                timestamp: new Date().toISOString(),
+                origin: 'regenerated'
+            });
+            aiMsg.active_variant_index = aiMsg.variants.length - 1;
+            aiMsg.content = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            aiMsg._streaming = true;
             this.renderHistory();
         }
 
@@ -290,7 +304,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
     async sendMessage() {
         if (!this.activeSessionId) return;
-        this.userHasScrolledUp = false;
+        if (this.autoScrollEnabled) {
+            this.userHasScrolledUp = false;
+        }
+        this.updateAutoScrollUI?.();
 
         const input = document.getElementById('chatInput');
         const text = input.value.trim();
@@ -362,6 +379,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
                 window.dispatchEvent(new CustomEvent('notifications-updated'));
             } else {
+                if (this.activeSessionId) {
+                    fetch(`/api/chat/sessions/${this.activeSessionId}/cancel-notify-on-complete`, { method: 'POST' }).catch(() => {});
+                }
                 const sendBtnF = document.getElementById('chatSendBtn');
                 const inputF = document.getElementById('chatInput');
                 if (sendBtnF) { sendBtnF.disabled = false; sendBtnF.classList.remove('btn-stop'); sendBtnF.textContent = window.i18n.t('chat_btn_send'); sendBtnF.onclick = () => this.sendMessage(); }
@@ -544,7 +564,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     this.renderMath();
                 }
 
-                if (!this.userHasScrolledUp) {
+                if (!this.userHasScrolledUp && this.autoScrollEnabled) {
                     this.scrollToBottom();
                 }
                 this.updateTokenUsageIndicator();
