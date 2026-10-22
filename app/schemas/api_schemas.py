@@ -211,10 +211,14 @@ class ChatSendMessage(BaseModel):
     lang: str = "fr"
     role: Optional[str] = None
     update_last_assistant: Optional[bool] = False
+    target_message_id: Optional[int] = None
     user_name: Optional[str] = None
 
 class ChatMessageUpdate(BaseModel):
     content: str
+
+class ChatMessageVariantSwitch(BaseModel):
+    variant_index: int
 
 
 # Phase 9: Org Users
