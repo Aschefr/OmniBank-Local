@@ -466,5 +466,52 @@ def test_close_recurrence_template_tool(db_session):
     assert 63 not in active_ids
 
 
+def test_get_upcoming_expenses_tool(db_session):
+    """Vérifie que get_upcoming_expenses_tool retourne les transactions futures et identifie la plus grosse dépense."""
+    from app.services.chat.tools.read_tools import get_upcoming_expenses_tool
+    from app.models import Transaction, RecurrenceTemplate
+    from datetime import date, timedelta
 
+    today = date.today()
+    # Créer 2 transactions futures non rapprochées
+    tx_small = Transaction(
+        id=901,
+        date_operation=today + timedelta(days=2),
+        description="Assurance Habitation",
+        amount=48.0,
+        type="expense_fixed",
+        from_account_id=1,
+        reconciliation_date=None
+    )
+    tx_big = Transaction(
+        id=902,
+        date_operation=today + timedelta(days=5),
+        description="Complément Impôts",
+        amount=331.0,
+        type="expense_var",
+        from_account_id=1,
+        reconciliation_date=None
+    )
+    tx_after_pay = Transaction(
+        id=903,
+        date_operation=today + timedelta(days=25),
+        description="Prêt Immobilier",
+        amount=500.0,
+        type="expense_fixed",
+        from_account_id=1,
+        reconciliation_date=None
+    )
+    db_session.add_all([tx_small, tx_big, tx_after_pay])
+    db_session.commit()
 
+    res = get_upcoming_expenses_tool(db_session, days=30, sort_by="amount")
+    assert "summary" in res
+    assert res["summary"]["total_upcoming_expenses_count"] >= 3
+    assert res["summary"]["biggest_upcoming_expense_overall"] is not None
+    assert res["summary"]["biggest_upcoming_expense_overall"]["amount"] == 800.0
+    assert any(x["description"] == "Complément Impôts" for x in res["all_upcoming_expenses"])
+
+    # Vérifier le tri chronologique
+    res_date = get_upcoming_expenses_tool(db_session, days=30, sort_by="date")
+    dates = [x["date"] for x in res_date["all_upcoming_expenses"]]
+    assert dates == sorted(dates)

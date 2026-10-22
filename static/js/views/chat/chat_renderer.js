@@ -1359,14 +1359,19 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 pct = budget?.percent || (limit > 0 ? (spent / limit * 100) : 0);
                 remaining = budget?.balance !== undefined ? budget.balance : (limit - spent);
 
+                const isYearly = (budget?.period === 'yearly') || (snapshot?.period === 'yearly');
                 try {
-                    const txs = await API.get(`/api/budgets/${budgetId || budget?.id}/transactions?year=${y}&month=${m}`);
+                    const txUrl = isYearly
+                        ? `/api/budgets/${budgetId || budget?.id}/transactions?year=${y}`
+                        : `/api/budgets/${budgetId || budget?.id}/transactions?year=${y}&month=${m}`;
+                    const txs = await API.get(txUrl);
                     if (txs && txs.length > 0) {
                         recent3 = txs.slice(0, 3);
                     }
                 } catch (e) {}
             }
 
+            const isYearly = (budget?.period === 'yearly') || (snapshot?.period === 'yearly');
             const isFuture = snapshot?.is_future || (y > now.getFullYear() || (y === now.getFullYear() && m > (now.getMonth() + 1)));
 
             let barColor = '#10b981';
@@ -1394,12 +1399,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
             const snapshotBadge = isHistorical ? `
                 <span title="${isFuture ? 'Projection prévisionnelle pour cette période future' : 'Données enregistrées lors de cette réponse'}" style="font-size:10px; padding:2px 6px; border-radius:4px; background:${isFuture ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.08)'}; color:${isFuture ? '#c084fc' : 'var(--text-muted)'}; font-weight:600; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0; border:1px solid ${isFuture ? 'rgba(192,132,252,0.3)' : 'transparent'};">
-                    <span>${isFuture ? '🔮' : '📸'}</span><span>${m}/${y}${isFuture ? ' (Prévu)' : ''}</span>
+                    <span>${isFuture ? '🔮' : '📸'}</span><span>${isYearly ? `${y} (Annuel)` : `${m}/${y}`}${isFuture ? ' (Prévu)' : ''}</span>
                 </span>
-            ` : '';
+            ` : (isYearly ? `<span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(59,130,246,0.15); color:#60a5fa; font-weight:600;">Annuel</span>` : '');
 
-            const snapshotContextJson = isHistorical ? JSON.stringify({ snapshot_year: y, snapshot_month: m }).replace(/"/g, '&quot;') : 'null';
-            const spentLabel = isFuture ? (window.i18n.t('chat_entity_committed_planned') || 'Engagé (Prévu)') : (window.i18n.t('chat_entity_spent') || 'Dépensé');
+            const snapshotContextJson = JSON.stringify({ snapshot_year: y, snapshot_month: isYearly ? null : m, is_yearly: isYearly }).replace(/"/g, '&quot;');
+            const spentLabel = isFuture ? (window.i18n.t('chat_entity_committed_planned') || 'Engagé (Prévu)') : (isYearly ? 'Dépensé (Exercice)' : (window.i18n.t('chat_entity_spent') || 'Dépensé'));
 
             popover.innerHTML = `
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px;">
@@ -1921,7 +1926,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     ? { budgetEnvelopeName: searchTerm, backToView: 'chat' }
                     : { search: searchTerm, category: searchTerm, backToView: 'chat' };
 
-                if (snapshotContext?.snapshot_year && snapshotContext?.snapshot_month) {
+                if (snapshotContext?.is_yearly) {
+                    pending.budgetEnvelopeName = searchTerm;
+                    delete pending.monthKey;
+                } else if (snapshotContext?.snapshot_year && snapshotContext?.snapshot_month) {
                     const y = snapshotContext.snapshot_year;
                     const m = String(snapshotContext.snapshot_month).padStart(2, '0');
                     pending.monthKey = `${y}-${m}`;

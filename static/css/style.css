@@ -4,7 +4,7 @@
  */
 
 /* 1. Foundation & Design Tokens */
-@import url('./base/variables.css');
+@import url('./base/variables.css?v=77');
 @import url('./base/reset.css');
 @import url('./base/layout.css');
 
@@ -15,23 +15,23 @@
 @import url('./components/tables.css');
 @import url('./components/badges.css');
 @import url('./components/category_picker.css');
-@import url('./components/notifications.css');
+@import url('./components/notifications.css?v=77');
 
 /* 3. View-Specific Layouts */
 @import url('./views/dashboard.css');
 @import url('./views/analytics.css');
-@import url('./views/budgets.css');
+@import url('./views/budgets.css?v=77');
 @import url('./views/bank_sync.css');
 @import url('./views/recurrences.css');
-@import url('./views/chat.css');
+@import url('./views/chat.css?v=78');
 @import url('./views/settings.css');
 @import url('./views/autopilot.css');
 @import url('./views/cockpit.css');
 
 /* 4. Themes & Overrides */
-@import url('./themes/titanium.css');
+@import url('./themes/titanium.css?v=78');
 @import url('./themes/previews.css');
-@import url('./themes/executive_overrides.css');
+@import url('./themes/executive_overrides.css?v=78');
 
 /* 5. Responsive & Media Queries */
 @import url('./responsive/mobile.css');

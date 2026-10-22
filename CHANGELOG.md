@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ### [Unreleased]
 
+### Added & Improved
+- **AI Chat Upcoming Expenses Engine & Tool (`get_upcoming_expenses`) 🗓️💰**: Introduced a dedicated RAG tool allowing the AI assistant to query and rank upcoming scheduled bank debits, planned bills, and recurring payments over any horizon (sorted chronologically or by descending amount). Resolves confusion between budget envelope caps and actual bank calendar debits.
+- **AI Live Briefing Payday Outflow Timeline & Annual Envelope Clarification 📋✨**: Live prompt briefing now highlights the top scheduled debits due before the next scheduled paycheck. Annual budget envelopes are distinctly qualified to prevent the assistant from misreporting multi-month allocations as single monthly debits.
+- **Yearly Envelope Popover & History Navigation 🏷️🔍**: Budget entity popovers now query operations across the full exercise year for annual envelopes (such as water or tax bills) instead of showing empty results restricted to the current month.
+
+### Fixed & Ergonomics
+- **Executive Albâtre Chat Atmosphere & Palette Harmonization (Titanium Light) 🏛️🎨**: Replaced the stark white chat canvas (`#ffffff`) with the theme's native warm sand/ivory background (`--bg-base: #f7f5f0`), warm linen header/footer/sidebar framing (`--bg-sidebar: #efebe4`), and soft white AI response card bubbles with warm stone borders (`#e2ddd5`).
+- **Light Theme Text Contrast & Readability (Classic & Titanium Light) ☀️👁️**: Corrected unreadable white text (`#ffffff` / `#f8fafc`) on bold numbers, amounts, dates, markdown headings, and suggestion chips in light themes across the AI Chat view and application palettes (`--text-color` fallback aliasing to `--text-main`).
+
 ## [1.2.7] - 2026-10-21
 
 ### Added & Improved
