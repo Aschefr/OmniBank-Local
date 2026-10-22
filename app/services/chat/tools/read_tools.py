@@ -57,6 +57,196 @@ def get_recent_transactions_tool(db: Session, limit: int = 15) -> dict:
         for tx in recent_txs
     ]}
 
+def get_upcoming_expenses_tool(
+    db: Session,
+    days: int = 30,
+    min_amount: float = None,
+    sort_by: str = "date",
+    account_id: int = None
+) -> dict:
+    """
+    Retourne la liste unifiée et dédoublonnée des prochaines dépenses et échéances bancaires prévues :
+    - Transactions programmées/non rapprochées déjà enregistrées en base (dépenses ponctuelles, impôts, factures).
+    - Prochaines occurrences des modèles de récurrence actifs (prêts, abonnements, charges fixes).
+    - Classement par date chronologique ou par montant décroissant (pour identifier la prochaine grosse dépense).
+    """
+    from datetime import date, timedelta
+    from app.models import Transaction, RecurrenceTemplate, Account
+    from app.services.finance_engine import predict_next_paycheck
+
+    try:
+        days = int(days) if days is not None else 30
+    except (ValueError, TypeError):
+        days = 30
+    days = max(1, min(days, 180))
+
+    today = date.today()
+    end_date = today + timedelta(days=days)
+
+    paycheck = predict_next_paycheck(db)
+    raw_pay_date = paycheck.get("date")
+    next_pay_date_obj = None
+    next_pay_str = None
+    if raw_pay_date:
+        if isinstance(raw_pay_date, date):
+            next_pay_date_obj = raw_pay_date
+            next_pay_str = raw_pay_date.isoformat()
+        else:
+            try:
+                next_pay_str = str(raw_pay_date)
+                next_pay_date_obj = date.fromisoformat(next_pay_str)
+            except Exception:
+                pass
+
+    accounts = {a.id: a.name for a in db.query(Account).all()}
+
+    # 1. Opérations déjà planifiées en base (Transaction avec date >= today et non rapprochées)
+    tx_query = db.query(Transaction).filter(
+        Transaction.date_operation >= today,
+        Transaction.date_operation <= end_date,
+        (Transaction.reconciliation_date == None),
+        Transaction.type.in_(("expense_fixed", "expense_var", "transfer")),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+        (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
+    )
+    if account_id:
+        tx_query = tx_query.filter(Transaction.from_account_id == account_id)
+
+    planned_txs = tx_query.order_by(Transaction.date_operation.asc()).all()
+
+    items = []
+    existing_rec_keys = set()  # (recurrence_id, month_key)
+
+    for t in planned_txs:
+        amt = abs(t.amount or 0.0)
+        if min_amount is not None and amt < float(min_amount):
+            continue
+
+        if t.recurrence_id and t.date_operation:
+            m_key = t.date_operation.strftime("%Y-%m")
+            existing_rec_keys.add((t.recurrence_id, m_key))
+
+        is_before_pay = bool(next_pay_date_obj and t.date_operation < next_pay_date_obj)
+        acc_name = accounts.get(t.from_account_id, "Compte principal") if t.from_account_id else "Compte principal"
+
+        items.append({
+            "id": t.id,
+            "date": t.date_operation.isoformat() if t.date_operation else None,
+            "description": t.description,
+            "amount": round(amt, 2),
+            "category": t.category or "Sans catégorie",
+            "type": t.type,
+            "account": acc_name,
+            "is_recurrent": bool(t.recurrence_id),
+            "source": "scheduled_transaction",
+            "is_before_next_paycheck": is_before_pay,
+            "status": "Prévu en banque"
+        })
+
+    # 2. Modèles de récurrences actifs qui n'ont pas encore d'occurrence générée dans la période
+    active_templates = db.query(RecurrenceTemplate).filter(
+        RecurrenceTemplate.is_closed == False,
+        RecurrenceTemplate.type.in_(("expense_fixed", "expense_var", "transfer"))
+    ).all()
+
+    # Dernière opération rapprochée pour chaque récurrence pour calcul précis de calendrier
+    last_rec_map = {}
+    for tx in db.query(Transaction).filter(
+        Transaction.recurrence_id.isnot(None),
+        Transaction.reconciliation_date.isnot(None),
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).order_by(Transaction.date_operation.desc()).all():
+        if tx.recurrence_id not in last_rec_map:
+            last_rec_map[tx.recurrence_id] = tx.date_operation
+
+    for tpl in active_templates:
+        amt = abs(tpl.amount or 0.0)
+        if min_amount is not None and amt < float(min_amount):
+            continue
+
+        last_dt = last_rec_map.get(tpl.id)
+        applicable_months, _, cand_next_date_str = _compute_recurrence_schedule(tpl, last_dt)
+
+        if cand_next_date_str:
+            try:
+                cand_dt = date.fromisoformat(cand_next_date_str)
+                if today <= cand_dt <= end_date:
+                    m_key = cand_dt.strftime("%Y-%m")
+                    if (tpl.id, m_key) not in existing_rec_keys:
+                        is_before_pay = bool(next_pay_date_obj and cand_dt < next_pay_date_obj)
+                        acc_name = accounts.get(tpl.from_account_id, "Compte principal") if tpl.from_account_id else "Compte principal"
+                        items.append({
+                            "id": None,
+                            "recurrence_id": tpl.id,
+                            "date": cand_dt.isoformat(),
+                            "description": tpl.description,
+                            "amount": round(amt, 2),
+                            "category": tpl.category or "Sans catégorie",
+                            "type": tpl.type,
+                            "account": acc_name,
+                            "is_recurrent": True,
+                            "source": "projected_recurrence",
+                            "is_before_next_paycheck": is_before_pay,
+                            "status": "Récurrence planifiée"
+                        })
+            except Exception:
+                pass
+
+    # Tri
+    if str(sort_by).lower() in ("amount", "montant"):
+        items.sort(key=lambda x: x["amount"], reverse=True)
+    else:
+        items.sort(key=lambda x: (x["date"] or "9999-12-31", -x["amount"]))
+
+    items_before_pay = [it for it in items if it["is_before_next_paycheck"]]
+    items_after_pay = [it for it in items if not it["is_before_next_paycheck"]]
+
+    by_amt_all = sorted(items, key=lambda x: x["amount"], reverse=True)
+    by_amt_before = sorted(items_before_pay, key=lambda x: x["amount"], reverse=True)
+
+    biggest_overall = by_amt_all[0] if by_amt_all else None
+    biggest_before_pay = by_amt_before[0] if by_amt_before else None
+
+    # Chronologically next expense
+    by_date = sorted(items, key=lambda x: x["date"] or "9999-12-31")
+    next_immediate = by_date[0] if by_date else None
+
+    return {
+        "period": {
+            "start_date": today.isoformat(),
+            "end_date": end_date.isoformat(),
+            "days_ahead": days
+        },
+        "next_paycheck": {
+            "date": next_pay_str,
+            "amount_euros": paycheck.get("amount", 0.0)
+        },
+        "summary": {
+            "total_upcoming_expenses_count": len(items),
+            "total_upcoming_expenses_euros": round(sum(it["amount"] for it in items), 2),
+            "count_before_next_paycheck": len(items_before_pay),
+            "total_before_next_paycheck_euros": round(sum(it["amount"] for it in items_before_pay), 2),
+            "biggest_upcoming_expense_before_paycheck": {
+                "description": biggest_before_pay["description"],
+                "amount": biggest_before_pay["amount"],
+                "date": biggest_before_pay["date"]
+            } if biggest_before_pay else None,
+            "biggest_upcoming_expense_overall": {
+                "description": biggest_overall["description"],
+                "amount": biggest_overall["amount"],
+                "date": biggest_overall["date"]
+            } if biggest_overall else None,
+            "next_immediate_expense": {
+                "description": next_immediate["description"],
+                "amount": next_immediate["amount"],
+                "date": next_immediate["date"]
+            } if next_immediate else None
+        },
+        "upcoming_expenses_before_paycheck": items_before_pay,
+        "upcoming_expenses_after_paycheck": items_after_pay,
+        "all_upcoming_expenses": items
+    }
+
 def search_transactions_tool(db: Session, description_query: str = None, category: str = None, type: str = None, start_date: str = None, end_date: str = None, min_amount: float = None, max_amount: float = None, limit: int = 50) -> dict:
     try:
         if min_amount is not None:

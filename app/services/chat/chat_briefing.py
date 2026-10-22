@@ -179,10 +179,16 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
                 bid = b.get("id")
                 bname = b.get("name")
                 bamt = b.get("budget_amount", 0.0)
-                all_active_envelopes.append(f'"{bname}" [ID #{bid}] ({bamt:.0f} {base_curr})')
+                is_yearly = (b.get("period") == "yearly")
+                period_tag = " [Annuel/Exercice]" if is_yearly else ""
+                all_active_envelopes.append(f'"{bname}"{period_tag} [ID #{bid}] ({bamt:.0f} {base_curr})')
                 pct = b.get("percent", 0.0)
                 if pct >= 80.0:
-                    tight_envelopes.append(f'"{bname}" [ID #{bid}]: {b.get("expenses", 0.0):.0f} / {bamt:.0f} {base_curr} ({pct:.0f}%)')
+                    exp_val = b.get("expenses", 0.0)
+                    if is_yearly:
+                        tight_envelopes.append(f'"{bname}" (ANNUEL sur l\'exercice: {exp_val:.0f} / {bamt:.0f} {base_curr} - {pct:.0f}%)')
+                    else:
+                        tight_envelopes.append(f'"{bname}" [ID #{bid}]: {exp_val:.0f} / {bamt:.0f} {base_curr} ({pct:.0f}%)')
 
         # 7. Last Proactive AI Health Report
         last_ai_notif = db.query(Notification).filter(
@@ -210,6 +216,18 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             f"• Reste à Vivre (RTL): {rtl:.2f} {base_curr} available on main account until next paycheck ({days_until_paycheck} days remaining).",
             f"• Next Scheduled Paycheck: {next_pay_date} ({pay_amount:.2f} {base_curr}).",
         ])
+
+        # Upcoming scheduled debits before next paycheck (top upcoming outflows)
+        try:
+            from app.services.chat.tools.read_tools import get_upcoming_expenses_tool
+            up_info = get_upcoming_expenses_tool(db, days=max(1, days_until_paycheck), sort_by="amount")
+            up_before = up_info.get("upcoming_expenses_before_paycheck", [])
+            if up_before:
+                top_up_str = ", ".join(f"'{x['description']}' ({x['amount']:.2f} {base_curr} le {x['date']})" for x in up_before[:3])
+                tot_up = sum(x["amount"] for x in up_before)
+                lines.append(f"• Upcoming Scheduled Bank Debits before Payday ({next_pay_date}): {top_up_str} (Total {len(up_before)} debits: {tot_up:.2f} {base_curr}).")
+        except Exception as e:
+            logger.debug(f"[Briefing] Erreur calcul dépenses à venir: {e}")
 
         if rtl > 0:
             lines.append(f"• Daily Spending Ceiling: ~{daily_budget:.2f} {base_curr}/day.")

@@ -520,7 +520,7 @@
     font-size: 12px;
     border: 1px solid rgba(230, 126, 34, 0.5);
     background-color: rgba(230, 126, 34, 0.1);
-    color: var(--text-color);
+    color: var(--text-main);
     line-height: 1.4;
 }
 

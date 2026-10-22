@@ -43,25 +43,26 @@ def test_tools_deduplication():
     """Vérifie que la liste globale TOOLS ne contient aucun doublon de nom."""
     names = [t["function"]["name"] for t in TOOLS]
     assert len(names) == len(set(names)), f"Des doublons existent dans TOOLS: {names}"
-    assert len(TOOLS) == 39
+    assert len(TOOLS) == 40
     assert "store_financial_fact" in TOOL_MAP
     assert "forget_financial_fact" in TOOL_MAP
     assert "trigger_bank_sync" in TOOL_MAP
     assert "create_planned_transfer" in TOOL_MAP
+    assert "get_upcoming_expenses" in TOOL_MAP
 
 
 def test_get_tools_for_role_known_and_fallback():
     """Vérifie que get_tools_for_role retourne les sous-ensembles corrects et gère le fallback."""
     # Unknown role or None falls back to all tools
     fb_tools = get_tools_for_role(None)
-    assert len(fb_tools) == 39
+    assert len(fb_tools) == 40
 
     unknown_tools = get_tools_for_role("unknown_role_xyz")
-    assert len(unknown_tools) == 39
+    assert len(unknown_tools) == 40
 
     # Advisor has all tools
     adv_tools = get_tools_for_role("advisor")
-    assert len(adv_tools) == 39
+    assert len(adv_tools) == 40
 
     # Simulator role has only simulation and analytical read tools
     sim_tools = get_tools_for_role("simulator")
@@ -77,41 +78,46 @@ def test_get_tools_for_role_known_and_fallback():
 
     # Forecaster role
     fc_tools = get_tools_for_role("forecaster")
-    assert len(fc_tools) == 11
+    assert len(fc_tools) == 12
     fc_names = {t["function"]["name"] for t in fc_tools}
     assert "forecast_balances_history" in fc_names
+    assert "get_upcoming_expenses" in fc_names
     assert "set_predicted_paycheck" in fc_names
     assert "create_planned_transfer" in fc_names
     assert "audit_transactions_integrity" not in fc_names
 
     # Auditor role
     aud_tools = get_tools_for_role("auditor")
-    assert len(aud_tools) == 13
+    assert len(aud_tools) == 14
     aud_names = {t["function"]["name"] for t in aud_tools}
     assert "audit_transactions_integrity" in aud_names
+    assert "get_upcoming_expenses" in aud_names
     assert "apply_transaction_correction" in aud_names
     assert "delete_transaction" in aud_names
     assert "simulate_financial_scenario" not in aud_names
 
     # Alerts role
     alt_tools = get_tools_for_role("alerts")
-    assert len(alt_tools) == 12
+    assert len(alt_tools) == 13
     alt_names = {t["function"]["name"] for t in alt_tools}
     assert "detect_anomalies_and_subscriptions" in alt_names
+    assert "get_upcoming_expenses" in alt_names
     assert "audit_transactions_integrity" in alt_names
 
     # Optimizer role
     opt_tools = get_tools_for_role("optimizer")
-    assert len(opt_tools) == 15
+    assert len(opt_tools) == 16
     opt_names = {t["function"]["name"] for t in opt_tools}
     assert "close_recurrence_template" in opt_names
+    assert "get_upcoming_expenses" in opt_names
     assert "update_recurrence_template" in opt_names
 
     # Budget planner role
     bp_tools = get_tools_for_role("budget_planner")
-    assert len(bp_tools) == 15
+    assert len(bp_tools) == 16
     bp_names = {t["function"]["name"] for t in bp_tools}
     assert "create_budget_envelope" in bp_names
+    assert "get_upcoming_expenses" in bp_names
     assert "update_budget_envelope" in bp_names
 
 

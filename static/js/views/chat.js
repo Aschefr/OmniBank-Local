@@ -43,7 +43,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     background: rgba(99, 102, 241, 0.14);
                     border: 1px solid rgba(99, 102, 241, 0.35);
                     border-radius: 6px;
-                    color: var(--text-main, #e2e8f0);
+                    color: var(--text-main);
                     font-weight: 600;
                     font-size: 0.95em;
                     cursor: pointer;
@@ -129,7 +129,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
                 .ai-missing-action-text {
                     font-size: 12px;
-                    color: var(--text-color, #e2e8f0);
+                    color: var(--text-main);
                     line-height: 1.35;
                 }
                 .ai-missing-action-text strong {
@@ -631,8 +631,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     border-radius: 10px;
                 }
                 .chat-bubble.ai {
-                    background: var(--bg-sidebar);
-                    color: var(--text-color);
+                    background: var(--bg-surface);
+                    color: var(--text-main);
                     border: 1px solid var(--border-color);
                     border-bottom-left-radius: 4px;
                     font-size: 14px;
@@ -654,7 +654,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     font-family: inherit;
                     text-transform: uppercase !important;
                     letter-spacing: 0.04em !important;
-                    color: #ffffff;
+                    color: var(--text-main);
                 }
                 .chat-bubble.ai h1 {
                     font-size: 1.35rem;
@@ -678,8 +678,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     margin-top: 22px;
                     margin-bottom: 12px;
                     padding-bottom: 6px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-                    color: #f8fafc;
+                    border-bottom: 1px solid var(--border-color);
+                    color: var(--text-main);
                 }
                 .chat-bubble.ai h4 {
                     font-size: 1.02rem;
@@ -687,6 +687,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     margin-top: 18px;
                     margin-bottom: 8px;
                     color: var(--accent);
+                }
+                body.theme-dark .chat-bubble.ai h1,
+                body.theme-dark .chat-bubble.ai h2 {
+                    color: #ffffff;
+                }
+                body.theme-dark .chat-bubble.ai h3 {
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+                    color: #f8fafc;
                 }
                 .chat-bubble.ai > h1:first-child,
                 .chat-bubble.ai > h2:first-child,
@@ -719,7 +727,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 .chat-suggestions-container {
                     margin-top: 20px;
                     padding-top: 16px;
-                    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+                    border-top: 1px dashed var(--border-color);
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
@@ -745,25 +753,25 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     text-align: left;
                     gap: 10px;
                     padding: 10px 14px;
-                    background: rgba(99, 102, 241, 0.08);
-                    border: 1px solid rgba(99, 102, 241, 0.25);
+                    background: var(--accent-subtle);
+                    border: 1px solid var(--accent-border);
                     border-radius: 8px;
-                    color: #e2e8f0;
+                    color: var(--text-main);
                     font-size: 13px;
                     line-height: 1.45;
                     cursor: pointer;
                     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    box-shadow: var(--shadow-sm);
                     font-family: inherit;
                     width: fit-content;
                     max-width: 100%;
                 }
                 .chat-suggestion-chip:hover {
-                    background: rgba(99, 102, 241, 0.2);
-                    border-color: rgba(99, 102, 241, 0.55);
+                    background: var(--accent);
+                    border-color: var(--accent);
                     color: #ffffff;
                     transform: translateY(-1px);
-                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+                    box-shadow: 0 4px 12px var(--accent-glow);
                 }
                 .chat-suggestion-chip:active {
                     transform: translateY(0);
@@ -777,7 +785,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     flex: 1;
                 }
                 .chat-bubble.ai strong, .chat-bubble.ai b {
-                    font-weight: 600;
+                    font-weight: 700;
+                    color: var(--text-main);
+                }
+                body.theme-dark .chat-bubble.ai strong,
+                body.theme-dark .chat-bubble.ai b {
                     color: #ffffff;
                 }
                 .chat-bubble.ai blockquote {
@@ -792,11 +804,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     margin-bottom: 0;
                 }
                 .chat-bubble.ai code:not(pre code) {
-                    background: rgba(255, 255, 255, 0.08);
+                    background: var(--bg-surface-hover, rgba(0, 0, 0, 0.04));
                     padding: 2px 6px;
                     border-radius: 4px;
                     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
                     font-size: 0.88em;
+                    color: #0369a1;
+                    border: 1px solid var(--border-color);
+                }
+                body.theme-dark .chat-bubble.ai code:not(pre code) {
+                    background: rgba(255, 255, 255, 0.08);
                     color: #38bdf8;
                     border: 1px solid rgba(255, 255, 255, 0.06);
                 }
@@ -841,7 +858,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     font-size: 11.5px;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
-                    color: var(--text-color);
+                    color: var(--text-main);
                     border-bottom: 2px solid var(--border-color);
                     border-right: 1px solid var(--border-color);
                     white-space: nowrap;
@@ -855,7 +872,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     padding: 10px 16px;
                     border-bottom: 1px solid var(--border-color);
                     border-right: 1px solid var(--border-color);
-                    color: var(--text-color);
+                    color: var(--text-main);
                     font-variant-numeric: tabular-nums;
                     vertical-align: middle;
                 }
@@ -873,11 +890,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
                 .chat-bubble tbody tr:nth-child(even),
                 .chat-markdown-table tbody tr:nth-child(even) {
-                    background: rgba(255, 255, 255, 0.015);
+                    background: var(--bg-surface-hover);
                 }
                 .chat-bubble tbody tr:hover,
                 .chat-markdown-table tbody tr:hover {
-                    background: rgba(51, 102, 255, 0.06);
+                    background: var(--accent-subtle);
                 }
                 .chat-bubble th:first-child,
                 .chat-bubble td:first-child,
@@ -917,7 +934,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     box-shadow: var(--shadow-sm);
                 }
                 .chat-message-action-btn:hover {
-                    color: var(--text-color);
+                    color: var(--text-main);
                     border-color: var(--text-muted);
                 }
                 .chat-message-actions.confirm-active {
@@ -1119,7 +1136,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
                 .chat-info-group-name {
                     font-size: 14px;
-                    color: var(--text-color);
+                    color: var(--text-main);
                 }
                 .chat-info-group-desc {
                     font-size: 12px;
@@ -1154,7 +1171,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 .ai-memory-cell-key {
                     font-weight: 500;
                     font-size: 11px;
-                    color: var(--text-color);
+                    color: var(--text-main);
                     font-family: monospace;
                     width: 28%;
                     word-break: break-all;
@@ -1358,7 +1375,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     transition: color 0.15s ease;
                 }
                 .ai-think-summary:hover {
-                    color: var(--text-main, #e5e7eb);
+                    color: var(--text-main);
                 }
                 .ai-think-content {
                     font-size: 12.5px;
