@@ -2,16 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-### [Unreleased]
+## [1.2.8] - 2026-10-22
 
 ### Added & Improved
-- **AI Chat Upcoming Expenses Engine & Tool (`get_upcoming_expenses`) 🗓️💰**: Introduced a dedicated RAG tool allowing the AI assistant to query and rank upcoming scheduled bank debits, planned bills, and recurring payments over any horizon (sorted chronologically or by descending amount). Resolves confusion between budget envelope caps and actual bank calendar debits.
-- **AI Live Briefing Payday Outflow Timeline & Annual Envelope Clarification 📋✨**: Live prompt briefing now highlights the top scheduled debits due before the next scheduled paycheck. Annual budget envelopes are distinctly qualified to prevent the assistant from misreporting multi-month allocations as single monthly debits.
-- **Yearly Envelope Popover & History Navigation 🏷️🔍**: Budget entity popovers now query operations across the full exercise year for annual envelopes (such as water or tax bills) instead of showing empty results restricted to the current month.
+- **AI Multi-Version Response Tabs & Background Auto-Correction 💬🗂️✨**: Responses support multi-version history (`v1`, `v2`, etc.) with sticky interactive tabs pinned to the message bubble. Users can toggle between regenerated variants, review background auto-corrections produced when omissions or missing technical actions are flagged by the background critic worker, and delete unwanted versions with 100% reactive switching (Zero F5).
+- **AI Multi-Action Auto-Recovery & Condensed Syntax Support 💬🔄🪄**: The assistant dynamically recovers any missing planned transfers using both standard and parenthesized account notations without arbitrary caps, ensuring proposed strategies (e.g., bridge transfers + reconstitution) always generate interactive action cards.
+- **AI Chat Auto-Scroll Toggle Switch & Tri-State Indicator 📜🎛️**: Introduced a dedicated toggle switch in the chat status bar displaying and controlling auto-scroll state (`ON`, `Débrayé`, `OFF`), with 1-click snap-to-bottom re-engagement and persistent preference storage.
+- **AI Chat Upcoming Expenses Engine & Tool (`get_upcoming_expenses`) 🗓️💰**: Introduced a dedicated RAG tool allowing the AI assistant to query and rank upcoming scheduled bank debits, planned bills, and recurring payments over any horizon.
+- **AI Live Briefing Payday Outflow Timeline & Annual Envelope Clarification 📋✨**: Live prompt briefing highlights the top scheduled debits due before the next scheduled paycheck, while annual budget envelopes are distinctly qualified.
 
 ### Fixed & Ergonomics
-- **Executive Albâtre Chat Atmosphere & Palette Harmonization (Titanium Light) 🏛️🎨**: Replaced the stark white chat canvas (`#ffffff`) with the theme's native warm sand/ivory background (`--bg-base: #f7f5f0`), warm linen header/footer/sidebar framing (`--bg-sidebar: #efebe4`), and soft white AI response card bubbles with warm stone borders (`#e2ddd5`).
-- **Light Theme Text Contrast & Readability (Classic & Titanium Light) ☀️👁️**: Corrected unreadable white text (`#ffffff` / `#f8fafc`) on bold numbers, amounts, dates, markdown headings, and suggestion chips in light themes across the AI Chat view and application palettes (`--text-color` fallback aliasing to `--text-main`).
+- **Auto-Pilot Live Sync Reactive Completion (Zero F5) ⚡🔄**: Resolved a regression where running a bank sync from the Auto-Pilote view remained permanently stuck in `"Relevé en cours..."` when scheduled syncing was inactive or timestamps remained identical. The polling tracker now evaluates the actual engine process state (`!isSyncing`), immediately re-arming countdowns and refreshing the review queue, decision feed, and KPIs without requiring a manual page refresh (<kbd>F5</kbd>).
+- **Yearly Envelope Popover & History Navigation 🏷️🔍**: Budget entity popovers query operations across the full exercise year for annual envelopes instead of showing empty results restricted to the current month.
+- **AI Completion Notification Suppression on Active View 🔔🔇**: Eliminated spurious completion notifications when the user is actively watching and reading the response.
+- **Auto-Scroll Disengage Scroll Freeze on Response Completion 🛑📜**: Resolved an issue where auto-scroll was forcibly re-triggered to the bottom at the end of generation even after the user had scrolled up.
+- **Executive Albâtre Chat Atmosphere & Light Theme Text Contrast 🏛️🎨☀️**: Replaced the stark white chat canvas with the theme's native warm sand/ivory background (`--bg-base: #f7f5f0`) and corrected unreadable white text on bold numbers, amounts, dates, and markdown headings in light themes.
 
 ## [1.2.7] - 2026-10-21
 

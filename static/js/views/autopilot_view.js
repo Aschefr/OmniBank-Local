@@ -830,8 +830,18 @@ window.AutopilotView = {
         this._bindEvents();
     },
 
+    _eventsBound: false,
     _bindEvents() {
-        // App.refreshActiveView handles active view refresh on events and visibility change.
+        if (this._eventsBound) return;
+        this._eventsBound = true;
+        const onSyncOrDataChanged = () => {
+            if (window.app && window.app.currentView === 'autopilot') {
+                this.refresh();
+            }
+        };
+        window.addEventListener('bank_sync_completed', onSyncOrDataChanged);
+        window.addEventListener('autopilot_updated', onSyncOrDataChanged);
+        window.addEventListener('transactions_updated', onSyncOrDataChanged);
     },
 
     _nextExecTimer: null,
@@ -872,40 +882,79 @@ window.AutopilotView = {
     _syncTrackingTimer: null,
     _isTrackingActiveSync: false,
     _lastKnownExecutionAt: null,
+    _trackerStartedAt: 0,
+    _sawSyncRunning: false,
 
     _startActiveSyncTracker() {
         if (this._syncTrackingTimer) return;
         this._isTrackingActiveSync = true;
+        this._trackerStartedAt = Date.now();
+        this._sawSyncRunning = false;
+
+        // Assurer que le tracker global BankSyncView est aussi actif pour les boutons du header
+        if (window.BankSyncView && typeof window.BankSyncView._startSyncPollingTracker === 'function') {
+            window.BankSyncView._startSyncPollingTracker();
+        }
 
         const poll = async () => {
             try {
-                const status = await API.get('/api/autopilot/status', { silent: true });
-                const prevLastExec = this._lastKnownExecutionAt;
-                const newLastExec = status?.last_execution_at;
-                const isSyncing = !!status?.is_syncing;
-                const remSec = status?.next_execution_countdown_seconds;
+                const [status, bankSyncStatus] = await Promise.all([
+                    API.get('/api/autopilot/status', { silent: true }).catch(() => null),
+                    API.get('/api/bank-sync/status', { silent: true }).catch(() => null)
+                ]);
 
-                // Si le relevé est terminé et que le nouveau décompte s'est réarmé (ou date d'exécution mise à jour)
-                if (!isSyncing && ((remSec !== null && remSec > 5) || (newLastExec && prevLastExec && newLastExec !== prevLastExec))) {
+                const prevLastExec = this._lastKnownExecutionAt;
+                const newLastExec = status?.last_bank_sync_at || status?.last_execution_at;
+                const isSyncing = Boolean(status?.is_syncing || (bankSyncStatus && bankSyncStatus.is_running));
+                if (isSyncing) {
+                    this._sawSyncRunning = true;
+                }
+                const elapsedMs = Date.now() - this._trackerStartedAt;
+
+                // Le relevé est terminé dès qu'il n'est plus en cours (après une fenêtre d'initialisation de 1.5s ou après l'avoir vu tourner)
+                // OU dès que l'horodatage d'exécution a avancé
+                const execChanged = Boolean(newLastExec && prevLastExec && newLastExec !== prevLastExec);
+                const syncDone = (!isSyncing && (this._sawSyncRunning || elapsedMs >= 1500)) || execChanged;
+
+                if (syncDone) {
                     this._stopActiveSyncTracker();
                     this._status = status;
                     this._lastKnownExecutionAt = newLastExec;
+
+                    // Masquer immédiatement le bandeau de synchronisation en cours
+                    const syncBanner = document.getElementById('apSyncingBanner');
+                    if (syncBanner) syncBanner.style.display = 'none';
+
+                    // Réarmer l'affichage du compte à rebours / statut
+                    if (status) {
+                        this.startNextExecCountdown(status);
+                    }
+
+                    // Actualiser immédiatement toutes les sections de la vue Auto-Pilote (Zero F5)
+                    await this.refresh();
+
+                    // Diffuser aux autres vues et composants
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
                     window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
+
                     if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
                         window.app.updateAutopilotBadge();
                     }
                     if (window.app && typeof window.app.loadNotifications === 'function') {
                         window.app.loadNotifications(true);
                     }
+                    if (window.app && typeof window.app.refreshSidebar === 'function') {
+                        window.app.refreshSidebar();
+                    }
                     return;
                 } else {
                     // Toujours en cours d'exécution : maintenir l'affichage live
                     this._status = status;
                     const syncBanner = document.getElementById('apSyncingBanner');
-                    if (syncBanner) syncBanner.style.display = isSyncing ? 'flex' : 'none';
+                    if (syncBanner) syncBanner.style.display = 'flex';
                     const timeEl = document.getElementById('apHeroCountdownTime');
-                    if (timeEl && (isSyncing || remSec <= 0)) {
+                    if (timeEl) {
                         timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
                     }
                 }
@@ -913,15 +962,16 @@ window.AutopilotView = {
                 console.warn('[AutopilotView] Erreur polling sync reactive:', e);
             }
             if (this._isTrackingActiveSync) {
-                this._syncTrackingTimer = setTimeout(poll, 2000);
+                this._syncTrackingTimer = setTimeout(poll, 1500);
             }
         };
 
-        this._syncTrackingTimer = setTimeout(poll, 1500);
+        this._syncTrackingTimer = setTimeout(poll, 1200);
     },
 
     _stopActiveSyncTracker() {
         this._isTrackingActiveSync = false;
+        this._sawSyncRunning = false;
         if (this._syncTrackingTimer) {
             clearTimeout(this._syncTrackingTimer);
             this._syncTrackingTimer = null;
@@ -945,10 +995,21 @@ window.AutopilotView = {
             showToast(window.i18n ? (window.i18n.t('autopilot_sync_running') || 'Lancement du relevé...') : 'Lancement du relevé...', 'info');
             const timeEl = document.getElementById('apHeroCountdownTime');
             if (timeEl) timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
+            const syncBanner = document.getElementById('apSyncingBanner');
+            if (syncBanner) syncBanner.style.display = 'flex';
+
             this._startActiveSyncTracker();
-            await API.post('/api/bank-sync/trigger-auto-sync', { force: true, trigger_source: 'manual' });
+
+            if (window.BankSyncView && typeof window.BankSyncView.triggerBackgroundSyncNow === 'function') {
+                await window.BankSyncView.triggerBackgroundSyncNow();
+            } else {
+                await API.post('/api/bank-sync/trigger-auto-sync', { force: true, trigger_source: 'manual' });
+            }
         } catch (e) {
             console.warn('[AutopilotView] Erreur déclenchement sync manuel:', e);
+            this._stopActiveSyncTracker();
+            const syncBanner = document.getElementById('apSyncingBanner');
+            if (syncBanner) syncBanner.style.display = 'none';
         }
     },
 

@@ -414,4 +414,271 @@ td.privacy-blur {
     animation: spin-reverse 1s linear infinite;
 }
 
+/* ── Auto-Scroll Toggle Switch ── */
+.chat-autoscroll-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    user-select: none;
+    font-size: 11.5px;
+    font-weight: 500;
+}
+
+.chat-autoscroll-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    margin: 0;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+.chat-autoscroll-label:hover {
+    color: var(--text-main);
+}
+
+.chat-autoscroll-switch {
+    position: relative;
+    display: inline-block;
+    width: 28px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.chat-autoscroll-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    margin: 0;
+}
+
+.chat-autoscroll-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color, rgba(128, 128, 128, 0.35));
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 16px;
+}
+
+.chat-autoscroll-slider::before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ffffff;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Checked & Normal Active (ON) */
+.chat-autoscroll-switch input:checked + .chat-autoscroll-slider {
+    background-color: #10b981;
+}
+
+.chat-autoscroll-switch input:checked + .chat-autoscroll-slider::before {
+    transform: translateX(12px);
+}
+
+/* Checked & Disengaged (DÉBRAYÉ) */
+.chat-autoscroll-container.debraye .chat-autoscroll-switch input:checked + .chat-autoscroll-slider {
+    background-color: #f59e0b !important;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
+}
+
+.chat-autoscroll-container.debraye .chat-autoscroll-text {
+    color: #f59e0b !important;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+.chat-autoscroll-container.debraye .chat-autoscroll-text:hover {
+    color: #d97706 !important;
+}
+
+/* OFF state */
+.chat-autoscroll-container.disabled .chat-autoscroll-text {
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+/* ─── Onglets Multi-Versions / Variantes de Réponses IA (Sticky) ──────── */
+.chat-variant-bar-sticky {
+    position: sticky;
+    top: 0px;
+    z-index: 25;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    margin: -6px -6px 14px -6px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+body.theme-dark .chat-variant-bar-sticky {
+    background: rgba(22, 27, 34, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="albatre"] .chat-variant-bar-sticky,
+[data-theme="titanium_light"] .chat-variant-bar-sticky {
+    background: rgba(247, 245, 240, 0.94);
+    border: 1px solid rgba(226, 221, 213, 0.95);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.chat-variant-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.chat-variant-bar-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.chat-variant-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+body.theme-dark .chat-variant-tabs {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-variant-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.25;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-variant-tab:hover {
+    color: var(--text-main);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+body.theme-dark .chat-variant-tab:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.chat-variant-tab.active {
+    background: var(--accent, #3b82f6);
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
+}
+
+.chat-variant-tab .variant-sparkle {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.chat-variant-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-variant-active-summary {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-variant-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.chat-variant-delete-btn:hover {
+    opacity: 1;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* Callout Banner directly under sticky header explaining the variant diff */
+.chat-variant-callout-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    color: var(--text-main);
+}
+
+.chat-variant-callout-banner.callout-info {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.chat-variant-callout-banner .callout-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.chat-variant-callout-banner .callout-text {
+    flex: 1;
+}
+
+
 

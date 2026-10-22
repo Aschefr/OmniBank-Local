@@ -235,3 +235,36 @@ def test_build_entity_snapshots_includes_recurrence_and_transaction(test_db):
     assert tx_snap["type"] == "transaction"
     assert tx_snap["amount"] == -150.0
     assert tx_snap["category"] == "Automobile"
+
+
+def test_find_missing_promised_actions_multi_and_condensed(test_db):
+    from app.services.chat.chat_action_recovery import find_missing_promised_actions, has_unemitted_promised_action
+
+    acc_checking = Account(name="CA Centre-Est", type="checking", initial_balance=500.0)
+    acc_savings = Account(name="Livret A", type="savings", initial_balance=3000.0)
+    test_db.add_all([acc_checking, acc_savings])
+    test_db.commit()
+
+    # Cas réel : l'IA promet 2 virements (1 précaution + 1 reconstitution) mais n'a émis qu'1 seul bloc action
+    text_with_one_emitted = (
+        "1. Virement de Précaution : J'ai préparé l'enregistrement d'un virement de 366 € depuis votre Livret A vers votre Compte Courant.\n"
+        "2. Reconstitution : J'ai également préparé l'enregistrement du virement de reconstitution de 366 € (Compte Courant -> Livret A) pour le 30/10/2026. Veuillez l'examiner et le valider ci-dessous.\n\n"
+        "```action\n"
+        '{"action": "create_planned_transfer", "params": {"from_account": "Livret A", "to_account": "CA Centre-Est", "amount": 366.0, "description": "Virement interne Livret A -> CA Centre-Est", "date_operation": "2026-10-22", "category": "Virement interne"}}\n'
+        "```"
+    )
+
+    # has_unemitted_promised_action doit détecter qu'une 2ème action promise est absente
+    assert has_unemitted_promised_action(text_with_one_emitted, db=test_db) is True
+
+    # find_missing_promised_actions doit retourner UNIQUEMENT la 2ème action manquante (reconstitution)
+    missing = find_missing_promised_actions(text_with_one_emitted, test_db)
+    assert len(missing) == 1
+    miss = missing[0]
+    assert miss["action"] == "create_planned_transfer"
+    assert miss["params"]["amount"] == 366.0
+    assert miss["params"]["from_account"] == "CA Centre-Est"
+    assert miss["params"]["to_account"] == "Livret A"
+    assert miss["params"]["date_operation"] == "2026-10-30"
+    assert "Reconstitution" in miss["params"]["description"]
+

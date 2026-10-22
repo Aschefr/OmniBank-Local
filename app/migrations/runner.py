@@ -10,7 +10,7 @@ from sqlalchemy.engine import Engine, Connection
 
 logger = logging.getLogger(__name__)
 
-TARGET_SCHEMA_VERSION = 31
+TARGET_SCHEMA_VERSION = 32
 
 
 @dataclass

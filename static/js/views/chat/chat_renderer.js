@@ -595,16 +595,88 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 }
             }
 
+            let variantsHtml = '';
+            if (!isUser && msg.variants && msg.variants.length > 1) {
+                const activeIdx = msg.active_variant_index || 0;
+                const currentVar = msg.variants[activeIdx] || msg.variants[0];
+                const isAuto = currentVar && currentVar.origin === 'auto_correction';
+                const hasOptimizedVersion = msg.variants.some(v => v.origin === 'auto_correction');
+
+                let calloutHtml = '';
+                if (isAuto) {
+                    const critiqueText = currentVar.critique || (window.i18n ? window.i18n.t('chat_variant_auto_critique_default') : 'Version enrichie et complétée avec toutes les actions préconisées.');
+                    calloutHtml = `
+                        <div class="chat-variant-callout-banner">
+                            <span class="callout-icon">✨</span>
+                            <span class="callout-text"><strong>${window.i18n ? window.i18n.t('chat_variant_badge_optimized') || 'Version optimisée' : 'Version optimisée'} :</strong> ${window.escapeHtml(critiqueText)}</span>
+                        </div>
+                    `;
+                } else if (hasOptimizedVersion && activeIdx === 0) {
+                    const optIdx = msg.variants.findIndex(v => v.origin === 'auto_correction');
+                    calloutHtml = `
+                        <div class="chat-variant-callout-banner callout-info">
+                            <span class="callout-icon">💡</span>
+                            <span class="callout-text">${window.i18n ? window.i18n.t('chat_variant_notice_initial') || 'Vous consultez la réponse initiale. Une version optimisée est disponible.' : 'Vous consultez la réponse initiale. Une version optimisée est disponible.'}</span>
+                            <button class="btn btn-primary" onclick="window.ChatView.switchMessageVariant(${msg.id}, ${optIdx})" style="padding: 3px 10px; font-size: 11px; margin-left: 6px;">${window.i18n && window.i18n.tp ? window.i18n.tp('chat_variant_btn_switch_v2', { num: optIdx + 1 }) : `Passer à v${optIdx + 1} ✨`}</button>
+                        </div>
+                    `;
+                }
+
+                variantsHtml = `
+                    <div class="chat-variant-bar-sticky">
+                        <div class="chat-variant-bar-left">
+                            <span class="chat-variant-bar-title">${window.i18n ? window.i18n.t('chat_variant_bar_title') || 'Versions' : 'Versions'}</span>
+                            <div class="chat-variant-tabs" role="tablist">
+                                ${msg.variants.map((v, vIdx) => {
+                                    const isActive = vIdx === activeIdx;
+                                    const isVarAuto = v.origin === 'auto_correction';
+                                    const badgeText = isVarAuto 
+                                        ? (window.i18n ? window.i18n.t('chat_variant_badge_optimized') || 'Optimisée' : 'Optimisée')
+                                        : (window.i18n ? window.i18n.t('chat_variant_badge_initial') || 'Initiale' : 'Initiale');
+                                    const vLabel = `v${vIdx + 1} · ${badgeText}`;
+                                    const defaultTooltip = isVarAuto 
+                                        ? (window.i18n ? window.i18n.t('chat_variant_tab_tooltip_optimized') || 'Version optimisée' : 'Version optimisée')
+                                        : (window.i18n ? window.i18n.t('chat_variant_tab_tooltip_initial') || 'Réponse originale' : 'Réponse originale');
+                                    const tabTooltip = v.summary || defaultTooltip;
+                                    return `
+                                        <button class="chat-variant-tab ${isActive ? 'active' : ''}" 
+                                                onclick="window.ChatView.switchMessageVariant(${msg.id}, ${vIdx})" 
+                                                title="${window.escapeHtml(tabTooltip)}" 
+                                                type="button" 
+                                                role="tab" 
+                                                aria-selected="${isActive}">
+                                            <span>${vLabel}</span>
+                                            ${isVarAuto ? `<span class="variant-sparkle">✨</span>` : ''}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        <div class="chat-variant-bar-right">
+                            ${currentVar && currentVar.summary ? `<span class="chat-variant-active-summary" title="${window.escapeHtml(currentVar.summary)}">${window.escapeHtml(currentVar.summary)}</span>` : ''}
+                            <button class="chat-variant-delete-btn" 
+                                    onclick="window.ChatView.deleteMessageVariant(${msg.id}, ${activeIdx})" 
+                                    title="${window.i18n ? window.i18n.t('chat_variant_delete_tooltip') : 'Supprimer cette version'}"
+                                    type="button">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    ${calloutHtml}
+                `;
+            }
+
             html += `
                 <div class="chat-message-row ${msg.role}" id="msg-row-${msg.id || i}">
                     <div class="chat-message-meta" style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
-                        <div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <span>${isUser ? window.i18n.t('chat_label_you') : 'Ollama OmniBank'}</span>
-                            ${toolsBadges ? `<span style="margin-left: 8px; display:inline-flex; gap:4px; flex-wrap:wrap;">${toolsBadges}</span>` : ''}
+                            ${toolsBadges ? `<span style="margin-left: 4px; display:inline-flex; gap:4px; flex-wrap:wrap;">${toolsBadges}</span>` : ''}
                         </div>
                         <span style="font-size:9px; opacity:0.7;">${formattedTime}</span>
                     </div>
                     <div class="chat-bubble ${isUser ? 'user' : 'ai'}${msg._pending ? ' pending' : ''}" id="msg-${i}">
+                        ${!isUser ? variantsHtml : ''}
                         ${msg._pending ? `<div style="display:flex; align-items:center; gap:6px;"><span style="flex:1; opacity:0.5;">${window.escapeHtml(msg.content)}</span><span class="pending-badge" data-i18n="chat_message_pending">${window.i18n.t('chat_message_pending')}</span></div>` : ''}
                         ${!msg._pending && this.editingMsgId === msg.id ? `
                             <div class="chat-bubble-edit-container">
@@ -643,12 +715,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         // Snapshot scroll position before re-rendering
+        const savedScrollTop = container.scrollTop;
         const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
 
         this._suppressScrollDetect();
         container.innerHTML = html;
         this._updateCompressionUI();
         this.updateTokenUsageIndicator();
+        this.updateAutoScrollUI();
         this.renderMath();
         this.initEntityPopover();
 
@@ -656,13 +730,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             const savedScroll = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`) : sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
             if (savedScroll !== null) {
                 container.scrollTop = parseInt(savedScroll);
-            } else {
+            } else if (this.autoScrollEnabled) {
                 this.scrollToBottom();
             }
         } else {
-            // Only auto-scroll if user hasn't manually scrolled up
-            if (!this.userHasScrolledUp && (wasAtBottom || this.isStreaming)) {
+            // Only auto-scroll if user hasn't manually scrolled up AND auto-scroll is enabled
+            if (!this.userHasScrolledUp && this.autoScrollEnabled && (wasAtBottom || this.isStreaming)) {
                 this.scrollToBottom();
+            } else {
+                // Strictly preserve manual scroll position when user scrolled up or auto-scroll is off
+                container.scrollTop = savedScrollTop;
             }
         }
 
@@ -682,10 +759,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
                 if (atBottom) {
                     // Re-engage autoscroll when user comes back to the bottom
-                    this.userHasScrolledUp = false;
+                    if (this.userHasScrolledUp) {
+                        this.userHasScrolledUp = false;
+                        this.updateAutoScrollUI();
+                    }
                 } else if (scrollingUp && !this._isProgrammaticScroll && Date.now() >= (this._ignoreScrollUntil || 0)) {
                     // Instantly release autoscroll on genuine upward user scroll
-                    this.userHasScrolledUp = true;
+                    if (!this.userHasScrolledUp) {
+                        this.userHasScrolledUp = true;
+                        this.updateAutoScrollUI();
+                    }
                 }
             });
 
@@ -693,12 +776,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             container.addEventListener('wheel', (e) => {
                 if (e.deltaY < 0) {
                     // User wheeling UP: immediately disengage auto-scroll
-                    this.userHasScrolledUp = true;
+                    if (!this.userHasScrolledUp) {
+                        this.userHasScrolledUp = true;
+                        this.updateAutoScrollUI();
+                    }
                 } else if (e.deltaY > 0) {
                     // User wheeling DOWN: if within bottom reach, re-engage
                     const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
-                    if (atBottom) {
+                    if (atBottom && this.userHasScrolledUp) {
                         this.userHasScrolledUp = false;
+                        this.updateAutoScrollUI();
                     }
                 }
             }, { passive: true });
@@ -714,11 +801,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 if (e.touches.length > 0) {
                     const touchY = e.touches[0].clientY;
                     if (touchY > touchStartY + 4) { // Swipe down -> scrolls up
-                        this.userHasScrolledUp = true;
+                        if (!this.userHasScrolledUp) {
+                            this.userHasScrolledUp = true;
+                            this.updateAutoScrollUI();
+                        }
                     } else if (touchY < touchStartY - 4) { // Swipe up -> scrolls down
                         const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
-                        if (atBottom) {
+                        if (atBottom && this.userHasScrolledUp) {
                             this.userHasScrolledUp = false;
+                            this.updateAutoScrollUI();
                         }
                     }
                 }
@@ -878,6 +969,50 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this.renderHistory();
     },
 
+    async switchMessageVariant(msgId, variantIndex) {
+        const msg = this.messages ? this.messages.find(m => m.id === msgId) : null;
+        if (!msg || !msg.variants || variantIndex === msg.active_variant_index) return;
+
+        try {
+            const resp = await fetch(`/api/chat/messages/${msgId}/variant`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ variant_index: variantIndex })
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                msg.active_variant_index = data.active_variant_index;
+                msg.content = data.content;
+                this.renderHistory();
+            }
+        } catch (e) {
+            console.error('[Chat] Failed to switch variant:', e);
+        }
+    },
+
+    async deleteMessageVariant(msgId, variantIndex) {
+        const msg = this.messages ? this.messages.find(m => m.id === msgId) : null;
+        if (!msg || !msg.variants || msg.variants.length <= 1) return;
+
+        const confirmMsg = window.i18n ? window.i18n.t('chat_variant_delete_confirm') : 'Voulez-vous supprimer cette version de la réponse ?';
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const resp = await fetch(`/api/chat/messages/${msgId}/variants/${variantIndex}`, {
+                method: 'DELETE'
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                msg.variants.splice(variantIndex, 1);
+                msg.active_variant_index = data.active_variant_index;
+                msg.content = data.content;
+                this.renderHistory();
+            }
+        } catch (e) {
+            console.error('[Chat] Failed to delete variant:', e);
+        }
+    },
+
 
     renderMath() {
         // Point d'entrée post-rendu commun (historique + streaming) : hydrate aussi les mini-diffs des cartes d'action
@@ -894,11 +1029,82 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
+    get autoScrollEnabled() {
+        if (this._autoScrollEnabled === undefined) {
+            try {
+                const stored = localStorage.getItem('chat_autoscroll_enabled');
+                this._autoScrollEnabled = stored !== 'false';
+            } catch (_) {
+                this._autoScrollEnabled = true;
+            }
+        }
+        return this._autoScrollEnabled;
+    },
+
+    set autoScrollEnabled(val) {
+        this._autoScrollEnabled = !!val;
+        try {
+            localStorage.setItem('chat_autoscroll_enabled', this._autoScrollEnabled ? 'true' : 'false');
+        } catch (_) {}
+    },
+
+    updateAutoScrollUI() {
+        const container = document.getElementById('chatAutoScrollContainer');
+        const toggle = document.getElementById('chatAutoScrollToggle');
+        const text = document.getElementById('chatAutoScrollText');
+        if (!container || !toggle || !text) return;
+
+        toggle.checked = this.autoScrollEnabled;
+
+        if (!this.autoScrollEnabled) {
+            container.classList.remove('debraye');
+            container.classList.add('disabled');
+            container.title = window.i18n ? window.i18n.t('chat_autoscroll_tooltip_disabled') : "Auto-scroll désactivé — Aucun défilement automatique";
+            text.textContent = window.i18n ? window.i18n.t('chat_autoscroll_disabled') : "Auto-scroll : Off";
+        } else if (this.userHasScrolledUp) {
+            container.classList.add('debraye');
+            container.classList.remove('disabled');
+            container.title = window.i18n ? window.i18n.t('chat_autoscroll_tooltip_debraye') : "Auto-scroll débrayé par défilement manuel — Cliquez pour réaligner";
+            text.textContent = window.i18n ? window.i18n.t('chat_autoscroll_debraye') : "Auto-scroll (débrayé)";
+        } else {
+            container.classList.remove('debraye', 'disabled');
+            container.title = window.i18n ? window.i18n.t('chat_autoscroll_tooltip_active') : "Auto-scroll actif lors de la génération";
+            text.textContent = window.i18n ? window.i18n.t('chat_autoscroll_active') : "Auto-scroll";
+        }
+    },
+
+    toggleAutoScroll(enabled) {
+        this.autoScrollEnabled = !!enabled;
+        if (this.autoScrollEnabled) {
+            this.userHasScrolledUp = false;
+            this.scrollToBottom(true);
+        }
+        this.updateAutoScrollUI();
+    },
+
+    onAutoScrollTextClick(e) {
+        if (this.autoScrollEnabled && this.userHasScrolledUp) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.reengageAutoScroll();
+        }
+    },
+
+    reengageAutoScroll() {
+        this.autoScrollEnabled = true;
+        this.userHasScrolledUp = false;
+        this.scrollToBottom(true);
+        this.updateAutoScrollUI();
+    },
+
     _suppressScrollDetect(ms = 80) {
         this._ignoreScrollUntil = Date.now() + ms;
     },
 
-    scrollToBottom() {
+    scrollToBottom(force = false) {
+        if (!force && !this.autoScrollEnabled) return;
         const container = document.getElementById('chatMessages');
         if (container) {
             this._isProgrammaticScroll = true;
@@ -1327,6 +1533,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 popover.style.display = 'none';
             }
         });
+
+        if (!window._chatVariantListenerInitialized) {
+            window._chatVariantListenerInitialized = true;
+            window.addEventListener('chat:variant_ready', (e) => {
+                const data = e.detail;
+                if (data && window.ChatView && window.ChatView.activeSessionId === data.session_id) {
+                    if (typeof window.ChatView.loadMessages === 'function') {
+                        window.ChatView.loadMessages();
+                    }
+                }
+            });
+        }
     },
 
     async _renderBudgetPopoverContent(popover, budgetId, budgetName, snapshot = null) {
