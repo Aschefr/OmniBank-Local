@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHgzaGxaQUJma2t1MTcxVmswMXh0RVpyNVB1dkwrNE1Hdi9RYk5VZW9WUTZoMmVteTc5NklsME1LRXFlVFZNN3RteDRmRm85MnNTWTFHeno1V0Q2SkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjA2MjU2CWZpbGU6T21uaUJhbmtfMS4yLjdfeDY0X2ZyLUZSLm1zaQpRR2Y3NzUwc3YzQWFNNTlJdWdhZTBWOWxEZVo1RlQzSzJGUkg1eUpaTTB1VGJaTGthQysrMzJ5U0ViYmZGSGdCZ0xiakM3SDNRRU4zN1ovWlVOQ1BDZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.7/OmniBank_1.2.7_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDY1dFNqYUtTVWlHRnpPdkhxbWFocHFTdWdQbWcrYzl0djNCT0VWUVlGK0NwSGlER21Mc2hzR2FSdGZIbCtqWTVpQzlSRWFseVlYcVMyMXFHMWx0TEFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjc2OTgyCWZpbGU6T21uaUJhbmtfMS4yLjhfeDY0X2ZyLUZSLm1zaQptUHU0UElWUlFpQngxR04vZ01sL1M5NFVNN01KQmtOZzV0U2R0SGRoUGI5V1c3RXFTazliRFdneFdvWEltaDlQVDZjaDhFdnBYcE9XWlloL3E3OGJDZz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.8/OmniBank_1.2.8_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-22T15:20:00Z",
+    "pub_date":  "2026-10-22T13:49:42Z",
     "version":  "1.2.8",
-    "notes":  "AI Response Variants, Multi-Version Tabs, Background Auto-Critic & Auto-Pilot Zero-F5 Live Sync"
+    "notes":  "AI Response Variants, Background Critic \u0026 Auto-Pilot Zero-F5 Live Sync"
 }
