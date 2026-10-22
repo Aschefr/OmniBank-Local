@@ -54,6 +54,14 @@ Target: Privacy-conscious individuals; French associations/CSE needing lightweig
 
 - **Changelog (`CHANGELOG.md`)** : Doit toujours être rédigé en anglais, concis et orienté utilisateur (fonctionnalités visibles et bugs corrigés perceptibles). Dès que la section `[Unreleased]` devient trop volumineuse (au-delà de 20-30 lignes), elle doit être obligatoirement condensée et synthétisée par grands piliers d'usage, en éliminant les micro-détails d'implémentation.
 - **GitHub Releases** : Les notes détaillées et techniques exhaustives (formules, architecture, micro-correctifs) doivent être intégrées dans les notes de release GitHub lors de la publication, et non surcharger le changelog.
+- **Procédure de Release Officielle (`docs/BUILD_GUIDE.md`)** : Une release ne se limite JAMAIS à un simple bump/tag git sur `dev`. Elle doit obligatoirement respecter l'intégralité du processus décrit dans `docs/BUILD_GUIDE.md` (idéalement via `.\scripts\release.ps1 -Version "X.Y.Z" -Notes "..."`) :
+  1. Synchroniser `README.md` (badges de version et sections nouveautés FR & EN).
+  2. Compiler et valider le sidecar PyInstaller (`scripts/build_sidecar_onedir.ps1` + smoke test health check).
+  3. Compiler le paquet MSI avec Tauri (`npx tauri build`) et exécuter le smoke test d'extraction administrative (`scripts/test_msi_smoke.ps1`).
+  4. Signer numériquement le MSI (`scripts/gen-keys`) et injecter la signature base64 dans `latest.json` (sans BOM).
+  5. Commiter, tagger et pousser sur `main`.
+  6. Créer la release GitHub avec le binaire `.msi` téléversé via `gh release create`.
+  7. Builder et pousser l'image Docker (`aschefr/omnibank-local:X.Y.Z` et `:latest`).
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

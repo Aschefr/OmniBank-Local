@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,7 +110,15 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.2.0)
+## 🆕 Nouveautés (v1.2.8)
+
+* **💬 Multi-Variantes de Réponses IA & Auto-Correction en Arrière-Plan** : Historique multi-versions des réponses (`v1`, `v2`, etc.) avec onglets interactifs persistants (sticky) au scroll. L'assistant exécute un critique autonome en arrière-plan qui détecte et génère automatiquement des versions corrigées si des actions financières ou précisions techniques ont été omises.
+* **🪄 Récupération Multi-Actions & Syntaxe Condensée** : Restitution dynamique et sans restriction de toutes les cartes d'actions proposées (virements ponts, transferts multiples, clôtures de récurrences) pour une exécution en 1 clic.
+* **⚡ Réactivité Auto-Pilote Zero-F5 en Direct** : Résolution du blocage en « Relevé en cours... » ; réarmement instantané du compte à rebours et rafraîchissement réactif du centre de contrôle sans rechargement de page (<kbd>F5</kbd>).
+* **🗓️ Moteur RAG d'Échéances Prévisionnelles & Briefing Paie** : Outil dédié permettant à l'assistant d'interroger et classer vos débits et factures à venir, avec mise en avant des sorties critiques avant la prochaine rentrée de salaire.
+* **📜 Contrôle de Défilement Débrayable & Atmosphère Albâtre** : Interrupteur d'auto-scroll tri-état (`ON`, `Débrayé`, `OFF`) et amélioration des contrastes de lecture et de la palette visuelle en thème clair.
+
+## 📦 Historique Récent (v1.2.0)
 
 * **🤖 Auto-Pilote Bancaire & Centre de Contrôle Autonome** : Automatisation complète des opérations bancaires — pointage haute confiance, détection des débits annoncés, rattachement aux échéances prévisionnelles, découverte et recalibrage dynamique des enveloppes budgétaires, gestion de l'incertitude avec validation 1-clic `[✓ C'est OK]` et annulation instantanée unitaire ou par lot.
 * **🎛️ Mode Cockpit & Jauge Analogique de Cadence (€/jour)** : Sélecteur de vue instantané (« Cockpit » vs « Complet »), jauge analogique à aiguille avec gradient chromatique, synthèse prévisionnelle « Cap sur le mois prochain » et visualisations enrichies des débits à venir.
@@ -118,18 +126,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 * **🏛️ Mode Organisation & Rapports Financiers A4 Live Preview** : Prévisualisation en feuilles physiques A4 avec rubans de césure, insertion de sauts de page interactifs, et modèles dédiés aux associations (Loi 1901) et CSE (bilan d'exploitation, piste d'audit, trésorerie et blocs d'approbation AG).
 * **🔄 Réactivité UI Zero-F5 & Garde-fous Bancaires** : Synchronisation en arrière-plan et actualisation en direct de l'ensemble des vues sans rechargement de page (F5), protégée par une analyse d'empreinte historique anti-inversion de relevés.
 
-## 📦 Historique Récent (v1.1.8)
-
-* **⚡ Relevé Bancaire 2× Plus Rapide (Crédit Agricole)** : La récupération des opérations en ligne est désormais jusqu'à deux fois plus rapide grâce à la réutilisation des sessions authentifiées et l'arrêt intelligent de la pagination.
-* **🔐 Fiabilité du Flux Coffre & Synchronisation** : Le clic sur « Relevé en ligne » fonctionne désormais correctement dans tous les cas — déverrouillage du coffre, ré-autorisation inter-navigateur et forçage de synchronisation.
-
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
 ---
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -229,18 +232,21 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.2.0)
+## 🆕 What's New (v1.2.8)
+
+* **💬 Multi-Version AI Responses & Background Critic Auto-Correction**: Multi-version response history (`v1`, `v2`, etc.) with sticky interactive tabs pinned during scroll. A background critic worker autonomously identifies missing technical actions and generates enriched alternative versions on the fly.
+* **🪄 Multi-Action Auto-Recovery & Condensed Syntax**: Automatic dynamic generation of interactive 1-click action cards for complex multi-leg transfers and recurrence management.
+* **⚡ Auto-Pilot Zero-F5 Live Sync Reactivity**: Instant countdown re-arming and real-time control center refresh upon bank synchronization completion with zero manual page refreshes (<kbd>F5</kbd>).
+* **🗓️ Upcoming Expenses RAG Engine & Paycheck Timeline**: Dedicated assistant tool querying and ranking upcoming scheduled bills, spotlighting outflows due before the next salary inflow.
+* **📜 Tri-State Auto-Scroll Switch & Refined Reading Contrast**: Dynamic scroll toggle (`ON`, `Disengaged`, `OFF`) with 1-click snap-to-bottom and polished light theme typography contrast.
+
+## 📦 Recent History (v1.2.0)
 
 * **🤖 Auto-Pilot Control Center & Autonomous Banking Operations**: Full hands-free financial automation — high-certainty auto-reconciliation, announced upcoming debit linking, dynamic budget envelope discovery/recalibration, in-situ review queue with 1-click validation (`[✓ C'est OK]`), and instant 1-click decision or cycle batch rollback.
 * **🎛️ Overview Cockpit Mode & Analog Spending Pace Gauge (€/day)**: Dual display toggle ("Cockpit" vs "Full"), analog needle meter with chromatic arc, compact "Next Month Outlook" forecast banner, and enriched upcoming debit progression arcs.
 * **🔮 What-If Financial Projection Simulator & Seasonality**: Multi-month cash flow forecasting with Brownian confidence cones ($\sigma \sqrt{t}$), customizable expense seasonality, neutral internal transfers, and persistent preferences.
 * **🏛️ Organisation Mode & Live A4 Multi-Page PDF Reports**: Real-time split-view live preview rendered as discrete A4 sheets with page markers, drag-and-drop page break insertion, and dedicated non-profit (Loi 1901 / CSE) accounting presets (Operating Statement, Cash Runway, dual Treasurer/President approval blocks).
 * **🔄 Zero-F5 Real-Time UI Reactivity & Banking Guardrails**: Instant background sync and cross-view DOM updates without manual browser refreshes, safeguarded by historical fingerprint overlap analysis preventing statement inversions.
-
-## 📦 Recent History (v1.1.8)
-
-* **⚡ 2× Faster Bank Synchronization (Crédit Agricole)**: Online statement retrieval is now up to twice as fast by reusing authenticated sessions and intelligently stopping pagination once all relevant transactions have been collected.
-* **🔐 Vault Unlock & Sync Flow Consistency**: Clicking "Relevé en ligne" now works reliably in all scenarios — vault unlock prompt, cross-browser session re-authorization, and force-sync regardless of anti-spam cooldown state.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 
