@@ -339,6 +339,26 @@ def undo_action(db, action: ActionHistory):
                     Transaction.date_operation > date.today()
                 ).delete()
 
+        if action.entity_type == "transaction":
+            if prev_state.get("_propagated_template"):
+                tpl_data = prev_state["_propagated_template"]
+                tpl_id = tpl_data.get("id")
+                if tpl_id:
+                    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+                    if tpl:
+                        restore_state(tpl, tpl_data, db)
+
+            if prev_state.get("_propagated_txs"):
+                tx_snaps = prev_state["_propagated_txs"]
+                if isinstance(tx_snaps, dict):
+                    tx_snaps = tx_snaps.values()
+                for snap in tx_snaps:
+                    ftx_id = snap.get("id")
+                    if ftx_id:
+                        ftx = db.query(Transaction).filter(Transaction.id == ftx_id).first()
+                        if ftx:
+                            restore_state(ftx, snap, db)
+
         # Set warning for category rename
         if action.entity_type == "category" and "name" in prev_state:
             warning = "category_rename_warning"
@@ -455,6 +475,26 @@ def redo_action(db, action: ActionHistory):
                 # Redoing REOPEN / reopen update -> template reopened -> regenerate future instances
                 from app.routers.recurrences import generate_recurrences
                 generate_recurrences(template_id=action.entity_id, db=db)
+
+        elif action.entity_type == "transaction":
+            if new_state.get("_propagated_template"):
+                tpl_data = new_state["_propagated_template"]
+                tpl_id = tpl_data.get("id")
+                if tpl_id:
+                    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tpl_id).first()
+                    if tpl:
+                        restore_state(tpl, tpl_data, db)
+
+            if new_state.get("_propagated_txs"):
+                tx_snaps = new_state["_propagated_txs"]
+                if isinstance(tx_snaps, dict):
+                    tx_snaps = tx_snaps.values()
+                for snap in tx_snaps:
+                    ftx_id = snap.get("id")
+                    if ftx_id:
+                        ftx = db.query(Transaction).filter(Transaction.id == ftx_id).first()
+                        if ftx:
+                            restore_state(ftx, snap, db)
 
     elif action.action_type == "DELETE":
         # Re-delete the entity (since undo re-created it)
