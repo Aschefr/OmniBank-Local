@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.9-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.10-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,13 +110,11 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.2.9)
+## 🆕 Nouveautés (v1.2.10)
 
-* **🏷️ Garde-Fous de Catégorisation & Assainissement des Flux** : Protection stricte interdisant l'assignation de catégories de recettes (ex: « Remboursement ») sur des dépenses, suggestion automatique (« Remboursements d'avances »), et outil de nettoyage des données enrichi avec détail exhaustif des anomalies.
-* **🤖 Auto-Pilote & Rapprochement Prévisionnel Sans Faux Positifs** : Élimination des suggestions de prévisions superflues sur les opérations déjà rapprochées ou liées dans la file de revue.
-* **💬 Précision de l'Assistant IA & Épargne de Précaution** : Distinction rigoureuse entre le matelas d'épargne disponible global et le solde spécifique de chaque livret (Livret A, LDD) dans les diagnostics budgétaires.
-* **📖 Confort de Lecture IA & Titres de Paragraphes Épurés** : Suppression des pastilles interactives d'entités financières dans les titres de sections et en-têtes markdown pour une mise en page fluide.
-* **🐳 Déploiement Docker & Invalidation de Cache Automatique** : Configuration Nginx durcie (`no-cache, must-revalidate`) et versionnage des feuilles de style pour éliminer tout cache CSS résiduel lors des mises à jour Docker (Unraid).
+* **🔁 Propagation Différentielle Ciblée des Récurrences** : Lors de la modification d'une opération récurrente avec propagation (*« Toutes les futures (et le modèle) »*), seules les modifications réelles (ex: catégorie, description) sont répercutées. Les montants distincts des échéances futures ne sont plus écrasés lors d'une mensualité exceptionnelle.
+* **↶ Annulation & Rétablissement Atomiques en Grappe** : L'annulation d'une modification propagée restaure désormais l'intégralité de la série affectée (opération source, échéances futures et modèle) sans laisser d'opérations orphelines.
+* **⚡ Réactivité UI Zero-F5 Renforcée** : Émission instantanée des événements réactifs sur les actions d'annulation/rétablissement pour une actualisation sans rechargement de page.
 
 ## 📦 Historique Récent (v1.2.0)
 
@@ -132,7 +130,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.2.9-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.2.10-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -232,13 +230,11 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.2.9)
+## 🆕 What's New (v1.2.10)
 
-* **🏷️ Categorization Direction Guards & Data Cleanup Sanctuary**: Strict validation preventing income categories (e.g. "Remboursement") on expense debits, contextual suggestion ("Remboursements d'avances"), and transparent diagnostic reporting in the Data Cleanup toolbox.
-* **🤖 Auto-Pilot Review Queue False-Positive Elimination**: Suppressed redundant candidate forecast linking prompts on already reconciled transactions.
-* **💬 AI Assistant Balance Precision & Savings Cushion**: Explicit separation between aggregate liquid savings reserves and individual savings accounts (Livret A, LDD) during financial analyses.
-* **📖 Clutter-Free AI Reading Experience**: Suppressed interactive financial entity badges within markdown headings and table headers.
-* **🐳 Docker Deployment & Automatic Cache Invalidation**: Nginx static caching headers updated to `no-cache, must-revalidate` along with versioned CSS imports to ensure immediate UI updates across Docker deployments.
+* **🔁 Selective Recurrence Propagation (Diff-Based)**: When editing a recurring transaction with propagation enabled, only fields actually modified by the user are propagated, protecting distinct monthly amounts across future occurrences from being inadvertently overwritten.
+* **↶ Atomic Cluster Undo & Redo for Series Mutations**: Undoing an update that was propagated across a recurring series atomically restores the whole cluster (source transaction, future occurrences, and template) to their exact prior states.
+* **⚡ Reinforced Real-Time UI Reactivity (Zero F5)**: Instant reactive DOM events dispatched on undo/redo actions, updating all views immediately without manual browser refreshes.
 
 ## 📦 Recent History (v1.2.0)
 

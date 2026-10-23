@@ -137,6 +137,22 @@ def get_transaction(tx_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Transaction not found")
     return db_tx
 
+def _is_field_changed(old_val, new_val) -> bool:
+    if old_val is None and new_val is None:
+        return False
+    if (old_val is None and new_val is not None) or (old_val is not None and new_val is None):
+        if old_val in (None, "") and new_val in (None, ""):
+            return False
+        return True
+    if isinstance(new_val, (date, datetime)) and isinstance(old_val, str):
+        return new_val.isoformat() != old_val
+    if isinstance(old_val, (date, datetime)) and isinstance(new_val, str):
+        return old_val.isoformat() != new_val
+    if isinstance(old_val, (int, float)) and isinstance(new_val, (int, float)):
+        return abs(float(old_val) - float(new_val)) > 1e-4
+    return old_val != new_val
+
+
 @router.put("/{tx_id}", response_model=TransactionOut)
 def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool = False, db: Session = Depends(get_db)):
     db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
@@ -160,7 +176,14 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         elif not new_skipped and was_skipped:
             db_tx.is_skipped = False
             db_tx.reconciliation_date = None
-                    
+
+    # Detect fields actually modified by user
+    changed_keys = {k for k, v in update_data.items() if _is_field_changed(old_snapshot.get(k), v)}
+    propagatable_keys = changed_keys - {
+        'date_operation', 'reconciliation_date', 'id', 'created_at',
+        'created_by', 'modified_at', 'modified_by', 'is_skipped'
+    }
+
     for key, value in update_data.items():
         if key != "is_skipped": # Handled specifically above
             setattr(db_tx, key, value)
@@ -169,35 +192,52 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
     if db_tx.from_account_id and db_tx.to_account_id:
         db_tx.type = "transfer"
 
-    if propagate and db_tx.recurrence_id:
+    old_template_snapshot = None
+    old_future_snapshots = []
+    future_txs = []
+    template = None
+
+    if propagate and db_tx.recurrence_id and propagatable_keys:
+        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
+        if template:
+            old_template_snapshot = snapshot_entity(template)
+
         # Update all future instances belonging to the same recurrence
         future_txs = db.query(Transaction).filter(
             Transaction.recurrence_id == db_tx.recurrence_id,
             Transaction.date_operation > db_tx.date_operation
         ).all()
+        old_future_snapshots = [snapshot_entity(ftx) for ftx in future_txs]
+
         for ftx in future_txs:
-            for key, value in update_data.items():
-                if key not in ['date_operation', 'reconciliation_date']: # Do not propagate dates
-                    setattr(ftx, key, value)
+            for key in propagatable_keys:
+                if hasattr(ftx, key):
+                    setattr(ftx, key, update_data[key])
             if ftx.from_account_id and ftx.to_account_id:
                 ftx.type = "transfer"
         
         # Update the template itself
-        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
         if template:
-            for key, value in update_data.items():
-                if hasattr(template, key) and key not in ['date_operation', 'reconciliation_date']:
-                    setattr(template, key, value)
+            for key in propagatable_keys:
+                if hasattr(template, key):
+                    setattr(template, key, update_data[key])
             if template.from_account_id and template.to_account_id:
                 template.type = "transfer"
-                    
-    if db_tx.recurrence_id and db_tx.reconciliation_date:
-        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
-        if template:
-            template.amount = db_tx.amount
+
     db.flush()
 
-    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by)
+    if old_future_snapshots or old_template_snapshot:
+        old_snapshot["_propagated_template"] = old_template_snapshot
+        old_snapshot["_propagated_txs"] = old_future_snapshots
+
+    new_snapshot = snapshot_entity(db_tx)
+    if old_future_snapshots or old_template_snapshot:
+        new_template_snapshot = snapshot_entity(template) if template else None
+        new_future_snapshots = [snapshot_entity(ftx) for ftx in future_txs]
+        new_snapshot["_propagated_template"] = new_template_snapshot
+        new_snapshot["_propagated_txs"] = new_future_snapshots
+
+    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, new_snapshot, user_name=db_tx.modified_by)
     db.commit()
     stats_cache.invalidate()
     db.refresh(db_tx)
@@ -229,10 +269,6 @@ def toggle_reconciliation(tx_id: int, db: Session = Depends(get_db)):
     else:
         db_tx.reconciliation_date = date.today()
         
-    if db_tx.recurrence_id and db_tx.reconciliation_date:
-        template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
-        if template:
-            template.amount = db_tx.amount
     db.flush()
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, snapshot_entity(db_tx), user_name=db_tx.modified_by or db_tx.created_by)
     db.commit()

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-10-23
+
+### Fixed & Ergonomics
+- **Selective Recurrence Propagation (Diff-Based) 🔁🎯**: When editing a recurrent transaction with propagation enabled ("Toutes les futures (et le modèle)"), OmniBank now strictly propagates *only* the fields that were actually modified by the user (e.g., updating a category or label preserves individual transaction amounts, preventing exceptional amounts from inadvertently overwriting future occurrences and the template). Removed legacy automatic overwrites of recurrence template amounts upon single occurrence updates or reconciliation.
+- **Atomic Cluster Undo & Redo for Propagated Recurrences ↶🔄**: Undoing an update that was propagated across a series now atomically restores the entire affected cluster (the source transaction, all future occurrences, and the template) back to their exact previous states. Full reactive DOM event dispatch ensures all open views update instantaneously without requiring a page refresh (Zero F5).
+
 ## [1.2.9] - 2026-10-23
 
 ### Added & Improved
