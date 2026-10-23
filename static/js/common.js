@@ -870,6 +870,10 @@ function showUndoToast(message, actionId, onUndoSuccess = null) {
                 if (window.app && window.app.refreshSidebar) {
                     window.app.refreshSidebar();
                 }
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
+                window.dispatchEvent(new CustomEvent('transactions:refresh'));
+                window.dispatchEvent(new CustomEvent('recurrences:updated'));
+                window.dispatchEvent(new CustomEvent('app:data-changed'));
                 if (onUndoSuccess) {
                     onUndoSuccess();
                 } else {

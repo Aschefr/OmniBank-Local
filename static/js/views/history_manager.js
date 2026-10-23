@@ -264,6 +264,10 @@ window.HistoryView = {
                 if (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') {
                     window.BankSyncView.loadPendingSync().catch(() => {});
                 }
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
+                window.dispatchEvent(new CustomEvent('transactions:refresh'));
+                window.dispatchEvent(new CustomEvent('recurrences:updated'));
+                window.dispatchEvent(new CustomEvent('app:data-changed'));
                 await this.loadActions();
             } else {
                 const failMsg = (window.i18n.t('history_undo_fail') || 'Failed to undo').replace('{error}', res.detail || '');
