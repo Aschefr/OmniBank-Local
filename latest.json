@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDY1dFNqYUtTVWlHRnpPdkhxbWFocHFTdWdQbWcrYzl0djNCT0VWUVlGK0NwSGlER21Mc2hzR2FSdGZIbCtqWTVpQzlSRWFseVlYcVMyMXFHMWx0TEFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjc2OTgyCWZpbGU6T21uaUJhbmtfMS4yLjhfeDY0X2ZyLUZSLm1zaQptUHU0UElWUlFpQngxR04vZ01sL1M5NFVNN01KQmtOZzV0U2R0SGRoUGI5V1c3RXFTazliRFdneFdvWEltaDlQVDZjaDhFdnBYcE9XWlloL3E3OGJDZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.8/OmniBank_1.2.8_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHdxTWlvYzV0a2VjcTJZMzBNTWlYYXdZdnhPNGx3VW1EQXNncTRtS2U3UXlzaWdkN1pJUkhDUWlkZFZjR25PT1Y5eWNoVlc3RkFiOFQ4TG5hV3hNb0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNzU5MDE5CWZpbGU6T21uaUJhbmtfMS4yLjlfeDY0X2ZyLUZSLm1zaQpoTWhsZEl0aWQ0Y2d6cWsrWmMraHB4TFh2ZCtncTd6QWlxbjNIN1FKcGs1ejRhaGluOHhscG5PbXJxdlFkUVpBZ3RSeUNzSTlraGVpQ0VBVW9WRlRCdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.9/OmniBank_1.2.9_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-22T13:49:42Z",
-    "version":  "1.2.8",
-    "notes":  "AI Response Variants, Background Critic \u0026 Auto-Pilot Zero-F5 Live Sync"
+    "pub_date":  "2026-10-23T12:36:59Z",
+    "version":  "1.2.9",
+    "notes":  "v1.2.9 - Direction-Guarded Categorization, Auto-Pilot Queue Refinement, AI Balance Precision \u0026 Docker Cache Invalidation"
 }
