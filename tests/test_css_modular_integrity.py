@@ -30,8 +30,8 @@ def test_modular_css_manifest_and_files_exist():
     assert len(urls) >= 19, f"Nombre d'imports insuffisant dans style.css : {len(urls)}"
 
     for rel_url in urls:
-        # Normaliser le chemin relatif (ex: './base/variables.css' -> 'base/variables.css')
-        clean_rel = rel_url.lstrip("./").replace("/", os.sep)
+        # Normaliser le chemin relatif (ex: './base/variables.css?v=83' -> 'base/variables.css')
+        clean_rel = rel_url.split("?")[0].lstrip("./").replace("/", os.sep)
         full_path = os.path.join(CSS_DIR, clean_rel)
         assert os.path.isfile(full_path), f"Fichier CSS modulaire manquant : {full_path}"
         assert os.path.getsize(full_path) > 50, f"Fichier CSS anormalement vide : {full_path}"
@@ -43,7 +43,7 @@ def test_modular_css_syntax_balance():
     syntax_errors = []
 
     for rel_url in urls:
-        clean_rel = rel_url.lstrip("./").replace("/", os.sep)
+        clean_rel = rel_url.split("?")[0].lstrip("./").replace("/", os.sep)
         full_path = os.path.join(CSS_DIR, clean_rel)
         with open(full_path, "r", encoding="utf-8") as f:
             code = f.read()

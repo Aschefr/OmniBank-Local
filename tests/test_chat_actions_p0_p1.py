@@ -49,8 +49,8 @@ def db_session():
 
 
 def test_schema_target_version():
-    """Vérifie que la version cible de schéma est bien 31."""
-    assert TARGET_SCHEMA_VERSION == 31
+    """Vérifie que la version cible de schéma est bien 32."""
+    assert TARGET_SCHEMA_VERSION == 32
 
 
 def test_estimate_tokens_french_and_json():

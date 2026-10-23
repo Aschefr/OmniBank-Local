@@ -4,10 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed & Improved
-- **AI Assistant Tool Signatures & Parameter Alignment Overhaul 🤖🛠️**: Systematically audited and harmonized all 40 AI assistant tools. Resolved inverted temporal arguments on `get_budgets_status`, missing arguments and signature mismatches on `search_transactions`, `get_spending_analytics`, `get_spending_trends`, `simulate_loan_amortization`, `simulate_financial_scenario`, `search_similar_past_spends`, and `generate_csv_export_link`. Implemented defensive variadic parameter handling (`*args, **kwargs`) and parameter aliasing across all read, write, and simulation tools.
-- **AI Chat Auto-Scroll Sensitivity & Desktop Viewport Recovery 📜🖥️**: Calibrated low-threshold upward scroll detection prioritizing user reading during fast token streaming, and ensured desktop viewport height resets cleanly after window resizing.
-- **AI Conversational Action Recovery Resilience 💬🔄**: Strengthened multi-pattern recovery of proposed transaction modifications and bridge transfers from assistant response text.
+## [1.2.9] - 2026-10-23
+
+### Added & Improved
+- **Categorization Direction Guards & Data Cleanup Sanctuary 🏷️🛡️**: Enforced strict debit vs credit flow direction validation across smart-label rule resolvers, fuzzy pattern matching, and transaction edit dialogs. Income categories (such as "Remboursement") can no longer be mistakenly assigned to variable/fixed expense debits, and vice versa. Introduced smart contextual fallback suggestions (e.g. "Remboursements d'avances") and a transparent diagnostic breakdown in the Data Cleanup Toolbox with safe 1-click bulk re-categorization.
+- **Auto-Pilot Review Queue False-Positive Elimination 🤖🔗**: Candidate forecast suggestions (`[🔗 Lier]`) are now strictly bypassed for transactions that are already reconciled or linked, eliminating false positive forecast suggestions on existing matched transactions.
+- **AI Financial Assistant Savings Cushion & Balance Precision 💬💰**: Explicit breakdown between total liquid savings reserve (Livret A + LDD) and individual account balances in the assistant prompt briefing, preventing balance conflation during financial diagnostics.
+- **Clutter-Free AI Reading Experience & Heading Badge Isolation 💬✨**: Markdown titles, table headers, and section headings (`h1`–`h6`) in assistant responses strictly suppress interactive financial entity pills for a clean visual presentation.
+- **Production Docker Cache-Busting & Desktop Layout Hardening 🐳⚡**: Nginx static caching headers updated to `no-cache, must-revalidate` along with versioned CSS imports (`?v=83`), permanently eliminating stale browser caching across container updates on home servers (Unraid).
+- **AI Assistant Tool Signatures & Streaming Stability 🛠️📜**: Harmonized parameter handling and aliasing across all 40 AI assistant tools. Calibrated low-threshold upward scroll detection during fast token streaming and ensured robust action recovery.
 
 ## [1.2.8] - 2026-10-22
 

@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.9-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,13 +110,13 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.2.8)
+## 🆕 Nouveautés (v1.2.9)
 
-* **💬 Multi-Variantes de Réponses IA & Auto-Correction en Arrière-Plan** : Historique multi-versions des réponses (`v1`, `v2`, etc.) avec onglets interactifs persistants (sticky) au scroll. L'assistant exécute un critique autonome en arrière-plan qui détecte et génère automatiquement des versions corrigées si des actions financières ou précisions techniques ont été omises.
-* **🪄 Récupération Multi-Actions & Syntaxe Condensée** : Restitution dynamique et sans restriction de toutes les cartes d'actions proposées (virements ponts, transferts multiples, clôtures de récurrences) pour une exécution en 1 clic.
-* **⚡ Réactivité Auto-Pilote Zero-F5 en Direct** : Résolution du blocage en « Relevé en cours... » ; réarmement instantané du compte à rebours et rafraîchissement réactif du centre de contrôle sans rechargement de page (<kbd>F5</kbd>).
-* **🗓️ Moteur RAG d'Échéances Prévisionnelles & Briefing Paie** : Outil dédié permettant à l'assistant d'interroger et classer vos débits et factures à venir, avec mise en avant des sorties critiques avant la prochaine rentrée de salaire.
-* **📜 Contrôle de Défilement Débrayable & Atmosphère Albâtre** : Interrupteur d'auto-scroll tri-état (`ON`, `Débrayé`, `OFF`) et amélioration des contrastes de lecture et de la palette visuelle en thème clair.
+* **🏷️ Garde-Fous de Catégorisation & Assainissement des Flux** : Protection stricte interdisant l'assignation de catégories de recettes (ex: « Remboursement ») sur des dépenses, suggestion automatique (« Remboursements d'avances »), et outil de nettoyage des données enrichi avec détail exhaustif des anomalies.
+* **🤖 Auto-Pilote & Rapprochement Prévisionnel Sans Faux Positifs** : Élimination des suggestions de prévisions superflues sur les opérations déjà rapprochées ou liées dans la file de revue.
+* **💬 Précision de l'Assistant IA & Épargne de Précaution** : Distinction rigoureuse entre le matelas d'épargne disponible global et le solde spécifique de chaque livret (Livret A, LDD) dans les diagnostics budgétaires.
+* **📖 Confort de Lecture IA & Titres de Paragraphes Épurés** : Suppression des pastilles interactives d'entités financières dans les titres de sections et en-têtes markdown pour une mise en page fluide.
+* **🐳 Déploiement Docker & Invalidation de Cache Automatique** : Configuration Nginx durcie (`no-cache, must-revalidate`) et versionnage des feuilles de style pour éliminer tout cache CSS résiduel lors des mises à jour Docker (Unraid).
 
 ## 📦 Historique Récent (v1.2.0)
 
@@ -132,7 +132,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.2.8-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.2.9-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -232,13 +232,13 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.2.8)
+## 🆕 What's New (v1.2.9)
 
-* **💬 Multi-Version AI Responses & Background Critic Auto-Correction**: Multi-version response history (`v1`, `v2`, etc.) with sticky interactive tabs pinned during scroll. A background critic worker autonomously identifies missing technical actions and generates enriched alternative versions on the fly.
-* **🪄 Multi-Action Auto-Recovery & Condensed Syntax**: Automatic dynamic generation of interactive 1-click action cards for complex multi-leg transfers and recurrence management.
-* **⚡ Auto-Pilot Zero-F5 Live Sync Reactivity**: Instant countdown re-arming and real-time control center refresh upon bank synchronization completion with zero manual page refreshes (<kbd>F5</kbd>).
-* **🗓️ Upcoming Expenses RAG Engine & Paycheck Timeline**: Dedicated assistant tool querying and ranking upcoming scheduled bills, spotlighting outflows due before the next salary inflow.
-* **📜 Tri-State Auto-Scroll Switch & Refined Reading Contrast**: Dynamic scroll toggle (`ON`, `Disengaged`, `OFF`) with 1-click snap-to-bottom and polished light theme typography contrast.
+* **🏷️ Categorization Direction Guards & Data Cleanup Sanctuary**: Strict validation preventing income categories (e.g. "Remboursement") on expense debits, contextual suggestion ("Remboursements d'avances"), and transparent diagnostic reporting in the Data Cleanup toolbox.
+* **🤖 Auto-Pilot Review Queue False-Positive Elimination**: Suppressed redundant candidate forecast linking prompts on already reconciled transactions.
+* **💬 AI Assistant Balance Precision & Savings Cushion**: Explicit separation between aggregate liquid savings reserves and individual savings accounts (Livret A, LDD) during financial analyses.
+* **📖 Clutter-Free AI Reading Experience**: Suppressed interactive financial entity badges within markdown headings and table headers.
+* **🐳 Docker Deployment & Automatic Cache Invalidation**: Nginx static caching headers updated to `no-cache, must-revalidate` along with versioned CSS imports to ensure immediate UI updates across Docker deployments.
 
 ## 📦 Recent History (v1.2.0)
 

@@ -778,6 +778,88 @@ window.DataCleanupModal = {
             `;
         }).join('');
 
+        const mismatches = preview.mismatches || [];
+        const transferCount = mismatches.filter(m => m.kind === 'transfer_neutral').length;
+        const subtypeCount = mismatches.filter(m => m.kind === 'subtype_mismatch').length;
+        const conflictCount = mismatches.filter(m => m.kind === 'direction_conflict').length;
+
+        const mismatchesRowsHtml = mismatches.map(m => {
+            const curTypeLabel = typeLabels[m.current_type] || m.current_type;
+            const catTypeLabel = typeLabels[m.category_type] || m.category_type;
+            const amountStr = typeof window.formatCurrency === 'function' ? window.formatCurrency(m.amount) : `${m.amount.toFixed(2)} €`;
+            const badgeStyle = m.is_safe
+                ? 'background:rgba(99,102,241,0.12); color:#6366f1; border:1px solid rgba(99,102,241,0.25);'
+                : 'background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25);';
+
+            return `
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td style="padding:6px 10px; color:var(--text-muted); font-size:11.5px; white-space:nowrap;">${m.date}</td>
+                    <td style="padding:6px 10px; font-weight:600; color:var(--text-main); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${m.description}">${m.description}</td>
+                    <td style="padding:6px 10px; text-align:right; font-weight:700; white-space:nowrap;">${amountStr}</td>
+                    <td style="padding:6px 10px; color:var(--text-muted); white-space:nowrap;">${curTypeLabel}</td>
+                    <td style="padding:6px 10px; white-space:nowrap;">
+                        <span style="font-weight:600;">${m.category}</span>
+                        <span style="font-size:10.5px; color:var(--text-muted);">(${catTypeLabel})</span>
+                    </td>
+                    <td style="padding:6px 10px; white-space:nowrap;">
+                        <span style="font-size:11px; padding:2px 8px; border-radius:4px; ${badgeStyle}">
+                            ${m.action_label}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const mismatchesSectionHtml = (preview.total_tx_mismatches > 0) ? `
+            <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:16px;">⚡</span>
+                        <strong style="font-size:13.5px; color:var(--text-main);">
+                            ${preview.total_tx_mismatches} opération(s) isolées désynchronisées
+                        </strong>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnToggleMismatchesDetails" onclick="window.DataCleanupModal.toggleMismatchesList()" style="font-size:11.5px; padding:3px 9px; border-radius:6px;">
+                        👁️ Afficher les détails
+                    </button>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(99,102,241,0.12); color:#6366f1; border:1px solid rgba(99,102,241,0.25); font-weight:600;">
+                        ${transferCount} virements internes
+                    </span>
+                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25); font-weight:600;">
+                        ${subtypeCount} sous-types (fixes vs variables)
+                    </span>
+                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-weight:600;">
+                        🛡️ ${conflictCount} conflits de sens protégés
+                    </span>
+                </div>
+
+                <div style="font-size:12px; color:var(--text-muted); line-height:1.45; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:6px; padding:8px 10px;">
+                    🛡️ <strong>Sanctuarisation des flux :</strong> Le sens réel de vos flux d'argent (débits/crédits) est inviolable. Une dépense réelle associée par erreur à une catégorie de recettes (par exemple un remboursement fait à un ami) ne sera <em>JAMAIS</em> transformée en recette.
+                </div>
+
+                <div id="cleanupMismatchesList" style="display:none; max-height:260px; overflow-y:auto; border:1px solid var(--border-color); border-radius:8px; margin-top:2px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+                        <thead>
+                            <tr style="background:var(--bg-surface); border-bottom:1px solid var(--border-color); position:sticky; top:0; z-index:2;">
+                                <th style="padding:6px 10px; font-weight:600;">Date</th>
+                                <th style="padding:6px 10px; font-weight:600;">Description</th>
+                                <th style="padding:6px 10px; font-weight:600; text-align:right;">Montant</th>
+                                <th style="padding:6px 10px; font-weight:600;">Type actuel</th>
+                                <th style="padding:6px 10px; font-weight:600;">Catégorie</th>
+                                <th style="padding:6px 10px; font-weight:600;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mismatchesRowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        ` : '';
+
         container.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:14px; flex-shrink:0;">
                 <div style="border-bottom:1px solid var(--border-color); padding-bottom:12px;">
@@ -785,13 +867,19 @@ window.DataCleanupModal = {
                         <span>🏷️</span> <span>Diagnostic & Reclassement des Catégories</span>
                     </h4>
                     <p style="margin:0; font-size:12.5px; color:var(--text-muted); line-height:1.4;">
-                        ${preview.count} anomalie(s) détectée(s) : le type déclaré de la catégorie est en contradiction avec la direction réelle des flux.
+                        ${preview.count > 0 
+                            ? `${preview.count} anomalie(s) détectée(s) : le type déclaré de la catégorie est en contradiction avec la direction réelle des flux.` 
+                            : 'Vos catégories principales sont en conformité avec vos flux.'}
                     </p>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:10px; max-height:340px; overflow-y:auto; padding-right:4px;">
-                    ${cardsHtml}
-                </div>
+                ${preview.count > 0 ? `
+                    <div style="display:flex; flex-direction:column; gap:10px; max-height:300px; overflow-y:auto; padding-right:4px;">
+                        ${cardsHtml}
+                    </div>
+                ` : ''}
+
+                ${mismatchesSectionHtml}
 
                 <div style="border-top:1px solid var(--border-color); padding-top:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12.5px;">
@@ -805,6 +893,17 @@ window.DataCleanupModal = {
                 </div>
             </div>
         `;
+    },
+
+    toggleMismatchesList() {
+        const el = document.getElementById('cleanupMismatchesList');
+        const btn = document.getElementById('btnToggleMismatchesDetails');
+        if (!el) return;
+        const isHidden = (el.style.display === 'none');
+        el.style.display = isHidden ? 'block' : 'none';
+        if (btn) {
+            btn.innerHTML = isHidden ? '🙈 Masquer les détails' : '👁️ Afficher les détails';
+        }
     },
 
     async applyMisplacedFix(totalCategories) {

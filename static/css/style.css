@@ -4,35 +4,35 @@
  */
 
 /* 1. Foundation & Design Tokens */
-@import url('./base/variables.css?v=77');
-@import url('./base/reset.css');
-@import url('./base/layout.css');
+@import url('./base/variables.css?v=82');
+@import url('./base/reset.css?v=82');
+@import url('./base/layout.css?v=82');
 
 /* 2. Reusable UI Components */
-@import url('./components/buttons.css');
-@import url('./components/forms.css');
-@import url('./components/modals.css');
-@import url('./components/tables.css');
-@import url('./components/badges.css');
-@import url('./components/category_picker.css');
-@import url('./components/notifications.css?v=77');
+@import url('./components/buttons.css?v=82');
+@import url('./components/forms.css?v=82');
+@import url('./components/modals.css?v=82');
+@import url('./components/tables.css?v=82');
+@import url('./components/badges.css?v=82');
+@import url('./components/category_picker.css?v=82');
+@import url('./components/notifications.css?v=82');
 
 /* 3. View-Specific Layouts */
-@import url('./views/dashboard.css');
-@import url('./views/analytics.css');
-@import url('./views/budgets.css?v=77');
-@import url('./views/bank_sync.css');
-@import url('./views/recurrences.css');
-@import url('./views/chat.css?v=81');
-@import url('./views/settings.css');
-@import url('./views/autopilot.css');
-@import url('./views/cockpit.css');
+@import url('./views/dashboard.css?v=82');
+@import url('./views/analytics.css?v=82');
+@import url('./views/budgets.css?v=82');
+@import url('./views/bank_sync.css?v=82');
+@import url('./views/recurrences.css?v=82');
+@import url('./views/chat.css?v=83');
+@import url('./views/settings.css?v=82');
+@import url('./views/autopilot.css?v=82');
+@import url('./views/cockpit.css?v=82');
 
 /* 4. Themes & Overrides */
-@import url('./themes/titanium.css?v=78');
-@import url('./themes/previews.css');
-@import url('./themes/executive_overrides.css?v=78');
+@import url('./themes/titanium.css?v=82');
+@import url('./themes/previews.css?v=82');
+@import url('./themes/executive_overrides.css?v=82');
 
 /* 5. Responsive & Media Queries */
-@import url('./responsive/mobile.css');
-@import url('./responsive/print.css');
+@import url('./responsive/mobile.css?v=82');
+@import url('./responsive/print.css?v=82');

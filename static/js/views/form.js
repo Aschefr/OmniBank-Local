@@ -1181,6 +1181,7 @@ window.FormView = {
     async autoCategorizeCurrent() {
         const desc = document.getElementById('op_desc').value;
         const amount = document.getElementById('op_amount').value;
+        const txType = document.getElementById('op_tx_type').value;
         if (!desc) {
             showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_enter_desc_first'));
             return;
@@ -1191,22 +1192,33 @@ window.FormView = {
         try {
             const data = await API.post('/api/chat/autocategorize', {
                 description: desc,
-                amount: parseFloat(amount) || null
+                amount: parseFloat(amount) || null,
+                tx_type: txType
             });
             const cat = data.category;
             if (cat) {
-                // Try to select existing, otherwise set search and prompt creation
+                // Try to select existing
                 const select = document.getElementById('op_category');
                 const match = Array.from(select.options).find(o => o.value.toLowerCase() === cat.toLowerCase());
                 if (match) {
                     select.value = match.value;
                 } else {
-                    // Not in list — prefill new category name
-                    document.getElementById('op_category_search').value = cat;
-                    this.renderCategories();
-                    document.getElementById('new_cat_name').value = cat;
-                    this.showNewCatInput();
+                    const existingCrossCat = (this.categories || []).find(c => c.name.toLowerCase() === cat.toLowerCase());
+                    if (existingCrossCat && existingCrossCat.type !== txType) {
+                        showInlineMessage(
+                            window.i18n.t('title_info') || 'Information',
+                            `La catégorie « ${cat} » existe mais est de type « ${existingCrossCat.type} », incompatible avec une ${txType === 'income' ? 'recette' : 'dépense'}.`
+                        );
+                    } else {
+                        // Not in list — prefill new category name
+                        document.getElementById('op_category_search').value = cat;
+                        this.renderCategories();
+                        document.getElementById('new_cat_name').value = cat;
+                        this.showNewCatInput();
+                    }
                 }
+            } else {
+                showInlineMessage(window.i18n.t('title_info') || 'Information', 'Aucune catégorie compatible suggérée par l\'IA pour cette opération.');
             }
         } catch(e) {
             let errorMsg = e.message;

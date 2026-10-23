@@ -549,12 +549,15 @@ async def edit_message(id: int, req: ChatMessageUpdate, request: Request = None,
 class AutoCatRequest(BaseModel):
     description: str
     amount: float = None
+    tx_type: Optional[str] = None
+    type: Optional[str] = None
 
 
 @router.post("/autocategorize")
 async def autocategorize(req: AutoCatRequest, db: Session = Depends(get_db)):
-    """Suggère une catégorie pour une opération via Ollama."""
-    return await autocategorize_transaction(db, req.description, req.amount)
+    """Suggère une catégorie pour une opération via Ollama en respectant le type de flux."""
+    tx_t = req.tx_type or req.type
+    return await autocategorize_transaction(db, req.description, req.amount, tx_type=tx_t)
 
 
 # ─── Faits Financiers (AIFacts) ─────────────────────────────────────────────

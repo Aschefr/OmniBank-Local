@@ -2962,8 +2962,17 @@ window.AutopilotView = {
             });
 
             if (res) {
-                // Ne jamais écraser le libellé saisi par l'utilisateur : le bouton est situé sur le champ Catégorie
-                if (res.category && window.CategoryPicker) {
+                const targetTxType = this._currentOverrideTxType || 'expense_var';
+                const catObj = res.category ? (window.CategoryPicker?._findCategory(res.category) || (window.app?.categoriesList || []).find(c => c.name.toLowerCase() === res.category.toLowerCase())) : null;
+                
+                // Strict validation: category must be compatible with targetTxType
+                const isIncomeType = (targetTxType === 'income');
+                const isExpenseType = (targetTxType === 'expense_var' || targetTxType === 'expense_fixed');
+                const isIncompatible = catObj && ((isIncomeType && catObj.type !== 'income') || (isExpenseType && catObj.type === 'income'));
+
+                if (isIncompatible) {
+                    showToast(`Catégorie « ${res.category} » incompatible avec une ${isIncomeType ? 'recette' : 'dépense'}`, 'warning');
+                } else if (res.category && window.CategoryPicker) {
                     window.CategoryPicker.setValue('overrideCategory', res.category, true);
                     const isAiSource = (res.source === 'ai');
                     const successMsg = isAiSource

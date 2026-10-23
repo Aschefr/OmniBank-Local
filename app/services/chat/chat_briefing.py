@@ -206,7 +206,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             f"• Base Currency: {base_curr}",
             f"• Reconciled Net Worth: {total_net_worth:.2f} {base_curr} across {len(accounts)} accounts.",
             f"• Main Account ({main_acc_name}): Reconciled {main_acc_bal:.2f} {base_curr} | Projected Today: {balances_projected.get(main_acc.id, 0.0):.2f} {base_curr}.",
-            f"• Available Liquid Savings & Reserve (Épargne disponible): {liquid_savings_total:.2f} {base_curr} [{savings_detail_str}].",
+            f"• Available Liquid Savings & Reserve (Épargne disponible): {liquid_savings_total:.2f} {base_curr} (Total tous livrets d'épargne confondus — Détail par livret: {savings_detail_str}). NOTE: Never attribute this combined total to a single account; cite each account's exact balance when naming it.",
         ]
 
         if sec_detail_str:

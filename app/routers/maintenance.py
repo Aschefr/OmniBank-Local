@@ -526,6 +526,8 @@ def _audit_misplaced_categories(db: Session):
     anomalies = []
     total_tx_mismatches = 0
 
+    detailed_mismatches = []
+
     for c in cats:
         txs = db.query(Transaction).filter(Transaction.category == c.name).all()
         templates = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == c.name).all()
@@ -542,10 +544,46 @@ def _audit_misplaced_categories(db: Session):
         bidi_tmpl = sum(1 for t in templates if t.from_account_id is not None and t.to_account_id is not None)
 
         # Un virement bi-directionnel doit être typed 'transfer', les autres doivent correspondre au type de la catégorie
-        cat_tx_mismatches = sum(
-            1 for t in txs
-            if (t.type != "transfer" if (t.from_account_id is not None and t.to_account_id is not None) else t.type != c.type)
-        )
+        cat_tx_mismatches = 0
+        for t in txs:
+            is_bidi = (t.from_account_id is not None and t.to_account_id is not None)
+            is_debit = (t.from_account_id is not None and t.to_account_id is None)
+            is_credit = (t.from_account_id is None and t.to_account_id is not None)
+
+            target_type = "transfer" if is_bidi else c.type
+            if t.type != target_type:
+                cat_tx_mismatches += 1
+                if is_bidi:
+                    kind = "transfer_neutral"
+                    action_label = "Passer en type Virement interne"
+                    is_safe = True
+                elif is_debit and c.type == "income":
+                    kind = "direction_conflict"
+                    action_label = "Sens protégé (Débit réel / Catégorie Recette)"
+                    is_safe = False
+                elif is_credit and c.type in ("expense_var", "expense_fixed"):
+                    kind = "direction_conflict"
+                    action_label = "Sens protégé (Crédit réel / Catégorie Dépense)"
+                    is_safe = False
+                else:
+                    kind = "subtype_mismatch"
+                    label = "Charge fixe" if c.type == "expense_fixed" else "Dépense variable"
+                    action_label = f"Harmoniser en {label}"
+                    is_safe = True
+
+                detailed_mismatches.append({
+                    "id": t.id,
+                    "date": t.date_operation.strftime("%Y-%m-%d") if t.date_operation else "-",
+                    "description": t.description or "-",
+                    "amount": t.amount or 0.0,
+                    "current_type": t.type,
+                    "category": c.name,
+                    "category_type": c.type,
+                    "kind": kind,
+                    "action_label": action_label,
+                    "is_safe": is_safe
+                })
+
         total_tx_mismatches += cat_tx_mismatches
 
         reasons = []
@@ -615,7 +653,7 @@ def _audit_misplaced_categories(db: Session):
                 "sample": sample
             })
 
-    return anomalies, total_tx_mismatches
+    return anomalies, total_tx_mismatches, detailed_mismatches
 
 
 @router.get("/misplaced_categories/preview")
@@ -624,11 +662,12 @@ def preview_misplaced_categories(db: Session = Depends(get_db)):
     Retourne la liste des catégories mal placées (type en contradiction avec les flux réels)
     ainsi que les opérations désynchronisées.
     """
-    anomalies, total_tx_mismatches = _audit_misplaced_categories(db)
+    anomalies, total_tx_mismatches, detailed_mismatches = _audit_misplaced_categories(db)
     return {
         "count": len(anomalies),
         "categories": anomalies,
-        "total_tx_mismatches": total_tx_mismatches
+        "total_tx_mismatches": total_tx_mismatches,
+        "mismatches": detailed_mismatches
     }
 
 
@@ -640,10 +679,10 @@ def apply_misplaced_categories(
     """
     Applique le reclassement des catégories choisies :
     - Met à jour Category.type
-    - Aligne toutes les transactions de la catégorie
+    - Aligne toutes les transactions de la catégorie (en respectant le sens réel des flux)
     - Force type='transfer' pour les transactions bi-directionnelles
     - Aligne les RecurrenceTemplate de la catégorie
-    - Si sync_all_tx_types=True, aligne également toute transaction dont le type diffère de sa catégorie
+    - Si sync_all_tx_types=True, aligne les transactions isolées en sanctuarisant les débits/crédits réels
     - Invalide stats_cache
     """
     from app.models import Category, Transaction, RecurrenceTemplate
@@ -663,16 +702,23 @@ def apply_misplaced_categories(
             cat.type = new_type
             cats_fixed += 1
 
-        # 2. Update transactions for this category
+        # 2. Update transactions for this category (with direction protection)
         txs = db.query(Transaction).filter(Transaction.category == cat_name).all()
         for tx in txs:
             if tx.from_account_id is not None and tx.to_account_id is not None:
                 if tx.type != "transfer":
                     tx.type = "transfer"
                     txs_fixed += 1
-            elif tx.type != new_type:
-                tx.type = new_type
-                txs_fixed += 1
+            elif tx.from_account_id is not None and tx.to_account_id is None:
+                # Outflow debit: can only be expense
+                if new_type in ("expense_var", "expense_fixed") and tx.type != new_type:
+                    tx.type = new_type
+                    txs_fixed += 1
+            elif tx.from_account_id is None and tx.to_account_id is not None:
+                # Inflow credit: can only be income
+                if new_type == "income" and tx.type != "income":
+                    tx.type = "income"
+                    txs_fixed += 1
 
         # 3. Update recurrence templates
         tmpls = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.category == cat_name).all()
@@ -692,10 +738,33 @@ def apply_misplaced_categories(
             if not tx.category or tx.category not in all_cats:
                 continue
             cat_type = all_cats[tx.category]
-            target_type = "transfer" if (tx.from_account_id and tx.to_account_id) else cat_type
-            if tx.type != target_type:
-                tx.type = target_type
-                txs_fixed += 1
+
+            # 1. Bidi transfers
+            if tx.from_account_id is not None and tx.to_account_id is not None:
+                if tx.type != "transfer":
+                    tx.type = "transfer"
+                    txs_fixed += 1
+                continue
+
+            # 2. Debit flows (Money out -> MUST stay an expense!)
+            if tx.from_account_id is not None and tx.to_account_id is None:
+                if cat_type == "income":
+                    # Sanctuarisation : une dépense réelle ne doit JAMAIS être convertie en recette !
+                    continue
+                if cat_type in ("expense_var", "expense_fixed") and tx.type != cat_type:
+                    tx.type = cat_type
+                    txs_fixed += 1
+                continue
+
+            # 3. Credit flows (Money in -> MUST stay an income!)
+            if tx.from_account_id is None and tx.to_account_id is not None:
+                if cat_type in ("expense_var", "expense_fixed"):
+                    # Sanctuarisation : une recette réelle ne doit JAMAIS être convertie en dépense !
+                    continue
+                if cat_type == "income" and tx.type != "income":
+                    tx.type = "income"
+                    txs_fixed += 1
+                continue
 
     db.commit()
     stats_cache.invalidate()
@@ -984,7 +1053,7 @@ def get_maintenance_overview(db: Session = Depends(get_db)):
     """
     abandoned = _find_abandoned_recurrences(db)
     orphans = _find_orphan_recurrence_transactions(db)
-    misplaced_cats, total_tx_mismatches = _audit_misplaced_categories(db)
+    misplaced_cats, total_tx_mismatches, _ = _audit_misplaced_categories(db)
     mismatches = _find_mismatch_rows(db)
     zeroed_data = preview_convert_zeroed_to_skipped(db)
 
