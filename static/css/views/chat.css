@@ -102,6 +102,36 @@ body.theme-dark .chat-bubble.ai h3 {
     margin-top: 0;
 }
 
+/* Neutralise les bulles d'entités dans les titres et en-têtes */
+.chat-bubble.ai h1 .ai-entity-badge,
+.chat-bubble.ai h2 .ai-entity-badge,
+.chat-bubble.ai h3 .ai-entity-badge,
+.chat-bubble.ai h4 .ai-entity-badge,
+.chat-bubble.ai h5 .ai-entity-badge,
+.chat-bubble.ai h6 .ai-entity-badge,
+.chat-bubble.ai th .ai-entity-badge {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+    cursor: inherit !important;
+    font: inherit !important;
+    color: inherit !important;
+    display: inline !important;
+}
+
+.chat-bubble.ai h1 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai h2 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai h3 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai h4 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai h5 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai h6 .ai-entity-badge .ai-entity-icon,
+.chat-bubble.ai th .ai-entity-badge .ai-entity-icon {
+    display: none !important;
+}
+
 .chat-bubble.ai ul, .chat-bubble.ai ol {
     padding-left: 20px;
     margin: 12px 0 16px 0;

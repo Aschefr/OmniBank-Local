@@ -2171,7 +2171,7 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
 
 def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """Retourne la liste des transactions nécessitant une revue manuelle (needs_review == True)."""
-    from app.models import Transaction, Account
+    from app.models import Transaction, Account, AutopilotDecisionLog
     accounts = {a.id: a for a in db.query(Account).all()}
 
     txs = (
@@ -2180,11 +2180,28 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
         .order_by(Transaction.date_operation.desc(), Transaction.id.desc())
         .all()
     )
+
+    # Identifier les transactions de revue qui sont DÉJÀ issues d'un rapprochement / liaison
+    # (ex: LINKED_COMING_PENDING_REVIEW, AUTO_COMMIT_PENDING_REVIEW) pour ne pas leur suggérer
+    # d'autres prévisions sans rapport (ex: Free Fibre alors que la dépense est déjà On Point Sample).
+    recon_entity_ids = set()
+    if txs:
+        tx_ids = [t.id for t in txs]
+        recon_decs = db.query(AutopilotDecisionLog.entity_id).filter(
+            AutopilotDecisionLog.entity_id.in_(tx_ids),
+            AutopilotDecisionLog.decision_type == "reconciliation",
+            AutopilotDecisionLog.is_undone == False
+        ).all()
+        recon_entity_ids = {r[0] for r in recon_decs}
+
     results = []
     for t in txs:
         acc_id = t.from_account_id or t.to_account_id
         acc = accounts.get(acc_id)
-        candidates = find_candidate_forecasts_for_tx(db, t, limit=3)
+        # Ne chercher des prévisions candidates QUE si la transaction n'est pas déjà liée à une prévision existante
+        candidates = []
+        if t.id not in recon_entity_ids:
+            candidates = find_candidate_forecasts_for_tx(db, t, limit=3)
         results.append({
             "id": t.id,
             "date_operation": t.date_operation,

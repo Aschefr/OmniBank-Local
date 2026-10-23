@@ -237,6 +237,7 @@ window.AppModules.notifications = {
                                     }
                                 }
                             }
+                        });
                     } else if (newUnread.some(n => n.type === 'chat_variant')) {
                         const variantNotif = newUnread.find(n => n.type === 'chat_variant');
                         let linkData = {};

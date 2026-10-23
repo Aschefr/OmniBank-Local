@@ -1524,8 +1524,8 @@ async def generate_chat_stream(
 
 
 
-async def autocategorize_transaction(db: Session, description: str, amount: Optional[float] = None) -> dict:
-    """Demande à Ollama de suggérer une catégorie pour une transaction en privilégiant les existantes."""
+async def autocategorize_transaction(db: Session, description: str, amount: Optional[float] = None, tx_type: Optional[str] = None) -> dict:
+    """Demande à Ollama de suggérer une catégorie pour une transaction en privilégiant les existantes et en respectant strictement le type de flux."""
     ollama_url_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
     ollama_model_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_model").first()
     ollama_ctx_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_context").first()
@@ -1540,13 +1540,31 @@ async def autocategorize_transaction(db: Session, description: str, amount: Opti
     except (ValueError, TypeError):
         ctx = 4096
 
-    categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
+    cat_query = db.query(Category).filter(
+        (Category.is_closed == False) | (Category.is_closed == None)
+    )
+    if tx_type == "income":
+        cat_query = cat_query.filter(Category.type == "income")
+    elif tx_type in ("expense_var", "expense_fixed", "expense"):
+        cat_query = cat_query.filter(Category.type.in_(("expense_var", "expense_fixed", "expense")))
+    elif tx_type == "transfer":
+        cat_query = cat_query.filter(Category.type == "transfer")
+
+    categories = [c.name for c in cat_query.order_by(Category.name).all()]
     cat_list = ", ".join(f'"{c}"' for c in categories)
+
+    type_info = ""
+    if tx_type == "income":
+        type_info = "Il s'agit d'une RECETTE (entrée d'argent). Choisis obligatoirement une catégorie de recette.\n"
+    elif tx_type in ("expense_var", "expense_fixed", "expense"):
+        type_info = "Il s'agit d'une DÉPENSE (sortie d'argent). Choisis obligatoirement une catégorie de dépense (jamais de recette).\n"
+    elif tx_type == "transfer":
+        type_info = "Il s'agit d'un VIREMENT interne entre comptes.\n"
 
     amount_str = f" de {amount} €" if amount else ""
     prompt = f"""Tu es un assistant de catégorisation financière.
 CATÉGORIES EXISTANTES : {cat_list}
-
+{type_info}
 Transaction : "{description}"{amount_str}
 
 Réponds UNIQUEMENT avec le nom de la catégorie la plus appropriée, en privilégiant une catégorie existante.
@@ -1565,6 +1583,18 @@ Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
             data = resp.json()
             raw_content = data.get("message", {}).get("content", "")
             suggested = strip_thinking(raw_content).strip().strip('"').strip("'")
+
+            # Garde-fou strict : si la catégorie suggérée existe dans un type incompatible, l'invalider
+            cat_type_map = {c.name.lower(): c.type for c in db.query(Category).all() if c.name}
+            sug_type = cat_type_map.get(suggested.lower())
+            if sug_type:
+                if tx_type == "income" and sug_type != "income":
+                    logger.warning(f"[Autocat] Catégorie '{suggested}' ({sug_type}) rejetée pour tx_type='{tx_type}'")
+                    suggested = None
+                elif tx_type in ("expense_var", "expense_fixed", "expense") and sug_type == "income":
+                    logger.warning(f"[Autocat] Catégorie recette '{suggested}' rejetée pour dépense tx_type='{tx_type}'")
+                    suggested = None
+
             return {"category": suggested, "existing_categories": categories}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
