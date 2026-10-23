@@ -546,9 +546,6 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
                 if (this._streamDetached) continue;
 
-                // Autoscroll is released only by genuine user scroll-up (see scroll/wheel/touch listeners)
-                this._suppressScrollDetect();
-
                 if (this.messages[aiMsgIndex]) {
                     this.messages[aiMsgIndex].content = aiText;
                     this.messages[aiMsgIndex]._streaming = true;

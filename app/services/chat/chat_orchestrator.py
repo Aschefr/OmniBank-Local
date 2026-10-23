@@ -45,6 +45,7 @@ from app.services.chat.chat_tools import (
     forecast_balances_history_tool,
     forget_financial_fact_tool,
     generate_csv_export_link_tool,
+    get_account_balances_tool,
     get_balances_tool,
     get_budgets_status_tool,
     get_dashboard_synthesis_tool,
@@ -984,7 +985,7 @@ async def _run_generation_task(
 
                     if tool_result is None:
                         if fn_name == "get_financial_summary":
-                            tool_result = get_financial_summary_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            tool_result = get_financial_summary_tool(db)
                         elif fn_name == "get_net_worth":
                             tool_result = get_net_worth_tool(db)
                         elif fn_name == "get_account_balances":
@@ -992,24 +993,34 @@ async def _run_generation_task(
                         elif fn_name == "search_transactions":
                             tool_result = search_transactions_tool(
                                 db,
-                                query=fn_args.get("query"),
+                                description_query=fn_args.get("description_query") or fn_args.get("query"),
                                 category=fn_args.get("category"),
                                 account_id=fn_args.get("account_id"),
-                                date_min=fn_args.get("date_min"),
-                                date_max=fn_args.get("date_max"),
+                                start_date=fn_args.get("start_date") or fn_args.get("date_min"),
+                                end_date=fn_args.get("end_date") or fn_args.get("date_max"),
                                 min_amount=fn_args.get("min_amount"),
                                 max_amount=fn_args.get("max_amount"),
                                 type=fn_args.get("type"),
                                 limit=fn_args.get("limit", 20)
                             )
                         elif fn_name == "get_spending_analytics":
-                            tool_result = get_spending_analytics_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            tool_result = get_spending_analytics_tool(
+                                db,
+                                start_date=fn_args.get("start_date"),
+                                end_date=fn_args.get("end_date"),
+                                year=fn_args.get("year"),
+                                month=fn_args.get("month")
+                            )
                         elif fn_name == "get_budgets_status":
-                            tool_result = get_budgets_status_tool(db, fn_args.get("month"), fn_args.get("year"))
+                            tool_result = get_budgets_status_tool(
+                                db,
+                                year=fn_args.get("year"),
+                                month=fn_args.get("month")
+                            )
                         elif fn_name == "get_monthly_overview":
                             tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "get_spending_trends":
-                            tool_result = get_spending_trends_tool(db, fn_args.get("months", 3))
+                            tool_result = get_spending_trends_tool(db, months=fn_args.get("months", 3))
                         elif fn_name == "get_dashboard_synthesis":
                             tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
                         elif fn_name == "audit_transactions_integrity":
@@ -1017,16 +1028,19 @@ async def _run_generation_task(
                         elif fn_name == "simulate_financial_scenario":
                             tool_result = simulate_financial_scenario_tool(
                                 db,
-                                scenario_type=fn_args.get("scenario_type"),
-                                amount=fn_args.get("amount", 0.0),
-                                monthly_impact=fn_args.get("monthly_impact", 0.0),
-                                horizon_months=fn_args.get("horizon_months", 6),
-                                description=fn_args.get("description", "")
+                                horizon_months=fn_args.get("horizon_months", 12),
+                                project_name=fn_args.get("project_name") or fn_args.get("description") or fn_args.get("scenario_type") or "Simulation",
+                                one_off_amount=float(fn_args.get("one_off_amount") or fn_args.get("amount") or 0.0),
+                                recurring_monthly_amount=float(fn_args.get("recurring_monthly_amount") or fn_args.get("monthly_impact") or 0.0),
+                                recurring_duration_months=int(fn_args.get("recurring_duration_months") or fn_args.get("horizon_months", 12))
                             )
                         elif fn_name == "get_application_knowledge":
                             tool_result = get_application_knowledge_tool(fn_args.get("topic"))
                         elif fn_name == "get_recurrence_templates":
-                            tool_result = get_recurrence_templates_tool(db, fn_args.get("is_active"))
+                            tool_result = get_recurrence_templates_tool(
+                                db,
+                                include_closed=fn_args.get("include_closed", not fn_args.get("is_active", False) if "is_active" in fn_args else True)
+                            )
                         elif fn_name == "get_upcoming_expenses":
                             tool_result = get_upcoming_expenses_tool(
                                 db,
@@ -1038,22 +1052,25 @@ async def _run_generation_task(
                         elif fn_name == "get_saving_recommendations":
                             tool_result = get_saving_recommendations_tool(db)
                         elif fn_name == "search_similar_past_spends":
-                            tool_result = search_similar_past_spends_tool(db, fn_args.get("description"), fn_args.get("amount"), fn_args.get("category"))
+                            tool_result = search_similar_past_spends_tool(
+                                db,
+                                keyword=fn_args.get("keyword") or fn_args.get("description") or fn_args.get("category") or ""
+                            )
                         elif fn_name == "generate_csv_export_link":
                             tool_result = generate_csv_export_link_tool(
                                 db,
                                 account_id=fn_args.get("account_id"),
                                 category=fn_args.get("category"),
-                                date_min=fn_args.get("date_min"),
-                                date_max=fn_args.get("date_max"),
+                                start_date=fn_args.get("start_date") or fn_args.get("date_min"),
+                                end_date=fn_args.get("end_date") or fn_args.get("date_max"),
                                 type=fn_args.get("type")
                             )
                         elif fn_name == "simulate_loan_amortization":
                             tool_result = simulate_loan_amortization_tool(
-                                amount=fn_args.get("amount", 0.0),
-                                annual_rate=fn_args.get("annual_rate", 0.0),
-                                duration_months=fn_args.get("duration_months", 12),
-                                insurance_rate=fn_args.get("insurance_rate", 0.0)
+                                db,
+                                principal=float(fn_args.get("principal") or fn_args.get("amount") or 0.0),
+                                rate_percent=float(fn_args.get("rate_percent") or fn_args.get("annual_rate") or 0.0),
+                                years=int(fn_args.get("years") or (round(int(fn_args.get("duration_months", 12)) / 12) if fn_args.get("duration_months") else 1))
                             )
                         elif fn_name == "get_net_worth_history":
                             tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
@@ -1108,9 +1125,13 @@ async def _run_generation_task(
                             tool_result = delete_transaction_tool(
                                 db,
                                 transaction_id=fn_args.get("transaction_id"),
+                                description=fn_args.get("description"),
+                                amount=fn_args.get("amount"),
+                                date_operation=fn_args.get("date_operation"),
                                 force_write=False
                             )
                         elif fn_name == "create_planned_transfer":
+
                             tool_result = create_planned_transfer_tool(
                                 db,
                                 from_account=fn_args.get("from_account"),

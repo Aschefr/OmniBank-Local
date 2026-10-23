@@ -2,7 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Improved
+- **AI Assistant Tool Signatures & Parameter Alignment Overhaul 🤖🛠️**: Systematically audited and harmonized all 40 AI assistant tools. Resolved inverted temporal arguments on `get_budgets_status`, missing arguments and signature mismatches on `search_transactions`, `get_spending_analytics`, `get_spending_trends`, `simulate_loan_amortization`, `simulate_financial_scenario`, `search_similar_past_spends`, and `generate_csv_export_link`. Implemented defensive variadic parameter handling (`*args, **kwargs`) and parameter aliasing across all read, write, and simulation tools.
+- **AI Chat Auto-Scroll Sensitivity & Desktop Viewport Recovery 📜🖥️**: Calibrated low-threshold upward scroll detection prioritizing user reading during fast token streaming, and ensured desktop viewport height resets cleanly after window resizing.
+- **AI Conversational Action Recovery Resilience 💬🔄**: Strengthened multi-pattern recovery of proposed transaction modifications and bridge transfers from assistant response text.
+
 ## [1.2.8] - 2026-10-22
+
 
 ### Added & Improved
 - **AI Multi-Version Response Tabs & Background Auto-Correction 💬🗂️✨**: Responses support multi-version history (`v1`, `v2`, etc.) with sticky interactive tabs pinned to the message bubble. Users can toggle between regenerated variants, review background auto-corrections produced when omissions or missing technical actions are flagged by the background critic worker, and delete unwanted versions with 100% reactive switching (Zero F5).

@@ -28,7 +28,7 @@ def get_net_worth_tool(db: Session) -> dict:
         "projected_net_worth_euros_today": get_net_worth(db, end_date=date.today(), only_reconciled=False)
     }
 
-def get_balances_tool(db: Session) -> dict:
+def get_balances_tool(db: Session, *args, **kwargs) -> dict:
     accounts = {a.id: a.name for a in db.query(Account).all()}
     
     rec_b = calculate_balances(db, only_reconciled=True)
@@ -38,6 +38,8 @@ def get_balances_tool(db: Session) -> dict:
         "reconciled_balances": {accounts.get(k, f"Compte {k}"): v for k, v in rec_b.items()},
         "projected_balances_today": {accounts.get(k, f"Compte {k}"): v for k, v in proj_b.items()}
     }
+
+get_account_balances_tool = get_balances_tool
 
 def get_recent_transactions_tool(db: Session, limit: int = 15) -> dict:
     recent_txs = db.query(Transaction).filter(
@@ -247,7 +249,23 @@ def get_upcoming_expenses_tool(
         "all_upcoming_expenses": items
     }
 
-def search_transactions_tool(db: Session, description_query: str = None, category: str = None, type: str = None, start_date: str = None, end_date: str = None, min_amount: float = None, max_amount: float = None, limit: int = 50) -> dict:
+def search_transactions_tool(
+    db: Session,
+    description_query: str = None,
+    category: str = None,
+    type: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    min_amount: float = None,
+    max_amount: float = None,
+    limit: int = 50,
+    *args,
+    **kwargs
+) -> dict:
+    description_query = description_query or kwargs.get("query")
+    start_date = start_date or kwargs.get("date_min")
+    end_date = end_date or kwargs.get("date_max")
+    account_id = kwargs.get("account_id")
     try:
         if min_amount is not None:
             min_amount = float(min_amount)
@@ -259,6 +277,11 @@ def search_transactions_tool(db: Session, description_query: str = None, categor
         return {"error": "Invalid min_amount, max_amount or limit. Expected numeric values."}
         
     query = db.query(Transaction)
+    if account_id:
+        try:
+            query = query.filter(Transaction.account_id == int(account_id))
+        except (ValueError, TypeError):
+            pass
     if description_query:
         query = query.filter(Transaction.description.ilike(f"%{description_query}%"))
     if category:
@@ -267,12 +290,12 @@ def search_transactions_tool(db: Session, description_query: str = None, categor
         query = query.filter(Transaction.type == type)
     if start_date:
         try:
-            query = query.filter(Transaction.date_operation >= date.fromisoformat(start_date))
+            query = query.filter(Transaction.date_operation >= date.fromisoformat(str(start_date)))
         except (ValueError, TypeError):
             pass
     if end_date:
         try:
-            query = query.filter(Transaction.date_operation <= date.fromisoformat(end_date))
+            query = query.filter(Transaction.date_operation <= date.fromisoformat(str(end_date)))
         except (ValueError, TypeError):
             pass
     if min_amount is not None:
@@ -294,17 +317,52 @@ def search_transactions_tool(db: Session, description_query: str = None, categor
         for tx in txs
     ]}
 
-def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> dict:
-    try:
-        d_start = date.fromisoformat(start_date)
-        d_end = date.fromisoformat(end_date)
-    except (ValueError, TypeError):
-        return {"error": "Invalid or missing date format. Expected YYYY-MM-DD strings."}
+def get_spending_analytics_tool(db: Session, start_date: str = None, end_date: str = None, *args, **kwargs) -> dict:
+    import calendar
+    today = date.today()
+    d_start = None
+    d_end = None
+
+    # Handle if caller passes year & month (positionally or via kwargs)
+    year = kwargs.get("year")
+    month = kwargs.get("month")
+    if not start_date and args and len(args) >= 1:
+        year = args[0]
+        if len(args) >= 2:
+            month = args[1]
+
+    if year is not None or month is not None:
+        try:
+            y = int(year) if year is not None else today.year
+            m = int(month) if month is not None else today.month
+            if y <= 12 and m > 31:
+                y, m = m, y
+            d_start = date(y, m, 1)
+            d_end = date(y, m, calendar.monthrange(y, m)[1])
+        except (ValueError, TypeError):
+            pass
+
+    if not d_start and start_date:
+        try:
+            d_start = date.fromisoformat(str(start_date))
+        except (ValueError, TypeError):
+            pass
+    if not d_end and end_date:
+        try:
+            d_end = date.fromisoformat(str(end_date))
+        except (ValueError, TypeError):
+            pass
+
+    if not d_start or not d_end:
+        # Default fallback to current month
+        d_start = d_start or date(today.year, today.month, 1)
+        d_end = d_end or date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
     
     txs = db.query(Transaction).filter(
         Transaction.date_operation >= d_start,
         Transaction.date_operation <= d_end
     ).all()
+
     
     by_type = {}
     by_category = {}
@@ -350,17 +408,20 @@ def get_spending_analytics_tool(db: Session, start_date: str, end_date: str) -> 
         "by_category": by_category
     }
 
-def get_budgets_status_tool(db: Session, year: int = None, month: int = None) -> dict:
+def get_budgets_status_tool(db: Session, year: int = None, month: int = None, *args, **kwargs) -> dict:
     from app.routers.budgets import get_budget_status
     from datetime import date, timedelta
     import calendar
     from app.models import Transaction, BudgetCategory, RecurrenceTemplate
     today = date.today()
     try:
-        y = int(year) if year is not None else today.year
-        m = int(month) if month is not None else today.month
+        y = int(year) if year is not None else (int(kwargs.get("year")) if kwargs.get("year") is not None else today.year)
+        m = int(month) if month is not None else (int(kwargs.get("month")) if kwargs.get("month") is not None else today.month)
+        if y <= 12 and m > 31:
+            y, m = m, y
     except (ValueError, TypeError):
         return {"error": "Invalid year or month format. Expected integers."}
+
     
     last_day = calendar.monthrange(y, m)[1]
     start_date_str = f"{y:04d}-{m:02d}-01"
@@ -494,18 +555,43 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
     total_spent_reconciled = 0.0
     total_income = 0.0
 
+    monthly_budgeted = 0.0
+    monthly_spent_committed = 0.0
+    monthly_spent_reconciled = 0.0
+
+    yearly_budgeted = 0.0
+    yearly_spent_committed = 0.0
+
+    indefinite_budgeted = 0.0
+    indefinite_spent_committed = 0.0
+
     for b in status_data.get("budgets", []):
         b_id = b.get("id")
         limit_val = b.get("budget_amount", 0.0)
         actual_spent = b.get("expenses", 0.0)
         reconciled_spent = b.get("reconciled_expenses", 0.0)
         income_val = b.get("income", 0.0)
+        period = (b.get("period") or "monthly").lower()
 
         planned_rec = round(planned_by_budget.get(b_id, 0.0), 2) if is_future else 0.0
         # Strict parity with Budgets view: spent is exactly what is committed/recorded in the ledger
         display_spent = actual_spent
         remaining_val = round(limit_val - display_spent, 2)
         pct_val = round((display_spent / limit_val * 100) if limit_val > 0 else 0.0, 1)
+
+        if period == "yearly":
+            yearly_budgeted += limit_val
+            yearly_spent_committed += display_spent
+            period_label_fr = f"Annuel (plafond annuel de {limit_val:.2f} € et cumul année complète)"
+        elif period in ("indefinite", "custom") or b.get("is_project"):
+            indefinite_budgeted += limit_val
+            indefinite_spent_committed += display_spent
+            period_label_fr = f"Projet / Indéfini (plafond global de {limit_val:.2f} € sur toute la durée)"
+        else: # monthly
+            monthly_budgeted += limit_val
+            monthly_spent_committed += display_spent
+            monthly_spent_reconciled += reconciled_spent
+            period_label_fr = f"Mensuel (plafond mensuel de {limit_val:.2f} €)"
 
         total_budgeted += limit_val
         total_spent_committed += display_spent
@@ -527,7 +613,10 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
             "remaining": remaining_val,
             "percent": pct_val,
             "is_future_period": is_future,
-            "period": b.get("period", "monthly"),
+            "period": period,
+            "period_label": period_label_fr,
+            "is_annual": period == "yearly",
+            "is_indefinite": period in ("indefinite", "custom") or bool(b.get("is_project")),
             "status": "exceeded" if display_spent > limit_val else ("warning" if pct_val >= 80 else "ok"),
             "categories": b.get("categories", []),
             "historical_monthly_avg_spent_3m": avg_3m,
@@ -535,24 +624,37 @@ def get_budgets_status_tool(db: Session, year: int = None, month: int = None) ->
         }
         envelopes.append(envelope_entry)
 
-    net_spent_committed = round(total_spent_committed - total_income, 2)
-    net_spent_reconciled = round(total_spent_reconciled - total_income, 2)
-    total_remaining = round(total_budgeted - net_spent_committed, 2)
-
+    # For a monthly view, total budgeted and total committed MUST reflect the monthly envelopes of that month,
+    # and NEVER blend in the entire multi-thousand euro yearly ceilings or indefinite project totals!
     summary = {
-        "total_budgeted": round(total_budgeted, 2),
-        "total_spent_committed": round(total_spent_committed, 2),
-        "total_spent_reconciled": round(total_spent_reconciled, 2),
+        "monthly_envelopes_budgeted": round(monthly_budgeted, 2),
+        "monthly_envelopes_spent_committed": round(monthly_spent_committed, 2),
+        "monthly_envelopes_remaining": round(monthly_budgeted - monthly_spent_committed, 2),
+        "yearly_envelopes_annual_budgeted": round(yearly_budgeted, 2),
+        "yearly_envelopes_annual_spent_ytd": round(yearly_spent_committed, 2),
+        "indefinite_envelopes_total_target": round(indefinite_budgeted, 2),
+        "indefinite_envelopes_cumulative_spent": round(indefinite_spent_committed, 2),
+        "total_budgeted": round(monthly_budgeted, 2),
+        "total_spent_committed": round(monthly_spent_committed, 2),
+        "total_spent_reconciled": round(monthly_spent_reconciled, 2),
         "total_income": round(total_income, 2),
-        "net_spent_committed": net_spent_committed,
-        "net_spent_reconciled": net_spent_reconciled,
-        "total_remaining": total_remaining
+        "total_remaining": round(monthly_budgeted - monthly_spent_committed, 2),
+        "all_envelopes_raw_sum": {
+            "all_periods_limits_sum": round(total_budgeted, 2),
+            "all_periods_spent_sum": round(total_spent_committed, 2)
+        }
     }
 
     if is_future:
         tot_planned_rec = round(sum(planned_by_budget.values()), 2)
         summary["planned_uncommitted_recurring_total"] = tot_planned_rec
-        summary["future_period_note"] = f"Période future ({period_label}) : Les montants 'spent' de chaque enveloppe correspondent exactement aux opérations et récurrences engagées visibles dans l'écran Budgets (total engagé: {total_spent_committed:.2f} €). Citez toujours 'spent' comme le montant engagé de l'enveloppe."
+        summary["future_period_note"] = (
+            f"Période future ({period_label}) : Le budget MENSUEL engagé pour ce mois est de {monthly_spent_committed:.2f} € "
+            f"(sur {monthly_budgeted:.2f} € de plafond mensuel). "
+            f"ATTENTION : Les enveloppes annuelles (Transport, Dépenses IA, Facture d'eau) et indéfinies (Remboursement Papa) "
+            f"sont des plafonds plurimensuels/annuels. Leurs montants affichés représentent le cumul sur l'année complète ou toute la durée du projet, "
+            f"et NE DOIVENT PAS être comptabilisés comme des dépenses du seul mois de {period_label}."
+        )
 
     # Calculate suggested 50/30/20 reference if history is insufficient
     total_avg_6m = sum(b["historical_monthly_avg_spent_6m"] for b in envelopes)
@@ -600,7 +702,6 @@ def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) 
     
     budgets = get_budgets_status_tool(db, y, m)
     spending = get_spending_analytics_tool(db, start_date.isoformat(), end_date.isoformat())
-    summary = get_financial_summary_tool(db)
     balances = get_balances_tool(db)
     
     is_future = (y > today.year) or (y == today.year and m > today.month)
@@ -608,7 +709,7 @@ def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) 
     is_current = (y == today.year and m == today.month)
     french_months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
 
-    return {
+    result = {
         "target_period": {
             "year": y,
             "month": m,
@@ -621,9 +722,29 @@ def get_monthly_overview_tool(db: Session, year: int = None, month: int = None) 
         },
         "budget_status": budgets,
         "spending_analytics": spending,
-        "financial_summary": summary,
         "account_balances": balances
     }
+
+    if is_future:
+        # For future months: project cash flow, incoming paychecks, and real planned debits!
+        days_ahead = max(30, (end_date - today).days + 5)
+        forecast = forecast_balances_history_tool(db, days=days_ahead)
+        result["cash_flow_forecast"] = forecast
+        target_month_key = f"{y:04d}-{m:02d}"
+        future_month_bd = next(
+            (mb for mb in forecast.get("monthly_breakdown", []) if mb.get("period") == target_month_key),
+            None
+        )
+        result["future_month_cashflow_projection"] = future_month_bd
+        result["financial_summary_note"] = (
+            "Période future : Utilisez 'future_month_cashflow_projection' (revenus prévus incluant salaire, charges fixes réelles, dépenses variables) "
+            "pour expliquer la situation financière du mois prochain, plutôt que de transposer le reste à vivre de la date d'aujourd'hui."
+        )
+    else:
+        summary = get_financial_summary_tool(db)
+        result["financial_summary"] = summary
+
+    return result
 
 def get_active_recurrence_templates(db: Session, template_type: str = None, template_types: tuple = None) -> list:
     """
@@ -731,12 +852,16 @@ def _compute_recurrence_schedule(t, last_tx_date = None) -> tuple:
 
     return applicable_months, freq_human, next_date
 
-def get_recurrence_templates_tool(db: Session, include_completed: bool = False, include_closed: bool = True) -> dict:
+def get_recurrence_templates_tool(db: Session, include_completed: bool = False, include_closed: bool = True, *args, **kwargs) -> dict:
     from sqlalchemy import func
     from datetime import date
     from app.models import RecurrenceTemplate, Transaction
 
     today = date.today()
+    if "is_active" in kwargs and kwargs["is_active"] is not None:
+        include_closed = not bool(kwargs["is_active"])
+    if "include_closed" in kwargs and kwargs["include_closed"] is not None:
+        include_closed = bool(kwargs["include_closed"])
 
     query = db.query(RecurrenceTemplate)
     if not include_closed:
@@ -744,6 +869,7 @@ def get_recurrence_templates_tool(db: Session, include_completed: bool = False, 
             (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed == None)
         )
     templates = query.all()
+
 
     tx_counts = dict(
         db.query(Transaction.recurrence_id, func.count(Transaction.id))
@@ -1444,9 +1570,14 @@ def get_saving_recommendations_tool(db: Session) -> dict:
         "recommendation": "Augmenter l'épargne" if savings_pct < 20 else "Structure saine et équilibrée"
     }
 
-def search_similar_past_spends_tool(db: Session, keyword: str) -> dict:
+def search_similar_past_spends_tool(db: Session, keyword: str = None, *args, **kwargs) -> dict:
     from app.models import Transaction
     from datetime import date, timedelta
+    
+    if not keyword:
+        keyword = (args[0] if args else None) or kwargs.get("description") or kwargs.get("category") or ""
+    keyword = str(keyword).strip()
+
     
     today = date.today()
     one_year_ago_start = today - timedelta(days=400)
@@ -1471,7 +1602,7 @@ def search_similar_past_spends_tool(db: Session, keyword: str) -> dict:
         ]
     }
 
-def get_financial_summary_tool(db: Session) -> dict:
+def get_financial_summary_tool(db: Session, *args, **kwargs) -> dict:
     from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck, calculate_balances, get_main_account, get_overdraft_warning
     from app.models import Budget, BudgetAllocation, Transaction, Account
     from datetime import date
@@ -1562,7 +1693,7 @@ def get_financial_summary_tool(db: Session) -> dict:
         }
     }
 
-def get_spending_trends_tool(db: Session) -> dict:
+def get_spending_trends_tool(db: Session, months: int = 3, *args, **kwargs) -> dict:
     """
     Computes multi-month historical spending averages (3, 6, 12 months), savings rates,
     and identifies categories with significant spending changes (+/- X%).
