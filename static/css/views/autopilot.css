@@ -262,11 +262,11 @@
 }
 
 .ap-decision-score-mobile {
-    display: none;
+    display: none !important;
 }
 
 .ap-decision-amount-mobile {
-    display: none;
+    display: none !important;
 }
 
 .ap-decision-body {
@@ -307,12 +307,15 @@
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .ap-decision-amount-desktop {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .ap-decision-amount-val {
@@ -334,12 +337,16 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .ap-decision-action-btns {
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
 }
 
 .ap-badge-undone {

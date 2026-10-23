@@ -92,3 +92,60 @@ def test_misplaced_categories_maintenance_lifecycle():
     finally:
         db.close()
         Base.metadata.drop_all(bind=test_engine)
+
+
+def test_direction_conflict_sanctuary_and_mismatches_preview():
+    Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
+    try:
+        # Category Remboursement typed 'income'
+        cat_income = Category(name="Remboursement", type="income")
+        cat_peages = Category(name="Péages", type="expense_fixed")
+        db.add_all([cat_income, cat_peages])
+        db.commit()
+
+        # 1. Legit receipt in Remboursement
+        tx_recette = Transaction(description="Remboursement CPAM", amount=25.0, type="income", category="Remboursement", from_account_id=None, to_account_id=1)
+        # 2. Debit expense mistakenly categorized as Remboursement
+        tx_debit = Transaction(description="Wero - Remboursement Kebab", amount=8.0, type="expense_var", category="Remboursement", from_account_id=1, to_account_id=None)
+        # 3. Subtype mismatch: Péages is expense_fixed, tx is expense_var
+        tx_peages = Transaction(description="Fulli - Peages", amount=35.0, type="expense_var", category="Péages", from_account_id=1, to_account_id=None)
+        # 4. Internal transfer typed neutral
+        tx_transfer = Transaction(description="Virement interne", amount=100.0, type="neutral", category=None, from_account_id=1, to_account_id=2)
+
+        db.add_all([tx_recette, tx_debit, tx_peages, tx_transfer])
+        db.commit()
+
+        # Preview
+        preview = preview_misplaced_categories(db)
+        mismatches = preview["mismatches"]
+        assert len(mismatches) >= 2
+
+        debit_mismatch = next(m for m in mismatches if m["id"] == tx_debit.id)
+        assert debit_mismatch["kind"] == "direction_conflict"
+        assert debit_mismatch["is_safe"] is False
+
+        peages_mismatch = next(m for m in mismatches if m["id"] == tx_peages.id)
+        assert peages_mismatch["kind"] == "subtype_mismatch"
+        assert peages_mismatch["is_safe"] is True
+
+        # Apply sync_all_tx_types
+        req = MisplacedCategoriesApplyRequest(fixes=[], sync_all_tx_types=True)
+        res = apply_misplaced_categories(req, db)
+
+        # tx_debit MUST remain expense_var, NEVER flipped to income!
+        db.refresh(tx_debit)
+        assert tx_debit.type == "expense_var"
+
+        # tx_peages was aligned to category type (expense_fixed)
+        db.refresh(tx_peages)
+        assert tx_peages.type == "expense_fixed"
+
+        # tx_recette remains income
+        db.refresh(tx_recette)
+        assert tx_recette.type == "income"
+
+    finally:
+        db.close()
+        Base.metadata.drop_all(bind=test_engine)
+

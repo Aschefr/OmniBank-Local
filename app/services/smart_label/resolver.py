@@ -30,6 +30,24 @@ from .normalization import (
 logger = logging.getLogger(__name__)
 
 
+def is_category_compatible_with_tx_type(cat_type: Optional[str], tx_type: Optional[str]) -> bool:
+    """
+    Vérifie la compatibilité stricte entre le type d'une catégorie et le sens réel du flux de transaction.
+    - Une recette (income) ne peut recevoir qu'une catégorie 'income'.
+    - Une dépense (expense_var, expense_fixed) ne peut JAMAIS recevoir une catégorie 'income'.
+    - Un virement (transfer) ne peut recevoir qu'une catégorie 'transfer'.
+    """
+    if not tx_type or not cat_type:
+        return True
+    if tx_type == "income":
+        return cat_type == "income"
+    if tx_type in ("expense_var", "expense_fixed", "expense"):
+        return cat_type in ("expense_var", "expense_fixed", "expense")
+    if tx_type == "transfer":
+        return cat_type == "transfer"
+    return True
+
+
 def resolve_smart_label(
     db: Session,
     raw_label: str,
@@ -58,6 +76,7 @@ def resolve_smart_label(
 
     raw_str = str(raw_label).strip()
     pattern = normalize_raw_label(raw_str)
+    cat_type_map = {c.name: c.type for c in db.query(Category).all() if c.name}
 
     # ---------------------------------------------------------
     # NIVEAU 1 : Base de règles (BankLabelMapping)
@@ -118,10 +137,18 @@ def resolve_smart_label(
             }
 
         # Règle manuelle sanctuarisée
+        rule_cat = exact_rule.category
+        if rule_cat and tx_type and not is_category_compatible_with_tx_type(cat_type_map.get(rule_cat), tx_type):
+            logger.warning(f"[SmartLabel] Règle #{exact_rule.id} ignorée pour catégorie '{rule_cat}' incompatible avec tx_type='{tx_type}'")
+            rule_cat = None
+
         if exact_rule.is_manual:
+            if not rule_cat and tx_type:
+                cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+                rule_cat = cat_match[0] if cat_match else None
             return {
                 "description": exact_rule.clean_description or raw_str,
-                "category": exact_rule.category,
+                "category": rule_cat,
                 "source": "rule",
                 "confidence": 1.0,
                 "mapping_id": exact_rule.id,
@@ -133,9 +160,12 @@ def resolve_smart_label(
         match_count = exact_rule.match_count or 1
         is_provisional = match_count < 2
         confidence = 0.60 if is_provisional else 1.0
+        if not rule_cat and tx_type:
+            cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+            rule_cat = cat_match[0] if cat_match else None
         return {
             "description": exact_rule.clean_description or raw_str,
-            "category": exact_rule.category,
+            "category": rule_cat,
             "source": "rule",
             "confidence": confidence,
             "mapping_id": exact_rule.id,
@@ -207,10 +237,18 @@ def resolve_smart_label(
                 "is_multi_category": True
             }
 
+        rule_cat = best_rule.category
+        if rule_cat and tx_type and not is_category_compatible_with_tx_type(cat_type_map.get(rule_cat), tx_type):
+            logger.warning(f"[SmartLabel] Règle #{best_rule.id} (match partiel) ignorée pour catégorie '{rule_cat}' incompatible avec tx_type='{tx_type}'")
+            rule_cat = None
+
         if best_rule.is_manual:
+            if not rule_cat and tx_type:
+                cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+                rule_cat = cat_match[0] if cat_match else None
             return {
                 "description": best_rule.clean_description or raw_str,
-                "category": best_rule.category,
+                "category": rule_cat,
                 "source": "rule",
                 "confidence": round(best_rule_score, 2),
                 "mapping_id": best_rule.id,
@@ -221,9 +259,12 @@ def resolve_smart_label(
         match_count = best_rule.match_count or 1
         is_provisional = match_count < 2
         confidence = min(0.60, round(best_rule_score, 2)) if is_provisional else round(best_rule_score, 2)
+        if not rule_cat and tx_type:
+            cat_match = match_category_from_text(db, raw_str, tx_type=tx_type)
+            rule_cat = cat_match[0] if cat_match else None
         return {
             "description": best_rule.clean_description or raw_str,
-            "category": best_rule.category,
+            "category": rule_cat,
             "source": "rule",
             "confidence": confidence,
             "mapping_id": best_rule.id,
@@ -296,9 +337,13 @@ def resolve_smart_label(
     ).order_by(Transaction.date_operation.desc()).all()
 
     # Ne conserver que les transactions variables ou revenus (jamais de dépenses fixes récurrentes pour du ponctuel)
+    # et STRICTEMENT compatibles avec la direction tx_type (pas de catégorie recette pour une dépense)
     recent_txs = [
         tx for tx in all_recent_txs
-        if not tx.category or cat_type_map.get(tx.category) not in ('expense_fixed', 'transfer')
+        if tx.category
+        and is_category_compatible_with_tx_type(cat_type_map.get(tx.category), tx_type)
+        and (cat_type_map.get(tx.category) != 'transfer' if tx_type != 'transfer' else True)
+        and (cat_type_map.get(tx.category) != 'expense_fixed' if tx_type == 'expense_var' else True)
     ]
 
     candidate_matches: List[Tuple[Transaction, float]] = []
@@ -451,7 +496,7 @@ def resolve_smart_labels_batch(
         raw_tokens = _tokenize(raw_clean) if raw_clean else set()
         raw_sig = raw_tokens - _GENERIC_TOKENS if raw_clean else set()
 
-        cand_data.append((tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig))
+        cand_data.append((tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig, cat_type_map.get(tx.category)))
 
     results: Dict[str, Dict[str, Any]] = {}
 
@@ -492,9 +537,13 @@ def resolve_smart_labels_batch(
                     "is_multi_category": True
                 }
             elif r.is_manual:
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                r_cat = r.category
+                if r_cat and expected_t and not is_category_compatible_with_tx_type(cat_type_map.get(r_cat), expected_t):
+                    r_cat = None
                 results[raw_str] = {
                     "description": r.clean_description or raw_str,
-                    "category": r.category,
+                    "category": r_cat,
                     "source": "rule",
                     "confidence": 1.0,
                     "mapping_id": r.id,
@@ -502,12 +551,16 @@ def resolve_smart_labels_batch(
                     "is_multi_category": False
                 }
             else:
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                r_cat = r.category
+                if r_cat and expected_t and not is_category_compatible_with_tx_type(cat_type_map.get(r_cat), expected_t):
+                    r_cat = None
                 match_count = r.match_count or 1
                 is_provisional = match_count < 2
                 confidence = 0.60 if is_provisional else 1.0
                 results[raw_str] = {
                     "description": r.clean_description or raw_str,
-                    "category": r.category,
+                    "category": r_cat,
                     "source": "rule",
                     "confidence": confidence,
                     "mapping_id": r.id,
@@ -553,9 +606,13 @@ def resolve_smart_labels_batch(
                     "is_multi_category": True
                 }
             elif best_rule.is_manual:
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                br_cat = best_rule.category
+                if br_cat and expected_t and not is_category_compatible_with_tx_type(cat_type_map.get(br_cat), expected_t):
+                    br_cat = None
                 results[raw_str] = {
                     "description": best_rule.clean_description or raw_str,
-                    "category": best_rule.category,
+                    "category": br_cat,
                     "source": "rule",
                     "confidence": round(best_rule_score, 2),
                     "mapping_id": best_rule.id,
@@ -563,12 +620,16 @@ def resolve_smart_labels_batch(
                     "is_multi_category": False
                 }
             else:
+                expected_t = tx_types.get(raw_str) if tx_types else None
+                br_cat = best_rule.category
+                if br_cat and expected_t and not is_category_compatible_with_tx_type(cat_type_map.get(br_cat), expected_t):
+                    br_cat = None
                 match_count = best_rule.match_count or 1
                 is_provisional = match_count < 2
                 confidence = min(0.60, round(best_rule_score, 2)) if is_provisional else round(best_rule_score, 2)
                 results[raw_str] = {
                     "description": best_rule.clean_description or raw_str,
-                    "category": best_rule.category,
+                    "category": br_cat,
                     "source": "rule",
                     "confidence": confidence,
                     "mapping_id": best_rule.id,
@@ -596,9 +657,12 @@ def resolve_smart_labels_batch(
             }
             continue
 
-        # 3. Match historique (uniquement variables / recettes)
+        # 3. Match historique (uniquement variables / recettes et compatibles)
         candidate_matches = []
-        for tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig in cand_data:
+        expected_t = tx_types.get(raw_str) if tx_types else None
+        for tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig, c_cat_type in cand_data:
+            if expected_t and not is_category_compatible_with_tx_type(c_cat_type, expected_t):
+                continue
             score_desc = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig)
             score_raw = 0.0
             if raw_clean:

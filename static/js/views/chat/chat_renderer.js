@@ -1361,7 +1361,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 if (!node) return;
                 if (node.nodeType === Node.ELEMENT_NODE) {
                     const tag = node.tagName.toLowerCase();
+                    const isHeadingTag = tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5' || tag === 'h6' || tag === 'th';
+                    const isPseudoHeading = (tag === 'strong' || tag === 'b') && (
+                        /^\s*(?:\d+[\.\)]|[A-ZÀ-ÿ\s]{4,}|[^\n\r]{15,}:?\s*$)/.test(node.textContent || '') ||
+                        (node.textContent && node.textContent.trim().length > 25)
+                    );
+
                     if (tag === 'pre' || tag === 'code' || tag === 'a' || tag === 'button' || tag === 'summary' ||
+                        isHeadingTag || isPseudoHeading ||
                         node.classList.contains('ai-entity-badge') || 
                         node.classList.contains('ai-action-box') || 
                         node.classList.contains('ai-status-indicator') || 
@@ -1532,7 +1539,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         // Event delegation
         document.addEventListener('mouseover', (e) => {
             const badge = e.target.closest('.ai-entity-badge');
-            if (badge) {
+            if (badge && !badge.closest('h1, h2, h3, h4, h5, h6, th')) {
                 showPopoverForBadge(badge);
             }
         });
@@ -1554,7 +1561,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         document.addEventListener('click', (e) => {
             const badge = e.target.closest('.ai-entity-badge');
-            if (badge) {
+            if (badge && !badge.closest('h1, h2, h3, h4, h5, h6, th')) {
                 e.preventDefault();
                 e.stopPropagation();
                 showPopoverForBadge(badge);

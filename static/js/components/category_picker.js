@@ -158,10 +158,12 @@ window.CategoryPicker = {
 
         const currentVal = opts.currentValue || (opts.targetId ? document.getElementById(opts.targetId)?.value : '') || '';
 
-        // If currentVal is not in filteredCats, include it so user can see current selection
+        // If currentVal is not in filteredCats, only include it if compatible with allowedTypes
         if (currentVal && !filteredCats.some(c => c.name.toLowerCase() === currentVal.toLowerCase())) {
-            const extra = allCats.find(c => c.name.toLowerCase() === currentVal.toLowerCase()) || { name: currentVal, type: 'neutral' };
-            filteredCats.unshift(extra);
+            const extra = allCats.find(c => c.name.toLowerCase() === currentVal.toLowerCase());
+            if (extra && (!allowedTypes || allowedTypes.includes(extra.type))) {
+                filteredCats.unshift(extra);
+            }
         }
 
         this._current = {
@@ -217,6 +219,20 @@ window.CategoryPicker = {
         } else {
             triggerEl = targetIdOrTrigger;
             hiddenInput = triggerEl?.nextElementSibling;
+        }
+
+        if (triggerEl && value) {
+            const allowedTypesStr = triggerEl.dataset?.allowedTypes;
+            if (allowedTypesStr) {
+                const allowedTypes = allowedTypesStr.split(',').filter(Boolean);
+                if (allowedTypes.length > 0) {
+                    const catObj = this._findCategory(value);
+                    if (catObj && catObj.type && !allowedTypes.includes(catObj.type)) {
+                        console.warn(`[CategoryPicker] setValue rejeté: catégorie '${value}' (type '${catObj.type}') incompatible avec types autorisés [${allowedTypesStr}]`);
+                        return;
+                    }
+                }
+            }
         }
 
         if (hiddenInput) {
