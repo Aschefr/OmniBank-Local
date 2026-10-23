@@ -8,6 +8,7 @@ from app.services.chat.tools.read_tools import (  # noqa: F401
     calculate_daily_variable_spending_rate,
     forecast_balances_history_tool,
     get_active_recurrence_templates,
+    get_account_balances_tool,
     get_balances_tool,
     get_budgets_status_tool,
     get_dashboard_synthesis_tool,

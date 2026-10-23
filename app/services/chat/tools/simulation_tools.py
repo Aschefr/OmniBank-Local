@@ -22,46 +22,96 @@ from app.services.history_service import record_action, snapshot_entity
 
 logger = logging.getLogger(__name__)
 
-def simulate_loan_amortization_tool(db: Session, principal: float, rate_percent: float, years: int) -> dict:
-    principal = float(principal)
-    rate_percent = float(rate_percent)
-    years = int(years)
-    
-    monthly_rate = (rate_percent / 100.0) / 12.0
-    months = years * 12
-    
-    if monthly_rate == 0:
-        monthly_payment = principal / months
-    else:
-        monthly_payment = principal * (monthly_rate * (1 + monthly_rate) ** months) / (((1 + monthly_rate) ** months) - 1)
-        
-    total_paid = monthly_payment * months
-    total_interest = total_paid - principal
-    
-    # Impact on left to live
-    from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
-    from datetime import date
-    today = date.today()
-    paycheck = predict_next_paycheck(db)
-    next_pay_date = paycheck["date"]
-    current_rtl = calculate_rest_to_live(db, today, next_pay_date)
-    new_rtl = round(current_rtl - monthly_payment, 2)
-    
-    return {
-        "principal_euros": principal,
-        "annual_rate_percent": rate_percent,
-        "duration_years": years,
-        "monthly_payment_euros": round(monthly_payment, 2),
-        "total_interest_euros": round(total_interest, 2),
-        "total_paid_euros": round(total_paid, 2),
-        "current_rest_to_live_euros": current_rtl,
-        "projected_rest_to_live_euros": new_rtl
-    }
+def simulate_loan_amortization_tool(
+    db: Session = None,
+    principal: float = 0.0,
+    rate_percent: float = 0.0,
+    years: int = 1,
+    *args,
+    **kwargs
+) -> dict:
+    close_db = False
+    if db is None:
+        from app.database import SessionLocal
+        db = SessionLocal()
+        close_db = True
 
-def simulate_financial_scenario_tool(db: Session, horizon_months: int = 12, project_name: str = None, one_off_amount: float = 0.0, recurring_monthly_amount: float = 0.0, recurring_duration_months: int = 12) -> dict:
+    try:
+        if not principal:
+            principal = float(kwargs.get("amount", 0.0))
+        else:
+            principal = float(principal)
+
+        if not rate_percent:
+            rate_percent = float(kwargs.get("annual_rate", 0.0))
+        else:
+            rate_percent = float(rate_percent)
+
+        if not years or years == 1:
+            if "duration_months" in kwargs and kwargs["duration_months"]:
+                years = max(1, round(int(kwargs["duration_months"]) / 12))
+            elif "years" in kwargs and kwargs["years"]:
+                years = int(kwargs["years"])
+            else:
+                years = int(years or 1)
+        else:
+            years = int(years)
+        
+        monthly_rate = (rate_percent / 100.0) / 12.0
+        months = years * 12
+        
+        if monthly_rate == 0:
+            monthly_payment = principal / months
+        else:
+            monthly_payment = principal * (monthly_rate * (1 + monthly_rate) ** months) / (((1 + monthly_rate) ** months) - 1)
+            
+        total_paid = monthly_payment * months
+        total_interest = total_paid - principal
+        
+        # Impact on left to live
+        from app.services.finance_engine import calculate_rest_to_live, predict_next_paycheck
+        from datetime import date
+        today = date.today()
+        paycheck = predict_next_paycheck(db)
+        next_pay_date = paycheck["date"]
+        current_rtl = calculate_rest_to_live(db, today, next_pay_date)
+        new_rtl = round(current_rtl - monthly_payment, 2)
+        
+        return {
+            "principal_euros": principal,
+            "annual_rate_percent": rate_percent,
+            "duration_years": years,
+            "monthly_payment_euros": round(monthly_payment, 2),
+            "total_interest_euros": round(total_interest, 2),
+            "total_paid_euros": round(total_paid, 2),
+            "current_rest_to_live_euros": current_rtl,
+            "projected_rest_to_live_euros": new_rtl
+        }
+    finally:
+        if close_db:
+            db.close()
+
+def simulate_financial_scenario_tool(
+    db: Session,
+    horizon_months: int = 12,
+    project_name: str = None,
+    one_off_amount: float = 0.0,
+    recurring_monthly_amount: float = 0.0,
+    recurring_duration_months: int = 12,
+    *args,
+    **kwargs
+) -> dict:
     from app.services.simulator_engine import run_simulation
     from datetime import date, timedelta
     from app.models import Transaction
+
+    project_name = project_name or kwargs.get("description") or kwargs.get("scenario_type") or "Projet Simulé"
+    if not one_off_amount and "amount" in kwargs:
+        one_off_amount = kwargs.get("amount", 0.0)
+    if not recurring_monthly_amount and "monthly_impact" in kwargs:
+        recurring_monthly_amount = kwargs.get("monthly_impact", 0.0)
+    if "recurring_duration_months" not in kwargs and not recurring_duration_months:
+        recurring_duration_months = horizon_months
     
     try:
         horizon_months = max(3, min(int(horizon_months), 36))
@@ -83,6 +133,7 @@ def simulate_financial_scenario_tool(db: Session, horizon_months: int = 12, proj
     except (ValueError, TypeError):
         rec_dur = horizon_months
     p_name = project_name or "Projet Simulé"
+
     
     custom_events = []
     if one_off > 0:

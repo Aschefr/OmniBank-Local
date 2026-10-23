@@ -385,7 +385,7 @@ def allocate_savings_funds_tool(db: Session, budget_id: int = None, amount: floa
     return {"success": True, "budget_id": b.id, "allocation_id": alloc.id, "amount": amount, "action_id": action_id}
 
 
-def create_recurrence_template_tool(db: Session, amount: float, description: str, frequency: str, category: str, type: str, day_of_month: int, force_write: bool = False, user_name: Optional[str] = None) -> dict:
+def create_recurrence_template_tool(db: Session, amount: float, description: str, frequency: str, category: str, type: str, day_of_month: int, force_write: bool = False, user_name: Optional[str] = None, *args, **kwargs) -> dict:
     if not force_write:
         return {"success": True, "pending_validation": True}
 
@@ -706,23 +706,47 @@ def set_predicted_paycheck_tool(db: Session, amount: float, day_of_month: int, d
         "previous_amount": old_amount,
     }
 
-def generate_csv_export_link_tool(db: Session, category: str = None, start_date: str = None, end_date: str = None, type: str = None) -> dict:
+def generate_csv_export_link_tool(
+    db: Session,
+    category: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    type: str = None,
+    *args,
+    **kwargs
+) -> dict:
     import uuid
     import pandas as pd
     from app.models import Transaction
     from datetime import date
+
+    start_date = start_date or kwargs.get("date_min")
+    end_date = end_date or kwargs.get("date_max")
+    account_id = kwargs.get("account_id")
     
     query = db.query(Transaction)
+    if account_id:
+        try:
+            query = query.filter(Transaction.account_id == int(account_id))
+        except (ValueError, TypeError):
+            pass
     if category:
         query = query.filter(Transaction.category == category)
     if start_date:
-        query = query.filter(Transaction.date_operation >= date.fromisoformat(start_date))
+        try:
+            query = query.filter(Transaction.date_operation >= date.fromisoformat(str(start_date)))
+        except (ValueError, TypeError):
+            pass
     if end_date:
-        query = query.filter(Transaction.date_operation <= date.fromisoformat(end_date))
+        try:
+            query = query.filter(Transaction.date_operation <= date.fromisoformat(str(end_date)))
+        except (ValueError, TypeError):
+            pass
     if type:
         query = query.filter(Transaction.type == type)
         
     txs = query.all()
+
     
     # Build dataframe
     records = []
@@ -888,6 +912,26 @@ def create_planned_transfer_tool(
         op_date = today
 
     desc = description or f"Virement prévisionnel {from_acc.name} -> {to_acc.name}"
+
+    # Éviter doublon si une transaction de virement identique non rapprochée existe déjà
+    existing_dup = db.query(Transaction).filter(
+        Transaction.from_account_id == from_acc.id,
+        Transaction.to_account_id == to_acc.id,
+        Transaction.amount == amt,
+        Transaction.reconciliation_date.is_(None)
+    ).all()
+    for ed in existing_dup:
+        if abs((ed.date_operation - op_date).days) <= 2:
+            return {
+                "success": True,
+                "transaction_id": ed.id,
+                "from_account": from_acc.name,
+                "to_account": to_acc.name,
+                "amount": amt,
+                "date_operation": ed.date_operation.isoformat(),
+                "already_existed": True,
+                "action_id": None
+            }
 
     tx = Transaction(
         amount=amt,

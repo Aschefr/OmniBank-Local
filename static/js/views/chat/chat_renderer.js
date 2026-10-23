@@ -726,11 +726,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         this.renderMath();
         this.initEntityPopover();
 
+        this._isProgrammaticScroll = true;
         if (isRestore) {
             const savedScroll = window.ProfileSessionStorage ? window.ProfileSessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`) : sessionStorage.getItem(`chatScrollPos_${this.activeSessionId}`);
             if (savedScroll !== null) {
                 container.scrollTop = parseInt(savedScroll);
-            } else if (this.autoScrollEnabled) {
+            } else if (this.autoScrollEnabled && !this.userHasScrolledUp) {
                 this.scrollToBottom();
             }
         } else {
@@ -742,55 +743,61 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 container.scrollTop = savedScrollTop;
             }
         }
+        clearTimeout(this._programmaticScrollTimer);
+        this._programmaticScrollTimer = setTimeout(() => {
+            this._isProgrammaticScroll = false;
+        }, 60);
 
         // Attach scroll & input listeners to save position & detect manual scroll-up instantly
         if (!container.dataset.hasScrollListener) {
-            // 1. Classical scroll listener to save history position & detect scroll direction
             let lastScrollTop = container.scrollTop;
+
+            // 1. Classical scroll listener to save history position & detect scroll direction
             container.addEventListener('scroll', () => {
                 if (this.activeSessionId) {
                     if (window.ProfileSessionStorage) window.ProfileSessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
                     else sessionStorage.setItem(`chatScrollPos_${this.activeSessionId}`, container.scrollTop);
                 }
                 const currentScrollTop = container.scrollTop;
-                const scrollingUp = currentScrollTop < lastScrollTop - 1;
+                const delta = currentScrollTop - lastScrollTop;
+                const scrollingUp = delta < -0.5;
+                const scrollingDown = delta > 0.5;
                 lastScrollTop = currentScrollTop;
 
-                const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
-                if (atBottom) {
-                    // Re-engage autoscroll when user comes back to the bottom
-                    if (this.userHasScrolledUp) {
+                // Priorité absolue : si l'utilisateur défile vers le haut (molette, barre de défilement, pavé tactile, clavier)
+                if (!this._isProgrammaticScroll && scrollingUp) {
+                    this.disengageAutoScroll();
+                    return; // Interdit tout réengagement si on monte !
+                }
+
+                // Réengagement uniquement si scrolling actif vers le bas, tout au fond (<= 8px) et après cooldown
+                if (!this._isProgrammaticScroll && scrollingDown) {
+                    const atBottom = container.scrollHeight - currentScrollTop - container.clientHeight <= 8;
+                    const cooldownPassed = (Date.now() - (this._lastUserScrollUpTime || 0)) > 400;
+                    if (atBottom && this.userHasScrolledUp && cooldownPassed) {
                         this.userHasScrolledUp = false;
-                        this.updateAutoScrollUI();
-                    }
-                } else if (scrollingUp && !this._isProgrammaticScroll && Date.now() >= (this._ignoreScrollUntil || 0)) {
-                    // Instantly release autoscroll on genuine upward user scroll
-                    if (!this.userHasScrolledUp) {
-                        this.userHasScrolledUp = true;
                         this.updateAutoScrollUI();
                     }
                 }
             });
 
-            // 2. Wheel listener to detect instant scroll-up intent and re-engage on scroll-down
+            // 2. Wheel listener : détection instantanée de l'intention de monter avec priorité absolue
             container.addEventListener('wheel', (e) => {
                 if (e.deltaY < 0) {
-                    // User wheeling UP: immediately disengage auto-scroll
-                    if (!this.userHasScrolledUp) {
-                        this.userHasScrolledUp = true;
-                        this.updateAutoScrollUI();
-                    }
+                    // Mouvement vers le haut (même minime) : débrayage immédiat
+                    this.disengageAutoScroll();
                 } else if (e.deltaY > 0) {
-                    // User wheeling DOWN: if within bottom reach, re-engage
-                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
-                    if (atBottom && this.userHasScrolledUp) {
+                    // Mouvement vers le bas : réengagement si tout en bas (<= 8px) et cooldown passé
+                    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 8;
+                    const cooldownPassed = (Date.now() - (this._lastUserScrollUpTime || 0)) > 400;
+                    if (atBottom && this.userHasScrolledUp && cooldownPassed) {
                         this.userHasScrolledUp = false;
                         this.updateAutoScrollUI();
                     }
                 }
             }, { passive: true });
 
-            // 3. Touch move listener to detect instant swipe-down (scrolls up) and swipe-up (scrolls down)
+            // 3. Touch move listener (swipe tactile)
             let touchStartY = 0;
             container.addEventListener('touchstart', (e) => {
                 if (e.touches.length > 0) {
@@ -800,20 +807,35 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             container.addEventListener('touchmove', (e) => {
                 if (e.touches.length > 0) {
                     const touchY = e.touches[0].clientY;
-                    if (touchY > touchStartY + 4) { // Swipe down -> scrolls up
-                        if (!this.userHasScrolledUp) {
-                            this.userHasScrolledUp = true;
-                            this.updateAutoScrollUI();
-                        }
-                    } else if (touchY < touchStartY - 4) { // Swipe up -> scrolls down
-                        const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 60;
-                        if (atBottom && this.userHasScrolledUp) {
+                    const deltaY = touchY - touchStartY;
+                    if (deltaY > 1) { // Swipe vers le bas -> fait défiler le contenu vers le haut (seuil super faible 1px)
+                        this.disengageAutoScroll();
+                    } else if (deltaY < -1) { // Swipe vers le haut -> fait défiler le contenu vers le bas
+                        const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 8;
+                        const cooldownPassed = (Date.now() - (this._lastUserScrollUpTime || 0)) > 400;
+                        if (atBottom && this.userHasScrolledUp && cooldownPassed) {
                             this.userHasScrolledUp = false;
                             this.updateAutoScrollUI();
                         }
                     }
                 }
             }, { passive: true });
+
+            // 4. Clavier (PageUp, ArrowUp, Home)
+            container.addEventListener('keydown', (e) => {
+                if (e.key === 'PageUp' || e.key === 'Home' || e.key === 'ArrowUp') {
+                    this.disengageAutoScroll();
+                } else if (e.key === 'PageDown' || e.key === 'End' || e.key === 'ArrowDown') {
+                    setTimeout(() => {
+                        const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 8;
+                        const cooldownPassed = (Date.now() - (this._lastUserScrollUpTime || 0)) > 400;
+                        if (atBottom && this.userHasScrolledUp && cooldownPassed) {
+                            this.userHasScrolledUp = false;
+                            this.updateAutoScrollUI();
+                        }
+                    }, 50);
+                }
+            });
 
             container.dataset.hasScrollListener = "true";
         }
@@ -1092,9 +1114,18 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
+    disengageAutoScroll() {
+        if (!this.userHasScrolledUp) {
+            this.userHasScrolledUp = true;
+            this.updateAutoScrollUI();
+        }
+        this._lastUserScrollUpTime = Date.now();
+    },
+
     reengageAutoScroll() {
         this.autoScrollEnabled = true;
         this.userHasScrolledUp = false;
+        this._lastUserScrollUpTime = 0;
         this.scrollToBottom(true);
         this.updateAutoScrollUI();
     },
@@ -1104,16 +1135,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     },
 
     scrollToBottom(force = false) {
-        if (!force && !this.autoScrollEnabled) return;
+        if (!force && (!this.autoScrollEnabled || this.userHasScrolledUp)) return;
         const container = document.getElementById('chatMessages');
         if (container) {
             this._isProgrammaticScroll = true;
-            this._suppressScrollDetect(80);
             container.scrollTop = container.scrollHeight;
             clearTimeout(this._programmaticScrollTimer);
             this._programmaticScrollTimer = setTimeout(() => {
                 this._isProgrammaticScroll = false;
-            }, 80);
+            }, 60);
         }
     },
 

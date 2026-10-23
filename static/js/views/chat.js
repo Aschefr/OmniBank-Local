@@ -564,6 +564,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     padding: 20px;
                     overflow-y: auto;
                     overflow-x: hidden;
+                    overflow-anchor: none;
                     display: flex;
                     flex-direction: column;
                     gap: 15px;
@@ -1963,12 +1964,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         if (window.visualViewport) {
             const onVisualViewportChange = () => {
                 const chatWrapper = document.querySelector('.chat-wrapper');
-                if (chatWrapper && window.innerWidth <= 768) {
-                    const vpHeight = window.visualViewport.height;
-                    chatWrapper.style.height = `${Math.max(200, vpHeight - 65)}px`;
-                    const messagesEl = document.getElementById('chatMessages');
-                    if (messagesEl && !window.ChatView?.userHasScrolledUp && window.ChatView?.autoScrollEnabled !== false) {
-                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                if (chatWrapper) {
+                    if (window.innerWidth <= 768) {
+                        const vpHeight = window.visualViewport.height;
+                        chatWrapper.style.height = `${Math.max(200, vpHeight - 65)}px`;
+                        const messagesEl = document.getElementById('chatMessages');
+                        if (messagesEl && !window.ChatView?.userHasScrolledUp && window.ChatView?.autoScrollEnabled !== false) {
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        }
+                    } else if (chatWrapper.style.height) {
+                        chatWrapper.style.height = '';
                     }
                 }
             };
