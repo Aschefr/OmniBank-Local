@@ -13,7 +13,7 @@ import re
 import json
 import logging
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
@@ -217,7 +217,7 @@ def extract_unemitted_actions(
     for transfer_pattern in (p1, p2):
         for m in transfer_pattern.finditer(text):
             before = text[max(0, m.start() - 60):m.start()].lower()
-            if any(p in before for p in ('nous avons enregistré', 'nous avions enregistré', 'suite au', 'suite à', 'déjà effectué', 'déjà enregistré')):
+            if any(p in before for p in ('nous avons enregistré', 'nous avions enregistré', 'suite au', 'suite à', 'déjà effectué', 'déjà enregistré', 'déjà programmé', 'déjà planifié')):
                 continue
 
             amt_str, from_raw, to_raw, date_raw = m.groups()
@@ -266,6 +266,81 @@ def extract_unemitted_actions(
                         "category": "Virement interne"
                     }
                 })
+
+    # Pattern 3 : formulation contextuelle / implicite
+    # Ex: "ce virement de précaution de 280,00 € (pour couvrir le déficit...)"
+    # Ex: "la reconstitution de 250,00 € pour le lendemain"
+    # Ex: "virement prévisionnel de 300 €"
+    savings_accounts = [a for a in accounts if any(k in strip_accents(a.type or '') for k in ('livret', 'epargne', 'savings')) or any(k in strip_accents(a.name) for k in ('livret', 'epargne', 'ldd'))]
+    checking_accounts = [a for a in accounts if any(k in strip_accents(a.type or '') for k in ('courant', 'checking'))]
+    default_savings = savings_accounts[0].name if savings_accounts else (accounts[1].name if len(accounts) > 1 else 'Livret A')
+    default_checking = checking_accounts[0].name if checking_accounts else (accounts[0].name if accounts else 'Compte courant')
+
+    text_clean = strip_accents(text)
+    text_savings = [a.name for a in savings_accounts if strip_accents(a.name) in text_clean]
+    text_checking = [a.name for a in checking_accounts if strip_accents(a.name) in text_clean or 'compte courant' in text_clean]
+    active_savings = text_savings[0] if text_savings else default_savings
+    active_checking = text_checking[0] if text_checking else default_checking
+
+    payday_date = None
+    m_pay = re.search(r'(?:salaire|paie|paye)\s+(?:du|arrive\s+le|de)?\s*(\d{1,2})\s*([a-z]+)?', text, re.IGNORECASE)
+    if m_pay:
+        try:
+            d = int(m_pay.group(1))
+            mo_str = m_pay.group(2)
+            mo = FRENCH_MONTHS.get(strip_accents(mo_str)) if mo_str else today.month
+            payday_date = date(today.year, mo, d)
+        except Exception:
+            pass
+
+    p3 = re.compile(
+        r'(?:virement\s+(?:[a-zéèêûôîà\'-]+\s+)*|pont\s+de\s+trésorerie\s+(?:[a-zéèêûôîà\'-]+\s+)*|reconstitution\s+(?:[a-zéèêûôîà\'-]+\s+)*)de\s+(?:\*\*)?~?(\d+(?:[.,]\d+)?)\s*(?:EUR|€)?',
+        re.IGNORECASE
+    )
+    for m_t in p3.finditer(text):
+        start = m_t.start()
+        before = text[max(0, start - 100):start].lower()
+        if any(p in before for p in ('déjà programmée', 'déjà planifiée', 'déjà enregistrée', 'déjà effectué', 'déjà été', 'déjà fait')):
+            continue
+
+        amt_str = m_t.group(1)
+        try:
+            amt = float(amt_str.replace(',', '.'))
+        except ValueError:
+            continue
+        if amt <= 0:
+            continue
+
+        matched_term = m_t.group(0).lower()
+        after = text[m_t.end():min(len(text), m_t.end() + 80)].lower()
+        if any(k in matched_term for k in ('reconstitution', 'retour', 'rembourser')):
+            from_acc = active_checking
+            to_acc = active_savings
+            desc = f"Reconstitution épargne {from_acc} -> {to_acc}"
+            if 'lendemain' in after and payday_date:
+                dt_iso = (payday_date + timedelta(days=1)).isoformat()
+            else:
+                dt_iso = parse_french_date(after, default_date=today)
+        else:
+            from_acc = active_savings
+            to_acc = active_checking
+            desc = f"Virement de précaution {from_acc} -> {to_acc}"
+            dt_iso = today.isoformat()
+
+        transfer_key = (round(amt, 2), from_acc.lower(), to_acc.lower(), dt_iso)
+        if transfer_key not in seen_transfers:
+            seen_transfers.add(transfer_key)
+            actions.append({
+                "action": "create_planned_transfer",
+                "params": {
+                    "from_account": from_acc,
+                    "to_account": to_acc,
+                    "amount": round(amt, 2),
+                    "description": desc,
+                    "date_operation": dt_iso,
+                    "category": "Virement interne"
+                }
+            })
 
     # ── 2. Extraction des Corrections d'Opérations (#ID ou transaction) ───────
     # Ex: "corriger l'opération #3355 en catégorie Automobile" ou "modifier la transaction #123"
