@@ -388,7 +388,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         try {
             this.templates = await API.get('/api/recurrences/?include_closed=true');
             this.categories = await API.get('/api/categories/');
-            const allTx = await API.get('/api/transactions/?limit=10000');
+            const allTx = await API.get('/api/transactions/?has_recurrence=true&limit=5000');
             this.allTransactions = allTx;
             this.config = (window.app && window.app.config) || await API.get('/api/config/').catch(() => ({}));
             
