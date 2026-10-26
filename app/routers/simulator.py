@@ -20,6 +20,8 @@ from app.schemas.api_schemas import (
     SimulationRunRequest
 )
 from app.services.simulator_engine import run_simulation, get_simulator_presets, get_cockpit_forecast_summary
+from app.services import stats_cache
+from app.profile_manager import get_active_profile
 
 router = APIRouter(prefix="/api/simulator", tags=["simulator"])
 logger = logging.getLogger(__name__)
@@ -31,7 +33,15 @@ def get_forecast_summary(account_id: Optional[int] = None, db: Session = Depends
     """
     Retourne la synthèse prévisionnelle multi-horizons (7j / cycle / 3 mois) pour le Cockpit.
     """
-    return get_cockpit_forecast_summary(db=db, account_id=account_id)
+    profile_id = get_active_profile()["id"]
+    cache_key = f"cockpit_forecast_summary_{account_id or 'all'}"
+    cached = stats_cache.get(profile_id, cache_key)
+    if cached is not None:
+        return cached
+
+    result = get_cockpit_forecast_summary(db=db, account_id=account_id)
+    stats_cache.set(profile_id, cache_key, result)
+    return result
 
 
 # ─── Modèles Prédéfinis (Presets) ─────────────────────────────────────────────
@@ -80,6 +90,7 @@ def create_scenario(payload: ScenarioCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(scenario)
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Scénario créé : #{scenario.id} - '{scenario.name}' ({len(scenario.events)} événements)")
     return scenario
 
@@ -111,6 +122,7 @@ def update_scenario(scenario_id: int, payload: ScenarioUpdate, db: Session = Dep
 
     db.commit()
     db.refresh(scenario)
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Scénario mis à jour : #{scenario.id} - '{scenario.name}'")
     return scenario
 
@@ -124,6 +136,7 @@ def delete_scenario(scenario_id: int, db: Session = Depends(get_db)):
 
     db.delete(scenario)
     db.commit()
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Scénario supprimé : #{scenario_id}")
     return {"ok": True}
 
@@ -190,6 +203,7 @@ def add_scenario_event(scenario_id: int, payload: ScenarioEventCreate, db: Sessi
     db.add(ev)
     db.commit()
     db.refresh(ev)
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Événement ajouté au scénario #{scenario_id} : #{ev.id} - '{ev.label}'")
     return ev
 
@@ -206,6 +220,7 @@ def update_scenario_event(event_id: int, payload: ScenarioEventUpdate, db: Sessi
 
     db.commit()
     db.refresh(ev)
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Événement #{event_id} mis à jour : '{ev.label}' (actif: {ev.is_active})")
     return ev
 
@@ -219,6 +234,7 @@ def delete_scenario_event(event_id: int, db: Session = Depends(get_db)):
 
     db.delete(ev)
     db.commit()
+    stats_cache.invalidate()
     logger.info(f"[Simulateur] Événement #{event_id} supprimé")
     return {"ok": True}
 
