@@ -121,8 +121,12 @@ async def upload_backup(file: UploadFile = File(...)):
 
         from app.init_data import init_db
         from app.profile_manager import sync_profile_metadata_from_db
+        from app.services import stats_cache
+        from app.services.bank_sync.pending_store import _PENDING_SYNC_DATA
         init_db()
         sync_profile_metadata_from_db()
+        stats_cache.invalidate()
+        _PENDING_SYNC_DATA.pop(active["id"], None)
 
         return {"ok": True, "message": f"Backup restauré avec succès dans le profil '{active['name']}'."}
     except HTTPException:
@@ -243,7 +247,11 @@ async def upload_all_profiles_backup(file: UploadFile = File(...)):
 
         ensure_profiles_initialized()
         from app.init_data import init_db
+        from app.services import stats_cache
+        from app.services.bank_sync.pending_store import _PENDING_SYNC_DATA
         init_db()
+        stats_cache.invalidate()
+        _PENDING_SYNC_DATA.clear()
 
         return {"ok": True, "message": "Restauration globale effectuée avec succès. Rechargement nécessaire.", "reload_required": True}
     except Exception as e:

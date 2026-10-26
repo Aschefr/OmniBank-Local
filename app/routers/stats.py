@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import date
 import calendar
@@ -6,7 +7,17 @@ import calendar
 from app.database import get_db
 from app.models import Account, Transaction
 from app.schemas.api_schemas import AccountOut
-from app.services.finance_engine import calculate_balances, get_net_worth, get_liquid_net_worth, calculate_rest_to_live, get_overdraft_warning, predict_next_paycheck, get_main_account, get_anticipated_candidate_charges
+from app.services.finance_engine import (
+    calculate_balances,
+    get_net_worth,
+    get_liquid_net_worth,
+    calculate_rest_to_live,
+    get_overdraft_warning,
+    predict_next_paycheck,
+    get_main_account,
+    get_anticipated_candidate_charges,
+    calculate_rhythm_averages,
+)
 from app.services import stats_cache
 from app.profile_manager import get_active_profile
 
@@ -237,6 +248,34 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     stats_cache.set(profile_id, "dashboard", result)
     return result
 
+
+@router.get("/rhythm")
+def get_rhythm(
+    lookback: str = Query("6m"),
+    account_id: Optional[int] = Query(None),
+    sensitivity: int = Query(2),
+    db: Session = Depends(get_db)
+):
+    """
+    Retourne les moyennes et le rythme financier historiques (revenus, charges fixes, dépenses variables et cadence propre).
+    Calculé directement côté serveur avec mise en cache optimisée.
+    """
+    profile_id = get_active_profile()["id"]
+    cache_key = f"rhythm_averages_{lookback}_{account_id or 'all'}_{sensitivity}"
+    cached = stats_cache.get(profile_id, cache_key)
+    if cached is not None:
+        return cached
+
+    result = calculate_rhythm_averages(
+        db=db,
+        lookback=lookback,
+        account_id=account_id,
+        sensitivity=sensitivity
+    )
+    stats_cache.set(profile_id, cache_key, result)
+    return result
+
+
 from pydantic import BaseModel
 
 class PaycheckOverride(BaseModel):
@@ -457,6 +496,12 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
     year: if provided, show Jan-Dec of that year instead of rolling months
     date_start/date_end: YYYY-MM-DD, overrides year and months params for day-granularity custom range
     """
+    profile_id = get_active_profile()["id"]
+    cache_key = f"categories_by_month_{months}_{reconciled}_{year}_{account_ids}_{date_start}_{date_end}"
+    cached = stats_cache.get(profile_id, cache_key)
+    if cached is not None:
+        return cached
+
     import calendar
     today = date.today()
 
@@ -701,7 +746,9 @@ def get_categories_by_month(months: int = 12, reconciled: str = "all", year: int
                 "inactive_by_cat": inactive_type_cats,
             }
 
-    return {"months": month_keys, "years": [str(y) for y in years], "by_type": result, "inactive_types": inactive_types}
+    res = {"months": month_keys, "years": [str(y) for y in years], "by_type": result, "inactive_types": inactive_types}
+    stats_cache.set(profile_id, cache_key, res)
+    return res
 
 
 @router.get("/trends/{account_id}")

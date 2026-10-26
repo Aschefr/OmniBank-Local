@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.database import get_db
 from app.models import Transaction, Account, RecurrenceTemplate
@@ -22,6 +22,9 @@ def get_transactions(
     search: Optional[str] = Query(None),
     account_id: Optional[int] = Query(None),
     unreconciled_only: bool = Query(False),
+    overview_window: bool = Query(False),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     order: str = Query("desc"),
     db: Session = Depends(get_db)
 ):
@@ -35,8 +38,24 @@ def get_transactions(
                 Transaction.to_account_id == account_id
             )
         )
-    if unreconciled_only:
+    if overview_window:
+        # Fenêtre optimisée pour la vue d'ensemble :
+        # Inclut toutes les opérations non rapprochées (passées, courantes et futures)
+        # + toutes les opérations pointées des 60 derniers jours (cycle en cours & précédent)
+        d_min = (date.today() - timedelta(days=60)).strftime("%Y-%m-%d")
+        query = query.filter(
+            or_(
+                Transaction.reconciliation_date == None,
+                Transaction.date_operation >= d_min
+            )
+        )
+    elif unreconciled_only:
         query = query.filter(Transaction.reconciliation_date == None)
+
+    if date_from:
+        query = query.filter(Transaction.date_operation >= date_from)
+    if date_to:
+        query = query.filter(Transaction.date_operation <= date_to)
     if search:
         import unicodedata
         from sqlalchemy import func
