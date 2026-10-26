@@ -43,6 +43,8 @@ window.OverviewView = {
 
     render() {
         if (window.ProfileStorage) {
+            const savedAcc = window.ProfileStorage.get('overview_account_id');
+            if (savedAcc !== null && savedAcc !== undefined) this._selectedAccountId = savedAcc;
             const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
             if (savedTop6) this._top6Filter = savedTop6;
             const savedHorizon = window.ProfileStorage.get('overview_horizon');
@@ -55,7 +57,13 @@ window.OverviewView = {
             if (savedTrend) this._trendMode = savedTrend;
             const savedDisplayMode = window.ProfileStorage.get('overview_display_mode');
             if (savedDisplayMode) this._displayMode = savedDisplayMode;
-        } else if (window.app?.config) {
+        }
+        if (window.app?.config) {
+            if ((this._selectedAccountId === '' || this._selectedAccountId === null || this._selectedAccountId === undefined) &&
+                window.app.config.overview_account_id !== undefined &&
+                (!window.ProfileStorage || window.ProfileStorage.get('overview_account_id') === null)) {
+                this._selectedAccountId = window.app.config.overview_account_id;
+            }
             if (window.app.config.overview_top6_filter) this._top6Filter = window.app.config.overview_top6_filter;
             if (window.app.config.overview_horizon) this._horizon = window.app.config.overview_horizon;
             if (window.app.config.overview_stats_granularity) this._statsGranularity = window.app.config.overview_stats_granularity;
@@ -408,6 +416,41 @@ window.OverviewView = {
 
     _initInFlight: false,
     _queuedInit: false,
+    _fullHistoryLoaded: false,
+    _loadingFullHistory: false,
+
+    async _loadFullHistory() {
+        if (this._fullHistoryLoaded || this._loadingFullHistory) return;
+        this._loadingFullHistory = true;
+        try {
+            const fullTxs = await API.get('/api/transactions/?limit=10000');
+            if (fullTxs && Array.isArray(fullTxs)) {
+                this._transactions = fullTxs;
+                this._fullHistoryLoaded = true;
+            }
+        } catch (e) {
+            console.warn('[OverviewView] Erreur chargement historique complet:', e);
+        } finally {
+            this._loadingFullHistory = false;
+        }
+    },
+
+    async _fetchRhythmAverages() {
+        try {
+            const accParam = this._selectedAccountId ? `&account_id=${this._selectedAccountId}` : '';
+            const lookback = this._statsLookback || '6m';
+            const data = await API.get(`/api/stats/rhythm?lookback=${lookback}${accParam}`);
+            if (data) {
+                this._cachedMonthlyAverages = { ...data, _serverComputed: true };
+                this._renderRhythmBadges();
+                if (this._displayMode === 'cockpit') {
+                    this._renderCockpit();
+                }
+            }
+        } catch (e) {
+            console.warn('[OverviewView] Erreur actualisation rhythm averages:', e);
+        }
+    },
 
     async loadData() {
         return this.init();
@@ -421,17 +464,80 @@ window.OverviewView = {
         this._initInFlight = true;
 
         try {
-            const [config, stats, accounts, transactions, forecastSummary, pendingData] = await Promise.all([
-                API.get('/api/config/'),
+            // 1. Résolution synchrone de la configuration serveur (déjà chargée dans window.app.config)
+            const config = (window.app && window.app.config)
+                ? window.app.config
+                : await API.get('/api/config/').catch(() => null);
+
+            if (window.app && config && !window.app.config) {
+                window.app.config = config;
+            }
+
+            // 2. Initialisation des préférences (ProfileStorage prioritaire, repli sur config serveur)
+            if (window.ProfileStorage) {
+                const savedAcc = window.ProfileStorage.get('overview_account_id');
+                if (savedAcc !== null && savedAcc !== undefined) this._selectedAccountId = savedAcc;
+                const savedLookback = window.ProfileStorage.get('overview_stats_lookback');
+                if (savedLookback) this._statsLookback = savedLookback;
+                const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
+                if (savedTop6) this._top6Filter = savedTop6;
+                const savedHorizon = window.ProfileStorage.get('overview_horizon');
+                if (savedHorizon) this._horizon = savedHorizon;
+                const savedGranularity = window.ProfileStorage.get('overview_stats_granularity');
+                if (savedGranularity) this._statsGranularity = savedGranularity;
+                const savedTrend = window.ProfileStorage.get('overview_trend_mode');
+                if (savedTrend) this._trendMode = savedTrend;
+                const savedMode = window.ProfileStorage.get('overview_display_mode');
+                if (savedMode) this._displayMode = savedMode;
+            }
+
+            if (config) {
+                const hasExplicitSavedAcc = window.ProfileStorage && window.ProfileStorage.get('overview_account_id') !== null;
+                if (!hasExplicitSavedAcc && config.overview_account_id !== undefined) {
+                    this._selectedAccountId = config.overview_account_id;
+                    if (window.ProfileStorage && this._selectedAccountId) {
+                        window.ProfileStorage.set('overview_account_id', this._selectedAccountId);
+                    }
+                }
+                if (config.overview_active_tab !== undefined) {
+                    this._activeTab = config.overview_active_tab;
+                }
+                if (config.overview_horizon !== undefined && (!window.ProfileStorage || window.ProfileStorage.get('overview_horizon') === null)) {
+                    this._horizon = config.overview_horizon;
+                }
+                if (config.overview_trend_mode !== undefined && (!window.ProfileStorage || window.ProfileStorage.get('overview_trend_mode') === null)) {
+                    this._trendMode = config.overview_trend_mode;
+                }
+                if (config.overview_top6_filter !== undefined && (!window.ProfileStorage || window.ProfileStorage.get('overview_top6_filter') === null)) {
+                    this._top6Filter = config.overview_top6_filter;
+                }
+                if (config.overview_stats_granularity !== undefined && (!window.ProfileStorage || window.ProfileStorage.get('overview_stats_granularity') === null)) {
+                    this._statsGranularity = config.overview_stats_granularity;
+                }
+                if (config.overview_stats_lookback !== undefined && (!window.ProfileStorage || window.ProfileStorage.get('overview_stats_lookback') === null)) {
+                    this._statsLookback = config.overview_stats_lookback;
+                }
+            }
+
+            // 3. À CE STADE, this._selectedAccountId et this._statsLookback sont résolus AVANT les requêtes
+            const lookback = this._statsLookback || '6m';
+            const accParam = this._selectedAccountId ? `&account_id=${this._selectedAccountId}` : '';
+            const simAccParam = this._selectedAccountId ? `?account_id=${this._selectedAccountId}` : '';
+
+            const [stats, accounts, transactions, forecastSummary, pendingData, rhythmAverages] = await Promise.all([
                 API.get('/api/stats/dashboard'),
                 API.get('/api/stats/accounts'),
-                API.get('/api/transactions/?limit=10000'),
-                API.get('/api/simulator/forecast-summary' + (this._selectedAccountId ? '?account_id=' + this._selectedAccountId : '')).catch(err => {
+                API.get('/api/transactions/?overview_window=true&limit=2000'),
+                API.get('/api/simulator/forecast-summary' + simAccParam).catch(err => {
                     console.warn('[OverviewView] Erreur chargement forecast summary', err);
                     return null;
                 }),
                 API.get('/api/bank-sync/pending').catch(err => {
                     console.warn('[OverviewView] Erreur chargement pending sync', err);
+                    return null;
+                }),
+                API.get(`/api/stats/rhythm?lookback=${lookback}${accParam}`).catch(err => {
+                    console.warn('[OverviewView] Erreur chargement rhythm stats', err);
                     return null;
                 })
             ]);
@@ -444,42 +550,8 @@ window.OverviewView = {
                 window.BankSyncView.pendingDiscrepancies = pendingData.discrepancies_by_tx_id;
             }
 
-            if (config) {
-                if (config.overview_account_id !== undefined) {
-                    this._selectedAccountId = config.overview_account_id;
-                }
-                if (config.overview_active_tab !== undefined) {
-                    this._activeTab = config.overview_active_tab;
-                }
-                if (config.overview_horizon !== undefined) {
-                    this._horizon = config.overview_horizon;
-                }
-                if (config.overview_trend_mode !== undefined) {
-                    this._trendMode = config.overview_trend_mode;
-                }
-                if (config.overview_top6_filter !== undefined) {
-                    this._top6Filter = config.overview_top6_filter;
-                }
-                if (config.overview_stats_granularity !== undefined) {
-                    this._statsGranularity = config.overview_stats_granularity;
-                }
-                if (config.overview_stats_lookback !== undefined) {
-                    this._statsLookback = config.overview_stats_lookback;
-                }
-            }
-            if (window.ProfileStorage) {
-                const savedTop6 = window.ProfileStorage.get('overview_top6_filter');
-                if (savedTop6) this._top6Filter = savedTop6;
-                const savedHorizon = window.ProfileStorage.get('overview_horizon');
-                if (savedHorizon) this._horizon = savedHorizon;
-                const savedGranularity = window.ProfileStorage.get('overview_stats_granularity');
-                if (savedGranularity) this._statsGranularity = savedGranularity;
-                const savedLookback = window.ProfileStorage.get('overview_stats_lookback');
-                if (savedLookback) this._statsLookback = savedLookback;
-                const savedTrend = window.ProfileStorage.get('overview_trend_mode');
-                if (savedTrend) this._trendMode = savedTrend;
-                const savedMode = window.ProfileStorage.get('overview_display_mode');
-                if (savedMode) this._displayMode = savedMode;
+            if (rhythmAverages) {
+                this._cachedMonthlyAverages = { ...rhythmAverages, _serverComputed: true };
             }
 
             this._stats = stats;
@@ -501,15 +573,21 @@ window.OverviewView = {
             const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
             const horizonSelector = document.getElementById('ovHorizonSelector');
             if (horizonSelector) horizonSelector.style.display = isOrgMode ? 'none' : 'inline-flex';
-            await this._checkBankConnections();
-            await this._renderPendingBankSyncBanner();
-            await this._renderAutopilotWidget();
+
+            // ── PRIORITÉ RÉACTIVITÉ (Zéro blocage) ──────────────────────────────
+            // Dessiner immédiatement les composants sous les yeux de l'utilisateur
+            this._renderCockpit();
             this._renderUnreconciled(transactions);
             this._renderTop3(transactions);
             this._renderBudgets(stats);
             this._renderSavings(stats);
-            await this._renderTrend();
-            this._renderCockpit();
+
+            // ── CHARGEMENT EN ARRIÈRE-PLAN (Non-bloquant) ──────────────────────
+            // Les widgets annexes et graphiques s'actualisent sans bloquer l'affichage
+            this._renderPendingBankSyncBanner();
+            this._checkBankConnections().catch(e => console.warn('[OverviewView] Erreur check connections:', e));
+            this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Erreur widget autopilot:', e));
+            this._renderTrend().catch(e => console.warn('[OverviewView] Erreur trend chart:', e));
 
             if (this._pendingHighlightTxId) {
                 const txId = this._pendingHighlightTxId;
@@ -1156,16 +1234,26 @@ window.OverviewView = {
         menu.innerHTML = html;
     },
 
-    onAccountChange(accId) {
+    async onAccountChange(accId) {
         this._selectedAccountId = accId || '';
         this.saveConfig({ overview_account_id: this._selectedAccountId });
+        if (window.ProfileStorage) {
+            window.ProfileStorage.set('overview_account_id', this._selectedAccountId);
+        }
         this._renderHero(this._stats);
         this._renderUnreconciled(this._transactions);
         this._renderTop3(this._transactions);
         this._renderBudgets(this._stats);
         this._renderSavings(this._stats);
-        this._calculateAverages();
+        await this._fetchRhythmAverages();
+        this._renderCockpit();
         this._renderTrend();
+        API.get('/api/simulator/forecast-summary' + (this._selectedAccountId ? '?account_id=' + this._selectedAccountId : ''))
+            .then(fs => {
+                this._forecastSummary = fs;
+                this._renderCockpit();
+            })
+            .catch(err => console.warn('[OverviewView] Erreur actualisation forecast summary:', err));
     },
 
     async openUserPicker() {
@@ -2336,14 +2424,14 @@ window.OverviewView = {
         });
     },
 
-    setStatsLookback(lookback) {
+    async setStatsLookback(lookback) {
         this._statsLookback = lookback || '6m';
         if (window.ProfileStorage) {
             window.ProfileStorage.set('overview_stats_lookback', this._statsLookback);
         }
         this.saveConfig({ overview_stats_lookback: this._statsLookback });
         this._updateStatsLookbackUI();
-        this._calculateAverages();
+        await this._fetchRhythmAverages();
     },
 
     _updateStatsLookbackUI() {
@@ -2390,6 +2478,13 @@ window.OverviewView = {
     },
 
     _calculateAverages() {
+        // Si les moyennes ont déjà été calculées côté serveur (/api/stats/rhythm),
+        // on préserve cette vérité sans écraser avec un sous-ensemble partiel d'opérations
+        if (this._cachedMonthlyAverages && this._cachedMonthlyAverages._serverComputed) {
+            this._renderRhythmBadges();
+            return;
+        }
+
         const transactions = this._transactions || [];
         const lookback = this._statsLookback || '6m';
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
@@ -3003,9 +3098,13 @@ window.OverviewView = {
             });
         }
 
-        // Render cockpit content if switching to cockpit
+        // Render cockpit content if switching to cockpit, or trend chart if switching to full
         if (mode === 'cockpit') {
             this._renderCockpit();
+        } else if (mode === 'full') {
+            if (!this._chart) {
+                this._renderTrend().catch(e => console.warn('[OverviewView] Erreur trend chart:', e));
+            }
         }
 
         console.log(`[OverviewView] Mode d'affichage changé : ${mode}`);
@@ -4471,8 +4570,11 @@ window.OverviewView = {
         return count;
     },
 
-    showCockpitTileInfo(tileKey) {
+    async showCockpitTileInfo(tileKey) {
         if (!this._cachedCockpitTileData) this._cachedCockpitTileData = {};
+        if (!this._fullHistoryLoaded && tileKey && tileKey.startsWith('next_month_')) {
+            await this._loadFullHistory();
+        }
         let data = this._cachedCockpitTileData[tileKey];
 
         // Handle hero overdraft card on demand

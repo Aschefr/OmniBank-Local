@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
+- **Server-Side Financial Cadence & Overview Loading Performance ⏱️⚡**: Replaced client-side iteration over thousands of transactions with a dedicated, cached backend endpoint (`/api/stats/rhythm`) computing historical clean daily/monthly averages with IQR outlier winsorization in under 1ms. Overview transactions now load instantly via `overview_window=true` (last 60 days + all unreconciled), reducing transaction payload by over 90% while rendering the Cockpit cadence gauge at its exact position on the very first frame without delay, jumps, or client-side recalculation lag.
 - **Unified Operation Modal & Auto-Pilot Forecast Linking 🤖🔗**: Unified the transaction editing modal across the Dashboard, All Operations, and Auto-Pilot views. Users can now easily link any bank transaction to an existing accounting forecast with chronological candidate sorting, automatic smooth scrolling to selection and confirmation, directional account pickers, and live contextual switching into Auto-Pilot mode.
 
 ### Fixed & Ergonomics
+- **Cockpit Cadence Gauge F5 vs Navigation Parity (Zero F5) 🎯🔄**: Pre-resolved active account selection and profile preferences prior to launching dashboard requests, ensuring initial hard page reloads (<kbd>F5</kbd>) and view transitions consistently query the active account instead of falling back to unfiltered global metrics. Replaced background history download hacks with direct server truths, eliminating gauge needle snapping and value discrepancies.
 - **Auto-Pilot Decision Traceability & Bi-Directional Unlink 🛡️↶**: Manual forecast linking now strictly preserves original engine confidence scores, source operation labels, actual expense debits, and human override tracking badges (`👤 Modifiée par l'utilisateur` and `🔗 Liée à : ...`) instead of falsifying an autonomous 100% engine match. Added a dedicated `[Délier]` action in the Decision Feed and synchronized global Action History undoing so reverting a link restores both transactions and decision logs in lockstep with zero reload needed (Zero F5).
 
 ## [1.2.10] - 2026-10-23

@@ -389,7 +389,6 @@ def undo_action(db, action: ActionHistory):
     # Synchronisation spécifique pour les liaisons / fusions Auto-Pilote
     if action.entity_type == "transaction" and action.user_name in ("Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"):
         try:
-            from app.models import AutopilotDecisionLog
             dlogs = db.query(AutopilotDecisionLog).filter(
                 AutopilotDecisionLog.entity_type == "transaction"
             ).order_by(AutopilotDecisionLog.id.desc()).all()
