@@ -14,6 +14,8 @@ window.FormView = {
     _ghostMode: false,
     _ghostCsvId: null,
     _ghostConnId: null,
+    autopilotContext: null,
+    _selectedLinkTarget: null,
 
     _setupCategoriesListener() {
         if (this._categoriesListenerBound) return;
@@ -164,6 +166,10 @@ window.FormView = {
         this.updateInferredType();
         this.updateCurrencySymbolUI();
         
+        this.autopilotContext = null;
+        this._selectedLinkTarget = null;
+        this._applyAutopilotContextUI();
+
         document.getElementById('operationModal').style.display = 'flex';
 
         // Mode création : cacher le bouton undo/delete
@@ -321,10 +327,32 @@ window.FormView = {
         } catch(e) { return null; }
     },
 
-    async openEdit(tx) {
+    async openEdit(tx, options = {}) {
         this.currentTxId = tx.id;
         this.currentTxBase = tx;
         this._pendingRecId = tx.recurrence_id || null;
+        this.autopilotContext = options?.autopilotContext || null;
+        this._selectedLinkTarget = null;
+
+        // Auto-détection automatique si l'opération est issue ou liée à l'Auto-Pilote
+        if (!this.autopilotContext && tx?.id) {
+            try {
+                const decInfo = await API.get(`/api/autopilot/transaction-decision/${tx.id}`);
+                if (decInfo && decInfo.has_decision) {
+                    this.autopilotContext = {
+                        decisionId: decInfo.decision_id,
+                        batchId: decInfo.batch_id,
+                        decisionType: decInfo.decision_type,
+                        action: decInfo.action,
+                        confidenceScore: decInfo.confidence_score,
+                        inferredType: decInfo.inferred_type,
+                        isReview: Boolean(decInfo.is_review)
+                    };
+                }
+            } catch (e) {
+                // Non-bloquant
+            }
+        }
         
         document.getElementById('op_desc').value = tx.description;
         document.getElementById('op_amount').value = tx.amount;
@@ -439,6 +467,8 @@ window.FormView = {
         // Pre-fill project budget if assigned
         const budgetSel = document.getElementById('op_budget_id');
         if (budgetSel) budgetSel.value = tx.budget_id || '';
+
+        this._applyAutopilotContextUI();
 
         document.getElementById('operationModal').style.display = 'flex';
         // Mode édition : afficher le bouton "Supprimer l'opération"
@@ -571,6 +601,9 @@ window.FormView = {
         this._ghostConnId = null;
         this._ghostRawDesc = null;
         this._ghostIsComing = false;
+        this.autopilotContext = null;
+        this._selectedLinkTarget = null;
+        this._applyAutopilotContextUI();
 
         const rawHintEl = document.getElementById('op_raw_desc_hint');
         if (rawHintEl) {
@@ -1345,6 +1378,69 @@ window.FormView = {
             try {
                 let actionId = null;
 
+                if (this.autopilotContext) {
+                    const apCtx = this.autopilotContext;
+                    const learnRule = document.getElementById('op_autopilot_learn_rule')?.checked ?? true;
+
+                    if (apCtx.isReview && apCtx.txId) {
+                        const targetForecastId = apCtx.targetForecastId || null;
+                        await API.post(`/api/autopilot/review/${apCtx.txId}/update`, {
+                            description: this.pendingSaveData.description,
+                            category: this.pendingSaveData.category,
+                            amount: this.pendingSaveData.amount,
+                            target_forecast_id: targetForecastId,
+                            learn_rule: learnRule
+                        });
+                        showToast(window.i18n ? (window.i18n.t('autopilot_review_updated') || 'Opération corrigée avec succès') : 'Opération corrigée avec succès', 'success');
+                    } else if (apCtx.decisionId) {
+                        await API.post(`/api/autopilot/decisions/${apCtx.decisionId}/override`, {
+                            new_description: this.pendingSaveData.description,
+                            new_category: this.pendingSaveData.category,
+                            new_amount: this.pendingSaveData.amount,
+                            new_from_account_id: this.pendingSaveData.from_account_id,
+                            new_to_account_id: this.pendingSaveData.to_account_id,
+                            new_date_operation: this.pendingSaveData.date_operation,
+                            new_reconciliation_date: this.pendingSaveData.reconciliation_date,
+                            learn_rule: learnRule
+                        });
+                        showToast(window.i18n ? (window.i18n.t('autopilot_override_success') || 'Opération mise à jour et règle apprise') : 'Opération mise à jour et règle apprise', 'success');
+                    } else if (this.currentTxId) {
+                        await API.put(`/api/transactions/${this.currentTxId}`, this.pendingSaveData);
+                        if (learnRule && this.pendingSaveData.description && this.pendingSaveData.category) {
+                            try {
+                                const rawDesc = this.currentTxBase?.raw_description || this.pendingSaveData.description;
+                                await API.post('/api/config/smart-labels', {
+                                    raw_pattern: rawDesc,
+                                    clean_description: this.pendingSaveData.description,
+                                    category: this.pendingSaveData.category,
+                                    is_manual: true
+                                });
+                            } catch(e) {}
+                        }
+                        showToast(window.i18n ? (window.i18n.t('autopilot_override_success') || 'Opération mise à jour et règle apprise') : 'Opération mise à jour et règle apprise', 'success');
+                    }
+
+                    this.close();
+                    window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
+                    if (window.AutopilotView && typeof window.AutopilotView.refresh === 'function') {
+                        await window.AutopilotView.refresh();
+                    }
+                    if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                        window.app.updateAutopilotBadge();
+                    }
+                    if (window.app && window.app.currentView === 'dashboard' && window.TimelineView?.loadData) {
+                        window.TimelineView.loadData();
+                    }
+                    if (window.app && window.app.currentView === 'all_operations' && window.AllOperationsView?.loadData) {
+                        window.AllOperationsView.loadData();
+                    }
+                    if (window.app && window.app.currentView === 'overview' && window.OverviewView?.loadData) {
+                        window.OverviewView.loadData();
+                    }
+                    return;
+                }
+
                 if (this._ghostMode === true) {
                 // GHOST TRANSACTION COMMIT
                 const ghostAccId = this.pendingSaveData.from_account_id || this.pendingSaveData.to_account_id;
@@ -1673,6 +1769,309 @@ window.FormView = {
             }
         } catch (e) {
             console.error('Error converting foreign currency amount', e);
+        }
+    },
+
+    // ── GESTION CONTEXTUELLE AUTO-PILOTE & LIAISON D'OPÉRATIONS ────────
+    _applyAutopilotContextUI() {
+        const apBadge = document.getElementById('op_autopilot_badge');
+        const apIcon = document.getElementById('op_autopilot_icon');
+        const modalTitle = document.getElementById('op_modal_title');
+        const modalSubtitle = document.getElementById('op_modal_subtitle');
+        const learnContainer = document.getElementById('op_autopilot_learn_container');
+        const linkContainer = document.getElementById('op_link_container');
+        const keepOpen = document.getElementById('keepOpenLabel');
+        const clearAfterSave = document.getElementById('op_clear_after_save_container');
+        const skipBtn = document.getElementById('op_skip_btn');
+        const undoBtn = document.getElementById('op_undo_last_btn');
+        const toggleBtn = document.getElementById('op_autopilot_toggle_btn');
+        const toggleBtnText = document.getElementById('op_autopilot_toggle_btn_text');
+
+        if (toggleBtn) {
+            if (this.currentTxId) {
+                toggleBtn.style.display = 'inline-flex';
+                if (this.autopilotContext) {
+                    toggleBtn.className = 'btn btn-primary btn-sm';
+                    toggleBtn.style.background = 'rgba(99,102,241,0.2)';
+                    toggleBtn.style.borderColor = 'var(--accent)';
+                    toggleBtn.style.color = 'var(--accent)';
+                    if (toggleBtnText) {
+                        toggleBtnText.textContent = window.i18n ? (window.i18n.t('autopilot_btn_toggle_mode_active') || 'Mode Standard') : 'Mode Standard';
+                    }
+                } else {
+                    toggleBtn.className = 'btn btn-secondary btn-sm';
+                    toggleBtn.style.background = 'transparent';
+                    toggleBtn.style.borderColor = 'var(--border-color)';
+                    toggleBtn.style.color = 'var(--text-muted)';
+                    if (toggleBtnText) {
+                        toggleBtnText.textContent = window.i18n ? (window.i18n.t('autopilot_btn_toggle_mode') || 'Mode Auto-Pilote') : 'Mode Auto-Pilote';
+                    }
+                }
+            } else {
+                toggleBtn.style.display = 'none';
+            }
+        }
+
+        if (this.autopilotContext) {
+            if (apBadge) apBadge.style.display = 'inline-block';
+            if (apIcon) apIcon.style.display = 'inline-flex';
+            if (modalTitle) {
+                modalTitle.textContent = window.i18n ? (window.i18n.t('autopilot_override_modal_title') || 'Corriger la décision Auto-Pilote') : 'Corriger la décision Auto-Pilote';
+            }
+            if (modalSubtitle) {
+                modalSubtitle.style.display = 'block';
+                modalSubtitle.textContent = window.i18n ? (window.i18n.t('autopilot_override_modal_subtitle') || 'Ajustez les éléments retenus par le moteur') : 'Ajustez les éléments retenus par le moteur';
+            }
+            if (learnContainer) {
+                learnContainer.style.display = 'block';
+                const learnCb = document.getElementById('op_autopilot_learn_rule');
+                if (learnCb) learnCb.checked = true;
+            }
+            if (linkContainer) {
+                linkContainer.style.display = 'block';
+                const linkPanel = document.getElementById('op_link_panel');
+                if (linkPanel) linkPanel.style.display = 'none';
+                const confirmBox = document.getElementById('op_link_confirm_box');
+                if (confirmBox) confirmBox.style.display = 'none';
+                const searchInput = document.getElementById('op_link_search_input');
+                if (searchInput) searchInput.value = '';
+                const toggleText = document.getElementById('op_link_toggle_text');
+                if (toggleText) toggleText.textContent = window.i18n ? (window.i18n.t('op_btn_find_existing') || 'Rechercher en base') : 'Rechercher en base';
+            }
+            if (keepOpen) keepOpen.style.display = 'none';
+            if (clearAfterSave) clearAfterSave.style.display = 'none';
+            if (skipBtn) skipBtn.style.display = 'none';
+            if (undoBtn) undoBtn.style.display = 'none';
+        } else {
+            if (apBadge) apBadge.style.display = 'none';
+            if (apIcon) apIcon.style.display = 'none';
+            if (modalTitle) {
+                modalTitle.textContent = window.i18n ? (window.i18n.t('form_title') || "Saisie d'opération") : "Saisie d'opération";
+            }
+            if (modalSubtitle) modalSubtitle.style.display = 'none';
+            if (learnContainer) learnContainer.style.display = 'none';
+            if (linkContainer) linkContainer.style.display = 'none';
+            if (keepOpen) keepOpen.style.display = 'flex';
+            if (this.keepOpen && clearAfterSave) clearAfterSave.style.display = 'inline-flex';
+        }
+    },
+
+    toggleAutopilotMode() {
+        if (this.autopilotContext) {
+            this.autopilotContext = null;
+        } else {
+            this.autopilotContext = {
+                txId: this.currentTxId,
+                isManual: true,
+                inferredType: this.currentTxBase?.type || 'expense_var'
+            };
+        }
+        this._applyAutopilotContextUI();
+        if (this.autopilotContext) {
+            const linkContainer = document.getElementById('op_link_container');
+            if (linkContainer) {
+                setTimeout(() => {
+                    linkContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            }
+        }
+    },
+
+    toggleLinkPanel() {
+        const panel = document.getElementById('op_link_panel');
+        if (!panel) return;
+        const isHidden = (panel.style.display === 'none' || !panel.style.display);
+        panel.style.display = isHidden ? 'block' : 'none';
+        const toggleIcon = document.getElementById('op_link_toggle_icon');
+        const toggleText = document.getElementById('op_link_toggle_text');
+        if (isHidden) {
+            if (toggleIcon) toggleIcon.textContent = '✕';
+            if (toggleText) toggleText.textContent = window.i18n ? (window.i18n.t('btn_cancel') || 'Fermer') : 'Fermer';
+            this.searchLinkCandidates();
+            // Point 1 : Auto-scroll vers la section de recherche / candidats
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const searchInput = document.getElementById('op_link_search_input');
+                if (searchInput) searchInput.focus();
+            }, 100);
+        } else {
+            if (toggleIcon) toggleIcon.textContent = '🔍';
+            if (toggleText) toggleText.textContent = window.i18n ? (window.i18n.t('op_btn_find_existing') || 'Rechercher en base') : 'Rechercher en base';
+            this.cancelLinkSelection();
+        }
+    },
+
+    _linkSearchDebounce: null,
+    onLinkSearchInput() {
+        if (this._linkSearchDebounce) clearTimeout(this._linkSearchDebounce);
+        this._linkSearchDebounce = setTimeout(() => {
+            this.searchLinkCandidates();
+        }, 250);
+    },
+
+    async searchLinkCandidates() {
+        const resultsEl = document.getElementById('op_link_results');
+        if (!resultsEl) return;
+        resultsEl.innerHTML = `<div style="text-align: center; padding: 12px; color: var(--text-muted); font-size: 11.5px;">Chargement des opérations non pointées...</div>`;
+
+        const query = document.getElementById('op_link_search_input')?.value?.trim() || '';
+        const fromAcc = document.getElementById('op_from_account')?.value || this.currentTxBase?.from_account_id;
+
+        try {
+            // Point 2 : Tri par date inversé (de la plus ancienne à la plus récente) avec order=asc
+            let url = `/api/transactions/?limit=100&unreconciled_only=true&order=asc`;
+            if (fromAcc) url += `&account_id=${fromAcc}`;
+            if (query) url += `&search=${encodeURIComponent(query)}`;
+
+            const items = await API.get(url);
+            const candidates = (items || []).filter(tx => tx.id !== this.currentTxId);
+
+            // Tri explicite côté client du plus ancien au plus récent
+            candidates.sort((a, b) => {
+                const da = a.date_operation ? new Date(a.date_operation).getTime() : 0;
+                const db = b.date_operation ? new Date(b.date_operation).getTime() : 0;
+                if (da !== db) return da - db;
+                return (a.id || 0) - (b.id || 0);
+            });
+
+            if (candidates.length === 0) {
+                resultsEl.innerHTML = `<div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 11.5px;">${window.i18n ? (window.i18n.t('ghost_link_no_results') || 'Aucune opération non pointée trouvée.') : 'Aucune opération non pointée trouvée.'}</div>`;
+                return;
+            }
+
+            resultsEl.innerHTML = candidates.map(c => {
+                const isSelected = (this._selectedLinkTarget?.id === c.id);
+                const amt = Number(c.amount || 0).toFixed(2);
+                const dateStr = c.date_operation ? String(c.date_operation).substring(0, 10) : '—';
+                const catStr = c.category || (window.i18n ? window.i18n.t('no_category') : 'Sans catégorie');
+                const safeJson = JSON.stringify({
+                    id: c.id,
+                    description: c.description || '',
+                    amount: c.amount || 0,
+                    category: c.category || '',
+                    date_operation: c.date_operation || ''
+                }).replace(/"/g, '&quot;');
+
+                return `
+                    <div class="candidate-link-card" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 6px; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'}; background: ${isSelected ? 'rgba(99,102,241,0.12)' : 'var(--bg-surface)'}; cursor: pointer; transition: all 0.15s ease;" onclick="window.FormView.selectLinkCandidate(${safeJson})">
+                        <div style="flex: 1; min-width: 0; padding-right: 10px;">
+                            <div style="font-weight: 600; font-size: 12px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.escapeHtml ? window.escapeHtml(c.description) : c.description}</div>
+                            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 1px;">📅 ${dateStr} • 🏷️ ${window.escapeHtml ? window.escapeHtml(catStr) : catStr}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                            <span style="font-weight: 700; font-size: 12.5px; color: var(--accent);">${amt} €</span>
+                            <button type="button" class="btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="font-size: 11px; padding: 3px 8px; border-radius: 4px;">${isSelected ? '✓ Choisi' : 'Choisir'}</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            resultsEl.innerHTML = `<div style="text-align: center; padding: 12px; color: #ef4444; font-size: 11.5px;">Erreur de recherche</div>`;
+        }
+    },
+
+    selectLinkCandidate(targetTx) {
+        this._selectedLinkTarget = targetTx;
+        const confirmBox = document.getElementById('op_link_confirm_box');
+        const confirmDesc = document.getElementById('op_link_confirm_desc');
+        if (!confirmBox || !confirmDesc) return;
+
+        const currentDesc = document.getElementById('op_desc')?.value || this.currentTxBase?.description || 'Écriture courante';
+        const currentAmt = document.getElementById('op_amount')?.value || this.currentTxBase?.amount || 0;
+        const targetAmt = Number(targetTx.amount || 0).toFixed(2);
+
+        confirmDesc.innerHTML = `
+            Fusionner l'écriture bancaire <strong>« ${window.escapeHtml ? window.escapeHtml(currentDesc) : currentDesc} »</strong> (${currentAmt} €) 
+            avec la prévision <strong>« ${window.escapeHtml ? window.escapeHtml(targetTx.description) : targetTx.description} »</strong> (${targetAmt} €).<br>
+            <span style="color: var(--text-muted); font-size: 11px;">L'écriture doublon créée par l'Auto-Pilote sera supprimée et les métadonnées bancaires rattachées à la prévision.</span>
+        `;
+        confirmBox.style.display = 'block';
+
+        // Point 1 : Auto-scroll vers la boîte de confirmation
+        setTimeout(() => {
+            confirmBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+
+        this.searchLinkCandidates();
+    },
+
+    cancelLinkSelection() {
+        this._selectedLinkTarget = null;
+        const confirmBox = document.getElementById('op_link_confirm_box');
+        if (confirmBox) confirmBox.style.display = 'none';
+        this.searchLinkCandidates();
+    },
+
+    async submitLink() {
+        if (!this._selectedLinkTarget) return;
+        const btn = document.getElementById('op_link_confirm_btn');
+        const origText = btn ? btn.innerHTML : '🔗 Confirmer la liaison';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Liaison en cours...';
+        }
+
+        const targetId = this._selectedLinkTarget.id;
+        const adjustAmount = document.getElementById('op_link_adjust_amount')?.checked ?? true;
+        const learnRule = document.getElementById('op_autopilot_learn_rule')?.checked ?? true;
+        const currentAmt = parseFloat(document.getElementById('op_amount')?.value);
+
+        try {
+            let res;
+            if (this.autopilotContext?.decisionId) {
+                res = await API.post(`/api/autopilot/decisions/${this.autopilotContext.decisionId}/link`, {
+                    target_forecast_id: targetId,
+                    adjust_amount: adjustAmount,
+                    learn_rule: learnRule,
+                    amount: adjustAmount ? (isNaN(currentAmt) ? null : currentAmt) : this._selectedLinkTarget.amount
+                });
+            } else if (this.autopilotContext?.isReview && this.autopilotContext?.txId) {
+                res = await API.post(`/api/autopilot/review/${this.autopilotContext.txId}/link`, {
+                    target_forecast_id: targetId,
+                    adjust_amount: adjustAmount,
+                    learn_rule: learnRule,
+                    amount: adjustAmount ? (isNaN(currentAmt) ? null : currentAmt) : this._selectedLinkTarget.amount
+                });
+            } else if (this.currentTxId) {
+                res = await API.post(`/api/autopilot/review/${this.currentTxId}/link`, {
+                    target_forecast_id: targetId,
+                    adjust_amount: adjustAmount,
+                    learn_rule: learnRule,
+                    amount: adjustAmount ? (isNaN(currentAmt) ? null : currentAmt) : this._selectedLinkTarget.amount
+                });
+            } else {
+                throw new Error("Opération source introuvable.");
+            }
+
+            const successMsg = res?.message || (window.i18n ? window.i18n.t('autopilot_toast_link_success') : 'Opération liée avec succès');
+            showToast(successMsg, 'success');
+            this.close();
+
+            window.dispatchEvent(new CustomEvent('autopilot_updated'));
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+
+            if (window.AutopilotView && typeof window.AutopilotView.refresh === 'function') {
+                await window.AutopilotView.refresh();
+            }
+            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                window.app.updateAutopilotBadge();
+            }
+            if (window.app && window.app.currentView === 'dashboard' && window.TimelineView?.loadData) {
+                window.TimelineView.loadData();
+            }
+            if (window.app && window.app.currentView === 'all_operations' && window.AllOperationsView?.loadData) {
+                window.AllOperationsView.loadData();
+            }
+            if (window.app && window.app.currentView === 'overview' && window.OverviewView?.loadData) {
+                window.OverviewView.loadData();
+            }
+        } catch (e) {
+            showToast(e.message || (window.i18n ? window.i18n.t('autopilot_toast_link_error') : 'Erreur lors de la liaison'), 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
         }
     }
 };

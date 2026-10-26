@@ -2204,7 +2204,12 @@ window.AutopilotView = {
         let tooltipText = '';
         let icon = '✨';
 
-        if (d.action === 'AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW') {
+        if (d.action === 'LINKED_MANUAL' || (d.details && d.details.manual_linked_forecast)) {
+            badgeClass = 'badge-emerald';
+            typeLabel = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done') || 'Vérifiée & liée') : 'Vérifiée & liée';
+            tooltipText = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done_desc') || 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.') : 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.';
+            icon = '✓';
+        } else if (d.action === 'AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_suspected_dup_pending') || 'À vérifier (Doublon)') : 'À vérifier (Doublon)';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_suspected_dup_pending_desc') : 'En attente de vérification : une prévision de même montant a été détectée.';
@@ -2431,7 +2436,11 @@ window.AutopilotView = {
                             <span class="badge ap-badge-undone" data-i18n="autopilot_feed_badge_undone">${window.i18n ? window.i18n.t('autopilot_feed_badge_undone') : 'Annulé'}</span>
                         ` : `
                             <div class="ap-decision-action-btns">
-                                ${d.entity_type === 'transaction' && (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') ? `
+                                ${d.action === 'LINKED_MANUAL' || (d.details && d.details.manual_linked_forecast) ? `
+                                    <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.unlinkManualForecast(${d.id}, this)" title="${window.i18n ? (window.i18n.t('autopilot_feed_btn_unlink_manual_title') || 'Délier cette opération et rétablir l\'écriture d\'origine') : 'Délier cette opération et rétablir l\'écriture d\'origine'}">
+                                        ${this._icons.undo} <span data-i18n="autopilot_feed_btn_unlink">${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink') : 'Délier'}</span>
+                                    </button>
+                                ` : d.entity_type === 'transaction' && (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') ? `
                                     ${(d.action === 'LINKED_COMING' || d.action === 'LINKED_COMING_PENDING_REVIEW') ? `
                                         <button class="btn btn-secondary btn-sm ap-btn-action" onclick="window.AutopilotView.rollbackDecision(${d.id}, this)" title="${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink_title') : 'Délier l\'opération à venir'}">
                                             ${this._icons.undo} <span data-i18n="autopilot_feed_btn_unlink">${window.i18n ? window.i18n.t('autopilot_feed_btn_unlink') : 'Délier'}</span>
@@ -2582,6 +2591,22 @@ window.AutopilotView = {
         }
     },
 
+    async unlinkManualForecast(decisionId, btn) {
+        const title = window.i18n ? window.i18n.t('title_confirmation') : 'Confirmation';
+        const msg = window.i18n ? (window.i18n.t('autopilot_confirm_unlink_forecast') || 'Délier cette opération et rétablir l\'écriture d\'origine ?') : 'Délier cette opération et rétablir l\'écriture d\'origine ?';
+        if (await showInlineConfirm(title, msg)) {
+            try {
+                const res = await API.post(`/api/autopilot/decisions/${decisionId}/unlink-forecast`, {});
+                showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_decision_undone') : 'Opération déliée et écriture d\'origine rétablie'), 'success');
+                await this.refresh();
+                window.dispatchEvent(new CustomEvent('autopilot_updated'));
+                window.dispatchEvent(new CustomEvent('transactions_updated'));
+            } catch (e) {
+                showToast(window.i18n ? window.i18n.t('autopilot_toast_rollback_error') : 'Échec du déliement de l\'opération', 'error');
+            }
+        }
+    },
+
     async unpointDecision(decisionId, btn) {
         const title = window.i18n ? window.i18n.t('title_confirmation') : 'Confirmation';
         const msg = window.i18n ? window.i18n.t('autopilot_confirm_unpoint') : 'Dépointer cette transaction et rétablir la prévision ?';
@@ -2621,8 +2646,34 @@ window.AutopilotView = {
         }
     },
 
-    onOverrideClick(btn) {
+    async onOverrideClick(btn) {
         const decisionId = parseInt(btn.dataset.decisionId);
+        const d = (this._decisions || []).find(x => x.id === decisionId);
+        let txId = d ? d.entity_id : null;
+        if (!txId && d && d.details) {
+            txId = d.details.created_tx_id || d.details.matched_db_id || (d.details.bank_tx && d.details.bank_tx.matched_db_id);
+        }
+
+        if (txId && window.FormView) {
+            try {
+                const tx = await API.get(`/api/transactions/${txId}`);
+                if (tx) {
+                    await window.FormView.openEdit(tx, {
+                        autopilotContext: {
+                            decisionId: decisionId,
+                            batchId: d?.batch_id,
+                            label: btn.dataset.label,
+                            category: btn.dataset.category
+                        }
+                    });
+                    return;
+                }
+            } catch (e) {
+                console.warn('[AutopilotView] Erreur chargement transaction unifiée:', e);
+            }
+        }
+
+        // Fallback historique si transaction introuvable
         const label = btn.dataset.label || '';
         const category = btn.dataset.category || '';
         const amount = parseFloat(btn.dataset.amount) || 0;
@@ -2767,6 +2818,25 @@ window.AutopilotView = {
     },
 
     async openReviewModal(txId, label, category, amount) {
+        if (txId && window.FormView) {
+            try {
+                const tx = await API.get(`/api/transactions/${txId}`);
+                if (tx) {
+                    await window.FormView.openEdit(tx, {
+                        autopilotContext: {
+                            txId: txId,
+                            isReview: true,
+                            label: label || tx.description,
+                            category: category !== undefined ? category : tx.category
+                        }
+                    });
+                    return;
+                }
+            } catch (e) {
+                console.warn('[AutopilotView] Erreur ouverture FormView pour revue:', e);
+            }
+        }
+
         if (!this._reviewQueue || this._reviewQueue.length === 0) {
             try {
                 this._reviewQueue = await API.get('/api/autopilot/review-queue') || [];
