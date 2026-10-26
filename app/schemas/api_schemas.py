@@ -477,7 +477,20 @@ class AutopilotOverrideRequest(BaseModel):
     new_category: Optional[str] = None
     new_description: Optional[str] = None
     new_amount: Optional[float] = None
+    new_from_account_id: Optional[int] = None
+    new_to_account_id: Optional[int] = None
+    new_date_operation: Optional[date] = None
+    new_reconciliation_date: Optional[date] = None
     learn_rule: bool = True
+
+
+class AutopilotDecisionLinkRequest(BaseModel):
+    target_forecast_id: int
+    adjust_amount: bool = True
+    learn_rule: bool = True
+    description: Optional[str] = None
+    category: Optional[str] = None
+    amount: Optional[float] = None
 
 
 class AutopilotRollbackCycleOut(BaseModel):
@@ -514,10 +527,12 @@ class AutopilotReviewUpdateRequest(BaseModel):
 
 class AutopilotReviewLinkRequest(BaseModel):
     target_forecast_id: int
+    adjust_amount: bool = True
     learn_rule: bool = True
     description: Optional[str] = None
     category: Optional[str] = None
     amount: Optional[float] = None
+
 
 
 class AutopilotThresholdPreviewOut(BaseModel):
