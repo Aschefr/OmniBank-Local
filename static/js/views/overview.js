@@ -416,24 +416,7 @@ window.OverviewView = {
 
     _initInFlight: false,
     _queuedInit: false,
-    _fullHistoryLoaded: false,
-    _loadingFullHistory: false,
 
-    async _loadFullHistory() {
-        if (this._fullHistoryLoaded || this._loadingFullHistory) return;
-        this._loadingFullHistory = true;
-        try {
-            const fullTxs = await API.get('/api/transactions/?limit=10000');
-            if (fullTxs && Array.isArray(fullTxs)) {
-                this._transactions = fullTxs;
-                this._fullHistoryLoaded = true;
-            }
-        } catch (e) {
-            console.warn('[OverviewView] Erreur chargement historique complet:', e);
-        } finally {
-            this._loadingFullHistory = false;
-        }
-    },
 
     async _fetchRhythmAverages() {
         try {

@@ -164,7 +164,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             try {
                 this.templates = await API.get('/api/recurrences/?include_closed=true');
                 this.categories = await API.get('/api/categories/');
-                this.allTransactions = await API.get('/api/transactions/?limit=10000');
+                this.allTransactions = await API.get('/api/transactions/?has_recurrence=true&limit=5000');
             } catch (e) {
                 console.error("Failed to load dependency data for edit modal", e);
             }
