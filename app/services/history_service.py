@@ -385,6 +385,47 @@ def undo_action(db, action: ActionHistory):
 
     action.is_undone = True
     db.flush()
+
+    # Synchronisation spécifique pour les liaisons / fusions Auto-Pilote
+    if action.entity_type == "transaction" and action.user_name in ("Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"):
+        try:
+            from app.models import AutopilotDecisionLog
+            dlogs = db.query(AutopilotDecisionLog).filter(
+                AutopilotDecisionLog.entity_type == "transaction"
+            ).order_by(AutopilotDecisionLog.id.desc()).all()
+            for dlog in dlogs:
+                if not dlog.raw_snapshot:
+                    continue
+                try:
+                    dsnap = json.loads(dlog.raw_snapshot)
+                except Exception:
+                    continue
+                ml = dsnap.get("manual_linked_forecast")
+                if ml and (ml.get("target_forecast_id") == action.entity_id or ml.get("original_source_id") == action.entity_id or dlog.entity_id == action.entity_id):
+                    dlog.entity_id = ml.get("original_source_id", dlog.entity_id)
+                    dlog.decision_type = ml.get("original_decision_type", "new_entry")
+                    dlog.action = ml.get("original_action", "AUTO_COMMIT")
+                    dlog.confidence_score = ml.get("original_confidence_score", dlog.confidence_score)
+                    dsnap.pop("manual_linked_forecast", None)
+                    dsnap.pop("linked_to_forecast_id", None)
+                    dsnap.pop("linked_to_forecast_description", None)
+                    dsnap.pop("forecast_description", None)
+                    dlog.raw_snapshot = json.dumps(dsnap, default=str)
+                    db.flush()
+                    break
+
+            # Annuler également l'action jumelle (Liaison <-> Fusion) si elle n'a pas encore été annulée
+            sibling_act = db.query(ActionHistory).filter(
+                ActionHistory.entity_type == "transaction",
+                ActionHistory.user_name.in_(["Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"]),
+                ActionHistory.id != action.id,
+                ActionHistory.is_undone == False
+            ).order_by(ActionHistory.id.desc()).first()
+            if sibling_act and abs((action.timestamp - sibling_act.timestamp).total_seconds()) <= 15.0:
+                undo_action(db, sibling_act)
+        except Exception as e_ap_undo:
+            logger.warning(f"[History] Erreur synchronisation Auto-Pilote lors du rollback: {e_ap_undo}")
+
     return True, warning
 
 

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Unified Operation Modal & Auto-Pilot Forecast Linking 🤖🔗**: Unified the transaction editing modal across the Dashboard, All Operations, and Auto-Pilot views. Users can now easily link any bank transaction to an existing accounting forecast with chronological candidate sorting, automatic smooth scrolling to selection and confirmation, directional account pickers, and live contextual switching into Auto-Pilot mode.
+
+### Fixed & Ergonomics
+- **Auto-Pilot Decision Traceability & Bi-Directional Unlink 🛡️↶**: Manual forecast linking now strictly preserves original engine confidence scores, source operation labels, actual expense debits, and human override tracking badges (`👤 Modifiée par l'utilisateur` and `🔗 Liée à : ...`) instead of falsifying an autonomous 100% engine match. Added a dedicated `[Délier]` action in the Decision Feed and synchronized global Action History undoing so reverting a link restores both transactions and decision logs in lockstep with zero reload needed (Zero F5).
+
 ## [1.2.10] - 2026-10-23
 
 ### Fixed & Ergonomics

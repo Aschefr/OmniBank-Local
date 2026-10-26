@@ -1436,73 +1436,101 @@ def get_autopilot_decisions_feed(
 
         live_tx = tx_map.get(d.entity_id) if (d.entity_type == "transaction" and d.entity_id) else None
 
+        manual_link = snap.get("manual_linked_forecast") or {}
+        is_manual_link = bool(manual_link or d.action == "LINKED_MANUAL")
+        src_snap = manual_link.get("source_snapshot") or {}
+
         bank_tx = snap.get("bank_tx") or {}
         raw_amt = bank_tx.get("raw_amount")
         if raw_amt is None:
-            raw_amt = (
-                (live_tx.amount if live_tx else None)
-                or bank_tx.get("amount")
-                or snap.get("actual_amount")
-                or snap.get("suggested_amount")
-                or snap.get("new_amount")
-                or snap.get("additional_amount")
-                or snap.get("amount_delta")
-                or snap.get("amount")
-                or 0.0
+            if is_manual_link and (src_snap.get("amount") is not None or bank_tx.get("amount") is not None):
+                base_amt = src_snap.get("amount") if src_snap.get("amount") is not None else bank_tx.get("amount")
+                s_type = src_snap.get("type") or bank_tx.get("type") or "expense_var"
+                raw_amt = -abs(float(base_amt)) if str(s_type).startswith("expense") else abs(float(base_amt))
+            else:
+                raw_amt = (
+                    (live_tx.amount if live_tx else None)
+                    or bank_tx.get("amount")
+                    or snap.get("actual_amount")
+                    or snap.get("suggested_amount")
+                    or snap.get("new_amount")
+                    or snap.get("additional_amount")
+                    or snap.get("amount_delta")
+                    or snap.get("amount")
+                    or 0.0
+                )
+
+        if is_manual_link:
+            lbl = src_snap.get("description") or bank_tx.get("description") or snap.get("description") or (live_tx.description if live_tx else "Opération liée")
+            raw_lbl = src_snap.get("raw_description") or bank_tx.get("raw_description") or (live_tx.raw_description if live_tx else None) or snap.get("raw_pattern")
+        else:
+            lbl = (
+                (live_tx.description if live_tx else None)
+                or snap.get("forecast_description")
+                or (snap.get("after") or {}).get("description")
+                or bank_tx.get("description")
+                or snap.get("merchant")
+                or snap.get("template_description")
+                or snap.get("description")
+                or snap.get("budget_name")
+                or snap.get("target_budget_name")
+                or snap.get("name")
+                or "Décision Auto-Pilote"
             )
-
-        lbl = (
-            (live_tx.description if live_tx else None)
-            or snap.get("forecast_description")
-            or (snap.get("after") or {}).get("description")
-            or bank_tx.get("description")
-            or snap.get("merchant")
-            or snap.get("template_description")
-            or snap.get("description")
-            or snap.get("budget_name")
-            or snap.get("target_budget_name")
-            or snap.get("name")
-            or "Décision Auto-Pilote"
-        )
-        raw_lbl = bank_tx.get("raw_description") or bank_tx.get("raw_label") or (live_tx.raw_description if live_tx else None) or snap.get("raw_pattern")
+            raw_lbl = bank_tx.get("raw_description") or bank_tx.get("raw_label") or (live_tx.raw_description if live_tx else None) or snap.get("raw_pattern")
         
-        # Résolution enrichie de la catégorie
-        cat = (
-            (live_tx.category if live_tx else None)
-            or (snap.get("after") or {}).get("category")
-            or bank_tx.get("category")
-            or snap.get("category")
-            or snap.get("new_category")
-            or (", ".join(snap.get("categories")[:3]) if isinstance(snap.get("categories"), list) and snap.get("categories") else None)
-            or "—"
-        )
-        reason = (
-            snap.get("decision_reason")
-            or ("linked_forecast" if (live_tx and live_tx.raw_description and d.decision_type == "reconciliation") else None)
-            or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else None)
-            or ("unreconciled_overdue" if (d.action == "AUTO_SKIPPED_UNRECONCILED" or d.decision_type == "recurrence_skip") else None)
-            or ("recurrence_closed_3_skips" if (d.action == "AUTO_CLOSED_SKIPPED" or d.decision_type == "recurrence_close") else None)
-            or ("budget_recurrence_sync" if d.decision_type == "budget_recurrence_sync" else None)
-            or ("budget_enrichment" if d.decision_type == "budget_enrichment_suggestion" else None)
-            or ("internal_transfer" if d.decision_type == "transfer_link" else None)
-            or ("bank_coming" if (d.action in ("AUTO_COMMIT_COMING", "AUTO_COMMIT_COMING_PENDING_REVIEW") or (live_tx and live_tx.csv_id and str(live_tx.csv_id).startswith("woob_coming_"))) else None)
-            or snap.get("capped_reason")
-        )
-
         # Détection d'un arbitrage ou d'une correction manuelle utilisateur
         user_override = None
         saved_override = snap.get("user_override")
 
+        # Résolution enrichie de la catégorie
+        if is_manual_link:
+            cat = (
+                (saved_override.get("current_category") if saved_override else None)
+                or (saved_override.get("new_category") if saved_override else None)
+                or src_snap.get("category")
+                or (live_tx.category if live_tx else None)
+                or bank_tx.get("category")
+                or snap.get("category")
+                or "—"
+            )
+        else:
+            cat = (
+                (live_tx.category if live_tx else None)
+                or (snap.get("after") or {}).get("category")
+                or bank_tx.get("category")
+                or snap.get("category")
+                or snap.get("new_category")
+                or (", ".join(snap.get("categories")[:3]) if isinstance(snap.get("categories"), list) and snap.get("categories") else None)
+                or "—"
+            )
+
+        if is_manual_link:
+            reason = "linked_forecast"
+            if "linked_to_forecast_description" not in snap:
+                snap["linked_to_forecast_description"] = manual_link.get("target_description") or (live_tx.description if live_tx else None)
+            if "linked_to_forecast_id" not in snap:
+                snap["linked_to_forecast_id"] = manual_link.get("target_forecast_id")
+        else:
+            reason = (
+                snap.get("decision_reason")
+                or ("linked_forecast" if (live_tx and live_tx.raw_description and d.decision_type == "reconciliation") else None)
+                or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else None)
+                or ("unreconciled_overdue" if (d.action == "AUTO_SKIPPED_UNRECONCILED" or d.decision_type == "recurrence_skip") else None)
+                or ("recurrence_closed_3_skips" if (d.action == "AUTO_CLOSED_SKIPPED" or d.decision_type == "recurrence_close") else None)
+                or ("budget_recurrence_sync" if d.decision_type == "budget_recurrence_sync" else None)
+                or ("budget_enrichment" if d.decision_type == "budget_enrichment_suggestion" else None)
+                or ("internal_transfer" if d.decision_type == "transfer_link" else None)
+                or ("bank_coming" if (d.action in ("AUTO_COMMIT_COMING", "AUTO_COMMIT_COMING_PENDING_REVIEW") or (live_tx and live_tx.csv_id and str(live_tx.csv_id).startswith("woob_coming_"))) else None)
+                or snap.get("capped_reason")
+            )
+
         after_snap = snap.get("after") or {}
         is_reconciliation = (
-            d.decision_type in ["reconciliation", "reconcile"]
-            or (d.action and (d.action.startswith("LINKED_") or "RECONCILED" in d.action))
+            (d.decision_type in ["reconciliation", "reconcile"] and not is_manual_link)
+            or (d.action and (d.action.startswith("LINKED_") and d.action != "LINKED_MANUAL" or "RECONCILED" in d.action))
         )
 
-        # La référence de départ de la décision Auto-Pilote est ce que le moteur a produit (after_snap),
-        # ou à défaut pour une prévision liée le libellé de la prévision.
-        # Attention : bank_tx contient le libellé bancaire brut avant rapprochement,
-        # qui ne doit JAMAIS être confondu avec un libellé décidé par l'utilisateur.
         initial_cat = (
             (saved_override.get("original_category") if saved_override else None)
             or after_snap.get("category")
@@ -1539,7 +1567,28 @@ def get_autopilot_decisions_feed(
             not is_reconciliation and live_tx and current_amt is not None and initial_amt is not None and abs(float(current_amt) - abs(float(initial_amt))) > 0.005
         )
 
-        if saved_override or cat_changed or desc_changed or amt_changed:
+        if is_manual_link:
+            orig_c = (saved_override.get("original_category") if saved_override else None) or src_snap.get("category") or cat
+            curr_c = (saved_override.get("current_category") if saved_override else None) or (saved_override.get("new_category") if saved_override else None) or cat
+            c_changed = bool(saved_override and saved_override.get("category_changed")) or bool(orig_c and curr_c and orig_c.strip() != curr_c.strip())
+            user_override = {
+                "is_overridden": True,
+                "original_category": orig_c,
+                "current_category": curr_c,
+                "category_changed": c_changed,
+                "original_description": (saved_override.get("original_description") if saved_override else None) or src_snap.get("description") or lbl,
+                "current_description": (saved_override.get("current_description") if saved_override else None) or lbl,
+                "description_changed": bool(saved_override and saved_override.get("description_changed")),
+                "original_amount": (saved_override.get("original_amount") if saved_override else None) or src_snap.get("amount") or abs(float(raw_amt)),
+                "current_amount": (saved_override.get("current_amount") if saved_override else None) or abs(float(raw_amt)),
+                "amount_changed": bool(saved_override and saved_override.get("amount_changed")),
+                "original_reason": (saved_override.get("original_reason") if saved_override else None) or snap.get("decision_reason") or "ai_existing",
+                "learned_rule": True,
+                "linked_to_forecast": manual_link.get("target_description") or (live_tx.description if live_tx else None),
+                "overridden_at": (saved_override.get("overridden_at") if saved_override else None) or manual_link.get("linked_at")
+            }
+            snap["user_override"] = user_override
+        elif saved_override or cat_changed or desc_changed or amt_changed:
             user_override = {
                 "is_overridden": True,
                 "original_category": initial_cat,
@@ -1557,6 +1606,11 @@ def get_autopilot_decisions_feed(
             }
             snap["user_override"] = user_override
 
+        # Score de confiance restitué : conserver le score natif calculé par le moteur IA
+        display_score = d.confidence_score
+        if is_manual_link and manual_link.get("original_confidence_score") is not None and (display_score is None or display_score >= 99.9):
+            display_score = manual_link.get("original_confidence_score")
+
         items.append({
             "id": d.id,
             "batch_id": d.batch_id,
@@ -1571,7 +1625,7 @@ def get_autopilot_decisions_feed(
             "raw_label": raw_lbl,
             "amount": float(raw_amt),
             "category": cat,
-            "confidence_score": d.confidence_score,
+            "confidence_score": display_score,
             "reason": reason,
             "is_undone": d.is_undone,
             "undone_at": d.undone_at,
@@ -1603,6 +1657,9 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
             snap = json.loads(decision.raw_snapshot)
         except Exception:
             pass
+
+    if snap.get("manual_linked_forecast") or decision.action == "LINKED_MANUAL":
+        return unlink_forecast_decision(db, decision_id, profile_id=pid)
 
     # 1. Traitement par type de décision
     if decision.decision_type == "new_entry":
@@ -1886,6 +1943,10 @@ def override_autopilot_decision(
     new_category: Optional[str] = None,
     new_description: Optional[str] = None,
     new_amount: Optional[float] = None,
+    new_from_account_id: Optional[int] = None,
+    new_to_account_id: Optional[int] = None,
+    new_date_operation: Optional[date] = None,
+    new_reconciliation_date: Optional[date] = None,
     learn_rule: bool = True,
     profile_id: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -1909,6 +1970,23 @@ def override_autopilot_decision(
             tx.description = new_description.strip()
         if new_amount is not None:
             tx.amount = abs(float(new_amount))
+        if new_from_account_id is not None:
+            tx.from_account_id = new_from_account_id if new_from_account_id > 0 else None
+        if new_to_account_id is not None:
+            tx.to_account_id = new_to_account_id if new_to_account_id > 0 else None
+        if new_date_operation is not None:
+            tx.date_operation = new_date_operation
+        if new_reconciliation_date is not None:
+            tx.reconciliation_date = new_reconciliation_date
+
+        # Déduire le type selon les comptes si nécessaire
+        if tx.from_account_id and tx.to_account_id:
+            tx.type = "transfer"
+        elif tx.to_account_id and not tx.from_account_id:
+            tx.type = "income"
+        elif tx.from_account_id and not tx.to_account_id:
+            if tx.type not in ("expense_var", "expense_fixed"):
+                tx.type = "expense_var"
 
         after_snap = snapshot_entity(tx)
         record_action(
@@ -1955,11 +2033,19 @@ def override_autopilot_decision(
             "original_amount": orig_amount,
             "new_amount": tx.amount,
             "amount_changed": bool(orig_amount is not None and abs(float(orig_amount) - float(tx.amount)) > 0.001),
+            "original_from_account_id": before_snap.get("from_account_id"),
+            "new_from_account_id": tx.from_account_id,
+            "original_to_account_id": before_snap.get("to_account_id"),
+            "new_to_account_id": tx.to_account_id,
+            "original_date_operation": str(before_snap.get("date_operation")),
+            "new_date_operation": str(tx.date_operation),
+            "original_reconciliation_date": str(before_snap.get("reconciliation_date")),
+            "new_reconciliation_date": str(tx.reconciliation_date) if tx.reconciliation_date else None,
             "original_reason": snap.get("decision_reason"),
             "learned_rule": bool(learned_rule),
             "overridden_at": datetime.now(timezone.utc).isoformat()
         }
-        decision.raw_snapshot = json.dumps(snap)
+        decision.raw_snapshot = json.dumps(snap, default=str)
 
         db.commit()
         stats_cache.invalidate(pid)
@@ -1971,6 +2057,175 @@ def override_autopilot_decision(
         }
 
     return {"success": False, "message": "Type d'entité non modifiable."}
+
+
+def link_decision_to_forecast(
+    db: Session,
+    decision_id: int,
+    target_forecast_id: int,
+    adjust_amount: bool = True,
+    learn_rule: bool = True,
+    description: Optional[str] = None,
+    category: Optional[str] = None,
+    amount: Optional[float] = None,
+    profile_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Fusionne une décision Auto-Pilote (création d'écriture ou détection erronée)
+    avec une transaction prévisionnelle existante en base.
+    Transfère les métadonnées bancaires, ajuste le montant/rapprochement, supprime l'écriture doublon,
+    met à jour le journal d'audit et mémorise la règle de classification.
+    """
+    pid = _resolve_profile_id(profile_id)
+    decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
+    if not decision:
+        raise ValueError(f"Décision #{decision_id} introuvable.")
+    if decision.entity_type != "transaction" or not decision.entity_id:
+        raise ValueError(f"La décision #{decision_id} n'est pas liée à une transaction valide.")
+
+    tx_source = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
+    if not tx_source:
+        raise ValueError(f"Transaction source #{decision.entity_id} introuvable.")
+
+    tx_target = db.query(Transaction).filter(Transaction.id == target_forecast_id).first()
+    if not tx_target:
+        raise ValueError(f"Transaction prévisionnelle cible #{target_forecast_id} introuvable.")
+
+    # Si adjust_amount est désactivé et qu'aucun montant personnalisé n'est fourni, conserver le montant cible
+    chosen_amount = amount
+    if chosen_amount is None:
+        chosen_amount = tx_source.amount if adjust_amount else tx_target.amount
+
+    res = link_review_transaction(
+        db=db,
+        tx_id=tx_source.id,
+        target_forecast_id=target_forecast_id,
+        learn_rule=learn_rule,
+        description=description,
+        category=category,
+        amount=chosen_amount,
+        adjust_amount=adjust_amount,
+        profile_id=pid
+    )
+
+    return res
+
+
+def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Annule la liaison manuelle d'une décision Auto-Pilote avec une prévision :
+    - Restaure la transaction prévisionnelle cible à son état initial (dépointée, montant/catégorie d'origine).
+    - Rétablit la transaction source d'origine si elle a été supprimée.
+    - Restaure la décision AutopilotDecisionLog à son état initial (score d'origine, type d'origine, entity_id d'origine).
+    - Met à jour l'historique des actions (ActionHistory).
+    """
+    from app.models import Transaction, AutopilotDecisionLog, ActionHistory
+    from app.services.history_service import restore_state, record_action, snapshot_entity
+
+    pid = _resolve_profile_id(profile_id)
+    decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
+    if not decision:
+        raise ValueError(f"Décision #{decision_id} introuvable.")
+
+    snap = {}
+    if decision.raw_snapshot:
+        try:
+            snap = json.loads(decision.raw_snapshot)
+        except Exception:
+            pass
+
+    manual_link = snap.get("manual_linked_forecast")
+    if not manual_link:
+        # Basculer sur rollback standard si non lié manuellement
+        return rollback_autopilot_decision(db, decision_id, profile_id=pid)
+
+    target_forecast_id = manual_link.get("target_forecast_id")
+    original_source_id = manual_link.get("original_source_id")
+    forecast_before = manual_link.get("forecast_before") or {}
+    source_snapshot = manual_link.get("source_snapshot") or {}
+    orig_type = manual_link.get("original_decision_type", "new_entry")
+    orig_action = manual_link.get("original_action", "AUTO_COMMIT")
+    orig_score = manual_link.get("original_confidence_score", 85.0)
+
+    # 1. Libérer le csv_id sur tx_target avant de rétablir tx_source pour éviter conflit UNIQUE
+    tx_target = db.query(Transaction).filter(Transaction.id == target_forecast_id).first() if target_forecast_id else None
+    if tx_target:
+        tx_target.csv_id = forecast_before.get("csv_id")
+        db.flush()
+
+    # 2. Rétablir la transaction source
+    if original_source_id:
+        tx_source = db.query(Transaction).filter(Transaction.id == original_source_id).first()
+        if not tx_source and source_snapshot:
+            tx_source = Transaction()
+            restore_state(tx_source, source_snapshot, db)
+            tx_source.id = original_source_id
+            db.add(tx_source)
+            db.flush()
+            record_action(
+                db,
+                "transaction",
+                tx_source.id,
+                "CREATE",
+                None,
+                snapshot_entity(tx_source),
+                user_name="Auto-Pilote (Rétablissement écriture)"
+            )
+        elif tx_source and source_snapshot:
+            before_s = snapshot_entity(tx_source)
+            restore_state(tx_source, source_snapshot, db)
+            record_action(
+                db,
+                "transaction",
+                tx_source.id,
+                "UPDATE",
+                before_s,
+                snapshot_entity(tx_source),
+                user_name="Auto-Pilote (Rétablissement écriture)"
+            )
+
+    # 3. Restaurer la prévision cible à son état avant rapprochement
+    if tx_target and forecast_before:
+        before_current = snapshot_entity(tx_target)
+        restore_state(tx_target, forecast_before, db)
+        record_action(
+            db,
+            "transaction",
+            tx_target.id,
+            "UPDATE",
+            before_current,
+            snapshot_entity(tx_target),
+            user_name="Auto-Pilote (Déliement prévision)"
+        )
+
+    # 4. Restaurer la décision AutopilotDecisionLog
+    decision.entity_id = original_source_id
+    decision.decision_type = orig_type
+    decision.action = orig_action
+    decision.confidence_score = orig_score
+    snap.pop("manual_linked_forecast", None)
+    snap.pop("linked_to_forecast_id", None)
+    snap.pop("linked_to_forecast_description", None)
+    snap.pop("forecast_description", None)
+    decision.raw_snapshot = json.dumps(snap, default=str)
+
+    # 5. Marquer les ActionHistory antérieures de liaison/fusion comme annulées
+    act_history = db.query(ActionHistory).filter(
+        ActionHistory.entity_type == "transaction",
+        ActionHistory.entity_id.in_([target_forecast_id, original_source_id]),
+        ActionHistory.user_name.in_(["Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"]),
+        ActionHistory.is_undone == False
+    ).all()
+    for act in act_history:
+        act.is_undone = True
+
+    db.commit()
+    stats_cache.invalidate(pid)
+
+    return {
+        "success": True,
+        "message": "Opération déliée avec succès et écriture d'origine rétablie."
+    }
 
 
 def unpoint_autopilot_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
@@ -2228,6 +2483,7 @@ def link_review_transaction(
     description: Optional[str] = None,
     category: Optional[str] = None,
     amount: Optional[float] = None,
+    adjust_amount: bool = True,
     profile_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
@@ -2254,7 +2510,12 @@ def link_review_transaction(
 
     bank_csv_id = tx_review.csv_id
     bank_raw_lbl = tx_review.raw_description or tx_review.description
-    final_amount = amount if (amount is not None and amount > 0) else tx_review.amount
+    if amount is not None and amount > 0:
+        final_amount = amount
+    elif not adjust_amount:
+        final_amount = tx_forecast.amount
+    else:
+        final_amount = tx_review.amount
     final_desc = description.strip() if (description and description.strip()) else tx_forecast.description
     final_cat = category.strip() if (category and category.strip()) else tx_forecast.category
 
@@ -2353,29 +2614,62 @@ def link_review_transaction(
         ).order_by(AutopilotDecisionLog.id.desc()).limit(1).all()
 
     for dlog in dlogs:
+        orig_score = dlog.confidence_score
+        orig_type = dlog.decision_type
+        orig_action = dlog.action
+
         dlog.entity_id = tx_forecast.id
         dlog.decision_type = "reconciliation"
-        dlog.action = "LINKED_COMING" if tx_forecast.reconciliation_date is None else "AUTO_COMMIT"
-        dlog.confidence_score = 100.0
-        snap_payload = {
-            "bank_tx": {
-                "raw_description": bank_raw_lbl,
-                "description": tx_forecast.description,
-                "category": tx_forecast.category,
-                "amount": tx_forecast.amount,
-                "decision_reason": "linked_forecast"
-            },
-            "linked_to_forecast_id": tx_forecast.id,
-            "linked_to_forecast_description": tx_forecast.description,
-            "forecast_description": tx_forecast.description,
-            "decision_reason": "linked_forecast",
-            "is_amount_deviant": abs((orig_amt or 0) - (final_amount or 0)) > 0.005,
-            "original_amount": orig_amt,
-            "actual_amount": final_amount,
-            "before": before_snap_forecast,
-            "after": snapshot_entity(tx_forecast)
+        dlog.action = "LINKED_COMING" if tx_forecast.reconciliation_date is None else "LINKED_MANUAL"
+        dlog.confidence_score = orig_score  # Conserver le score natif calculé par le moteur IA !
+
+        existing_snap = {}
+        if dlog.raw_snapshot:
+            try:
+                existing_snap = json.loads(dlog.raw_snapshot)
+            except Exception:
+                pass
+
+        existing_snap["manual_linked_forecast"] = {
+            "original_source_id": tx_review.id,
+            "original_decision_type": orig_type,
+            "original_action": orig_action,
+            "original_confidence_score": orig_score,
+            "target_forecast_id": tx_forecast.id,
+            "target_description": tx_forecast.description,
+            "source_snapshot": before_snap_review,
+            "forecast_before": before_snap_forecast,
+            "forecast_after": snapshot_entity(tx_forecast),
+            "adjust_amount": adjust_amount,
+            "linked_at": datetime.now(timezone.utc).isoformat()
         }
-        dlog.raw_snapshot = json.dumps(snap_payload, default=str)
+        existing_snap["linked_to_forecast_id"] = tx_forecast.id
+        existing_snap["linked_to_forecast_description"] = tx_forecast.description
+        existing_snap["forecast_description"] = tx_forecast.description
+        existing_snap["decision_reason"] = "linked_forecast"
+        existing_snap["before"] = before_snap_forecast
+        existing_snap["after"] = snapshot_entity(tx_forecast)
+        existing_snap["actual_amount"] = final_amount
+        existing_snap["original_amount"] = orig_amt
+        existing_snap["is_amount_deviant"] = abs((orig_amt or 0) - (final_amount or 0)) > 0.005
+
+        # Conserver et enrichir l'historique d'override utilisateur
+        uo = existing_snap.get("user_override") or {}
+        uo["is_overridden"] = True
+        uo["linked_to_forecast"] = tx_forecast.description
+        uo["original_category"] = uo.get("original_category") or before_snap_review.get("category")
+        uo["current_category"] = tx_forecast.category
+        uo["category_changed"] = bool(uo.get("original_category") and tx_forecast.category and uo["original_category"].strip() != tx_forecast.category.strip())
+        uo["original_description"] = uo.get("original_description") or before_snap_review.get("description")
+        uo["current_description"] = tx_forecast.description
+        uo["description_changed"] = bool(uo.get("original_description") and tx_forecast.description and uo["original_description"].strip() != tx_forecast.description.strip())
+        uo["original_amount"] = uo.get("original_amount") or before_snap_review.get("amount")
+        uo["current_amount"] = tx_forecast.amount
+        uo["amount_changed"] = bool(uo.get("original_amount") is not None and abs(float(uo["original_amount"]) - float(tx_forecast.amount)) > 0.005)
+        uo["overridden_at"] = datetime.now(timezone.utc).isoformat()
+        existing_snap["user_override"] = uo
+
+        dlog.raw_snapshot = json.dumps(existing_snap, default=str)
 
     db.commit()
     stats_cache.invalidate(pid)
@@ -2643,5 +2937,69 @@ def preview_threshold_impact(db: Session, simulated_threshold: float) -> Dict[st
         "becoming_review_count": len(becoming_review),
         "becoming_reliable_samples": becoming_reliable[:5],
         "becoming_review_samples": becoming_review[:5]
+    }
+
+
+def get_transaction_autopilot_decision(db: Session, tx_id: int) -> Dict[str, Any]:
+    """
+    Vérifie si une transaction est issue ou liée à une décision Auto-Pilote.
+    Recherche en priorité une décision active (non annulée), ou les métadonnées de l'opération.
+    """
+    from app.models import Transaction, AutopilotDecisionLog
+    import json
+
+    dlog = (
+        db.query(AutopilotDecisionLog)
+        .filter(
+            AutopilotDecisionLog.entity_type == "transaction",
+            AutopilotDecisionLog.entity_id == tx_id,
+            AutopilotDecisionLog.is_undone == False,
+        )
+        .order_by(AutopilotDecisionLog.id.desc())
+        .first()
+    )
+    if not dlog:
+        dlog = (
+            db.query(AutopilotDecisionLog)
+            .filter(
+                AutopilotDecisionLog.entity_type == "transaction",
+                AutopilotDecisionLog.entity_id == tx_id,
+            )
+            .order_by(AutopilotDecisionLog.id.desc())
+            .first()
+        )
+
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        return {"has_decision": False}
+
+    is_ap_tx = bool(
+        dlog
+        or tx.needs_review
+        or (tx.confidence_score is not None and tx.confidence_score > 0)
+        or (tx.csv_id and str(tx.csv_id).startswith("woob_"))
+    )
+
+    if not is_ap_tx:
+        return {"has_decision": False}
+
+    snap = {}
+    if dlog and dlog.raw_snapshot:
+        try:
+            snap = json.loads(dlog.raw_snapshot)
+        except Exception:
+            pass
+
+    return {
+        "has_decision": True,
+        "decision_id": dlog.id if dlog else None,
+        "batch_id": dlog.batch_id if dlog else None,
+        "decision_type": dlog.decision_type if dlog else ("reconciliation" if tx.reconciliation_date else "new_entry"),
+        "action": dlog.action if dlog else ("AUTO_COMMIT" if not tx.needs_review else "AUTO_COMMIT_PENDING_REVIEW"),
+        "confidence_score": (dlog.confidence_score if dlog else None) or tx.confidence_score,
+        "inferred_type": snap.get("inferred_type") or snap.get("type") or tx.type,
+        "inferred_category": snap.get("category") or tx.category,
+        "raw_description": snap.get("raw_description") or snap.get("bank_tx", {}).get("raw_description") or tx.raw_description,
+        "is_review": bool(tx.needs_review)
     }
 

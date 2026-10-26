@@ -21,6 +21,7 @@ from app.schemas.api_schemas import (
     AutopilotKPIOut,
     AutopilotDecisionFeedOut,
     AutopilotOverrideRequest,
+    AutopilotDecisionLinkRequest,
     AutopilotRollbackCycleOut,
     AutopilotReviewItem,
     AutopilotReviewUpdateRequest,
@@ -39,12 +40,15 @@ from app.services.autopilot_service import (
     rollback_autopilot_decision,
     rollback_autopilot_cycle,
     override_autopilot_decision,
+    link_decision_to_forecast,
+    unlink_forecast_decision,
     unpoint_autopilot_decision,
     mark_autopilot_visited,
     get_review_queue,
     validate_review_transaction,
     update_review_transaction,
     link_review_transaction,
+    get_transaction_autopilot_decision,
     preview_threshold_impact,
 )
 
@@ -196,6 +200,7 @@ def link_review(
             description=payload.description,
             category=payload.category,
             amount=payload.amount,
+            adjust_amount=payload.adjust_amount,
             profile_id=active_pid
         )
     except ValueError as e:
@@ -203,6 +208,12 @@ def link_review(
     except Exception as e:
         logger.error(f"[AutoPilot] Erreur liaison revue tx {tx_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Erreur lors de la liaison de l'opération.")
+
+
+@router.get("/transaction-decision/{tx_id}")
+def get_transaction_decision(tx_id: int, db: Session = Depends(get_db)):
+    """Vérifie si une transaction donnée est associée à une décision Auto-Pilote."""
+    return get_transaction_autopilot_decision(db, tx_id=tx_id)
 
 
 
@@ -252,6 +263,10 @@ def override_decision(
             new_category=payload.new_category,
             new_description=payload.new_description,
             new_amount=payload.new_amount,
+            new_from_account_id=payload.new_from_account_id,
+            new_to_account_id=payload.new_to_account_id,
+            new_date_operation=payload.new_date_operation,
+            new_reconciliation_date=payload.new_reconciliation_date,
             learn_rule=payload.learn_rule,
             profile_id=active_pid
         )
@@ -260,6 +275,49 @@ def override_decision(
     except Exception as e:
         logger.error(f"[AutoPilot] Erreur override décision {decision_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Erreur lors de la modification de la décision.")
+
+
+@router.post("/decisions/{decision_id}/link")
+def link_decision(
+    decision_id: int,
+    payload: AutopilotDecisionLinkRequest,
+    db: Session = Depends(get_db)
+):
+    """Lie/fusionne une décision Auto-Pilote avec une transaction prévisionnelle existante."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        return link_decision_to_forecast(
+            db,
+            decision_id=decision_id,
+            target_forecast_id=payload.target_forecast_id,
+            adjust_amount=payload.adjust_amount,
+            learn_rule=payload.learn_rule,
+            description=payload.description,
+            category=payload.category,
+            amount=payload.amount,
+            profile_id=active_pid
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur liaison décision {decision_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors de la liaison de la décision.")
+
+
+@router.post("/decisions/{decision_id}/unlink-forecast")
+def unlink_forecast_endpoint(
+    decision_id: int,
+    db: Session = Depends(get_db)
+):
+    """Annule la liaison manuelle avec une prévision et rétablit l'écriture d'origine."""
+    active_pid = get_active_profile().get("id", "default")
+    try:
+        return unlink_forecast_decision(db, decision_id=decision_id, profile_id=active_pid)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"[AutoPilot] Erreur déliement décision {decision_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erreur lors du déliement de l'opération.")
 
 
 @router.post("/decisions/{decision_id}/unpoint")
