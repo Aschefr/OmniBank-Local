@@ -2,6 +2,7 @@ window.TimelineView = {
     transactions: [],
     _vt: null,
     currentPeriodIndex: parseInt(ProfileStorage.get('timeline_period_index')) || 0,
+    _isFullLoaded: false,
     
     render() {
         const cfg = window.app && window.app.config ? window.app.config : {};
@@ -215,6 +216,10 @@ window.TimelineView = {
             if (periodSelect) {
                 periodSelect.value = savedPeriod || 'current';
             }
+            if (!periodSelect || periodSelect.value === 'current') {
+                this.currentPeriodIndex = 0;
+                ProfileStorage.set('timeline_period_index', 0);
+            }
         }
 
         if (window.BankSyncView && typeof window.BankSyncView.ensureSyncButtonsVisibility === 'function') {
@@ -364,7 +369,12 @@ window.TimelineView = {
             if (endInput) ProfileStorage.set('timeline_end_date', endInput.value);
         } else {
             const select = document.getElementById('timelineReconciledPeriod');
-            if (select) ProfileStorage.set('timeline_period_filter', select.value);
+            if (select) {
+                ProfileStorage.set('timeline_period_filter', select.value);
+                if (select.value === 'current') {
+                    this.currentPeriodIndex = 0;
+                }
+            }
         }
         ProfileStorage.set('timeline_period_index', this.currentPeriodIndex);
     },
@@ -518,25 +528,41 @@ window.TimelineView = {
         if (styleTag) styleTag.innerHTML = css;
     },
 
-    async loadData() {
+    async loadData(forceFull = false) {
         try {
-            // PERF: Fetch transactions, budgets, and dashboard stats in parallel
+            // Determine if windowed query (timeline_window=true: unreconciled + last 120 days) is sufficient
+            const cfg = window.app && window.app.config ? window.app.config : {};
+            const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+            const periodSelect = document.getElementById('timelineReconciledPeriod');
+            const periodVal = periodSelect ? periodSelect.value : (ProfileStorage.get('timeline_period_filter') || 'current');
+
+            const canUseWindow = !forceFull && !isOrgMode && periodVal !== 'all' && (this.currentPeriodIndex || 0) <= 1;
+            const txUrl = canUseWindow 
+                ? '/api/transactions/?timeline_window=true&limit=2000'
+                : '/api/transactions/?limit=10000';
+            this._isFullLoaded = !canUseWindow;
+
+            // PERF: Fetch transactions, budgets, dashboard stats, and categories in parallel
             // Pending bank sync is kicked off concurrently without blocking the main table render
             const pendingSyncPromise = (window.BankSyncView && typeof window.BankSyncView.loadPendingSync === 'function') 
                 ? window.BankSyncView.loadPendingSync().catch(e => { console.warn('Failed to load pending bank sync', e); return null; })
                 : Promise.resolve(null);
 
-            const [allTransactions, budgets, stats] = await Promise.all([
-                API.get('/api/transactions/?limit=10000'),
+            const [allTransactions, budgets, stats, categoriesList] = await Promise.all([
+                API.get(txUrl),
                 API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
-                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; })
+                API.get('/api/stats/dashboard').catch(e => { console.error('Failed to load paycheck stats', e); return null; }),
+                API.get('/api/categories/').catch(e => { return []; })
             ]);
             
             // Keep all transactions, filtering will be done in renderTable
             this.transactions = allTransactions;
 
-            // Populate category multi-select
-            const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
+            // Populate category multi-select (combining configured categories and loaded transactions)
+            const categories = [...new Set([
+                ...(categoriesList || []).map(c => typeof c === 'string' ? c : c.name),
+                ...this.transactions.map(t => t.category)
+            ].filter(Boolean))].sort();
             const catContainer = document.getElementById('timelineCategoryFilter');
             if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
                 window.MultiSelect.create('timelineCategoryFilter', {
@@ -595,7 +621,16 @@ window.TimelineView = {
         }
     },
 
-    applyFilters() {
+    async applyFilters() {
+        const periodSelect = document.getElementById('timelineReconciledPeriod');
+        const periodVal = periodSelect ? periodSelect.value : 'current';
+        const cfg = window.app && window.app.config ? window.app.config : {};
+        const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+
+        if (!this._isFullLoaded && (isOrgMode || periodVal === 'all' || (this.currentPeriodIndex || 0) > 1)) {
+            await this.loadData(true);
+            return;
+        }
         this.renderTable(false); // false means don't auto-scroll
     },
 

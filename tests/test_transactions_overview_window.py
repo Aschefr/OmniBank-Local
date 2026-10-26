@@ -61,18 +61,30 @@ def setup_tx_db():
         reconciliation_date=today - timedelta(days=19),
         description="Rapprochée récente"
     )
-    # 4. Rapprochée ancienne (> 60 jours, NE devrait PAS être incluse dans overview_window)
+    # 4. Rapprochée moyenne (90 jours : exclue d'overview_window mais incluse dans timeline_window)
     t4 = Transaction(
         id=4,
         from_account_id=1,
         amount=200.0,
         type="expense_fixed",
-        date_operation=today - timedelta(days=120),
-        reconciliation_date=today - timedelta(days=119),
-        description="Rapprochée très ancienne"
+        date_operation=today - timedelta(days=90),
+        reconciliation_date=today - timedelta(days=89),
+        recurrence_id=10,
+        description="Rapprochée moyenne avec récurrence"
+    )
+    # 5. Rapprochée très ancienne (150 jours : exclue d'overview_window et de timeline_window)
+    t5 = Transaction(
+        id=5,
+        from_account_id=1,
+        amount=300.0,
+        type="expense_fixed",
+        date_operation=today - timedelta(days=150),
+        reconciliation_date=today - timedelta(days=149),
+        recurrence_id=11,
+        description="Rapprochée très ancienne avec récurrence"
     )
 
-    db.add_all([t1, t2, t3, t4])
+    db.add_all([t1, t2, t3, t4, t5])
     db.commit()
     db.close()
 
@@ -91,15 +103,47 @@ def setup_tx_db():
 def test_overview_window_filters_correctly():
     client = TestClient(app)
 
-    # Sans overview_window : 4 transactions
+    # Sans filtre : 5 transactions
     res_all = client.get("/api/transactions/")
     assert res_all.status_code == 200
-    assert len(res_all.json()) == 4
+    assert len(res_all.json()) == 5
 
-    # Avec overview_window : seules t1, t2, t3 sont retournées (t4 exclue)
+    # Avec overview_window (<60j ou non pointée) : t1, t2, t3 retournées (t4 et t5 exclues)
     res_ov = client.get("/api/transactions/?overview_window=true")
     assert res_ov.status_code == 200
     items = res_ov.json()
     assert len(items) == 3
     ids = {item["id"] for item in items}
     assert ids == {1, 2, 3}
+
+
+def test_timeline_window_filters_correctly():
+    client = TestClient(app)
+
+    # Avec timeline_window (<120j ou non pointée) : t1, t2, t3, t4 retournées (t5 exclue car 150j)
+    res_tl = client.get("/api/transactions/?timeline_window=true")
+    assert res_tl.status_code == 200
+    items = res_tl.json()
+    assert len(items) == 4
+    ids = {item["id"] for item in items}
+    assert ids == {1, 2, 3, 4}
+
+
+def test_has_recurrence_filter():
+    client = TestClient(app)
+
+    # has_recurrence=true : t4 et t5 ont un recurrence_id
+    res_rec = client.get("/api/transactions/?has_recurrence=true")
+    assert res_rec.status_code == 200
+    items = res_rec.json()
+    assert len(items) == 2
+    ids = {item["id"] for item in items}
+    assert ids == {4, 5}
+
+    # has_recurrence=false : t1, t2, t3 n'ont pas de recurrence_id
+    res_no_rec = client.get("/api/transactions/?has_recurrence=false")
+    assert res_no_rec.status_code == 200
+    items_no = res_no_rec.json()
+    assert len(items_no) == 3
+    ids_no = {item["id"] for item in items_no}
+    assert ids_no == {1, 2, 3}

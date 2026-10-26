@@ -23,6 +23,8 @@ def get_transactions(
     account_id: Optional[int] = Query(None),
     unreconciled_only: bool = Query(False),
     overview_window: bool = Query(False),
+    timeline_window: bool = Query(False),
+    has_recurrence: Optional[bool] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     order: str = Query("desc"),
@@ -38,7 +40,18 @@ def get_transactions(
                 Transaction.to_account_id == account_id
             )
         )
-    if overview_window:
+    if timeline_window:
+        # Fenêtre optimisée pour le dashboard échéancier :
+        # Inclut toutes les opérations non rapprochées (passées, courantes et futures)
+        # + toutes les opérations pointées des 120 derniers jours (cycle en cours + cycle précédent + marge)
+        d_min = (date.today() - timedelta(days=120)).strftime("%Y-%m-%d")
+        query = query.filter(
+            or_(
+                Transaction.reconciliation_date == None,
+                Transaction.date_operation >= d_min
+            )
+        )
+    elif overview_window:
         # Fenêtre optimisée pour la vue d'ensemble :
         # Inclut toutes les opérations non rapprochées (passées, courantes et futures)
         # + toutes les opérations pointées des 60 derniers jours (cycle en cours & précédent)
@@ -51,6 +64,12 @@ def get_transactions(
         )
     elif unreconciled_only:
         query = query.filter(Transaction.reconciliation_date == None)
+
+    if has_recurrence is not None:
+        if has_recurrence:
+            query = query.filter(Transaction.recurrence_id != None)
+        else:
+            query = query.filter(Transaction.recurrence_id == None)
 
     if date_from:
         query = query.filter(Transaction.date_operation >= date_from)
