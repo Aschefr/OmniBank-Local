@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-10-27
+
 ### Added & Improved
 - **Instant View Switching & SWR Navigation Overhaul ⚡🚀**: Implemented Stale-While-Revalidate (SWR) patterns and parallelized data fetching across all views (Overview, All Operations, Analytics, Trends, Timeline, Recurrences, Budgets), achieving sub-380ms load times, non-blocking background refreshes, and instant warm returns while preserving strict rendering parity and zero console regressions.
 - **Scoped Windowing & Server-Side Filtering Across Timeline and Recurrences ⏱️⚡**: Generalized targeted server-side filtering across the Dashboard Timeline (`timeline_window=true`: 120-day cycle window + all unreconciled operations) and Recurrence Manager (`has_recurrence=true`), dropping transaction payloads by over 90% and delivering instantaneous page renders while maintaining transparent, on-demand fallback to full history for older cycle deep-dives.

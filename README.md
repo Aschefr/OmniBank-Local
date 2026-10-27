@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.10-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.11-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -110,11 +110,12 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.2.10)
+## 🆕 Nouveautés (v1.2.11)
 
-* **🔁 Propagation Différentielle Ciblée des Récurrences** : Lors de la modification d'une opération récurrente avec propagation (*« Toutes les futures (et le modèle) »*), seules les modifications réelles (ex: catégorie, description) sont répercutées. Les montants distincts des échéances futures ne sont plus écrasés lors d'une mensualité exceptionnelle.
-* **↶ Annulation & Rétablissement Atomiques en Grappe** : L'annulation d'une modification propagée restaure désormais l'intégralité de la série affectée (opération source, échéances futures et modèle) sans laisser d'opérations orphelines.
-* **⚡ Réactivité UI Zero-F5 Renforcée** : Émission instantanée des événements réactifs sur les actions d'annulation/rétablissement pour une actualisation sans rechargement de page.
+* **⚡ Navigation Instantanée & Caching SWR Multi-Vues** : Rendu instantané et non-bloquant des vues (Dashboard, Historique, Synthèse, Budgets, Tendances, Récurrences, Simulateur) via le pattern Stale-While-Revalidate (SWR) et parallélisation des requêtes, abaissant les transitions sous 380ms.
+* **⏱️ Filtrage Côté Serveur & Fenêtrage Scoped (Timeline & Récurrences)** : Réduction de plus de 90% des charges utiles de transactions grâce au fenêtrage ciblé (`timeline_window` et `has_recurrence`), avec bascule transparente vers l'historique complet à la demande.
+* **🎯 Cadence Financière Serveur & Parité de Rendu Stricte (Navigation vs F5)** : Nouveau endpoint optimisé `/api/stats/rhythm` avec calcul des moyennes IQR sans latence client et résolution préalable des comptes actifs pour une parité 100% stricte entre sessions et démarrage à froid (Zero F5).
+* **🤖 Fenêtre d'Opération Unifiée & Rapprochement Prévisionnel Auto-Pilote** : Modale unifiée permettant de lier n'importe quelle opération bancaire à une prévision comptable avec sélection chronologique, défilement automatique, traçabilité des décisions et déliaison bidirectionnelle réversible.
 
 ## 📦 Historique Récent (v1.2.0)
 
@@ -130,7 +131,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.2.10-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.2.11-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -230,11 +231,12 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.2.10)
+## 🆕 What's New (v1.2.11)
 
-* **🔁 Selective Recurrence Propagation (Diff-Based)**: When editing a recurring transaction with propagation enabled, only fields actually modified by the user are propagated, protecting distinct monthly amounts across future occurrences from being inadvertently overwritten.
-* **↶ Atomic Cluster Undo & Redo for Series Mutations**: Undoing an update that was propagated across a recurring series atomically restores the whole cluster (source transaction, future occurrences, and template) to their exact prior states.
-* **⚡ Reinforced Real-Time UI Reactivity (Zero F5)**: Instant reactive DOM events dispatched on undo/redo actions, updating all views immediately without manual browser refreshes.
+* **⚡ Instant View Navigation & Multi-View SWR Caching**: Non-blocking instant view rendering across Dashboard, Operations History, Analytics, Budgets, Trends, Recurrences, and Simulator using Stale-While-Revalidate (SWR) caching and parallel fetching, dropping screen transitions below 380ms.
+* **⏱️ Server-Side Targeted Windowing (Timeline & Recurrences)**: Drops transaction payload by over 90% with server-side windowing (`timeline_window` and `has_recurrence`), while providing seamless, on-demand fallback to full history for older cycles.
+* **🎯 Server-Side Financial Rhythm & Strict Render Parity (Navigation vs F5)**: Dedicated cached `/api/stats/rhythm` endpoint computing robust IQR averages in under 1ms with pre-resolved active account state, guaranteeing 100% strict equality between navigation and cold reloads (Zero F5).
+* **🤖 Unified Operation Modal & Auto-Pilot Forecast Linking**: Unified editing dialog to directly link bank transactions to accounting forecasts with chronological candidate matching, auto-scrolling, human override tracking, and reversible bi-directional unlinking.
 
 ## 📦 Recent History (v1.2.0)
 
