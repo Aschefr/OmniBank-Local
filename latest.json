@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhzN08vSUd3dW9RY2RZZi9aaXhsdHBFU3JnODNEUHpTMVRuNUg0bEhZb1lmazZGSFhjRXRlVWpwc3AxQjZEK3JQd0hkeGZDMnZxeE1xdWxxVmgzZHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNzY0MjQ2CWZpbGU6T21uaUJhbmtfMS4yLjEwX3g2NF9mci1GUi5tc2kKeVB6eWd3Yi9wWXpBdzJ4SmhNbkIyS05zbUdFY21ONzBWcStNQ0JnL0xqRGY5S1F5UkcvM2hqM1dOTUNWTjJPV0lieWFaM1B3NWlWSUdBS2NaSGc1QVE9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.10/OmniBank_1.2.10_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHpMMFZzd1kzTnROeHMwYVNXWVZtUTVwdjRlSGovNnJSdUM0Q2RHdUJiWGtWT3VDb1Q4NHdhcDJYU2xicFZpeFoxVjBuTFdLT2VjRGtsS1dqUndCcXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTIwNTI2CWZpbGU6T21uaUJhbmtfMS4yLjExX3g2NF9mci1GUi5tc2kKd2hGME1USlFSVCtHQW44VG1IVzlXdFArcE9PWWdMM0Viais5Und2QkZLZ0FxVWlhKzYrN0Nyd2JzUDNRWkRjcDV0WHlqMkRDa2t2NFM2Zm9XdjdtRGc9PQo=",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.11/OmniBank_1.2.11_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-23T14:04:06Z",
-    "version":  "1.2.10",
-    "notes":  "v1.2.10 - Selective Recurrence Propagation (Diff-Based) \u0026 Atomic Cluster Undo/Redo"
+    "pub_date":  "2026-10-27T17:02:06Z",
+    "version":  "1.2.11",
+    "notes":  "Instant SWR View Navigation, Full-Stack Performance \u0026 Unified Auto-Pilot Forecast Linking"
 }
