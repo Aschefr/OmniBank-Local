@@ -5,6 +5,14 @@ window.TrendsView = {
     chart: null,
     historyData: [],
     _catData: null, // categories_by_month data for expense/compare/balance modes
+    _cachedTrends: {}, // accountId -> history array
+    _cachedCatData: {}, // `${months}_${accountId}` -> catData object
+    destroy() {
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+    },
         // State
     timeframeMonths: 12,
     showOtherYears: false,
@@ -141,31 +149,65 @@ window.TrendsView = {
     },
 
     async init() {
-        await this.loadConfig();
-        await this.loadAccounts();
+        // Appliquer la configuration existante immédiatement si disponible
+        if (window.app && window.app.config) {
+            this._applyConfig(window.app.config);
+        } else {
+            await this.loadConfig();
+        }
+
+        // Peupler immédiatement les comptes si déjà en mémoire
+        const knownAccounts = (this.accounts && this.accounts.length > 0) ? this.accounts : window.app.accounts;
+        const knownMainAcc = window.app.mainAccount;
+
+        let didSWR = false;
+        if (knownAccounts && knownAccounts.length > 0) {
+            this._populateAccountSelect(knownAccounts, knownMainAcc);
+            const accId = this.selectedAccountId;
+            const months = this.timeframeMonths === 'all' ? 120 : this.timeframeMonths;
+            const catKey = `${months}_${accId}`;
+
+            // SWR : Si des données pour ce compte sont en cache, afficher le graphique instantanément
+            if (this._cachedTrends && this._cachedTrends[accId]) {
+                this.historyData = this._cachedTrends[accId];
+                if (this._cachedCatData && this._cachedCatData[catKey]) {
+                    this._catData = this._cachedCatData[catKey];
+                }
+                this.updateAlignmentVisibility();
+                this.renderChart();
+                didSWR = true;
+            }
+        }
+
+        await this.loadAccounts(didSWR);
     },
 
     async loadConfig() {
         try {
-            const config = await API.get('/api/config');
-            if (config.trends_superimpose !== undefined) {
-                this.showOtherYears = config.trends_superimpose === 'true';
-            }
-            if (config.trends_alignment_type !== undefined) {
-                this.alignmentType = config.trends_alignment_type;
-            }
-            if (config.trends_timeframe_months !== undefined) {
-                const val = config.trends_timeframe_months;
-                this.timeframeMonths = val === 'all' ? 'all' : parseInt(val, 10);
-            }
-            if (config.trends_account_id !== undefined) {
-                this.savedAccountId = config.trends_account_id;
-            }
-            if (config.trends_chart_mode !== undefined) {
-                this.chartMode = config.trends_chart_mode;
-            }
+            const config = (window.app && window.app.config) ? window.app.config : await API.get('/api/config');
+            this._applyConfig(config);
         } catch(e) {
             console.error('TrendsView loadConfig error:', e);
+        }
+    },
+
+    _applyConfig(config) {
+        if (!config) return;
+        if (config.trends_superimpose !== undefined) {
+            this.showOtherYears = config.trends_superimpose === 'true';
+        }
+        if (config.trends_alignment_type !== undefined) {
+            this.alignmentType = config.trends_alignment_type;
+        }
+        if (config.trends_timeframe_months !== undefined) {
+            const val = config.trends_timeframe_months;
+            this.timeframeMonths = val === 'all' ? 'all' : parseInt(val, 10);
+        }
+        if (config.trends_account_id !== undefined) {
+            this.savedAccountId = config.trends_account_id;
+        }
+        if (config.trends_chart_mode !== undefined) {
+            this.chartMode = config.trends_chart_mode;
         }
     },
 
@@ -177,37 +219,45 @@ window.TrendsView = {
         }
     },
 
-    async loadAccounts() {
+    _populateAccountSelect(accounts, mainAcc) {
+        this.accounts = accounts;
+        const sel = document.getElementById('trendsAccountSelect');
+        const activeAccounts = this.accounts.filter(a => !a.is_closed);
+        let options = `<option value="total" style="font-weight:bold;" data-i18n="trends_opt_total">${window.i18n.t('trends_opt_total')}</option>`;
+        options += activeAccounts.map(a =>
+            `<option value="${a.id}">${a.name}</option>`
+        ).join('');
+        if (sel) sel.innerHTML = options;
+
+        if (this.savedAccountId !== null && (this.savedAccountId === 'total' || activeAccounts.some(a => a.id.toString() === this.savedAccountId.toString()))) {
+            this.selectedAccountId = this.savedAccountId.toString();
+        } else if (mainAcc && mainAcc.id && activeAccounts.some(a => a.id === mainAcc.id)) {
+            this.selectedAccountId = mainAcc.id.toString();
+        } else if (activeAccounts.length > 0) {
+            this.selectedAccountId = activeAccounts[0].id.toString();
+        } else {
+            this.selectedAccountId = "total";
+        }
+        if (sel) sel.value = this.selectedAccountId;
+
+        const tfSel = document.getElementById('trendsTimeframeSelect');
+        if (tfSel) tfSel.value = this.timeframeMonths.toString();
+
+        const alignSel = document.getElementById('trendsAlignmentSelect');
+        if (alignSel) alignSel.value = this.alignmentType;
+    },
+
+    async loadAccounts(didSWR = false) {
         try {
-            this.accounts = await API.get('/api/stats/accounts');
-            const mainAcc = await API.get('/api/stats/main_account');
-
-            const sel = document.getElementById('trendsAccountSelect');
-            const activeAccounts = this.accounts.filter(a => !a.is_closed);
-            let options = `<option value="total" style="font-weight:bold;" data-i18n="trends_opt_total">${window.i18n.t('trends_opt_total')}</option>`;
-            options += activeAccounts.map(a =>
-                `<option value="${a.id}">${a.name}</option>`
-            ).join('');
-            if (sel) sel.innerHTML = options;
-
-            if (this.savedAccountId !== null && (this.savedAccountId === 'total' || activeAccounts.some(a => a.id.toString() === this.savedAccountId.toString()))) {
-                this.selectedAccountId = this.savedAccountId.toString();
-            } else if (mainAcc && mainAcc.id && activeAccounts.some(a => a.id === mainAcc.id)) {
-                this.selectedAccountId = mainAcc.id.toString();
-            } else if (activeAccounts.length > 0) {
-                this.selectedAccountId = activeAccounts[0].id.toString();
-            } else {
-                this.selectedAccountId = "total";
+            if (!this.accounts || this.accounts.length === 0) {
+                const [accs, mainAcc] = await Promise.all([
+                    API.get('/api/stats/accounts'),
+                    API.get('/api/stats/main_account')
+                ]);
+                this._populateAccountSelect(accs, mainAcc);
             }
-            if (sel) sel.value = this.selectedAccountId;
 
-            const tfSel = document.getElementById('trendsTimeframeSelect');
-            if (tfSel) tfSel.value = this.timeframeMonths.toString();
-
-            const alignSel = document.getElementById('trendsAlignmentSelect');
-            if (alignSel) alignSel.value = this.alignmentType;
-
-            await this.loadData();
+            await this.loadData(didSWR);
         } catch(e) {
             console.error('TrendsView loadAccounts:', e);
         }

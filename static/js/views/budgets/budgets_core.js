@@ -34,19 +34,26 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             this.customPeriod.end = endDay;
         }
 
-        // Per-type status data
-        this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
-        this.savingsOverflow = null;
+        const hasCachedData = Boolean(this.budgets && this.budgets.length > 0 && this.statusByType && this.statusByType.monthly);
 
-        // Inject initial loading spinner while fetching all budgets/stats
-        const container = document.getElementById('budgetStatusContainer');
-        if (container) {
-            container.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:16px; color:var(--text-muted);">
-                    <div style="width:40px; height:40px; border:3px solid rgba(99, 102, 241, 0.15); border-top-color:var(--accent); border-radius:50%; animation: importSpin 0.8s linear infinite;"></div>
-                    <span style="font-size:14px; font-weight:600; color:var(--text-main); animation: importPulse 1.8s ease-in-out infinite;" data-i18n="budget_loading">${window.i18n.t('budget_loading') || 'Chargement des budgets...'}</span>
-                </div>
-            `;
+        if (hasCachedData) {
+            // SWR: Rendu immédiat des données déjà en mémoire de session (0 ms)
+            this.renderStatus();
+        } else {
+            // Per-type status data
+            this.statusByType = { monthly: null, yearly: null, indefinite: null, custom: null };
+            this.savingsOverflow = null;
+
+            // Inject initial loading spinner while fetching all budgets/stats on cold load
+            const container = document.getElementById('budgetStatusContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; gap:16px; color:var(--text-muted);">
+                        <div style="width:40px; height:40px; border:3px solid rgba(99, 102, 241, 0.15); border-top-color:var(--accent); border-radius:50%; animation: importSpin 0.8s linear infinite;"></div>
+                        <span style="font-size:14px; font-weight:600; color:var(--text-main); animation: importPulse 1.8s ease-in-out infinite;" data-i18n="budget_loading">${window.i18n.t('budget_loading') || 'Chargement des budgets...'}</span>
+                    </div>
+                `;
+            }
         }
 
         await Promise.all([
@@ -129,7 +136,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async checkAI() {
         try {
-            const config = await API.get('/api/config/');
+            const config = (window.app && window.app.config)
+                ? window.app.config
+                : await API.get('/api/config/');
             let aiVal = null;
             if (Array.isArray(config)) {
                 aiVal = config.find(c => c.key === 'enable_ai')?.value;

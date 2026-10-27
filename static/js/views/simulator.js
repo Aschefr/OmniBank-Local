@@ -127,6 +127,15 @@ window.SimulatorView = {
         ProfileStorage.set('sim_table_open', getSetting('sim_table_open', 'false') === 'true');
         ProfileStorage.set('sim_sources_open', getSetting('sim_sources_open', 'false') === 'true');
 
+        // SWR : Rendu instantané si une simulation est déjà en mémoire de session (0 ms)
+        if (this.scenarios && this.scenarios.length > 0 && this.simulationData) {
+            const root = document.getElementById('simulatorRoot');
+            if (root) {
+                this.updateHeaderControls();
+                this.updateLiveSimulationView(true);
+            }
+        }
+
         await this.loadData();
     },
 
@@ -136,7 +145,9 @@ window.SimulatorView = {
             const [scenariosRes, presetsRes, accountsRes] = await Promise.all([
                 API.get('/api/simulator/scenarios'),
                 API.get('/api/simulator/presets'),
-                API.get('/api/accounts/')
+                (window.app && window.app.accounts && window.app.accounts.length > 0)
+                    ? window.app.accounts
+                    : API.get('/api/accounts/')
             ]);
 
             this.scenarios = scenariosRes || [];
