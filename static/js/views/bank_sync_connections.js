@@ -191,6 +191,7 @@ Object.assign(window.BankSyncView, {
     },
 
     async loadBackends() {
+        if (this.backends && this.backends.length > 0) return;
         try {
             const data = await API.get('/api/bank-sync/backends');
             this.backends = data || [];
@@ -201,7 +202,9 @@ Object.assign(window.BankSyncView, {
 
     async loadLocalAccounts() {
         try {
-            const accs = await API.get('/api/accounts/');
+            const accs = (window.app && window.app.accounts && window.app.accounts.length > 0)
+                ? window.app.accounts
+                : await API.get('/api/accounts/');
             this.localAccounts = (accs || []).filter(a => !a.is_closed);
         } catch (err) {
             console.error('Erreur chargement comptes locaux:', err);

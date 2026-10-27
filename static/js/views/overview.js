@@ -435,6 +435,18 @@ window.OverviewView = {
         }
     },
 
+    async _fetchForecastSummary(simAccParam = '') {
+        try {
+            const fs = await API.get('/api/simulator/forecast-summary' + simAccParam);
+            if (fs) {
+                this._forecastSummary = fs;
+                this._renderCockpitForecast();
+            }
+        } catch (err) {
+            console.warn('[OverviewView] Erreur chargement forecast summary:', err);
+        }
+    },
+
     async loadData() {
         return this.init();
     },
@@ -502,19 +514,29 @@ window.OverviewView = {
                 }
             }
 
+            // 2b. Rendu instantané SWR (Stale-While-Revalidate) si des données de session sont déjà en mémoire
+            if (this._stats && this._accounts && this._accounts.length > 0) {
+                this._populateAccountSelect();
+                this._renderHealthBadge(this._stats);
+                this._renderHero(this._stats);
+                this._renderCockpit();
+                if (this._transactions) {
+                    this._renderUnreconciled(this._transactions);
+                    this._renderTop3(this._transactions);
+                }
+                this._renderBudgets(this._stats);
+                this._renderSavings(this._stats);
+            }
+
             // 3. À CE STADE, this._selectedAccountId et this._statsLookback sont résolus AVANT les requêtes
             const lookback = this._statsLookback || '6m';
             const accParam = this._selectedAccountId ? `&account_id=${this._selectedAccountId}` : '';
             const simAccParam = this._selectedAccountId ? `?account_id=${this._selectedAccountId}` : '';
 
-            const [stats, accounts, transactions, forecastSummary, pendingData, rhythmAverages] = await Promise.all([
+            const [stats, accounts, transactions, pendingData, rhythmAverages] = await Promise.all([
                 API.get('/api/stats/dashboard'),
                 API.get('/api/stats/accounts'),
                 API.get('/api/transactions/?overview_window=true&limit=2000'),
-                API.get('/api/simulator/forecast-summary' + simAccParam).catch(err => {
-                    console.warn('[OverviewView] Erreur chargement forecast summary', err);
-                    return null;
-                }),
                 API.get('/api/bank-sync/pending').catch(err => {
                     console.warn('[OverviewView] Erreur chargement pending sync', err);
                     return null;
@@ -524,7 +546,6 @@ window.OverviewView = {
                     return null;
                 })
             ]);
-            this._forecastSummary = forecastSummary;
             this._pendingData = pendingData;
             if (pendingData?.matches_by_tx_id && window.BankSyncView) {
                 window.BankSyncView.pendingMatches = pendingData.matches_by_tx_id;
@@ -566,7 +587,8 @@ window.OverviewView = {
             this._renderSavings(stats);
 
             // ── CHARGEMENT EN ARRIÈRE-PLAN (Non-bloquant) ──────────────────────
-            // Les widgets annexes et graphiques s'actualisent sans bloquer l'affichage
+            // Les widgets annexes, prévisions et graphiques s'actualisent sans bloquer l'affichage
+            this._fetchForecastSummary(simAccParam).catch(e => console.warn('[OverviewView] Erreur forecast summary:', e));
             this._renderPendingBankSyncBanner();
             this._checkBankConnections().catch(e => console.warn('[OverviewView] Erreur check connections:', e));
             this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Erreur widget autopilot:', e));
@@ -1231,12 +1253,7 @@ window.OverviewView = {
         await this._fetchRhythmAverages();
         this._renderCockpit();
         this._renderTrend();
-        API.get('/api/simulator/forecast-summary' + (this._selectedAccountId ? '?account_id=' + this._selectedAccountId : ''))
-            .then(fs => {
-                this._forecastSummary = fs;
-                this._renderCockpit();
-            })
-            .catch(err => console.warn('[OverviewView] Erreur actualisation forecast summary:', err));
+        this._fetchForecastSummary(this._selectedAccountId ? '?account_id=' + this._selectedAccountId : '');
     },
 
     async openUserPicker() {

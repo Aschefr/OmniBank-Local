@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 _cache: dict = {}
 
 # TTL de sécurité maximum (en secondes). Même sans invalidation explicite,
-# les entrées expirent après ce délai.
-MAX_TTL_SECONDS = 10
+# les entrées expirent après ce délai de courtoisie. Les mutations (transactions,
+# budgets, comptes, récurrences) appellent déjà explicitement invalidate().
+MAX_TTL_SECONDS = 300
 
 
 def get(profile_id: str, key: str):
