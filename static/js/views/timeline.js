@@ -169,6 +169,20 @@ window.TimelineView = {
 
     transactions: [],
     budgetsMap: {}, // id -> name, for budget column display
+    categoryToBudgetMap: {},
+    categories: [],
+    _stats: null,
+
+    _applyPendingFilter() {
+        if (this.pendingFilter) {
+            const pf = this.pendingFilter;
+            this.pendingFilter = null;
+            if (pf.unreconciledBeforeDate) {
+                const check = document.getElementById('timelineUnreconciledFilter');
+                if (check) check.checked = true;
+            }
+        }
+    },
 
     _ensureVT() {
         if (!this._vt) {
@@ -226,7 +240,30 @@ window.TimelineView = {
             window.BankSyncView.ensureSyncButtonsVisibility();
         }
 
-        await this.loadData();
+        // SWR : Rendu instantané si des transactions sont déjà en mémoire de session
+        let didSWR = false;
+        if (this.transactions && this.transactions.length > 0) {
+            this._applyPendingFilter();
+            this._ensureVT();
+            if (this.categories && this.categories.length > 0) {
+                const catContainer = document.getElementById('timelineCategoryFilter');
+                if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
+                    window.MultiSelect.create('timelineCategoryFilter', {
+                        allLabel: window.i18n.t('filter_all_categories'),
+                        searchPlaceholder: window.i18n.t('ph_search') || 'Search...',
+                        onChange: () => window.TimelineView.applyFilters()
+                    });
+                }
+                window.MultiSelect.populate('timelineCategoryFilter', this.categories);
+            }
+            if (this._stats) {
+                this.renderPaycheckWidget(this._stats);
+            }
+            this.renderTable(true);
+            didSWR = true;
+        }
+
+        await this.loadData(false, didSWR);
     },
 
     renderPaycheckWidget(stats) {
@@ -528,7 +565,7 @@ window.TimelineView = {
         if (styleTag) styleTag.innerHTML = css;
     },
 
-    async loadData(forceFull = false) {
+    async loadData(forceFull = false, preserveScroll = false) {
         try {
             // Determine if windowed query (timeline_window=true: unreconciled + last 120 days) is sufficient
             const cfg = window.app && window.app.config ? window.app.config : {};
@@ -563,6 +600,8 @@ window.TimelineView = {
                 ...(categoriesList || []).map(c => typeof c === 'string' ? c : c.name),
                 ...this.transactions.map(t => t.category)
             ].filter(Boolean))].sort();
+            this.categories = categories;
+
             const catContainer = document.getElementById('timelineCategoryFilter');
             if (catContainer && !catContainer.querySelector('.multi-select-trigger')) {
                 window.MultiSelect.create('timelineCategoryFilter', {
@@ -573,14 +612,7 @@ window.TimelineView = {
             }
             window.MultiSelect.populate('timelineCategoryFilter', categories);
 
-            if (this.pendingFilter) {
-                const pf = this.pendingFilter;
-                this.pendingFilter = null;
-                if (pf.unreconciledBeforeDate) {
-                    const check = document.getElementById('timelineUnreconciledFilter');
-                    if (check) check.checked = true;
-                }
-            }
+            this._applyPendingFilter();
 
             // Process budgets map for the budget column
             this.budgetsMap = {};
@@ -593,9 +625,12 @@ window.TimelineView = {
             });
 
             // Render paycheck widget from dashboard stats
-            if (stats) this.renderPaycheckWidget(stats);
+            if (stats) {
+                this._stats = stats;
+                this.renderPaycheckWidget(stats);
+            }
 
-            this.renderTable();
+            this.renderTable(!preserveScroll);
 
             // When pending bank sync completes in background, refresh the ghost box and mobile pending badge
             pendingSyncPromise.then(() => {

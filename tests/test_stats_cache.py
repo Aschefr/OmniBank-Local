@@ -41,8 +41,8 @@ def test_cache_ttl_expiration(monkeypatch):
     stats_cache.set("profile_1", "accounts", [{"name": "Compte A"}])
     assert stats_cache.get("profile_1", "accounts") is not None
     
-    # Simuler le passage de 11 secondes (dépassant MAX_TTL_SECONDS = 10)
-    monkeypatch.setattr(time, "time", lambda: now + 11)
+    # Simuler le dépassement du délai de sécurité TTL
+    monkeypatch.setattr(time, "time", lambda: now + stats_cache.MAX_TTL_SECONDS + 1)
     assert stats_cache.get("profile_1", "accounts") is None
 
 

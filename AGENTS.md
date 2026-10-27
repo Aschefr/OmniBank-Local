@@ -19,6 +19,7 @@ Target: Privacy-conscious individuals; French associations/CSE needing lightweig
 - **Debug logs**: Backend/frontend debug output written in French per rule G-04 Construction Plan.yaml
 - **LLM prompts**: System prompts for Ollama must be English for function calling stability; response language injected dynamically by backend
 - **UI Reactivity (Zero F5)**: L'application doit être 100% réactive. Aucun rechargement manuel de page (F5) ne doit jamais être nécessaire lors de l'utilisation de l'application (les vues doivent s'actualiser automatiquement via événements DOM `CustomEvent`, hooks d'actions ou `visibilitychange`).
+- **Parité de rendu (Navigation vs F5)**: Toute vue ou calcul modifié doit impérativement respecter la parité stricte : après avoir navigué sur différentes pages de l'application, noter les valeurs affichées (KPIs, soldes, reste à vivre, jauges), recharger la page avec F5 (cold start) et vérifier que les valeurs restent 100% identiques (zéro divergence entre cache/mémoire en session et recalcul à froid).
 
 <!-- GSD:project-end -->
 

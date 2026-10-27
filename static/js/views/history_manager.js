@@ -56,6 +56,10 @@ window.HistoryView = {
 
     async init() {
         this.offset = 0;
+        // SWR : Rendu instantané si l'historique a déjà été chargé (0 ms)
+        if (this.actions && this.actions.length > 0) {
+            this.renderTable();
+        }
         await this.loadActions();
     },
 

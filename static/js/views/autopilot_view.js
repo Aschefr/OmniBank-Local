@@ -799,15 +799,25 @@ window.AutopilotView = {
     },
 
     async init() {
-        // Mark visited on load to clear notification badge
-        try {
-            await API.post('/api/autopilot/mark-visited', {}, { silent: true });
-            if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
-                window.app.updateAutopilotBadge();
-            }
-        } catch (e) {}
+        // Mark visited on load to clear notification badge (en arrière-plan sans bloquer le rendu)
+        API.post('/api/autopilot/mark-visited', {}, { silent: true })
+            .then(() => {
+                if (window.app && typeof window.app.updateAutopilotBadge === 'function') {
+                    window.app.updateAutopilotBadge();
+                }
+            })
+            .catch(() => {});
 
         this.initCollapsibleSections();
+
+        // SWR : Rendu instantané si des données sont déjà en mémoire de session (0 ms)
+        if (this._status) {
+            this.renderStatus(this._status);
+        }
+        if (this._kpis) {
+            this.renderKPIs(this._kpis);
+        }
+
         await this.refresh();
 
         // If navigating to review a specific transaction

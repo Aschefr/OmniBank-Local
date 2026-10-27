@@ -381,101 +381,117 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         this.activeDurationFilter = ProfileStorage.get('recurrences_durationFilter') || 'all';
         this.activePeriodFilter = ProfileStorage.get('recurrences_periodFilter') || 'all';
 
+        // SWR : Rendu instantané si des récurrences sont déjà en mémoire de session (0 ms)
+        if (this.templates && this.templates.length > 0 && this.allTransactions && this.allTransactions.length > 0) {
+            this._computeAndRender(this.allTransactions);
+        }
+
         await this.loadData();
     },
 
     async loadData() {
         try {
-            this.templates = await API.get('/api/recurrences/?include_closed=true');
-            this.categories = await API.get('/api/categories/');
-            const allTx = await API.get('/api/transactions/?has_recurrence=true&limit=5000');
-            this.allTransactions = allTx;
-            this.config = (window.app && window.app.config) || await API.get('/api/config/').catch(() => ({}));
-            
-            // If a template is pending highlight, ensure correct year is selected
-            if (this._pendingHighlightTemplateId) {
-                const targetTx = (this.allTransactions || []).filter(tx => String(tx.recurrence_id) === String(this._pendingHighlightTemplateId) && tx.date_operation);
-                if (targetTx.length > 0) {
-                    const txYears = targetTx.map(tx => parseInt(tx.date_operation.substring(0, 4))).filter(y => !isNaN(y));
-                    if (txYears.length > 0 && !txYears.includes(this.selectedYear)) {
-                        this.selectedYear = txYears[txYears.length - 1];
-                        const yearDisplay = document.getElementById('recYearDisplay');
-                        if (yearDisplay) yearDisplay.textContent = this.selectedYear;
-                    }
+            const [templates, categories, allTx, config] = await Promise.all([
+                API.get('/api/recurrences/?include_closed=true'),
+                API.get('/api/categories/'),
+                API.get('/api/transactions/?has_recurrence=true&limit=5000'),
+                (window.app && window.app.config) ? window.app.config : API.get('/api/config/').catch(() => ({}))
+            ]);
+
+            this.templates = templates || [];
+            this.categories = categories || [];
+            this.allTransactions = allTx || [];
+            this.config = config || {};
+
+            this._computeAndRender(this.allTransactions);
+        } catch (e) {
+            console.error("Failed to load recurrences data", e);
+        }
+    },
+
+    _computeAndRender(allTx) {
+        if (!this.templates) return;
+
+        // If a template is pending highlight, ensure correct year is selected
+        if (this._pendingHighlightTemplateId) {
+            const targetTx = (allTx || []).filter(tx => String(tx.recurrence_id) === String(this._pendingHighlightTemplateId) && tx.date_operation);
+            if (targetTx.length > 0) {
+                const txYears = targetTx.map(tx => parseInt(tx.date_operation.substring(0, 4))).filter(y => !isNaN(y));
+                if (txYears.length > 0 && !txYears.includes(this.selectedYear)) {
+                    this.selectedYear = txYears[txYears.length - 1];
+                    const yearDisplay = document.getElementById('recYearDisplay');
+                    if (yearDisplay) yearDisplay.textContent = this.selectedYear;
                 }
             }
-
-            const activeTemplateIds = new Set(
-                allTx.filter(tx => tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear && tx.recurrence_id != null)
-                     .map(tx => tx.recurrence_id)
-            );
-            
-            const displayTemplates = this.templates.filter(t => 
-                activeTemplateIds.has(t.id) || (this._pendingHighlightTemplateId && String(t.id) === String(this._pendingHighlightTemplateId))
-            );
-
-            let grandTotalAnnual = 0;
-            let totalReconciledCount = 0;
-            let totalInstancesCount = 0;
-
-            displayTemplates.forEach(t => {
-                const templateTx = (this.allTransactions || []).filter(tx => 
-                    tx.recurrence_id == t.id && 
-                    tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear
-                );
-                t.totalAnnualAmount = templateTx.reduce((sum, tx) => sum + tx.amount, 0);
-                grandTotalAnnual += t.totalAnnualAmount;
-                totalInstancesCount += templateTx.length;
-                totalReconciledCount += templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
-
-                const reconciledTx = (this.allTransactions || [])
-                    .filter(tx => tx.recurrence_id == t.id && 
-                                  tx.reconciliation_date != null &&
-                                  tx.date_operation &&
-                                  parseInt(tx.date_operation.substring(0, 4)) <= this.selectedYear)
-                    .sort((a, b) => b.date_operation.localeCompare(a.date_operation));
-                t.displayAmount = reconciledTx.length > 0 ? reconciledTx[0].amount : t.amount;
-
-                const reconciledCount = templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
-                const totalCount = templateTx.length;
-                t.progressPct = totalCount > 0 ? Math.round((reconciledCount / totalCount) * 100) : 0;
-                t.reconciledCount = reconciledCount;
-                t.totalCount = totalCount;
-            });
-
-            const monthlyAverage = grandTotalAnnual / 12;
-            const activeCount = displayTemplates.length;
-            const reconciliationRate = totalInstancesCount > 0 ? Math.round((totalReconciledCount / totalInstancesCount) * 100) : 0;
-
-            const statsGrid = document.getElementById('recurrenceStatsGrid');
-            if (statsGrid) {
-                statsGrid.innerHTML = `
-                    <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
-                        <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_total_annual">${window.i18n.t('rec_stat_total_annual')}</span>
-                        <strong class="privacy-blur" style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${formatCurrency(grandTotalAnnual)}</strong>
-                    </div>
-                    <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
-                        <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_monthly_average">${window.i18n.t('rec_stat_monthly_average')}</span>
-                        <strong class="privacy-blur" style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${formatCurrency(monthlyAverage)}</strong>
-                    </div>
-                    <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
-                        <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_active_count">${window.i18n.t('rec_stat_active_count')}</span>
-                        <strong style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${activeCount}</strong>
-                    </div>
-                    <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
-                        <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_reconciliation">${window.i18n.t('rec_stat_reconciliation')}</span>
-                        <strong style="font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px;">${reconciliationRate}% <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">(${totalReconciledCount}/${totalInstancesCount})</span></strong>
-                    </div>
-                `;
-            }
-            
-            this.lastDisplayTemplates = displayTemplates;
-            this._renderDynamicFrequencyBadges();
-            this.renderMainContent();
-            
-        } catch (e) {
-            console.error("Failed to load transactions", e);
         }
+
+        const activeTemplateIds = new Set(
+            allTx.filter(tx => tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear && tx.recurrence_id != null)
+                 .map(tx => tx.recurrence_id)
+        );
+        
+        const displayTemplates = this.templates.filter(t => 
+            activeTemplateIds.has(t.id) || (this._pendingHighlightTemplateId && String(t.id) === String(this._pendingHighlightTemplateId))
+        );
+
+        let grandTotalAnnual = 0;
+        let totalReconciledCount = 0;
+        let totalInstancesCount = 0;
+
+        displayTemplates.forEach(t => {
+            const templateTx = (allTx || []).filter(tx => 
+                tx.recurrence_id == t.id && 
+                tx.date_operation && parseInt(tx.date_operation.substring(0, 4)) === this.selectedYear
+            );
+            t.totalAnnualAmount = templateTx.reduce((sum, tx) => sum + tx.amount, 0);
+            grandTotalAnnual += t.totalAnnualAmount;
+            totalInstancesCount += templateTx.length;
+            totalReconciledCount += templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
+
+            const reconciledTx = (allTx || [])
+                .filter(tx => tx.recurrence_id == t.id && 
+                              tx.reconciliation_date != null &&
+                              tx.date_operation &&
+                              parseInt(tx.date_operation.substring(0, 4)) <= this.selectedYear)
+                .sort((a, b) => b.date_operation.localeCompare(a.date_operation));
+            t.displayAmount = reconciledTx.length > 0 ? reconciledTx[0].amount : t.amount;
+
+            const reconciledCount = templateTx.filter(tx => tx.reconciliation_date != null || tx.is_skipped === true).length;
+            const totalCount = templateTx.length;
+            t.progressPct = totalCount > 0 ? Math.round((reconciledCount / totalCount) * 100) : 0;
+            t.reconciledCount = reconciledCount;
+            t.totalCount = totalCount;
+        });
+
+        const monthlyAverage = grandTotalAnnual / 12;
+        const activeCount = displayTemplates.length;
+        const reconciliationRate = totalInstancesCount > 0 ? Math.round((totalReconciledCount / totalInstancesCount) * 100) : 0;
+
+        const statsGrid = document.getElementById('recurrenceStatsGrid');
+        if (statsGrid) {
+            statsGrid.innerHTML = `
+                <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                    <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_total_annual">${window.i18n.t('rec_stat_total_annual')}</span>
+                    <strong class="privacy-blur" style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${formatCurrency(grandTotalAnnual)}</strong>
+                </div>
+                <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                    <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_monthly_average">${window.i18n.t('rec_stat_monthly_average')}</span>
+                    <strong class="privacy-blur" style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${formatCurrency(monthlyAverage)}</strong>
+                </div>
+                <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                    <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_active_count">${window.i18n.t('rec_stat_active_count')}</span>
+                    <strong style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-top: 4px;">${activeCount}</strong>
+                </div>
+                <div class="stat-box" style="margin-bottom: 0; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+                    <span class="stat-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;" data-i18n="rec_stat_reconciliation">${window.i18n.t('rec_stat_reconciliation')}</span>
+                    <strong style="font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px;">${reconciliationRate}% <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">(${totalReconciledCount}/${totalInstancesCount})</span></strong>
+                </div>
+            `;
+        }
+        
+        this.lastDisplayTemplates = displayTemplates;
+        this._renderDynamicFrequencyBadges();
+        this.renderMainContent();
     },
     
     getFilteredTemplates() {

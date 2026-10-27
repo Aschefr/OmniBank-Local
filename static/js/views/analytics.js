@@ -8,6 +8,7 @@ window.AnalyticsView = {
     _catColWidth: null,        // persisted category column width (px)
     _resizing: false,
     customRange: { enabled: false, start: null, end: null },  // day-granularity custom period
+    _cachedQueryKey: null,
 
     TYPE_CONFIG: {
         'expense_var': { emoji: '🛍️', color: '#f59e0b', sign: '-' },
@@ -112,16 +113,6 @@ window.AnalyticsView = {
         // Reset account filter (all selected)
         this.selectedAccountIds = null;
 
-        // First load to discover available years, then populate selector
-        await this.loadData();
-        this.renderAccountBar();
-
-        // Show custom period toggle only if org license is active
-        try {
-            const license = await window.LicenseManager.getStatus();
-            const wrapper = document.getElementById('analyticsCustomRangeWrapper');
-            if (wrapper && license.active) wrapper.style.display = 'flex';
-        } catch (e) { /* no license module — keep hidden */ }
         // Apply custom range toggle state to UI
         const crToggle = document.getElementById('analyticsCustomRangeToggle');
         const crInputs = document.getElementById('analyticsCustomRangeInputs');
@@ -135,6 +126,28 @@ window.AnalyticsView = {
             if (this.customRange.start) document.getElementById('analyticsCustomStart').value = this.customRange.start;
             if (this.customRange.end) document.getElementById('analyticsCustomEnd').value = this.customRange.end;
         }
+
+        // Render account bar immediately
+        this.renderAccountBar();
+
+        // Show custom period toggle only if org license is active (non-blocking)
+        if (window.LicenseManager && typeof window.LicenseManager.getStatus === 'function') {
+            window.LicenseManager.getStatus().then(license => {
+                const wrapper = document.getElementById('analyticsCustomRangeWrapper');
+                if (wrapper && license && license.active) wrapper.style.display = 'flex';
+            }).catch(() => {});
+        }
+
+        // SWR : Rendu instantané si des données correspondant à la requête actuelle sont déjà en mémoire
+        const currentQueryKey = this._buildQueryUrl();
+        let didSWR = false;
+        if (this._cachedQueryKey === currentQueryKey && this.data && this.data.by_type && Object.keys(this.data.by_type).length > 0) {
+            this.populatePeriodSelector();
+            this.renderAll(false);
+            didSWR = true;
+        }
+
+        await this.loadData(didSWR);
     },
 
     async renderAccountBar() {
@@ -295,25 +308,34 @@ window.AnalyticsView = {
         if (start && end) this.loadData();
     },
 
-    async loadData() {
+    _buildQueryUrl() {
+        let url = `/api/stats/categories_by_month?reconciled=${this.reconciled}`;
+        if (this.selectedAccountIds) {
+            url += `&account_ids=${this.selectedAccountIds.join(',')}`;
+        }
+        if (this.customRange.enabled && this.customRange.start && this.customRange.end) {
+            url += `&date_start=${this.customRange.start}&date_end=${this.customRange.end}`;
+        } else if (this.selectedYear) {
+            url += `&year=${this.selectedYear}`;
+        } else {
+            url += `&months=${this.months}`;
+        }
+        return url;
+    },
+
+    async loadData(preserveScroll = false) {
         try {
-            let url = `/api/stats/categories_by_month?reconciled=${this.reconciled}`;
-            if (this.selectedAccountIds) {
-                url += `&account_ids=${this.selectedAccountIds.join(',')}`;
-            }
-            if (this.customRange.enabled && this.customRange.start && this.customRange.end) {
-                url += `&date_start=${this.customRange.start}&date_end=${this.customRange.end}`;
-            } else if (this.selectedYear) {
-                url += `&year=${this.selectedYear}`;
-            } else {
-                url += `&months=${this.months}`;
-            }
-            this.data = await API.get(url);
+            const url = this._buildQueryUrl();
+            const data = await API.get(url);
+            this.data = data;
+            this._cachedQueryKey = url;
             this.populatePeriodSelector();
-            this.renderAll();
+            this.renderAll(preserveScroll);
         } catch (e) {
-            document.getElementById('analyticsContainer').innerHTML =
-                `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+            if (!this.data) {
+                document.getElementById('analyticsContainer').innerHTML =
+                    `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+            }
         }
     },
 
@@ -332,12 +354,16 @@ window.AnalyticsView = {
         return raw.charAt(0).toUpperCase() + raw.slice(1);
     },
 
-    renderAll() {
+    renderAll(preserveScroll = false) {
         const container = document.getElementById('analyticsContainer');
+        if (!container) return;
         if (!this.data || !this.data.by_type || Object.keys(this.data.by_type).length === 0) {
             container.innerHTML = `<p style="color:var(--text-muted);padding:20px;">${window.i18n.t('analytics_no_data')}</p>`;
             return;
         }
+
+        const scrollX = preserveScroll ? container.scrollLeft : 0;
+        const scrollY = preserveScroll ? container.scrollTop : 0;
 
         const { months, years, by_type } = this.data;
         const revYears = (years || []).slice().reverse();
@@ -350,6 +376,11 @@ window.AnalyticsView = {
             sections.push(this.renderTypeTable(txType, typeData, months, revYears));
         }
         container.innerHTML = sections.join('');
+
+        if (preserveScroll) {
+            container.scrollLeft = scrollX;
+            container.scrollTop = scrollY;
+        }
     },
 
     renderTypeTable(txType, typeData, months, years, showInactive = false, forPrint = false) {

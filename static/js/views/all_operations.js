@@ -185,6 +185,14 @@ window.AllOperationsView = {
             window.BankSyncView.ensureSyncButtonsVisibility();
         }
 
+        // SWR : Rendu instantané si des transactions sont déjà en mémoire de session
+        if (this.transactions && this.transactions.length > 0) {
+            const accList = this.accounts ? Object.values(this.accounts) : (window.app?.accounts || []);
+            this.populateFilterDropdowns(accList, this.transactions);
+            this.renderTable(false);
+            this.updateMonthNavButtons();
+        }
+
         await this.loadData();
     },
 
@@ -316,52 +324,27 @@ window.AllOperationsView = {
         if (styleTag) styleTag.innerHTML = css;
     },
 
-    async loadData() {
-        try {
-            // PERF: Fetch budgets, accounts, and transactions in parallel
-            const [budgets, accs, allTx] = await Promise.all([
-                API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
-                API.get('/api/accounts/'),
-                API.get('/api/transactions/?limit=10000')
-            ]);
-
-            // Process budgets map
-            this.budgetsMap = {};
-            this.categoryToBudgetMap = {};
-            budgets.forEach(b => {
-                this.budgetsMap[b.id] = b.name;
-                if (!b.is_project && b.categories) {
-                    b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
-                }
+    populateFilterDropdowns(accs, transactions) {
+        // Populate account select dropdown
+        const accSelect = document.getElementById('historyAccountFilter');
+        if (accSelect && accs && accs.length > 0) {
+            const currentAccVal = accSelect.value;
+            let accHtml = `<option value="" data-i18n="filter_all_accounts">${window.i18n.t('filter_all_accounts') || 'Tous les comptes'}</option>`;
+            accs.forEach(a => {
+                const icon = a.type && (a.type.toLowerCase().includes('livret') || a.type.toLowerCase().includes('epargne') || a.type.toLowerCase().includes('saving')) ? '🏦 ' :
+                            (a.type && (a.type.toLowerCase().includes('prêt') || a.type.toLowerCase().includes('pret') || a.type.toLowerCase().includes('emprunt') || a.type.toLowerCase().includes('loan')) ? '📑 ' : '💳 ');
+                accHtml += `<option value="${a.id}">${icon}${a.name}</option>`;
             });
-
-            // Process accounts
-            this.accounts = {};
-            this.accountNames = {};
-            accs.forEach(a => { this.accounts[a.id] = a; this.accountNames[a.id] = a.name; });
-
-            // Sort by operation date descending (newest first)
-            this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
-            
-            // Populate account select dropdown
-            const accSelect = document.getElementById('historyAccountFilter');
-            if (accSelect) {
-                const currentAccVal = accSelect.value;
-                let accHtml = `<option value="" data-i18n="filter_all_accounts">${window.i18n.t('filter_all_accounts') || 'Tous les comptes'}</option>`;
-                accs.forEach(a => {
-                    const icon = a.type && (a.type.toLowerCase().includes('livret') || a.type.toLowerCase().includes('epargne') || a.type.toLowerCase().includes('saving')) ? '🏦 ' :
-                                (a.type && (a.type.toLowerCase().includes('prêt') || a.type.toLowerCase().includes('pret') || a.type.toLowerCase().includes('emprunt') || a.type.toLowerCase().includes('loan')) ? '📑 ' : '💳 ');
-                    accHtml += `<option value="${a.id}">${icon}${a.name}</option>`;
-                });
-                accSelect.innerHTML = accHtml;
-                if (currentAccVal) {
-                    accSelect.value = currentAccVal;
-                }
+            accSelect.innerHTML = accHtml;
+            if (currentAccVal) {
+                accSelect.value = currentAccVal;
             }
+        }
 
-            // Populate category multi-select (including uncategorized option if present)
-            const hasUncategorized = this.transactions.some(t => !t.category);
-            const categories = [...new Set(this.transactions.map(t => t.category).filter(Boolean))].sort();
+        // Populate category multi-select (including uncategorized option if present)
+        if (transactions && transactions.length > 0) {
+            const hasUncategorized = transactions.some(t => !t.category);
+            const categories = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
             const uncatLabel = (window.i18n && window.i18n.t('uncategorized')) || 'Sans catégorie';
             if (hasUncategorized && !categories.includes(uncatLabel)) {
                 categories.unshift(uncatLabel);
@@ -380,7 +363,7 @@ window.AllOperationsView = {
             const monthSelect = document.getElementById('historyMonthFilter');
             if (monthSelect) {
                 const uniqueMonths = [...new Set(
-                    this.transactions
+                    transactions
                         .map(tx => tx.date_operation ? tx.date_operation.substring(0, 7) : null)
                         .filter(Boolean)
                 )].sort().reverse();
@@ -418,6 +401,38 @@ window.AllOperationsView = {
                     monthSelect.value = currentVal;
                 }
             }
+        }
+    },
+
+    async loadData() {
+        try {
+            // PERF: Fetch budgets, accounts, and transactions in parallel
+            const [budgets, accs, allTx] = await Promise.all([
+                API.get('/api/budgets/').catch(e => { console.error('Failed to load budgets', e); return []; }),
+                API.get('/api/accounts/'),
+                API.get('/api/transactions/?limit=10000')
+            ]);
+
+            // Process budgets map
+            this.budgetsMap = {};
+            this.categoryToBudgetMap = {};
+            budgets.forEach(b => {
+                this.budgetsMap[b.id] = b.name;
+                if (!b.is_project && b.categories) {
+                    b.categories.forEach(cat => { this.categoryToBudgetMap[cat] = b.name; });
+                }
+            });
+
+            // Process accounts
+            this.accounts = {};
+            this.accountNames = {};
+            accs.forEach(a => { this.accounts[a.id] = a; this.accountNames[a.id] = a.name; });
+
+            // Sort by operation date descending (newest first)
+            this.transactions = allTx.sort((a, b) => new Date(b.date_operation) - new Date(a.date_operation));
+            
+            // Populate filter dropdowns
+            this.populateFilterDropdowns(accs, this.transactions);
 
             // Apply pending filter from AnalyticsView / OverviewView drilldown
             if (this.pendingFilter) {

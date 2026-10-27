@@ -325,6 +325,12 @@ window.BankSyncView = {
     },
 
     async init() {
+        // SWR : Rendu instantané si des connexions bancaires sont déjà en mémoire (0 ms)
+        if (this.connections && this.connections.length > 0) {
+            if (typeof this.renderVaultStatusBar === 'function') this.renderVaultStatusBar();
+            if (typeof this.renderConnectionsList === 'function') this.renderConnectionsList();
+        }
+
         await Promise.all([
             this.loadConnections(),
             this.loadBackends(),

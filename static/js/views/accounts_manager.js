@@ -133,16 +133,25 @@ window.AccountsView = {
     },
 
     async init() {
-        await Promise.all([
-            this.loadData(),
-            window.BankSyncView ? window.BankSyncView.init() : Promise.resolve()
-        ]);
+        // SWR : Rendu instantané si des comptes sont déjà en mémoire de session (0 ms)
+        const knownAccounts = (this.accounts && this.accounts.length > 0) ? this.accounts : window.app.accounts;
+        if (knownAccounts && knownAccounts.length > 0) {
+            this.accounts = knownAccounts;
+            this.mainAccountId = window.app.mainAccount?.id || this.mainAccountId;
+            this.renderTable();
+        }
+
+        await this.loadData();
+
         // Close popover on outside click
-        document.addEventListener('click', (e) => {
-            if (this._colorPopoverId && !e.target.closest('.acc-color-popover') && !e.target.classList.contains('acc-color-dot')) {
-                this._closePopover();
-            }
-        });
+        if (!this._popoverListenerAttached) {
+            this._popoverListenerAttached = true;
+            document.addEventListener('click', (e) => {
+                if (this._colorPopoverId && !e.target.closest('.acc-color-popover') && !e.target.classList.contains('acc-color-dot')) {
+                    this._closePopover();
+                }
+            });
+        }
     },
 
     async loadData() {
@@ -150,7 +159,7 @@ window.AccountsView = {
             const [accs, mainAcc, configs, conns] = await Promise.all([
                 API.get('/api/accounts/'),
                 API.get('/api/stats/main_account').catch(() => null),
-                API.get('/api/config/').catch(() => ({})),
+                (window.app && window.app.config) ? window.app.config : API.get('/api/config/').catch(() => ({})),
                 API.get('/api/bank-sync/connections').catch(() => [])
             ]);
 

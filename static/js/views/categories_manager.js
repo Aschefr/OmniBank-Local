@@ -133,6 +133,10 @@ window.CategoriesView = {
     },
 
     async init() {
+        // SWR : Rendu instantané si des catégories sont déjà en mémoire de session (0 ms)
+        if (this.categories && this.categories.length > 0) {
+            this.renderTable();
+        }
         await this.loadData();
     },
 
