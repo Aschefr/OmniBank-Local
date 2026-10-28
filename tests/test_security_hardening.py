@@ -93,6 +93,15 @@ class TestCORSPolicy:
         assert res.headers.get("access-control-allow-origin") == "capacitor://localhost"
         assert "PATCH" in res.headers.get("access-control-allow-methods", "")
 
+    def test_system_discovery_endpoint(self):
+        res = client.get("/api/system/discovery")
+        assert res.status_code == 200
+        data = res.json()
+        assert data.get("app") == "OmniBank-Local"
+        assert data.get("status") == "ok"
+        assert "version" in data
+        assert "hostname" in data
+
 
 # ── FIX-10 : Legacy License OMNI- Passive Migration ────────────────
 class TestLicensePassiveMigration:

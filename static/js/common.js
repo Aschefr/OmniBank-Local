@@ -455,6 +455,9 @@ if (typeof window._originalFetch === 'undefined') {
             : (resource instanceof Request ? resource.url : '');
 
         const isApi = urlStr.includes('/api/');
+        if (isApi && window.ServerConfig && typeof window.ServerConfig.isDemoMode === 'function' && window.ServerConfig.isDemoMode()) {
+            return window.ServerConfig.handleDemoRequest(urlStr, config);
+        }
         const isSilent = (config && config.silent === true) || (config && config.headers && (config.headers['X-Silent'] === 'true' || config.headers.silent === true));
 
         if (isApi && !isSilent && window.GlobalProgress) {

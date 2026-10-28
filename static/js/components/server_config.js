@@ -1,7 +1,144 @@
-// server_config.js - Remote Server & Local Network Auto-Discovery Manager
+// server_config.js - Remote Server, Local Network Auto-Discovery & Offline Store Demo Mode
 
 const ServerConfig = {
-    openModal() {
+    _demoState: null,
+
+    isDemoMode() {
+        return localStorage.getItem('omnibank_demo_mode') === 'true';
+    },
+
+    enableDemoMode() {
+        localStorage.setItem('omnibank_demo_mode', 'true');
+        localStorage.removeItem('omnibank_server_url');
+        this.closeModal();
+        window.location.reload();
+    },
+
+    disableDemoMode() {
+        localStorage.removeItem('omnibank_demo_mode');
+        this.openModal({ autoScan: true });
+    },
+
+    _ensureDemoBanner() {
+        if (!this.isDemoMode() || typeof document === 'undefined') return;
+        if (document.getElementById('omniDemoModeBanner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'omniDemoModeBanner';
+        banner.style.cssText = 'background:linear-gradient(90deg,#4f46e5,#0ea5e9);color:#fff;font-size:12px;font-weight:600;padding:6px 14px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:9999;position:relative;';
+        banner.innerHTML = `
+            <span>✨ Mode Démo Hors-ligne (Données simulées)</span>
+            <button onclick="window.ServerConfig.disableDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;">Connecter mon serveur</button>
+        `;
+        document.body.prepend(banner);
+    },
+
+    _getDemoState() {
+        if (this._demoState) return this._demoState;
+        const today = new Date().toISOString().slice(0, 10);
+        const ym = today.slice(0, 7);
+        this._demoState = {
+            accounts: [
+                { id: 1, name: 'Compte Courant Principal', initial_balance: 2450.0, current_balance: 3185.5, is_savings: false, is_archived: false, currency: 'EUR' },
+                { id: 2, name: 'Livret A Épargne', initial_balance: 8500.0, current_balance: 8800.0, is_savings: true, is_archived: false, currency: 'EUR' }
+            ],
+            categories: [
+                { id: 1, name: 'Revenus & Salaires', type: 'income', parent_id: null, icon: '💰', color: '#10b981' },
+                { id: 2, name: 'Logement & Charges', type: 'expense_fixed', parent_id: null, icon: '🏠', color: '#6366f1' },
+                { id: 3, name: 'Alimentation & Courses', type: 'expense_var', parent_id: null, icon: '🛒', color: '#f59e0b' },
+                { id: 4, name: 'Loisirs & Sorties', type: 'expense_var', parent_id: null, icon: '🎬', color: '#ec4899' }
+            ],
+            transactions: [
+                { id: 101, date: `${ym}-01`, description: 'Virement Salaire Mensuel', amount: 2850.0, type: 'income', category_id: 1, category_name: 'Revenus & Salaires', from_account_id: null, to_account_id: 1, is_checked: true },
+                { id: 102, date: `${ym}-05`, description: 'Loyer & Charges', amount: 890.0, type: 'expense_fixed', category_id: 2, category_name: 'Logement & Charges', from_account_id: 1, to_account_id: null, is_checked: true },
+                { id: 103, date: `${ym}-12`, description: 'Supermarché Bio', amount: 142.5, type: 'expense_var', category_id: 3, category_name: 'Alimentation & Courses', from_account_id: 1, to_account_id: null, is_checked: true },
+                { id: 104, date: `${ym}-15`, description: 'Épargne Mensuelle Livret A', amount: 300.0, type: 'transfer', category_id: null, category_name: 'Virement interne', from_account_id: 1, to_account_id: 2, is_checked: true },
+                { id: 105, date: today, description: 'Restaurant & Cinéma', amount: 82.0, type: 'expense_var', category_id: 4, category_name: 'Loisirs & Sorties', from_account_id: 1, to_account_id: null, is_checked: false }
+            ],
+            budgets: [
+                { id: 1, name: 'Alimentation', amount: 450.0, spent: 142.5, remaining: 307.5, period: 'monthly', category_ids: [3] },
+                { id: 2, name: 'Loisirs & Sorties', amount: 250.0, spent: 82.0, remaining: 168.0, period: 'monthly', category_ids: [4] }
+            ]
+        };
+        return this._demoState;
+    },
+
+    async handleDemoRequest(urlStr, config = {}) {
+        setTimeout(() => this._ensureDemoBanner(), 100);
+        const state = this._getDemoState();
+        const method = (config && config.method) ? config.method.toUpperCase() : 'GET';
+        const path = urlStr.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+
+        const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+            status,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (path === '/api/version' || path === '/api/system/discovery') {
+            return jsonResponse({ app: 'OmniBank-Local', name: 'OmniBank Démo', version: '1.2.11', status: 'ok' });
+        }
+        if (path === '/api/health') {
+            return jsonResponse({ status: 'ok' });
+        }
+        if (path.startsWith('/api/profiles')) {
+            return jsonResponse({
+                active_profile_id: 'demo',
+                profiles: [{ id: 'demo', name: 'Espace Démo', color: '#6366f1', icon: '✨', has_pin: false }]
+            });
+        }
+        if (path.startsWith('/api/config')) {
+            return jsonResponse({ base_currency: 'EUR', enable_ai: 'false', enable_org_mode: 'false' });
+        }
+        if (path.startsWith('/api/setup/status')) {
+            return jsonResponse({ needs_setup: false, has_accounts: true });
+        }
+        if (path.startsWith('/api/accounts')) {
+            return jsonResponse(state.accounts);
+        }
+        if (path.startsWith('/api/categories')) {
+            return jsonResponse(state.categories);
+        }
+        if (path.startsWith('/api/transactions')) {
+            if (method === 'POST' && config && config.body) {
+                try {
+                    const body = JSON.parse(config.body);
+                    const newTx = Object.assign({ id: Date.now(), is_checked: true }, body);
+                    state.transactions.unshift(newTx);
+                    return jsonResponse(newTx, 201);
+                } catch (_) {}
+            }
+            return jsonResponse({ items: state.transactions, total: state.transactions.length, transactions: state.transactions });
+        }
+        if (path.startsWith('/api/budgets')) {
+            return jsonResponse(state.budgets);
+        }
+        if (path.startsWith('/api/recurrences')) {
+            return jsonResponse([]);
+        }
+        if (path.startsWith('/api/notifications')) {
+            return jsonResponse([]);
+        }
+        if (path.startsWith('/api/history')) {
+            return jsonResponse({ can_undo: false, can_redo: false, items: [] });
+        }
+        if (path.startsWith('/api/license')) {
+            return jsonResponse({ active: false });
+        }
+        if (path.startsWith('/api/stats')) {
+            return jsonResponse({
+                total_balance: 11985.5,
+                checking_balance: 3185.5,
+                savings_balance: 8800.0,
+                monthly_income: 2850.0,
+                monthly_expenses: 1114.5,
+                remaining_to_live: 1735.5,
+                accounts: state.accounts,
+                recent_transactions: state.transactions
+            });
+        }
+        return jsonResponse({});
+    },
+
+    openModal(opts = {}) {
         const modal = document.getElementById('serverConfigModal');
         if (!modal) return;
 
@@ -23,11 +160,15 @@ const ServerConfig = {
                 if (hostInput) hostInput.value = currentUrl;
             }
         } else {
-            if (hostInput) hostInput.value = window.location.hostname || '';
+            const hn = window.location.hostname || '';
+            if (hostInput) hostInput.value = (hn === 'localhost' || hn === '127.0.0.1') ? '' : hn;
             if (portInput) portInput.value = window.location.port || '8434';
         }
 
         modal.style.display = 'flex';
+        if (opts && opts.autoScan) {
+            this.discoverServers();
+        }
     },
 
     closeModal() {
@@ -53,13 +194,19 @@ const ServerConfig = {
             return false;
         }
 
+        // Reconnaissance spéciale du mot-clé "demo" pour les vérificateurs Apple App Store / Google Play
+        if (host.toLowerCase() === 'demo' || host.toLowerCase() === 'demo.omnibank.local') {
+            this.enableDemoMode();
+            return 'demo';
+        }
+
         let cleanHost = host.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
         let protocol = 'http';
         if (host.startsWith('https://') || port === '443') {
             protocol = 'https';
         }
 
-        const testUrl = `${protocol}://${cleanHost}:${port}`;
+        const testUrl = cleanHost.includes(':') ? `${protocol}://${cleanHost}` : `${protocol}://${cleanHost}:${port}`;
 
         if (statusEl) {
             statusEl.style.display = 'block';
@@ -73,23 +220,31 @@ const ServerConfig = {
             const timeoutId = setTimeout(() => controller.abort(), 4000);
 
             const fetchFn = window._originalFetch || window.fetch;
-            const res = await fetchFn(`${testUrl}/api/version`, {
+            let res = await fetchFn(`${testUrl}/api/system/discovery`, {
                 signal: controller.signal,
                 headers: { 'Accept': 'application/json' }
-            });
+            }).catch(() => null);
+
+            if (!res || !res.ok) {
+                res = await fetchFn(`${testUrl}/api/version`, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+            }
             clearTimeout(timeoutId);
 
-            if (res.ok) {
+            if (res && res.ok) {
                 const json = await res.json();
                 const ver = json.version || 'Inconnue';
+                const srvName = json.name || 'OmniBank';
                 if (statusEl) {
                     statusEl.style.background = 'rgba(54, 179, 126, 0.15)';
                     statusEl.style.color = 'var(--success)';
-                    statusEl.textContent = `✅ Connexion réussie ! Serveur OmniBank v${ver} disponible.`;
+                    statusEl.textContent = `✅ Connexion réussie ! ${srvName} (v${ver}) disponible.`;
                 }
                 return testUrl;
             } else {
-                throw new Error(`HTTP ${res.status}`);
+                throw new Error(`HTTP ${res ? res.status : 'Erreur'}`);
             }
         } catch (e) {
             if (statusEl) {
@@ -103,7 +258,8 @@ const ServerConfig = {
 
     async saveConnection() {
         const validatedUrl = await this.testConnection();
-        if (validatedUrl) {
+        if (validatedUrl && validatedUrl !== 'demo') {
+            localStorage.removeItem('omnibank_demo_mode');
             API.setBaseUrl(validatedUrl);
             if (typeof showToast === 'function') {
                 showToast(`Serveur configuré : ${validatedUrl}`, 'success');
@@ -114,7 +270,7 @@ const ServerConfig = {
     },
 
     async getLocalIPSubnets() {
-        const subnets = new Set();
+        const subnets = new Set(['192.168.1', '192.168.0']);
         return new Promise((resolve) => {
             try {
                 const pc = new RTCPeerConnection({ iceServers: [] });
@@ -145,7 +301,7 @@ const ServerConfig = {
                     }
                 };
             } catch(e) {
-                resolve([]);
+                resolve(Array.from(subnets));
             }
         });
     },
@@ -159,17 +315,17 @@ const ServerConfig = {
             statusEl.style.display = 'block';
             statusEl.style.background = 'rgba(51, 102, 255, 0.15)';
             statusEl.style.color = 'var(--accent)';
-            statusEl.textContent = '🔍 Détection dynamique des sous-réseaux Wi-Fi en cours...';
+            statusEl.textContent = '🔍 Recherche des serveurs OmniBank sur le Wi-Fi local...';
         }
 
         if (discContainer) discContainer.style.display = 'block';
-        if (discList) discList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:8px;">Recherche d\'instances sur les cartes réseau...</div>';
+        if (discList) discList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:8px;">Scan mDNS & sous-réseaux locaux en cours...</div>';
 
         const found = [];
         const fetchFn = window._originalFetch || window.fetch;
 
-        // Dynamic candidates: localhost, user input host, active host, WebRTC detected local subnets
-        const candidates = ['localhost', '127.0.0.1'];
+        // Candidats prioritaires : mDNS .local et boucle locale
+        const candidates = ['omnibank.local', 'unraid.local', 'localhost', '127.0.0.1'];
         const currentHost = window.location.hostname;
         const inputHost = document.getElementById('serverHostInput') ? document.getElementById('serverHostInput').value.trim() : '';
 
@@ -187,7 +343,6 @@ const ServerConfig = {
                     if (!candidates.includes(ip)) candidates.push(ip);
                 }
             } else if (/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(clean)) {
-                // User typed a prefix (e.g. 192.168.20)
                 for (let i = 1; i <= 254; i++) {
                     const ip = `${clean}.${i}`;
                     if (!candidates.includes(ip)) candidates.push(ip);
@@ -198,7 +353,6 @@ const ServerConfig = {
         addHostAndSubnet(inputHost);
         addHostAndSubnet(currentHost);
 
-        // Dynamically detect local network subnets via WebRTC local ICE candidates
         const detectedSubnets = await this.getLocalIPSubnets();
         detectedSubnets.forEach(prefix => {
             for (let i = 1; i <= 254; i++) {
@@ -213,19 +367,26 @@ const ServerConfig = {
         const checkServer = async (ip) => {
             try {
                 const controller = new AbortController();
-                const tid = setTimeout(() => controller.abort(), 1200);
-                const res = await fetchFn(`http://${ip}:${port}/api/version`, { signal: controller.signal });
+                const tid = setTimeout(() => controller.abort(), 1100);
+                let res = await fetchFn(`http://${ip}:${port}/api/system/discovery`, { signal: controller.signal }).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetchFn(`http://${ip}:${port}/api/version`, { signal: controller.signal });
+                }
                 clearTimeout(tid);
-                if (res.ok) {
+                if (res && res.ok) {
                     const json = await res.json();
-                    return { ip, port, version: json.version || '?' };
+                    return {
+                        ip,
+                        port,
+                        name: json.name || 'OmniBank Local',
+                        version: json.version || '?'
+                    };
                 }
             } catch (e) {}
             return null;
         };
 
-        // Run checks in chunks of 25 concurrent probes
-        const chunkSize = 25;
+        const chunkSize = 30;
         for (let i = 0; i < candidates.length; i += chunkSize) {
             const batch = candidates.slice(i, i + chunkSize);
             const results = await Promise.all(batch.map(ip => checkServer(ip)));
@@ -234,23 +395,23 @@ const ServerConfig = {
                     found.push(r);
                 }
             });
-            if (found.length > 0 && i >= 50) break; // Keep scanning a bit even if one found
+            if (found.length > 0 && i >= 60) break;
         }
 
         if (found.length > 0) {
             if (statusEl) {
                 statusEl.style.background = 'rgba(54, 179, 126, 0.15)';
                 statusEl.style.color = 'var(--success)';
-                statusEl.textContent = `🎉 ${found.length} instance(s) OmniBank détectée(s) !`;
+                statusEl.textContent = `🎉 ${found.length} serveur(s) OmniBank détecté(s) !`;
             }
             if (discList) {
                 discList.innerHTML = found.map(s => `
                     <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-base); padding:8px 12px; border-radius:8px; border:1px solid var(--border-color); cursor:pointer;" onclick="window.ServerConfig.selectDiscovered('${s.ip}', ${s.port})">
                         <div>
-                            <div style="font-weight:700; font-size:13px; color:var(--text-main);">🖥️ ${s.ip}:${s.port}</div>
+                            <div style="font-weight:700; font-size:13px; color:var(--text-main);">🟢 ${s.name} (${s.ip}:${s.port})</div>
                             <div style="font-size:11px; color:var(--text-muted);">OmniBank v${s.version}</div>
                         </div>
-                        <button class="btn btn-primary" style="font-size:11px; padding:4px 10px;">Se connecter</button>
+                        <button class="btn btn-primary" style="font-size:11px; padding:4px 10px;">Connexion 1-Clic</button>
                     </div>
                 `).join('');
             }
@@ -258,10 +419,10 @@ const ServerConfig = {
             if (statusEl) {
                 statusEl.style.background = 'rgba(245, 158, 11, 0.15)';
                 statusEl.style.color = '#f59e0b';
-                statusEl.textContent = 'Aucun serveur détecté automatiquement. Saisissez l\'IP manuellement.';
+                statusEl.textContent = 'Aucun serveur détecté sur le Wi-Fi. Saisissez l\'IP manuellement ou lancez le Mode Démo.';
             }
             if (discList) {
-                discList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:8px;">Aucune instance trouvée sur le Wi-Fi local.</div>';
+                discList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:8px;">Aucune instance détectée automatiquement.</div>';
             }
         }
     },

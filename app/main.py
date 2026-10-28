@@ -666,6 +666,20 @@ def get_version():
         return {"version": "?"}
 
 
+@app.get("/api/system/discovery", tags=["system"], summary="Métadonnées de découverte réseau (Mobile & LAN)")
+def system_discovery():
+    """Retourne les informations d'identification du serveur pour l'auto-découverte mobile."""
+    ver_info = get_version()
+    hn = _get_local_hostname() or "omnibank-server"
+    return {
+        "app": "OmniBank-Local",
+        "name": f"OmniBank ({hn})",
+        "hostname": hn,
+        "version": ver_info.get("version", "1.2.11"),
+        "status": "ok",
+    }
+
+
 # In-memory changelog cache with mtime check to avoid repeated file reads while remaining dynamic
 _changelog_cache = None
 _changelog_mtime = 0

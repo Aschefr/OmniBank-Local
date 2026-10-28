@@ -64,6 +64,21 @@ build/
 !scripts/packaging/*.spec
 !e2e/*.spec.js
 
+# Capacitor Mobile (Android & iOS)
+www/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/.gradle/
+android/local.properties
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/DerivedData/
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+
 # Tauri
 src-tauri/target/
 src-tauri/bin/
