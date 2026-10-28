@@ -193,6 +193,12 @@ class App {
                 }
             } else {
                 console.error("Failed to load profiles", pDataRes.reason);
+                if (window.ServerConfig && typeof window.ServerConfig.openModal === 'function') {
+                    window.hideAppInitLoader();
+                    const container = document.querySelector('.app-container');
+                    if (container) container.style.opacity = '1';
+                    window.ServerConfig.openModal({ autoScan: true });
+                }
             }
 
             // Load Global Config

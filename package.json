@@ -4,16 +4,24 @@
   "private": true,
   "scripts": {
     "tauri": "tauri",
+    "cap:prepare": "python scripts/prepare_capacitor_www.py",
+    "cap:sync": "python scripts/prepare_capacitor_www.py && npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-process": "^2",
     "@tauri-apps/plugin-shell": "^2",

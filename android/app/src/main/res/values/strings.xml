@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OmniBank</string>
+    <string name="title_activity_main">OmniBank</string>
+    <string name="package_name">com.amifystudio.omnibank</string>
+    <string name="custom_url_scheme">com.amifystudio.omnibank</string>
+</resources>
