@@ -252,7 +252,7 @@ API REST locale pour **OmniBank Local**, application financière personnelle et 
 app = FastAPI(
     title="OmniBank Local - REST API",
     description=APP_DESCRIPTION,
-    version="1.2.5",
+    version="1.2.11",
     openapi_tags=OPENAPI_TAGS,
     docs_url=None,
     redoc_url=None,
@@ -369,6 +369,9 @@ _CORS_ORIGINS = [
     "http://localhost:8434",
     "http://127.0.0.1:8435",
     "http://localhost:8435",
+    "capacitor://localhost",
+    "http://localhost",
+    "https://localhost",
     "tauri://localhost",
     "https://tauri.localhost",
 ]
@@ -379,7 +382,7 @@ app.add_middleware(
     allow_origins=_CORS_ORIGINS,
     allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=500)

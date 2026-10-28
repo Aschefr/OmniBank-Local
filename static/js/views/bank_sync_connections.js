@@ -712,7 +712,7 @@ Object.assign(window.BankSyncView, {
             queryParams.set("vault_token", token);
         }
 
-        const sseUrl = `/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`;
+        const sseUrl = window.API ? window.API.fullUrl(`/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`) : `/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`;
         const es = new EventSource(sseUrl);
         this.mappingEventSource = es;
 
