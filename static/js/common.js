@@ -464,12 +464,14 @@ if (typeof window._originalFetch === 'undefined') {
             window.GlobalProgress.start();
         }
 
-        if (typeof resource === 'string' && resource.startsWith('/')) {
+        const isStaticAsset = urlStr.startsWith('/static/') || urlStr.startsWith('/i18n/') || urlStr.startsWith('i18n/') || urlStr.startsWith('/css/') || urlStr.startsWith('/js/') || urlStr.startsWith('/img/') || urlStr.includes('.json');
+
+        if (!isStaticAsset && typeof resource === 'string' && resource.startsWith('/')) {
             const baseUrl = API.getBaseUrl();
             if (baseUrl) {
                 resource = baseUrl.replace(/\/+$/, '') + resource;
             }
-        } else if (resource instanceof Request && typeof resource.url === 'string' && resource.url.startsWith('/')) {
+        } else if (!isStaticAsset && resource instanceof Request && typeof resource.url === 'string' && resource.url.startsWith('/')) {
             const baseUrl = API.getBaseUrl();
             if (baseUrl) {
                 const target = baseUrl.replace(/\/+$/, '') + resource.url;
