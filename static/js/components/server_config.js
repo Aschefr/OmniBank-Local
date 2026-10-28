@@ -433,7 +433,60 @@ const ServerConfig = {
         if (hostInput) hostInput.value = ip;
         if (portInput) portInput.value = port;
         this.saveConnection();
+    },
+
+    resetLocalAppData() {
+        try {
+            localStorage.removeItem('omnibank_server_url');
+            localStorage.removeItem('omnibank_demo_mode');
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch (e) {}
+        this.closeModal();
+        window.location.reload();
+    },
+
+    initNativeBridge() {
+        if (typeof window === 'undefined' || !window.Capacitor) return;
+        try {
+            const cap = window.Capacitor;
+            const plugins = cap.Plugins || {};
+            if (plugins.SplashScreen && typeof plugins.SplashScreen.hide === 'function') {
+                setTimeout(() => plugins.SplashScreen.hide().catch(() => {}), 300);
+            }
+            if (plugins.StatusBar && typeof plugins.StatusBar.setBackgroundColor === 'function') {
+                plugins.StatusBar.setBackgroundColor({ color: '#0b1120' }).catch(() => {});
+            }
+            if (plugins.App && typeof plugins.App.addListener === 'function') {
+                plugins.App.addListener('backButton', () => {
+                    const modal = document.getElementById('serverConfigModal');
+                    if (modal && modal.style.display === 'flex') {
+                        this.closeModal();
+                        return;
+                    }
+                    const sidebar = document.querySelector('.app-sidebar.mobile-open');
+                    if (sidebar) {
+                        sidebar.classList.remove('mobile-open');
+                        const overlay = document.querySelector('.sidebar-overlay.active');
+                        if (overlay) overlay.classList.remove('active');
+                        return;
+                    }
+                    if (window.app && window.app.currentView && window.app.currentView !== 'dashboard') {
+                        if (typeof window.app.switchView === 'function') {
+                            window.app.switchView('dashboard');
+                            return;
+                        }
+                    }
+                    if (typeof plugins.App.minimizeApp === 'function') {
+                        plugins.App.minimizeApp().catch(() => {});
+                    }
+                });
+            }
+        } catch (e) {}
     }
 };
 
 window.ServerConfig = ServerConfig;
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => ServerConfig.initNativeBridge());
+}
