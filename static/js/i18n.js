@@ -23,7 +23,8 @@ class I18nManager {
         const found = [];
         for (const l of this.knownLangs) {
             try {
-                const res = await fetch(`/static/i18n/${l.code}.json?v=${Date.now()}`, { method: 'HEAD' });
+                let res = await fetch(`/static/i18n/${l.code}.json?v=${Date.now()}`, { method: 'HEAD' });
+                if (!res.ok) res = await fetch(`i18n/${l.code}.json?v=${Date.now()}`, { method: 'HEAD' });
                 if (res.ok) {
                     found.push(l);
                 }
@@ -50,7 +51,8 @@ class I18nManager {
         }
 
         try {
-            const response = await fetch(`/static/i18n/${this.lang}.json?v=${Date.now()}`);
+            let response = await fetch(`/static/i18n/${this.lang}.json?v=${Date.now()}`);
+            if (!response.ok) response = await fetch(`i18n/${this.lang}.json?v=${Date.now()}`);
             if (response.ok) {
                 this.translations = await response.json();
                 document.documentElement.lang = this.lang;

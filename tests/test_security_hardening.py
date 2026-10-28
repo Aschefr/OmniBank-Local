@@ -85,6 +85,14 @@ class TestCORSPolicy:
         })
         assert res.headers.get("access-control-allow-origin") == "tauri://localhost"
 
+    def test_cors_allows_capacitor_origin_and_patch(self):
+        res = client.options("/api/health", headers={
+            "Origin": "capacitor://localhost",
+            "Access-Control-Request-Method": "PATCH"
+        })
+        assert res.headers.get("access-control-allow-origin") == "capacitor://localhost"
+        assert "PATCH" in res.headers.get("access-control-allow-methods", "")
+
 
 # ── FIX-10 : Legacy License OMNI- Passive Migration ────────────────
 class TestLicensePassiveMigration:
