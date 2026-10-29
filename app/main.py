@@ -377,6 +377,39 @@ _CORS_ORIGINS = [
 ]
 _CORS_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3}|.*\.ts\.net|.*\.local)(:\d+)?$"
 
+# Protection PIN (SEC-08) : si le profil actif a un PIN, toute donnée exige une session déverrouillée.
+# Déclaré avant CORS pour que les réponses 401 portent les en-têtes CORS (app mobile).
+import re as _re
+from starlette.responses import JSONResponse as _JSONResponse
+
+_PIN_PROTECTED_PREFIXES = ("/api/", "/uploads/", "/data/uploads/")
+_PIN_PUBLIC_ROUTES = [
+    ("GET", _re.compile(r"^/api/(health|version|changelog|system/discovery)/?$")),
+    ("GET", _re.compile(r"^/api/profiles/?$")),
+    ("GET", _re.compile(r"^/api/profiles/active/?$")),
+    ("POST", _re.compile(r"^/api/profiles/lock/?$")),
+    ("POST", _re.compile(r"^/api/profiles/[^/]+/activate/?$")),
+    ("POST", _re.compile(r"^/api/profiles/[^/]+/pin/recover/?$")),
+]
+
+@app.middleware("http")
+async def pin_session_guard(request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or not path.startswith(_PIN_PROTECTED_PREFIXES):
+        return await call_next(request)
+    if any(request.method == m and rx.match(path) for m, rx in _PIN_PUBLIC_ROUTES):
+        return await call_next(request)
+
+    from app.profile_manager import get_active_profile, has_pin
+    from app.services import pin_session
+    active = get_active_profile()
+    if has_pin(active) and not pin_session.is_valid(pin_session.get_request_token(request), active["id"]):
+        return _JSONResponse(
+            status_code=401,
+            content={"detail": "Profil verrouillé : code PIN requis.", "code": "pin_required", "profile_id": active["id"]},
+        )
+    return await call_next(request)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,

@@ -513,7 +513,11 @@ window.SetupWizard = {
         // Sauvegarder le code PIN
         if (pinEnabled && pin) {
             try {
-                await API.post(`/api/profiles/${this._activeProfileId}/pin`, { pin });
+                const pinRes = await API.post(`/api/profiles/${this._activeProfileId}/pin`, { pin });
+                if (pinRes && pinRes.session_token) API.setSessionToken(pinRes.session_token);
+                if (pinRes && pinRes.recovery_code && window.app && window.app.showRecoveryCode) {
+                    await window.app.showRecoveryCode(pinRes.recovery_code);
+                }
                 showToast('Code PIN configuré avec succès', 'success');
             } catch (e) {
                 console.warn('[SetupWizard] Erreur enregistrement PIN', e);

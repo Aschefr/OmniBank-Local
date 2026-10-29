@@ -135,6 +135,24 @@ const API = {
             localStorage.removeItem('omnibank_server_url');
         }
     },
+    // Jeton de session des profils protégés par PIN (SEC-08). localStorage : survit au
+    // changement de profil (qui vide sessionStorage) ; le serveur le révoque au verrouillage.
+    SESSION_KEY: 'omni_session_token',
+    getSessionToken() {
+        try { return localStorage.getItem(this.SESSION_KEY) || ''; } catch (_) { return ''; }
+    },
+    setSessionToken(token) {
+        try {
+            if (token) localStorage.setItem(this.SESSION_KEY, token);
+            else localStorage.removeItem(this.SESSION_KEY);
+        } catch (_) {}
+    },
+    /** Ajoute le jeton aux URL ouvertes hors fetch (EventSource, téléchargements, nouvel onglet). */
+    withSession(url) {
+        const token = this.getSessionToken();
+        if (!token || !url) return url;
+        return `${url}${url.includes('?') ? '&' : '?'}omni_session=${encodeURIComponent(token)}`;
+    },
     fullUrl(endpoint) {
         const base = this.getBaseUrl();
         if (!base) return endpoint;
@@ -479,8 +497,29 @@ if (typeof window._originalFetch === 'undefined') {
             }
         }
 
+        const needsSession = isApi || urlStr.includes('/uploads/');
+        const sessionToken = needsSession ? API.getSessionToken() : '';
+        if (sessionToken && !(resource instanceof Request)) {
+            config = Object.assign({}, config);
+            const headers = new Headers(config.headers || {});
+            headers.set('X-OmniBank-Session', sessionToken);
+            config.headers = headers;
+        }
+
         try {
-            const p = window._originalFetch.call(this, resource, config);
+            let p = window._originalFetch.call(this, resource, config);
+            if (needsSession) {
+                p = Promise.resolve(p).then(res => {
+                    if (res.status === 401) {
+                        res.clone().json().then(body => {
+                            if (body && body.code === 'pin_required' && window.app && typeof window.app.handlePinRequired === 'function') {
+                                window.app.handlePinRequired();
+                            }
+                        }).catch(() => {});
+                    }
+                    return res;
+                });
+            }
             if (isApi && !isSilent && window.GlobalProgress) {
                 return Promise.resolve(p).finally(() => {
                     window.GlobalProgress.done();

@@ -1000,7 +1000,7 @@ window.AllOperationsView = {
     },
 
     async _openAttachment(path) {
-        const fileUrl = `${window.location.origin}/${path}`;
+        const fileUrl = API.withSession(`${window.location.origin}/${path}`);
         if (window.__TAURI_INTERNALS__) {
             try {
                 await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });

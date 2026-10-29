@@ -42,6 +42,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
                                 ${isDefault ? `<span style="display:inline-block; margin-right:6px;" data-i18n="profiles_default">${txtDefault}</span>` : ''}
                                 <span>🔒 PIN: ${p.has_pin ? txtPinEnabled : txtPinNone}</span>
+                                ${(isActive && p.has_pin && !p.has_recovery_code) ? `<div style="margin-top:6px; color:#f59e0b;">⚠️ Aucun code de récupération : en cas d'oubli du PIN, seule la commande serveur permettra de le réinitialiser.</div>` : ''}
                             </div>
                         </div>
 
@@ -49,6 +50,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             ${!isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.app.switchProfile('${p.id}')" data-i18n="profiles_btn_switch">${txtSwitch}</button>` : ''}
                             ${isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._showEditProfileModal('${p.id}', '${safeName.replace(/'/g, "\\'")}', '${p.color}', '${pIcon.replace(/'/g, "\\'")}', '${p.currency || 'EUR'}', ${p.pay_cycle_day || 28}, '${p.date_format || 'DD/MM/YYYY'}')" data-i18n="profiles_btn_edit">${txtEdit}</button>` : ''}
                             ${isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._showManagePinModal('${p.id}', ${p.has_pin})" data-i18n="profiles_btn_pin">${txtPin}</button>` : ''}
+                            ${(isActive && p.has_pin) ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._regenerateRecoveryCode('${p.id}')">🗝️ ${p.has_recovery_code ? 'Nouveau code de récupération' : 'Créer un code de récupération'}</button>` : ''}
                             ${(isActive && !isDefault) ? `<button class="btn btn-danger" style="padding: 3px 8px; font-size: 11px; margin-left:auto;" onclick="window.ConfigView._deleteProfilePrompt('${p.id}', '${safeName.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
                         </div>
                     </div>
@@ -486,7 +488,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             } else {
                 const payload = { name, color, icon, currency, pay_cycle_day, date_format, auto_activate: true };
                 if (pin) payload.pin = pin;
-                await API.post('/api/profiles/', payload);
+                const created = await API.post('/api/profiles/', payload);
+                if (created && created.session_token) API.setSessionToken(created.session_token);
+                if (created && created.recovery_code && window.app && window.app.showRecoveryCode) {
+                    await window.app.showRecoveryCode(created.recovery_code);
+                }
                 showToast("Nouveau profil créé — ouverture en cours...", "success");
                 window.location.reload();
             }
@@ -578,9 +584,13 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             const body = { pin: newPin };
             if (this._pinHasPin) body.current_pin = currentPin;
 
-            await API.post(`/api/profiles/${this._pinProfileId}/pin`, body);
-            showToast(this._pinHasPin ? "Code PIN modifié avec succès" : "Code PIN configuré avec succès", "success");
+            const pinRes = await API.post(`/api/profiles/${this._pinProfileId}/pin`, body);
+            if (pinRes && pinRes.session_token) API.setSessionToken(pinRes.session_token);
             this.closePinConfigModal();
+            if (pinRes && pinRes.recovery_code && window.app && window.app.showRecoveryCode) {
+                await window.app.showRecoveryCode(pinRes.recovery_code);
+            }
+            showToast(this._pinHasPin ? "Code PIN modifié avec succès" : "Code PIN configuré avec succès", "success");
             await this._refreshProfilesPanel();
             if (window.app && window.app._renderProfileSelector) {
                 const pData = await API.get('/api/profiles/');
@@ -593,6 +603,26 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 errDiv.textContent = e.message || "Erreur lors de l'enregistrement du PIN";
                 errDiv.style.display = "block";
             }
+        }
+    },
+
+    async _regenerateRecoveryCode(profileId) {
+        const inputEl = document.getElementById('promptInput');
+        const prevType = inputEl ? inputEl.type : 'text';
+        if (inputEl) inputEl.type = 'password';
+        let currentPin;
+        try {
+            currentPin = await showInlinePrompt('Code PIN actuel (l\'ancien code de récupération deviendra invalide)', '');
+        } finally {
+            if (inputEl) inputEl.type = prevType;
+        }
+        if (!currentPin) return;
+        try {
+            const res = await API.post(`/api/profiles/${profileId}/pin/recovery-code`, { current_pin: currentPin });
+            await window.app.showRecoveryCode(res.recovery_code);
+            await this._refreshProfilesPanel();
+        } catch (e) {
+            showToast(e.message || 'Code PIN incorrect', 'error');
         }
     },
 

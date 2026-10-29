@@ -21,7 +21,7 @@ from starlette.background import BackgroundTask
 
 from app.database import DATA_DIR, SessionLocal, get_engine, get_current_db_path, get_current_uploads_dir
 from app.models import GlobalConfig
-from app.profile_manager import load_profiles_data
+from app.profile_manager import load_profiles_data, ensure_no_other_protected_profile
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +277,7 @@ def get_auto_backup_status():
 @router.get("/download/{filename}")
 def download_auto_backup(filename: str):
     """Télécharge un backup auto spécifique."""
+    ensure_no_other_protected_profile()
     # Validation stricte du nom de fichier (sécurité)
     if not re.match(r"^auto_backup_(all_profiles_)?\d{8}_\d{6}\.zip$", filename):
         raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
