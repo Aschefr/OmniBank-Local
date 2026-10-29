@@ -713,7 +713,7 @@ Object.assign(window.BankSyncView, {
         }
 
         const sseUrl = window.API ? window.API.fullUrl(`/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`) : `/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`;
-        const es = new EventSource(sseUrl);
+        const es = new EventSource(window.API ? window.API.withSession(sseUrl) : sseUrl);
         this.mappingEventSource = es;
 
         es.addEventListener('progress', (e) => {

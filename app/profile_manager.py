@@ -60,23 +60,33 @@ def load_profiles_data() -> dict:
     if not os.path.isfile(PROFILES_FILE):
         return ensure_profiles_initialized()
     try:
-        with open(PROFILES_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if "active_profile_id" not in data or "profiles" not in data:
-                raise ValueError("Format invalide de profiles.json")
-            
-            # Ensure defaults for existing profiles
-            modified = False
-            for p in data.get("profiles", []):
-                if "icon" not in p: p["icon"] = "👤"; modified = True
-                if "currency" not in p: p["currency"] = "EUR"; modified = True
-                if "pay_cycle_day" not in p: p["pay_cycle_day"] = 28; modified = True
-                if "date_format" not in p: p["date_format"] = "DD/MM/YYYY"; modified = True
+        # Quelques essais : une lecture pendant une écriture concurrente ne doit pas
+        # déclencher la réinitialisation (qui effacerait notamment les PIN).
+        import time
+        for attempt in range(4):
+            try:
+                with open(PROFILES_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                break
+            except (ValueError, OSError):
+                if attempt == 3:
+                    raise
+                time.sleep(0.05)
+        if "active_profile_id" not in data or "profiles" not in data:
+            raise ValueError("Format invalide de profiles.json")
 
-            if modified:
-                _save_profiles_data(data)
+        # Ensure defaults for existing profiles
+        modified = False
+        for p in data.get("profiles", []):
+            if "icon" not in p: p["icon"] = "👤"; modified = True
+            if "currency" not in p: p["currency"] = "EUR"; modified = True
+            if "pay_cycle_day" not in p: p["pay_cycle_day"] = 28; modified = True
+            if "date_format" not in p: p["date_format"] = "DD/MM/YYYY"; modified = True
 
-            return data
+        if modified:
+            _save_profiles_data(data)
+
+        return data
     except Exception as e:
         logger.error(f"[ProfileManager] Erreur de lecture de profiles.json: {e}. Restauration du profil par défaut.")
         data = {
@@ -367,8 +377,61 @@ def _hash_pin(pin: str, salt_hex: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", pin.encode("utf-8"), salt, 100000).hex()
 
 
-def set_pin(profile_id: str, pin: str):
-    """Définit ou modifie le code PIN d'un profil."""
+_RECOVERY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _normalize_recovery_code(code: str) -> str:
+    return "".join(c for c in (code or "").upper() if c.isalnum())
+
+
+def _generate_recovery_code() -> str:
+    raw = "".join(secrets.choice(_RECOVERY_ALPHABET) for _ in range(16))
+    return "-".join(raw[i:i + 4] for i in range(0, 16, 4))
+
+
+def has_pin(profile: Optional[dict]) -> bool:
+    return bool(profile and profile.get("pin_hash"))
+
+
+def ensure_no_other_protected_profile():
+    """Les sauvegardes globales contiennent tous les profils : refusées si un autre profil a un PIN."""
+    from fastapi import HTTPException
+    active_id = get_active_profile()["id"]
+    others = [p["name"] for p in load_profiles_data().get("profiles", []) if p["id"] != active_id and has_pin(p)]
+    if others:
+        raise HTTPException(
+            status_code=403,
+            detail="Sauvegarde globale indisponible : d'autres profils sont protégés par un code PIN "
+                   f"({', '.join(others)}). Utilisez la sauvegarde de chaque profil.",
+        )
+
+
+def regenerate_recovery_code(profile_id: str) -> str:
+    """Génère un nouveau code de récupération (remplace l'ancien) et le retourne en clair."""
+    data = load_profiles_data()
+    target = next((p for p in data["profiles"] if p["id"] == profile_id), None)
+    if not target:
+        raise ValueError(f"Profil introuvable: {profile_id}")
+
+    code = _generate_recovery_code()
+    salt_hex = secrets.token_hex(16)
+    target["recovery_salt"] = salt_hex
+    target["recovery_hash"] = _hash_pin(_normalize_recovery_code(code), salt_hex)
+    _save_profiles_data(data)
+    return code
+
+
+def verify_recovery_code(profile_id: str, code: str) -> bool:
+    data = load_profiles_data()
+    target = next((p for p in data["profiles"] if p["id"] == profile_id), None)
+    if not target or not target.get("recovery_hash") or not target.get("recovery_salt"):
+        return False
+    input_hash = _hash_pin(_normalize_recovery_code(code), target["recovery_salt"])
+    return secrets.compare_digest(input_hash, target["recovery_hash"])
+
+
+def set_pin(profile_id: str, pin: str) -> str:
+    """Définit ou modifie le code PIN d'un profil. Retourne un nouveau code de récupération."""
     if not pin or len(pin) < 4:
         raise ValueError("Le code PIN doit comporter au moins 4 caractères.")
 
@@ -384,6 +447,7 @@ def set_pin(profile_id: str, pin: str):
     target["pin_hash"] = pin_hash
     _save_profiles_data(data)
     logger.info(f"[ProfileManager] Code PIN mis à jour pour le profil {profile_id}.")
+    return regenerate_recovery_code(profile_id)
 
 
 def verify_pin(profile_id: str, pin: str) -> bool:
@@ -409,5 +473,7 @@ def clear_pin(profile_id: str):
 
     target["pin_hash"] = None
     target["pin_salt"] = None
+    target["recovery_hash"] = None
+    target["recovery_salt"] = None
     _save_profiles_data(data)
     logger.info(f"[ProfileManager] Code PIN réinitialisé pour le profil {profile_id}.")

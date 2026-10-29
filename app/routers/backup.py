@@ -9,7 +9,7 @@ import shutil
 from datetime import datetime
 
 from app.database import get_db, get_engine, DATA_DIR, get_current_db_path, get_current_uploads_dir, dispose_engine
-from app.profile_manager import get_active_profile, load_profiles_data, ensure_profiles_initialized
+from app.profile_manager import get_active_profile, load_profiles_data, ensure_profiles_initialized, ensure_no_other_protected_profile
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
@@ -144,6 +144,7 @@ async def upload_backup(file: UploadFile = File(...)):
 @router.get("/download-all")
 async def download_all_profiles_backup():
     """Sauvegarde globale complète : englobe profiles.json et tous les jeux de données."""
+    ensure_no_other_protected_profile()
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     tmp_path = tmp_file.name
     tmp_file.close()
@@ -206,6 +207,7 @@ async def download_all_profiles_backup():
 @router.post("/upload-all")
 async def upload_all_profiles_backup(file: UploadFile = File(...)):
     """Restaure une sauvegarde globale complète englobant tous les profils."""
+    ensure_no_other_protected_profile()
     if not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Le fichier doit être une archive ZIP.")
 
