@@ -402,8 +402,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     },
 
     downloadCurrentProfileBackup() {
-        const activeId = window.app && window.app.activeProfileId ? window.app.activeProfileId : 'default';
-        window.location.href = `/api/maintenance/backup/profile/${activeId}`;
+        // Sauvegarde du profil actif (GET /api/backup/download)
+        return this.downloadBackup();
     },
 
     closeMasterProfileModal() {
