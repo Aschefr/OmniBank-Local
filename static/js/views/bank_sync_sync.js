@@ -417,7 +417,7 @@ Object.assign(window.BankSyncView, {
         let url = `/api/bank-sync/connections/${connId}/sync-stream?since_days=90`;
         if (vaultToken) url += `&vault_token=${encodeURIComponent(vaultToken)}`;
 
-        const es = new EventSource(window.API ? window.API.fullUrl(url) : url);
+        const es = new EventSource(window.API ? window.API.withSession(window.API.fullUrl(url)) : url);
         this.eventSource = es;
 
         es.addEventListener('progress', (e) => {

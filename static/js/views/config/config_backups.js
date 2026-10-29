@@ -49,7 +49,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     },
 
     async _downloadCSV(endpoint) {
-        const downloadUrl = `${window.location.origin}${endpoint}`;
+        const downloadUrl = API.withSession(`${window.location.origin}${endpoint}`);
 
         // In Tauri WebView, blob downloads don't work — open in system browser
         if (window.__TAURI_INTERNALS__) {
@@ -63,7 +63,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
 
         // Fallback for regular browser (dev mode)
-        window.open(endpoint, '_blank');
+        window.open(API.withSession(endpoint), '_blank');
     },
 
     async importRawCSV(event) {
@@ -261,7 +261,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadBackup() {
         try {
-            const downloadUrl = `${window.location.origin}/api/backup/download`;
+            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/download`);
 
             // In Tauri WebView, blob downloads don't work — open in system browser
             if (window.__TAURI_INTERNALS__) {
@@ -948,7 +948,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadAutoBackup(filename) {
         try {
-            const downloadUrl = `${window.location.origin}/api/backup/auto/download/${encodeURIComponent(filename)}`;
+            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/auto/download/${encodeURIComponent(filename)}`);
 
             // Tauri workaround: blob downloads don't work in WebView
             if (window.__TAURI_INTERNALS__) {
@@ -981,7 +981,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadAllProfilesBackup() {
         try {
-            const downloadUrl = `${window.location.origin}/api/backup/download-all`;
+            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/download-all`);
 
             // In Tauri WebView, blob downloads don't work — open in system browser
             if (window.__TAURI_INTERNALS__) {

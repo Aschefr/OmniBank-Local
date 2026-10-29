@@ -1,7 +1,7 @@
 """
 app/routers/profiles.py — Router API pour la gestion des Profils Maîtres.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -20,9 +20,10 @@ from app.profile_manager import (
     verify_pin,
     clear_pin
 )
+from app.profile_manager import regenerate_recovery_code, verify_recovery_code
 from app.database import get_engine, dispose_engine, get_db
 from app.init_data import init_db
-from app.services import stats_cache
+from app.services import stats_cache, pin_session
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
@@ -60,13 +61,53 @@ class ProfilePinClearRequest(BaseModel):
     current_pin: Optional[str] = None
 
 
+class ProfilePinRecoverRequest(BaseModel):
+    recovery_code: str
+    new_pin: Optional[str] = None  # Absent : la protection PIN est supprimée
+
+
+class ProfileRecoveryCodeRequest(BaseModel):
+    current_pin: str
+
+
 def _sanitize_profile(profile: dict) -> dict:
     """Retire les informations sensibles (hash/salt) et ajoute 'has_pin'."""
     clean = dict(profile)
     clean["has_pin"] = bool(clean.get("pin_hash"))
-    clean.pop("pin_hash", None)
-    clean.pop("pin_salt", None)
+    clean["has_recovery_code"] = bool(clean.get("recovery_hash"))
+    for key in ("pin_hash", "pin_salt", "recovery_hash", "recovery_salt"):
+        clean.pop(key, None)
     return clean
+
+
+def _issue_session(response: Response, profile_id: str) -> str:
+    """Crée une session déverrouillée et la pose aussi en cookie (images, téléchargements)."""
+    token = pin_session.create_session(profile_id)
+    response.set_cookie(
+        pin_session.SESSION_COOKIE, token,
+        httponly=True, samesite="strict", path="/",
+        max_age=pin_session.SESSION_IDLE_SECONDS,
+    )
+    return token
+
+
+def _check_attempts_allowed(profile_id: str):
+    wait = pin_session.retry_after_seconds(profile_id)
+    if wait:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Trop d'essais incorrects. Réessayez dans {wait} secondes.",
+            headers={"Retry-After": str(wait)},
+        )
+
+
+def _verify_pin_or_fail(profile_id: str, pin: Optional[str], detail: str):
+    """Vérifie un PIN avec limite d'essais (anti brute-force)."""
+    _check_attempts_allowed(profile_id)
+    if not pin or not verify_pin(profile_id, pin):
+        pin_session.record_failure(profile_id)
+        raise HTTPException(status_code=401, detail=detail)
+    pin_session.clear_failures(profile_id)
 
 
 from app.profile_manager import (
@@ -103,7 +144,7 @@ def get_active(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def api_create_profile(req: ProfileCreateRequest):
+def api_create_profile(req: ProfileCreateRequest, response: Response):
     """Crée un nouveau profil maître, configure son PIN optionnel et bascule dessus."""
     if not req.name or not req.name.strip():
         raise HTTPException(status_code=400, detail="Le nom du profil est requis.")
@@ -141,17 +182,24 @@ def api_create_profile(req: ProfileCreateRequest):
         except Exception as e:
             logger.warning(f"[Profiles] Could not seed GlobalConfig for new profile {new_prof['id']}: {e}")
 
+        recovery_code = None
         if req.pin and req.pin.strip():
-            set_pin(new_prof["id"], req.pin.strip())
+            recovery_code = set_pin(new_prof["id"], req.pin.strip())
             new_prof["pin_hash"] = "configured"
-        
+            new_prof["recovery_hash"] = "configured"
+
         reload_req = False
+        session_token = None
         if req.auto_activate:
             set_active_profile(new_prof["id"])
             reload_req = True
+            if recovery_code:
+                session_token = _issue_session(response, new_prof["id"])
 
         res = _sanitize_profile(new_prof)
         res["reload_required"] = reload_req
+        res["recovery_code"] = recovery_code
+        res["session_token"] = session_token
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Échec de création du profil: {str(e)}")
@@ -235,19 +283,24 @@ def api_delete_profile(profile_id: str):
 
 
 @router.post("/{profile_id}/activate")
-def api_activate_profile(profile_id: str, req: Optional[ProfileActivateRequest] = None):
-    """Bascule vers le profil spécifié."""
+def api_activate_profile(profile_id: str, response: Response, req: Optional[ProfileActivateRequest] = None):
+    """Bascule vers le profil spécifié (ou déverrouille le profil actif s'il est protégé)."""
     data = load_profiles_data()
     target = next((p for p in data.get("profiles", []) if p["id"] == profile_id), None)
     if not target:
         raise HTTPException(status_code=404, detail="Profil introuvable.")
 
     # Vérification du PIN si le profil est protégé
+    session_token = None
     if target.get("pin_hash"):
-        provided_pin = req.pin if req else None
-        if not provided_pin or not verify_pin(profile_id, provided_pin):
-            raise HTTPException(status_code=401, detail="Code PIN incorrect.")
+        _verify_pin_or_fail(profile_id, req.pin if req else None, "Code PIN incorrect.")
+        session_token = _issue_session(response, profile_id)
 
+    _switch_active_profile(profile_id)
+    return {"ok": True, "active_profile_id": profile_id, "reload_required": True, "session_token": session_token}
+
+
+def _switch_active_profile(profile_id: str):
     active_profile = get_active_profile()
     if active_profile["id"] != profile_id:
         # Verrouiller immédiatement la session du coffre-fort du profil quitté pour garantir l'étanchéité
@@ -268,11 +321,68 @@ def api_activate_profile(profile_id: str, req: Optional[ProfileActivateRequest] 
         target_engine = get_engine(profile_id)
         init_db(target_engine=target_engine)
 
-    return {"ok": True, "active_profile_id": profile_id, "reload_required": True}
+
+@router.post("/lock")
+def api_lock_session(request: Request, response: Response):
+    """Verrouille la session courante : le PIN sera redemandé."""
+    pin_session.revoke(pin_session.get_request_token(request))
+    response.delete_cookie(pin_session.SESSION_COOKIE, path="/")
+    return {"ok": True}
+
+
+@router.post("/{profile_id}/pin/recover")
+def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, response: Response):
+    """PIN oublié : réinitialise (ou supprime) le PIN grâce au code de récupération, puis active le profil."""
+    data = load_profiles_data()
+    target = next((p for p in data.get("profiles", []) if p["id"] == profile_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Profil introuvable.")
+    if not target.get("pin_hash"):
+        raise HTTPException(status_code=400, detail="Ce profil n'est pas protégé par un code PIN.")
+
+    _check_attempts_allowed(profile_id)
+    if not verify_recovery_code(profile_id, req.recovery_code):
+        pin_session.record_failure(profile_id)
+        raise HTTPException(status_code=401, detail="Code de récupération incorrect.")
+    pin_session.clear_failures(profile_id)
+
+    new_pin = (req.new_pin or "").strip()
+    try:
+        if new_pin:
+            recovery_code = set_pin(profile_id, new_pin)
+        else:
+            clear_pin(profile_id)
+            recovery_code = None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    pin_session.revoke_profile(profile_id)
+    session_token = _issue_session(response, profile_id) if new_pin else None
+    _switch_active_profile(profile_id)
+    logger.info(f"[Profiles] PIN réinitialisé via code de récupération pour {profile_id}.")
+    return {
+        "ok": True,
+        "active_profile_id": profile_id,
+        "reload_required": True,
+        "session_token": session_token,
+        "recovery_code": recovery_code,
+    }
+
+
+@router.post("/{profile_id}/pin/recovery-code")
+def api_regenerate_recovery_code(profile_id: str, req: ProfileRecoveryCodeRequest):
+    """Génère un nouveau code de récupération (l'ancien devient invalide)."""
+    active_profile = get_active_profile()
+    if active_profile["id"] != profile_id:
+        raise HTTPException(status_code=403, detail="Seul le profil actuellement actif peut modifier son code PIN.")
+    if not active_profile.get("pin_hash"):
+        raise HTTPException(status_code=400, detail="Ce profil n'est pas protégé par un code PIN.")
+    _verify_pin_or_fail(profile_id, req.current_pin, "Code PIN actuel incorrect.")
+    return {"ok": True, "recovery_code": regenerate_recovery_code(profile_id)}
 
 
 @router.post("/{profile_id}/pin")
-def api_set_pin(profile_id: str, req: ProfilePinRequest):
+def api_set_pin(profile_id: str, req: ProfilePinRequest, response: Response):
     """Définit ou modifie le code PIN d'un profil."""
     active_profile = get_active_profile()
     if active_profile["id"] != profile_id:
@@ -284,15 +394,24 @@ def api_set_pin(profile_id: str, req: ProfilePinRequest):
         raise HTTPException(status_code=404, detail="Profil introuvable.")
 
     # Si un PIN existait, vérifier l'ancien PIN
-    if target.get("pin_hash"):
-        if not req.current_pin or not verify_pin(profile_id, req.current_pin):
-            raise HTTPException(status_code=401, detail="Code PIN actuel incorrect.")
+    had_pin = bool(target.get("pin_hash"))
+    if had_pin:
+        _verify_pin_or_fail(profile_id, req.current_pin, "Code PIN actuel incorrect.")
 
     try:
-        set_pin(profile_id, req.pin)
-        return {"ok": True, "message": "Code PIN enregistré avec succès."}
+        recovery_code = set_pin(profile_id, req.pin)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    # Les autres appareils devront saisir le nouveau PIN ; cet appareil reste déverrouillé.
+    pin_session.revoke_profile(profile_id)
+    session_token = _issue_session(response, profile_id)
+    return {
+        "ok": True,
+        "message": "Code PIN enregistré avec succès.",
+        "recovery_code": recovery_code,
+        "session_token": session_token,
+    }
 
 
 @router.delete("/{profile_id}/pin")
@@ -308,9 +427,8 @@ def api_clear_pin(profile_id: str, req: Optional[ProfilePinClearRequest] = None)
         raise HTTPException(status_code=404, detail="Profil introuvable.")
 
     if target.get("pin_hash"):
-        current_pin = req.current_pin if req else None
-        if not current_pin or not verify_pin(profile_id, current_pin):
-            raise HTTPException(status_code=401, detail="Code PIN actuel incorrect.")
+        _verify_pin_or_fail(profile_id, req.current_pin if req else None, "Code PIN actuel incorrect.")
 
     clear_pin(profile_id)
+    pin_session.revoke_profile(profile_id)
     return {"ok": True, "message": "Code PIN supprimé."}

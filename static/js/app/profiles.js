@@ -349,13 +349,22 @@ window.AppModules.profiles = {
 
         sessionStorage.setItem('omni_is_locked', 'true');
 
+        // Verrouillage réel : le serveur révoque la session, le PIN sera exigé pour toute donnée.
+        const tokenToRevoke = API.getSessionToken();
+        if (tokenToRevoke) {
+            API.setSessionToken('');
+            API.post('/api/profiles/lock', {}, { silent: true, skipMutateEvent: true, headers: { 'X-OmniBank-Session': tokenToRevoke } }).catch(() => {});
+        }
+
         const overlay = document.getElementById('appLockScreen');
         const list = document.getElementById('lockScreenProfilesList');
         const pinForm = document.getElementById('lockScreenPinForm');
+        const recoverForm = document.getElementById('lockScreenRecoverForm');
         const errDiv = document.getElementById('lockScreenError');
 
         if (errDiv) errDiv.style.display = 'none';
         if (pinForm) pinForm.style.display = 'none';
+        if (recoverForm) recoverForm.style.display = 'none';
 
         if (list) {
             let html = '';
@@ -397,8 +406,10 @@ window.AppModules.profiles = {
         const pinInput = document.getElementById('lockScreenPinInput');
         const label = document.getElementById('lockScreenSelectedProfileName');
         const errDiv = document.getElementById('lockScreenError');
+        const recoverForm = document.getElementById('lockScreenRecoverForm');
 
         if (errDiv) errDiv.style.display = 'none';
+        if (recoverForm) recoverForm.style.display = 'none';
 
         if (target.has_pin) {
             if (label) label.textContent = `Déverrouiller « ${target.name} »`;
@@ -416,6 +427,107 @@ window.AppModules.profiles = {
         if (pinForm) pinForm.style.display = 'none';
         if (errDiv) errDiv.style.display = 'none';
         this._pendingLockProfileId = null;
+    },
+
+    /** Appelé par l'intercepteur fetch quand le serveur exige le PIN (session absente ou expirée). */
+    async handlePinRequired() {
+        const overlay = document.getElementById('appLockScreen');
+        if (overlay && overlay.style.display === 'flex') return;
+        if (this._pinRequiredPending) return;
+        this._pinRequiredPending = true;
+        try {
+            API.setSessionToken('');
+            if (!this.profiles || this.profiles.length === 0) {
+                const data = await API.get('/api/profiles/');
+                this.profiles = data.profiles || [];
+                this.activeProfileId = data.active_profile_id;
+            }
+            if (typeof window.hideAppInitLoader === 'function') window.hideAppInitLoader();
+            this.showLockScreen();
+            if (this.activeProfileId) this.selectLockProfile(this.activeProfileId);
+        } catch (e) {
+            console.error('[PIN] Impossible d\'afficher l\'écran de verrouillage', e);
+        } finally {
+            this._pinRequiredPending = false;
+        }
+    },
+
+    showLockRecoverForm() {
+        const pinForm = document.getElementById('lockScreenPinForm');
+        const recoverForm = document.getElementById('lockScreenRecoverForm');
+        const errDiv = document.getElementById('lockScreenError');
+        if (errDiv) errDiv.style.display = 'none';
+        if (pinForm) pinForm.style.display = 'none';
+        if (recoverForm) recoverForm.style.display = 'block';
+        const codeInput = document.getElementById('lockScreenRecoveryCode');
+        if (codeInput) { codeInput.value = ''; setTimeout(() => codeInput.focus(), 100); }
+        const newPinInput = document.getElementById('lockScreenRecoverNewPin');
+        if (newPinInput) newPinInput.value = '';
+    },
+
+    cancelLockRecover() {
+        const recoverForm = document.getElementById('lockScreenRecoverForm');
+        if (recoverForm) recoverForm.style.display = 'none';
+        const targetId = this._pendingLockProfileId || this.activeProfileId;
+        if (targetId) this.selectLockProfile(targetId);
+    },
+
+    async submitLockRecover() {
+        const errDiv = document.getElementById('lockScreenError');
+        const code = (document.getElementById('lockScreenRecoveryCode') || {}).value || '';
+        const newPin = ((document.getElementById('lockScreenRecoverNewPin') || {}).value || '').trim();
+        const targetId = this._pendingLockProfileId || this.activeProfileId;
+        if (!code.trim()) return;
+
+        try {
+            if (errDiv) errDiv.style.display = 'none';
+            const res = await API.post(`/api/profiles/${targetId}/pin/recover`, { recovery_code: code, new_pin: newPin || null });
+            API.setSessionToken(res.session_token || '');
+            if (res.recovery_code) {
+                await this.showRecoveryCode(res.recovery_code);
+            }
+            try {
+                sessionStorage.clear();
+            } catch (_) {}
+            if (window.ProfileStorage && typeof window.ProfileStorage.init === 'function') {
+                window.ProfileStorage.init(targetId);
+            }
+            window.location.reload();
+        } catch (e) {
+            if (errDiv) {
+                errDiv.textContent = e.message || 'Code de récupération incorrect';
+                errDiv.style.display = 'block';
+            }
+        }
+    },
+
+    /** Affiche le code de récupération une seule fois ; se résout quand l'utilisateur confirme l'avoir noté. */
+    showRecoveryCode(code) {
+        return new Promise(resolve => {
+            const esc = window.escapeHtml || (s => s);
+            const t = (key, fallback) => (window.i18n && window.i18n.t && window.i18n.t(key) !== key) ? window.i18n.t(key) : fallback;
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed; inset:0; z-index:100000; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:20px;';
+            wrap.innerHTML = `
+                <div style="max-width:440px; width:100%; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; padding:24px; color:var(--text-main); text-align:center;">
+                    <div style="font-size:36px; margin-bottom:8px;">🗝️</div>
+                    <h3 style="margin:0 0 8px 0;">${esc(t('profiles_recovery_title', 'Code de récupération'))}</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px 0;">${esc(t('profiles_recovery_hint', 'Notez ce code et gardez-le en lieu sûr. Il permet de réinitialiser le PIN si vous l\'oubliez. Il ne sera plus affiché.'))}</p>
+                    <div data-recovery-code style="font-family:monospace; font-size:22px; font-weight:700; letter-spacing:2px; padding:12px; border-radius:10px; background:var(--bg-base); border:1px dashed var(--border-color); user-select:all; margin-bottom:16px;">${esc(code)}</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-secondary" style="flex:1;" data-copy>${esc(t('btn_copy', 'Copier'))}</button>
+                        <button class="btn btn-primary" style="flex:1;" data-confirm>${esc(t('profiles_recovery_confirm', 'J\'ai noté ce code'))}</button>
+                    </div>
+                </div>`;
+            wrap.querySelector('[data-copy]').onclick = () => {
+                if (navigator.clipboard) navigator.clipboard.writeText(code).catch(() => {});
+            };
+            wrap.querySelector('[data-confirm]').onclick = () => {
+                wrap.remove();
+                resolve();
+            };
+            document.body.appendChild(wrap);
+        });
     },
 
     async submitLockPin(explicitPin = undefined) {
@@ -460,6 +572,7 @@ window.AppModules.profiles = {
             const res = await API.post(`/api/profiles/${profileId}/activate`, body);
             sessionStorage.removeItem('omni_is_locked');
             if (res.ok) {
+                API.setSessionToken(res.session_token || '');
                 // Purge intégrale de sessionStorage pour garantir une étanchéité absolue entre profils
                 try {
                     sessionStorage.clear();
