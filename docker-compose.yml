@@ -3,7 +3,8 @@ services:
   api:
     build: .
     ports:
-      - "${OMNIBANK_BIND_IP:-0.0.0.0}:8434:8434"
+      # Local machine only by default. Set OMNIBANK_BIND_IP=0.0.0.0 to open to the LAN (mobile app).
+      - "${OMNIBANK_BIND_IP:-127.0.0.1}:8434:8434"
     volumes:
       - ./app:/app/app
       - ./data:/app/data
