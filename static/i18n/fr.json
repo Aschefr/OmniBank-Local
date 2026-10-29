@@ -3812,5 +3812,7 @@
   "autopilot_btn_toggle_mode_active": "Mode Standard",
   "autopilot_confirm_unlink_forecast": "Délier cette opération et rétablir l'écriture d'origine ?",
   "autopilot_action_linked_forecast_done_desc": "L'opération a été vérifiée manuellement et liée à sa prévision budgétaire.",
-  "autopilot_feed_btn_unlink_manual_title": "Délier cette opération et rétablir l'écriture d'origine"
+  "autopilot_feed_btn_unlink_manual_title": "Délier cette opération et rétablir l'écriture d'origine",
+  "pin_info_html": "<strong>Ce que protège le PIN :</strong> sans lui, l'application et le serveur refusent l'accès aux données de ce profil, sur tous les appareils. Après 5 erreurs, il faut attendre 5 minutes.<br><strong>Code de récupération :</strong> affiché une seule fois à chaque nouveau PIN. Notez-le : il permet de réinitialiser un PIN oublié et de restaurer ce profil sur une autre machine.<br><strong>Limite :</strong> le PIN protège l'accès par l'application, pas les fichiers sur le disque du serveur.",
+  "backup_global_info_html": "🔐 Les profils protégés par un PIN sont <strong>chiffrés</strong> dans la sauvegarde globale : elle peut être faite même s'ils sont verrouillés. Pour les restaurer, il faudra leur PIN (sur ce serveur) ou leur code de récupération (sur une autre machine). Un profil dont le code n'est pas fourni est ignoré et ses données actuelles sont conservées."
 }

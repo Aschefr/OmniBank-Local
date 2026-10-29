@@ -394,7 +394,7 @@ def has_pin(profile: Optional[dict]) -> bool:
 
 
 def ensure_no_other_protected_profile():
-    """Les sauvegardes globales contiennent tous les profils : refusées si un autre profil a un PIN."""
+    """Anciennes archives globales (tout en clair) : téléchargement refusé si un autre profil a un PIN."""
     from fastapi import HTTPException
     active_id = get_active_profile()["id"]
     others = [p["name"] for p in load_profiles_data().get("profiles", []) if p["id"] != active_id and has_pin(p)]
@@ -406,19 +406,59 @@ def ensure_no_other_protected_profile():
         )
 
 
-def regenerate_recovery_code(profile_id: str) -> str:
-    """Génère un nouveau code de récupération (remplace l'ancien) et le retourne en clair."""
+def get_backup_key_entry(profile: Optional[dict]) -> Optional[dict]:
+    """Clé de chiffrement des sauvegardes en vigueur pour un profil protégé (None sinon)."""
+    if not profile or not has_pin(profile):
+        return None
+    key_id = profile.get("backup_key_id")
+    return next((k for k in profile.get("backup_keys") or [] if k["id"] == key_id), None)
+
+
+def _set_recovery_hash(target: dict, code: str):
+    salt_hex = secrets.token_hex(16)
+    target["recovery_salt"] = salt_hex
+    target["recovery_hash"] = _hash_pin(_normalize_recovery_code(code), salt_hex)
+
+
+def regenerate_recovery_code(profile_id: str, current_pin: Optional[str] = None) -> str:
+    """Génère un nouveau code de récupération (remplace l'ancien) et le retourne en clair.
+
+    Avec le PIN courant, la clé des sauvegardes est aussi ré-emballée pour ce nouveau code
+    (et créée si le profil n'en avait pas encore)."""
+    from app.services import backup_crypto
     data = load_profiles_data()
     target = next((p for p in data["profiles"] if p["id"] == profile_id), None)
     if not target:
         raise ValueError(f"Profil introuvable: {profile_id}")
 
     code = _generate_recovery_code()
-    salt_hex = secrets.token_hex(16)
-    target["recovery_salt"] = salt_hex
-    target["recovery_hash"] = _hash_pin(_normalize_recovery_code(code), salt_hex)
+    _set_recovery_hash(target, code)
+    if current_pin:
+        entry = get_backup_key_entry(target)
+        raw = backup_crypto.unwrap_entry(entry, current_pin) if entry else None
+        if raw:
+            backup_crypto.rewrap_entry(entry, raw, recovery_code=code)
+        else:
+            entry = backup_crypto.new_key_entry(current_pin, code)
+            target.setdefault("backup_keys", []).append(entry)
+            target["backup_key_id"] = entry["id"]
     _save_profiles_data(data)
     return code
+
+
+def ensure_backup_key(profile_id: str, pin: str):
+    """Migration : crée la clé des sauvegardes d'un profil protégé avant cette fonctionnalité.
+    Appelé après un déverrouillage réussi (seul moment où le PIN est connu)."""
+    from app.services import backup_crypto
+    data = load_profiles_data()
+    target = next((p for p in data["profiles"] if p["id"] == profile_id), None)
+    if not target or not has_pin(target) or get_backup_key_entry(target):
+        return
+    entry = backup_crypto.new_key_entry(pin, None)
+    target.setdefault("backup_keys", []).append(entry)
+    target["backup_key_id"] = entry["id"]
+    _save_profiles_data(data)
+    logger.info(f"[ProfileManager] Clé de sauvegarde créée pour le profil {profile_id}.")
 
 
 def verify_recovery_code(profile_id: str, code: str) -> bool:
@@ -430,8 +470,13 @@ def verify_recovery_code(profile_id: str, code: str) -> bool:
     return secrets.compare_digest(input_hash, target["recovery_hash"])
 
 
-def set_pin(profile_id: str, pin: str) -> str:
-    """Définit ou modifie le code PIN d'un profil. Retourne un nouveau code de récupération."""
+def set_pin(profile_id: str, pin: str, unlock_secret: Optional[str] = None) -> str:
+    """Définit ou modifie le code PIN d'un profil. Retourne un nouveau code de récupération.
+
+    unlock_secret (ancien PIN ou code de récupération) permet de conserver la clé des
+    sauvegardes : les anciennes sauvegardes restent lisibles avec le nouveau PIN.
+    Sans lui, une nouvelle clé est créée (les anciennes restent attachées aux anciens secrets)."""
+    from app.services import backup_crypto
     if not pin or len(pin) < 4:
         raise ValueError("Le code PIN doit comporter au moins 4 caractères.")
 
@@ -440,14 +485,28 @@ def set_pin(profile_id: str, pin: str) -> str:
     if not target:
         raise ValueError(f"Profil introuvable: {profile_id}")
 
-    salt_hex = secrets.token_hex(16)
-    pin_hash = _hash_pin(pin, salt_hex)
+    # Recherche par identifiant même si le profil n'est pas (encore) protégé : cas d'une
+    # restauration qui rattache la clé de l'archive avant de définir le nouveau PIN.
+    key_id = target.get("backup_key_id")
+    entry = next((k for k in target.get("backup_keys") or [] if k["id"] == key_id), None)
+    raw = backup_crypto.unwrap_entry(entry, unlock_secret) if (entry and unlock_secret) else None
 
+    salt_hex = secrets.token_hex(16)
     target["pin_salt"] = salt_hex
-    target["pin_hash"] = pin_hash
+    target["pin_hash"] = _hash_pin(pin, salt_hex)
+
+    code = _generate_recovery_code()
+    _set_recovery_hash(target, code)
+    if raw:
+        backup_crypto.rewrap_entry(entry, raw, pin=pin, recovery_code=code)
+    else:
+        entry = backup_crypto.new_key_entry(pin, code)
+        target.setdefault("backup_keys", []).append(entry)
+        target["backup_key_id"] = entry["id"]
+
     _save_profiles_data(data)
     logger.info(f"[ProfileManager] Code PIN mis à jour pour le profil {profile_id}.")
-    return regenerate_recovery_code(profile_id)
+    return code
 
 
 def verify_pin(profile_id: str, pin: str) -> bool:
@@ -475,5 +534,7 @@ def clear_pin(profile_id: str):
     target["pin_salt"] = None
     target["recovery_hash"] = None
     target["recovery_salt"] = None
+    # Les clés restent (emballées par les anciens secrets) pour relire les anciennes sauvegardes.
+    target["backup_key_id"] = None
     _save_profiles_data(data)
     logger.info(f"[ProfileManager] Code PIN réinitialisé pour le profil {profile_id}.")

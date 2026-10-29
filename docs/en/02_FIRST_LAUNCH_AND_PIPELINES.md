@@ -71,23 +71,28 @@ From the History or Dashboard views (`static/js/views/all_operations.js`):
 OmniBank Local guarantees complete data sovereignty.
 
 ### 1. Automatic Backup (`app/routers/auto_backup.py`)
-- Following major operations or on a scheduled basis, a lightweight snapshot is stored in the `backups/` directory.
-- Automated background backups automatically back up **all your master profile(s)** into a unified archive (`omnibank_all_profiles_backup_*.db`), ensuring complete multi-user data protection without missing any profile (Organisation Mode and multi-profile setups).
-- The system maintains a rolling count of $N$ recent automated backups (configurable 3, 5, 10, or 20) to protect against accidental corruption.
+- A backup is created on a schedule (**daily**, **weekly** or **monthly**) in the `backups/` subfolder of the data folder, or on demand via **Run now** (`POST /api/backup/auto/trigger`).
+- It covers **all your master profiles** in a single `auto_backup_all_profiles_<date>_<time>.zip` archive (same format as the global backup, see § 4).
+- The system keeps a configurable rolling count of the $N$ most recent automatic backups (3, 5, 10 or 20).
 
-### 2. Manual ZIP Archive Export (`app/routers/backup.py`)
-When clicking **"Download Full Backup (ZIP)"** in Settings:
-1. The FastAPI backend temporarily locks SQLite writes using WAL (Write-Ahead Logging) mode.
-2. It generates a compressed ZIP archive containing:
-   - `omnibank.db`: Full SQLite database (all tables, transactions, categories, budgets, templates).
-   - `config.json`: UI and language preferences.
-   - `metadata.json`: Export timestamp, application version, and integrity checksum.
-3. The ZIP file is delivered directly to the client (Browser or Tauri wrapper).
+### 2. Active Profile Backup (`app/routers/backup.py`)
+When clicking **"Download Full Backup (ZIP)"** (`GET /api/backup/download`):
+1. The backend forces an SQLite checkpoint (`PRAGMA wal_checkpoint`) so the database file is complete.
+2. It generates an `omnibank_<profile>_backup_<date>_<time>.zip` archive containing, for the **active profile only**:
+   - `omnibank.db`: the profile's SQLite database (transactions, accounts, categories, budgets, settings…);
+   - `uploads/`: the profile's attachments.
+3. The ZIP file is delivered directly to the client (browser or Tauri app).
 
-### 3. Restoration Pipeline
-- The user uploads a `.zip` or `.db` file via `POST /api/backup/restore`.
-- The backend validates the database schema and integrity.
-- If valid, the active database is replaced atomically and SQLAlchemy sessions are re-initialized without requiring a server restart.
+### 3. Active Profile Restore
+- The user uploads a `.zip` archive via **"Restore Backup (ZIP)"** (`POST /api/backup/upload`).
+- The archive must contain `omnibank.db`; a global archive (containing `profiles.json`) is refused and must go through **"Restore all profiles"**.
+- The active profile's database and attachments are replaced, then SQLAlchemy sessions are re-initialized without restarting the server.
+
+### 4. Global Backup & PIN-Protected Profiles (`app/services/backup_archive.py`)
+- The global backup (manual `GET /api/backup/download-all` and automatic) uses a single shared module.
+- Profiles **without a PIN** are archived as-is; **PIN-protected** profiles are **encrypted** (`encrypted/<profile_id>.omnienc`) with the profile's public key, so the backup works even while those profiles are locked.
+- Global restore (`POST /api/backup/upload-all`) asks for the PIN (same server) or the recovery code (another machine) of each protected profile; a profile without a provided code is skipped and its local data is kept.
+- Details, limits and format: see [PIN Security & Backups](pages/16_PROFILE_SECURITY_PIN_AND_BACKUPS.md).
 
 ---
 

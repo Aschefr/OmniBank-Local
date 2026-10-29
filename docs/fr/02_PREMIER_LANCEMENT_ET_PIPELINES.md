@@ -70,23 +70,28 @@ Depuis la vue Historique ou Tableau de Bord (`static/js/views/all_operations.js`
 OmniBank Local garantit que l'utilisateur est le seul propriétaire de ses données.
 
 ### 1. Sauvegarde Automatique (`app/routers/auto_backup.py`)
-- À chaque modification majeure ou de manière planifiée, un instantané léger est créé dans le sous-dossier `backups/`.
-- Les sauvegardes automatiques d'arrière-plan englobent automatiquement **l'ensemble de vos profils maîtres** dans une archive unifiée (`omnibank_all_profiles_backup_*.db`), garantissant une protection globale et sans omission de toutes vos données financières multi-utilisateurs (Mode Organisation et multi-profils).
-- Le système conserve un roulement configurable des $N$ dernières sauvegardes automatiques (3, 5, 10 ou 20) pour prévenir toute corruption accidentelle.
+- Une sauvegarde est créée de manière planifiée (**quotidienne**, **hebdomadaire** ou **mensuelle**) dans le sous-dossier `backups/` du dossier de données, ou à la demande via **Lancer maintenant** (`POST /api/backup/auto/trigger`).
+- Elle englobe **l'ensemble de vos profils maîtres** dans une archive unique `auto_backup_all_profiles_<date>_<heure>.zip` (même format que la sauvegarde globale, voir § 4).
+- Le système conserve un roulement configurable des $N$ dernières sauvegardes automatiques (3, 5, 10 ou 20).
 
-### 2. Exportation Manuelle au format ZIP (`app/routers/backup.py`)
-Lorsque l'utilisateur clique sur **"Exporter la sauvegarde"** depuis les paramètres :
-1. Le backend FastAPI verrouille temporairement les écritures SQLite en mode WAL (Write-Ahead Logging).
-2. Il génère une archive ZIP contenant :
-   - `omnibank.db` : La base de données SQLite complète (toutes tables, opérations, catégories, budgets).
-   - `config.json` : Les préférences d'interface et de langue.
-   - `metadata.json` : La date de l'export, la version de l'application et le checksum de vérification.
-3. Le fichier ZIP est transmis en téléchargement direct au client (Browser ou Tauri wrapper).
+### 2. Sauvegarde du Profil Actif (`app/routers/backup.py`)
+Lorsque l'utilisateur clique sur **"Télécharger Sauvegarde Complète (ZIP)"** (`GET /api/backup/download`) :
+1. Le backend force un point de contrôle SQLite (`PRAGMA wal_checkpoint`) pour que le fichier de base soit complet.
+2. Il génère une archive `omnibank_<profil>_backup_<date>_<heure>.zip` contenant, pour le **profil actif uniquement** :
+   - `omnibank.db` : la base de données SQLite du profil (opérations, comptes, catégories, budgets, réglages…) ;
+   - `uploads/` : les pièces jointes du profil.
+3. Le fichier ZIP est transmis en téléchargement direct au client (navigateur ou application Tauri).
 
-### 3. Pipeline de Restauration
-- L'utilisateur envoie son fichier `.zip` ou `.db` via `POST /api/backup/restore`.
-- Le backend valide le schéma de la base de données.
-- Si le fichier est valide, la base de données active est remplacée de manière atomique et les connexions SQLAlchemy sont réinitialisées sans nécessiter le redémarrage du serveur.
+### 3. Restauration du Profil Actif
+- L'utilisateur envoie une archive `.zip` via **"Restaurer Sauvegarde (ZIP)"** (`POST /api/backup/upload`).
+- L'archive doit contenir `omnibank.db` ; une archive globale (contenant `profiles.json`) est refusée et doit passer par **"Restaurer tous les profils"**.
+- La base et les pièces jointes du profil actif sont remplacées, puis les connexions SQLAlchemy sont réinitialisées sans redémarrer le serveur.
+
+### 4. Sauvegarde Globale & Profils Protégés par PIN (`app/services/backup_archive.py`)
+- La sauvegarde globale (manuelle `GET /api/backup/download-all` et automatique) utilise un seul module commun.
+- Les profils **sans PIN** sont archivés tels quels ; les profils **protégés par PIN** sont **chiffrés** (`encrypted/<profile_id>.omnienc`) avec la clé publique du profil : la sauvegarde fonctionne même si ces profils sont verrouillés.
+- La restauration globale (`POST /api/backup/upload-all`) demande le PIN (même serveur) ou le code de récupération (autre machine) de chaque profil protégé ; un profil sans code fourni est ignoré et ses données locales sont conservées.
+- Détails, limites et format : voir [Sécurité PIN & Sauvegardes](pages/16_SECURITE_PIN_ET_SAUVEGARDES.md).
 
 ---
 

@@ -101,3 +101,4 @@ The **Configuration** page gathers global application settings, Ollama AI integr
 
 - **Create New Profile**: Fully isolates different financial records on the same physical computer (e.g., *Personal*, *Freelance Business*, *Association*).
 - **Active Profile Switcher**: Switch between profiles in 1 click without restarting the application.
+- **Optional PIN**: Really protects access to the profile's data (enforced by the server), with a recovery code and encrypted backups. See [PIN Security & Backups](16_PROFILE_SECURITY_PIN_AND_BACKUPS.md).

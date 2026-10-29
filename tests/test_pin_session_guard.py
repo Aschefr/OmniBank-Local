@@ -114,12 +114,3 @@ def test_reset_pin_cli(protected_profile, capsys):
     assert main(["reset_pin", prof["id"]]) == 0
     target = next(p for p in load_profiles_data()["profiles"] if p["id"] == prof["id"])
     assert not target.get("pin_hash") and not target.get("recovery_hash")
-
-
-def test_global_backup_refused_when_other_profile_protected(protected_profile):
-    prof, _ = protected_profile
-    client = TestClient(app)
-    set_active_profile("default")
-    res = client.get("/api/backup/download-all")
-    assert res.status_code == 403
-    assert "PinGuardTest" in res.json()["detail"]
