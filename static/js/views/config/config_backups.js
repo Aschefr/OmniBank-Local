@@ -1008,10 +1008,65 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+
+            const skipped = resp.headers.get('X-OmniBank-Skipped-Profiles');
+            if (skipped) {
+                showInlineMessage('Sauvegarde incomplète',
+                    `Profils protégés non inclus : ${decodeURIComponent(skipped)}. ` +
+                    'Déverrouillez-les une fois avec leur PIN pour qu\'ils soient inclus (chiffrés) dans les prochaines sauvegardes.');
+            }
         } catch (e) {
             console.error(e);
             showInlineMessage(window.i18n.t('title_error'), window.i18n.tp('msg_error_generic', {error: e.message || e}));
         }
+    },
+
+    /**
+     * Demande le PIN / code de récupération des profils protégés d'une restauration globale.
+     * Résout avec {profile_id: {secret, new_pin}} (champ vide = profil ignoré) ou null si annulé.
+     */
+    _askRestoreSecrets(profiles, errorText = '') {
+        return new Promise(resolve => {
+            const esc = window.escapeHtml || (s => s);
+            const inputStyle = 'width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); margin-top:6px;';
+            const rows = profiles.map(p => `
+                <div style="text-align:left; padding:12px; border:1px solid var(--border-color); border-radius:10px; margin-bottom:10px;">
+                    <div style="font-weight:700;">🔒 ${esc(p.name)}</div>
+                    <input type="password" autocomplete="off" data-secret="${esc(p.id)}" style="${inputStyle}"
+                        placeholder="${p.encrypted ? 'PIN (sur ce serveur) ou code de récupération' : 'Code PIN ou code de récupération'}" />
+                    ${p.needs_new_pin ? `<input type="password" autocomplete="off" data-new-pin="${esc(p.id)}" maxlength="10" style="${inputStyle}" placeholder="Nouveau code PIN pour ce profil" />` : ''}
+                </div>`).join('');
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed; inset:0; z-index:100000; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; padding:20px;';
+            wrap.innerHTML = `
+                <div style="max-width:480px; width:100%; max-height:90vh; overflow-y:auto; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:16px; padding:24px; color:var(--text-main);">
+                    <h3 style="margin:0 0 8px 0;">Profils protégés</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px 0;">
+                        Ces profils ne sont restaurés qu'avec leur code. Laissez un champ vide pour ignorer le profil : ses données actuelles sur ce serveur seront conservées.
+                    </p>
+                    ${rows}
+                    <div data-error style="display:${errorText ? 'block' : 'none'}; color:#ef4444; font-size:12px; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:6px; margin-bottom:12px;">${esc(errorText)}</div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-secondary" style="flex:1;" data-cancel>Annuler</button>
+                        <button class="btn btn-primary" style="flex:1;" data-ok>Restaurer</button>
+                    </div>
+                </div>`;
+            const close = (value) => { wrap.remove(); resolve(value); };
+            wrap.querySelector('[data-cancel]').onclick = () => close(null);
+            wrap.querySelector('[data-ok]').onclick = () => {
+                const result = {};
+                profiles.forEach(p => {
+                    const secretEl = wrap.querySelector(`[data-secret="${CSS.escape(p.id)}"]`);
+                    const newPinEl = wrap.querySelector(`[data-new-pin="${CSS.escape(p.id)}"]`);
+                    const secret = secretEl ? secretEl.value.trim() : '';
+                    if (secret) result[p.id] = { secret, new_pin: newPinEl ? newPinEl.value.trim() : null };
+                });
+                close(result);
+            };
+            document.body.appendChild(wrap);
+            const first = wrap.querySelector('[data-secret]');
+            if (first) setTimeout(() => first.focus(), 100);
+        });
     },
 
     async restoreAllProfilesBackup(e) {
@@ -1023,22 +1078,45 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('file', file);
+        const send = (secrets) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (secrets) formData.append('secrets', JSON.stringify(secrets));
+            return fetch('/api/backup/upload-all', { method: 'POST', body: formData });
+        };
 
         try {
             showToast(window.i18n.t('msg_restore_all_progress'), "info");
-            const res = await fetch('/api/backup/upload-all', {
-                method: 'POST',
-                body: formData
-            });
+            let res = await send(null);
+            let body = await res.json().catch(() => ({}));
 
-            if (!res.ok) {
-                const errJson = await res.json().catch(() => ({}));
-                throw new Error(errJson.detail || window.i18n.t('msg_restore_all_failed').replace('{error}', ''));
+            // Profils protégés : demander leur code, autant de fois que nécessaire
+            if (res.status === 409 && body.detail && body.detail.code === 'secrets_required') {
+                const profiles = body.detail.profiles;
+                let errorText = '';
+                while (true) {
+                    const secrets = await this._askRestoreSecrets(profiles, errorText);
+                    if (secrets === null) return;
+                    res = await send(secrets);
+                    body = await res.json().catch(() => ({}));
+                    if (![400, 401, 429].includes(res.status)) break;
+                    errorText = typeof body.detail === 'string' ? body.detail : 'Code incorrect';
+                }
             }
 
-            showToast(window.i18n.t('msg_restore_all_success'), "success");
+            if (!res.ok) {
+                const detail = typeof body.detail === 'string' ? body.detail : '';
+                throw new Error(detail || window.i18n.t('msg_restore_all_failed').replace('{error}', ''));
+            }
+
+            for (const code of Object.values(body.recovery_codes || {})) {
+                if (window.app && window.app.showRecoveryCode) await window.app.showRecoveryCode(code);
+            }
+            if (body.skipped && body.skipped.length) {
+                await showInlineMessage(window.i18n.t('msg_restore_all_success'), body.message);
+            } else {
+                showToast(window.i18n.t('msg_restore_all_success'), "success");
+            }
             setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
             console.error(err);

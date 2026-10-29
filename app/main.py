@@ -242,10 +242,10 @@ API REST locale pour **OmniBank Local**, application financière personnelle et 
 - **Zero-Cloud & 100% Hors-Ligne** : Toutes les données financières sont stockées localement dans une base SQLite chiffrable et isolée par profil. Aucun appel réseau externe n'est émis.
 - **IA Locale Découplée (Ollama)** : L'assistant IA s'exécute sur une instance locale Ollama (`http://localhost:11434`) via RAG local et Function Calling sécurisé, sans télémétrie.
 - **Réactivité Événementielle (Zero F5)** : L'application communique en temps réel avec le frontend via des flux SSE et des événements personnalisés du DOM.
-- **Isolation Multi-Profils** : Support de profils étanches (Personnel, Professionnel, Association) pilotés via l'en-tête `X-Profile-ID`.
+- **Isolation Multi-Profils** : Support de profils étanches (Personnel, Professionnel, Association) basculés via `POST /api/profiles/{id}/activate` ; un profil protégé par PIN exige une session déverrouillée.
 
 ## 📌 En-têtes Utiles
-- `X-Profile-ID` : Identifiant du profil actif (optionnel, profil actif par défaut si omis).
+- `X-OmniBank-Session` : jeton de session renvoyé par `/activate`, requis si le profil actif est protégé par PIN.
 - `Content-Type: application/json` pour tous les payloads de mutation POST/PUT.
 """
 

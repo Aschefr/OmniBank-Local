@@ -47,6 +47,7 @@ Directly access the reference guide corresponding to the screen you are currentl
 | **Financial Simulator** | 🔮 [13_FINANCIAL_SIMULATOR.md](pages/13_FINANCIAL_SIMULATOR.md) | Cash-flow & wealth forecasting over 1-30 years, multi-scenarios, timeline events & inflation. |
 | **Actions Audit Log & Undo/Redo** | 🕓 [14_ACTIONS_AUDIT_LOG_AND_UNDO_REDO.md](pages/14_ACTIONS_AUDIT_LOG_AND_UNDO_REDO.md) | Complete mutation ledger, JSON snapshots, multi-user attribution & global Ctrl+Z. |
 | **Direct Bank Synchronization** | 🏦 [15_DIRECT_BANK_SYNC.md](pages/15_DIRECT_BANK_SYNC.md) | 100% local direct bank sync (Woob), AES-256 encrypted vault, and staging integrity guard. |
+| **PIN Security & Backups** | 🔒 [16_PROFILE_SECURITY_PIN_AND_BACKUPS.md](pages/16_PROFILE_SECURITY_PIN_AND_BACKUPS.md) | Server-enforced profile PIN, recovery code, forgotten PIN and encrypted global backups. |
 
 ---
 

@@ -67,14 +67,24 @@ All Swagger UI and ReDoc bundle assets are physically vendored into `static/vend
 
 OmniBank Local isolates user workspaces (e.g. *Personal*, *Freelance*, *Association*).
 
-### `X-Profile-ID` Header
-Target a specific profile database by passing its identifier:
+### Active profile
+REST calls always operate on the server's **active profile**. To switch profiles: `POST /api/profiles/{id}/activate`.
+
+### `X-OmniBank-Session` Header (PIN-protected profiles)
+If the active profile is PIN-protected, every call requires an unlocked session, obtained with the PIN:
+```http
+POST /api/profiles/association_loi_1901/activate HTTP/1.1
+Content-Type: application/json
+
+{"pin": "1234"}
+```
+The response contains `session_token`, to send back afterwards:
 ```http
 GET /api/transactions/ HTTP/1.1
 Host: 127.0.0.1:8434
-X-Profile-ID: association_loi_1901
+X-OmniBank-Session: <session_token>
 ```
-*If omitted, the backend defaults to the currently active profile.*
+*Without a valid session, the server answers `401` with `{"code": "pin_required"}`. Details: [PIN Security & Backups](pages/16_PROFILE_SECURITY_PIN_AND_BACKUPS.md).*
 
 ---
 
@@ -232,7 +242,7 @@ Technical health, changelog, and file attachments.
 ```bash
 curl -X POST "http://127.0.0.1:8434/api/transactions/" \
      -H "Content-Type: application/json" \
-     -H "X-Profile-ID: default" \
+     -H "X-OmniBank-Session: <session_token>" \
      -d '{
        "date_operation": "2026-10-03",
        "date_saisie": "2026-10-03",

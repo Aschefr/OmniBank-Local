@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OmniBank Local - REST API",
-    "description": "\n# 🏦 OmniBank Local - Spécification OpenAPI & Documentation Swagger\n\nAPI REST locale pour **OmniBank Local**, application financière personnelle et d'association conçue selon le principe de **Souveraineté Totale des Données (Zero Cloud)**.\n\n## 🔒 Principes d'Architecture & Confidentialité\n- **Zero-Cloud & 100% Hors-Ligne** : Toutes les données financières sont stockées localement dans une base SQLite chiffrable et isolée par profil. Aucun appel réseau externe n'est émis.\n- **IA Locale Découplée (Ollama)** : L'assistant IA s'exécute sur une instance locale Ollama (`http://localhost:11434`) via RAG local et Function Calling sécurisé, sans télémétrie.\n- **Réactivité Événementielle (Zero F5)** : L'application communique en temps réel avec le frontend via des flux SSE et des événements personnalisés du DOM.\n- **Isolation Multi-Profils** : Support de profils étanches (Personnel, Professionnel, Association) pilotés via l'en-tête `X-Profile-ID`.\n\n## 📌 En-têtes Utiles\n- `X-Profile-ID` : Identifiant du profil actif (optionnel, profil actif par défaut si omis).\n- `Content-Type: application/json` pour tous les payloads de mutation POST/PUT.\n",
-    "version": "1.1.6"
+    "description": "\n# 🏦 OmniBank Local - Spécification OpenAPI & Documentation Swagger\n\nAPI REST locale pour **OmniBank Local**, application financière personnelle et d'association conçue selon le principe de **Souveraineté Totale des Données (Zero Cloud)**.\n\n## 🔒 Principes d'Architecture & Confidentialité\n- **Zero-Cloud & 100% Hors-Ligne** : Toutes les données financières sont stockées localement dans une base SQLite chiffrable et isolée par profil. Aucun appel réseau externe n'est émis.\n- **IA Locale Découplée (Ollama)** : L'assistant IA s'exécute sur une instance locale Ollama (`http://localhost:11434`) via RAG local et Function Calling sécurisé, sans télémétrie.\n- **Réactivité Événementielle (Zero F5)** : L'application communique en temps réel avec le frontend via des flux SSE et des événements personnalisés du DOM.\n- **Isolation Multi-Profils** : Support de profils étanches (Personnel, Professionnel, Association) basculés via `POST /api/profiles/{id}/activate` ; un profil protégé par PIN exige une session déverrouillée.\n\n## 📌 En-têtes Utiles\n- `X-OmniBank-Session` : jeton de session renvoyé par `/activate`, requis si le profil actif est protégé par PIN.\n- `Content-Type: application/json` pour tous les payloads de mutation POST/PUT.\n",
+    "version": "1.2.11"
   },
   "paths": {
     "/uploads/{file_path}": {
@@ -148,6 +148,74 @@
               "type": "boolean",
               "default": false,
               "title": "Unreconciled Only"
+            }
+          },
+          {
+            "name": "overview_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Overview Window"
+            }
+          },
+          {
+            "name": "timeline_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Timeline Window"
+            }
+          },
+          {
+            "name": "has_recurrence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Recurrence"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
             }
           },
           {
@@ -1340,6 +1408,74 @@
         }
       }
     },
+    "/api/stats/rhythm": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Get Rhythm",
+        "description": "Retourne les moyennes et le rythme financier historiques (revenus, charges fixes, dépenses variables et cadence propre).\nCalculé directement côté serveur avec mise en cache optimisée.",
+        "operationId": "get_rhythm_api_stats_rhythm_get",
+        "parameters": [
+          {
+            "name": "lookback",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "6m",
+              "title": "Lookback"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "sensitivity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 2,
+              "title": "Sensitivity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stats/override_paycheck": {
       "post": {
         "tags": [
@@ -2339,6 +2475,87 @@
         }
       }
     },
+    "/api/chat/sessions/bulk-delete": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Bulk Delete Sessions",
+        "description": "Supprime un lot de sessions de discussion et leurs messages associés.",
+        "operationId": "bulk_delete_sessions_api_chat_sessions_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatSessionsBulkDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/sessions/{id}/regenerate-title": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Regenerate Session Title Endpoint",
+        "description": "Régénère un titre concis (3 à 5 mots) à la demande pour une session donnée.",
+        "operationId": "regenerate_session_title_endpoint_api_chat_sessions__id__regenerate_title_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chat/sessions/{id}/generating": {
       "get": {
         "tags": [
@@ -2388,6 +2605,88 @@
         "summary": "Notify On Complete Endpoint",
         "description": "Enregistre qu'une notification doit être créée lorsque la génération se termine.",
         "operationId": "notify_on_complete_endpoint_api_chat_sessions__id__notify_on_complete_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/sessions/{id}/cancel-notify-on-complete": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Cancel Notify On Complete Endpoint",
+        "description": "Annule la demande de notification si l'utilisateur est revenu sur la vue du chat.",
+        "operationId": "cancel_notify_on_complete_endpoint_api_chat_sessions__id__cancel_notify_on_complete_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/sessions/{id}/stop": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Stop Generation Endpoint",
+        "description": "Arrête immédiatement la génération IA en cours pour cette session.",
+        "operationId": "stop_generation_endpoint_api_chat_sessions__id__stop_post",
         "parameters": [
           {
             "name": "id",
@@ -2748,6 +3047,47 @@
         }
       }
     },
+    "/api/chat/messages/{id}/recover-actions": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Recover Message Actions",
+        "description": "Détecte et extrait les actions promises dans le texte d'un message assistant,\nmet à jour le contenu du message en base et retourne les actions pour affichage immédiat.",
+        "operationId": "recover_message_actions_api_chat_messages__id__recover_actions_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chat/sessions/{id}/system-message": {
       "post": {
         "tags": [
@@ -2896,6 +3236,7 @@
           "chat"
         ],
         "summary": "Regenerate Response",
+        "description": "Régénère la dernière réponse de l'assistant sous forme d'une nouvelle variante sans perdre l'ancienne.",
         "operationId": "regenerate_response_api_chat_sessions__id__regenerate_post",
         "parameters": [
           {
@@ -2930,13 +3271,114 @@
         }
       }
     },
+    "/api/chat/messages/{id}/variant": {
+      "patch": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Switch Message Variant",
+        "description": "Bascule la variante active d'un message assistant et synchronise son contenu affiché.",
+        "operationId": "switch_message_variant_api_chat_messages__id__variant_patch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageVariantSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/messages/{id}/variants/{index}": {
+      "delete": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Delete Message Variant",
+        "description": "Supprime une variante spécifique d'un message assistant (si au moins 2 variantes existent).",
+        "operationId": "delete_message_variant_api_chat_messages__id__variants__index__delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chat/autocategorize": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Autocategorize",
-        "description": "Suggère une catégorie pour une opération via Ollama.",
+        "description": "Suggère une catégorie pour une opération via Ollama en respectant le type de flux.",
         "operationId": "autocategorize_api_chat_autocategorize_post",
         "requestBody": {
           "content": {
@@ -3166,7 +3608,7 @@
           "backup"
         ],
         "summary": "Download All Profiles Backup",
-        "description": "Sauvegarde globale complète : englobe profiles.json et tous les jeux de données.",
+        "description": "Sauvegarde globale complète : tous les profils, ceux protégés par PIN étant chiffrés.",
         "operationId": "download_all_profiles_backup_api_backup_download_all_get",
         "responses": {
           "200": {
@@ -3186,7 +3628,7 @@
           "backup"
         ],
         "summary": "Upload All Profiles Backup",
-        "description": "Restaure une sauvegarde globale complète englobant tous les profils.",
+        "description": "Restaure une sauvegarde globale.\n\nSans `secrets`, répond 409 avec la liste des profils qui exigent un PIN / code de récupération\n(profils chiffrés dans l'archive ou protégés sur ce serveur). `secrets` (JSON) :\n{profile_id: {\"secret\": \"...\", \"new_pin\": \"...\"}} ; un profil absent est ignoré.",
         "operationId": "upload_all_profiles_backup_api_backup_upload_all_post",
         "requestBody": {
           "content": {
@@ -4907,7 +5349,7 @@
           "setup"
         ],
         "summary": "Seed Demo Data",
-        "description": "Injecte un jeu de données de démonstration propre et représentatif.",
+        "description": "Injecte un jeu de données de démonstration enrichi (6 mois d'historique, Auto-Pilote, budgets).",
         "operationId": "seed_demo_data_api_setup_seed_demo_post",
         "responses": {
           "200": {
@@ -4915,6 +5357,102 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/reset-demo": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Reset Demo Data",
+        "description": "Supprime uniquement les données de démonstration (les données réelles sont conservées).",
+        "operationId": "reset_demo_data_api_setup_reset_demo_post",
+        "parameters": [
+          {
+            "name": "X-Confirm-Danger",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Confirm-Danger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/reset-all": {
+      "post": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Reset All Data",
+        "description": "Remise à zéro complète : données financières, marqueurs de démo et réglages d'onboarding.",
+        "operationId": "reset_all_data_api_setup_reset_all_post",
+        "parameters": [
+          {
+            "name": "X-Confirm-Danger",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Confirm-Danger"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -5180,7 +5718,7 @@
           "Maintenance"
         ],
         "summary": "Apply Misplaced Categories",
-        "description": "Applique le reclassement des catégories choisies :\n- Met à jour Category.type\n- Aligne toutes les transactions de la catégorie\n- Force type='transfer' pour les transactions bi-directionnelles\n- Aligne les RecurrenceTemplate de la catégorie\n- Si sync_all_tx_types=True, aligne également toute transaction dont le type diffère de sa catégorie\n- Invalide stats_cache",
+        "description": "Applique le reclassement des catégories choisies :\n- Met à jour Category.type\n- Aligne toutes les transactions de la catégorie (en respectant le sens réel des flux)\n- Force type='transfer' pour les transactions bi-directionnelles\n- Aligne les RecurrenceTemplate de la catégorie\n- Si sync_all_tx_types=True, aligne les transactions isolées en sanctuarisant les débits/crédits réels\n- Invalide stats_cache",
         "operationId": "apply_misplaced_categories_api_maintenance_misplaced_categories_apply_post",
         "requestBody": {
           "content": {
@@ -5208,6 +5746,86 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/abandoned_recurrences/preview": {
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Preview Abandoned Recurrences",
+        "description": "Retourne la liste des modèles de récurrence abandonnés détectés\navec le détail des opérations fantômes à purger.",
+        "operationId": "preview_abandoned_recurrences_api_maintenance_abandoned_recurrences_preview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/abandoned_recurrences/apply": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Apply Abandoned Recurrences",
+        "description": "Clôture les modèles de récurrence abandonnés sélectionnés,\npurge leurs transactions prévisionnelles non pointées et détache\nles transactions confirmées incompatibles (mismatched description).",
+        "operationId": "apply_abandoned_recurrences_api_maintenance_abandoned_recurrences_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbandonedRecurrencesApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/maintenance/overview": {
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Get Maintenance Overview",
+        "description": "Pré-analyse globale ultra-rapide de l'intégrité de la base de données.\nRetourne l'état et le nombre de corrections suggérées pour chaque outil de nettoyage.",
+        "operationId": "get_maintenance_overview_api_maintenance_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -6398,7 +7016,7 @@
           "profiles"
         ],
         "summary": "Api Activate Profile",
-        "description": "Bascule vers le profil spécifié.",
+        "description": "Bascule vers le profil spécifié (ou déverrouille le profil actif s'il est protégé).",
         "operationId": "api_activate_profile_api_profiles__profile_id__activate_post",
         "parameters": [
           {
@@ -6424,6 +7042,128 @@
                   }
                 ],
                 "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/lock": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Api Lock Session",
+        "description": "Verrouille la session courante : le PIN sera redemandé.",
+        "operationId": "api_lock_session_api_profiles_lock_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{profile_id}/pin/recover": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Api Recover Pin",
+        "description": "PIN oublié : réinitialise (ou supprime) le PIN grâce au code de récupération, puis active le profil.",
+        "operationId": "api_recover_pin_api_profiles__profile_id__pin_recover_post",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePinRecoverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{profile_id}/pin/recovery-code": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Api Regenerate Recovery Code",
+        "description": "Génère un nouveau code de récupération (l'ancien devient invalide).",
+        "operationId": "api_regenerate_recovery_code_api_profiles__profile_id__pin_recovery_code_post",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileRecoveryCodeRequest"
               }
             }
           }
@@ -6751,6 +7491,54 @@
             "schema": {
               "type": "string",
               "title": "Link Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/simulator/forecast-summary": {
+      "get": {
+        "tags": [
+          "simulator"
+        ],
+        "summary": "Get Forecast Summary",
+        "description": "Retourne la synthèse prévisionnelle multi-horizons (7j / cycle / 3 mois) pour le Cockpit.",
+        "operationId": "get_forecast_summary_api_simulator_forecast_summary_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
             }
           }
         ],
@@ -9459,6 +10247,16 @@
               "type": "integer",
               "title": "Tx Id"
             }
+          },
+          {
+            "name": "force_keep_current",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Force Keep Current"
+            }
           }
         ],
         "responses": {
@@ -9585,6 +10383,47 @@
         }
       }
     },
+    "/api/autopilot/transaction-decision/{tx_id}": {
+      "get": {
+        "tags": [
+          "autopilot"
+        ],
+        "summary": "Get Transaction Decision",
+        "description": "Vérifie si une transaction donnée est associée à une décision Auto-Pilote.",
+        "operationId": "get_transaction_decision_api_autopilot_transaction_decision__tx_id__get",
+        "parameters": [
+          {
+            "name": "tx_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tx Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/autopilot/kpis": {
       "get": {
         "tags": [
@@ -9656,6 +10495,22 @@
             }
           },
           {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
             "name": "batch_id",
             "in": "query",
             "required": false,
@@ -9679,6 +10534,16 @@
               "type": "boolean",
               "default": true,
               "title": "Show Undone"
+            }
+          },
+          {
+            "name": "deduplicate_entities",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Deduplicate Entities"
             }
           }
         ],
@@ -9735,6 +10600,98 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/autopilot/decisions/{decision_id}/link": {
+      "post": {
+        "tags": [
+          "autopilot"
+        ],
+        "summary": "Link Decision",
+        "description": "Lie/fusionne une décision Auto-Pilote avec une transaction prévisionnelle existante.",
+        "operationId": "link_decision_api_autopilot_decisions__decision_id__link_post",
+        "parameters": [
+          {
+            "name": "decision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Decision Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutopilotDecisionLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/autopilot/decisions/{decision_id}/unlink-forecast": {
+      "post": {
+        "tags": [
+          "autopilot"
+        ],
+        "summary": "Unlink Forecast Endpoint",
+        "description": "Annule la liaison manuelle avec une prévision et rétablit l'écriture d'origine.",
+        "operationId": "unlink_forecast_endpoint_api_autopilot_decisions__decision_id__unlink_forecast_post",
+        "parameters": [
+          {
+            "name": "decision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Decision Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -9957,6 +10914,26 @@
         }
       }
     },
+    "/api/system/discovery": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Métadonnées de découverte réseau (Mobile & LAN)",
+        "description": "Retourne les informations d'identification du serveur pour l'auto-découverte mobile.",
+        "operationId": "system_discovery_api_system_discovery_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/changelog": {
       "get": {
         "tags": [
@@ -10158,6 +11135,32 @@
           "id"
         ],
         "title": "AIFactOut"
+      },
+      "AbandonedRecurrencesApplyRequest": {
+        "properties": {
+          "template_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Template Ids"
+          },
+          "purge_unreconciled": {
+            "type": "boolean",
+            "title": "Purge Unreconciled",
+            "default": true
+          },
+          "unlink_mismatched": {
+            "type": "boolean",
+            "title": "Unlink Mismatched",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_ids"
+        ],
+        "title": "AbandonedRecurrencesApplyRequest"
       },
       "AccountBase": {
         "properties": {
@@ -10654,6 +11657,28 @@
           "amount": {
             "type": "number",
             "title": "Amount"
+          },
+          "tx_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Type"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
           }
         },
         "type": "object",
@@ -10851,6 +11876,18 @@
               }
             ],
             "title": "Details"
+          },
+          "user_override": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Override"
           }
         },
         "type": "object",
@@ -10864,6 +11901,62 @@
           "amount"
         ],
         "title": "AutopilotDecisionItem"
+      },
+      "AutopilotDecisionLinkRequest": {
+        "properties": {
+          "target_forecast_id": {
+            "type": "integer",
+            "title": "Target Forecast Id"
+          },
+          "adjust_amount": {
+            "type": "boolean",
+            "title": "Adjust Amount",
+            "default": true
+          },
+          "learn_rule": {
+            "type": "boolean",
+            "title": "Learn Rule",
+            "default": true
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_forecast_id"
+        ],
+        "title": "AutopilotDecisionLinkRequest"
       },
       "AutopilotKPIOut": {
         "properties": {
@@ -10947,6 +12040,52 @@
               }
             ],
             "title": "New Amount"
+          },
+          "new_from_account_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New From Account Id"
+          },
+          "new_to_account_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New To Account Id"
+          },
+          "new_date_operation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Date Operation"
+          },
+          "new_reconciliation_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Reconciliation Date"
           },
           "learn_rule": {
             "type": "boolean",
@@ -11095,6 +12234,11 @@
           "target_forecast_id": {
             "type": "integer",
             "title": "Target Forecast Id"
+          },
+          "adjust_amount": {
+            "type": "boolean",
+            "title": "Adjust Amount",
+            "default": true
           },
           "learn_rule": {
             "type": "boolean",
@@ -11956,6 +13100,17 @@
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets"
           }
         },
         "type": "object",
@@ -12409,6 +13564,39 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Params"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id"
+          },
+          "action_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Id"
+          },
+          "user_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Name"
           }
         },
         "type": "object",
@@ -12443,6 +13631,19 @@
           "content"
         ],
         "title": "ChatMessageUpdate"
+      },
+      "ChatMessageVariantSwitch": {
+        "properties": {
+          "variant_index": {
+            "type": "integer",
+            "title": "Variant Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variant_index"
+        ],
+        "title": "ChatMessageVariantSwitch"
       },
       "ChatRegenerateContext": {
         "properties": {
@@ -12494,6 +13695,17 @@
             ],
             "title": "Update Last Assistant",
             "default": false
+          },
+          "target_message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Message Id"
           },
           "user_name": {
             "anyOf": [
@@ -12562,6 +13774,22 @@
         },
         "type": "object",
         "title": "ChatSessionUpdate"
+      },
+      "ChatSessionsBulkDelete": {
+        "properties": {
+          "session_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Session Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_ids"
+        ],
+        "title": "ChatSessionsBulkDelete"
       },
       "CrossProfileTransferRequest": {
         "properties": {
@@ -13214,6 +14442,30 @@
         "type": "object",
         "title": "ProfilePinClearRequest"
       },
+      "ProfilePinRecoverRequest": {
+        "properties": {
+          "recovery_code": {
+            "type": "string",
+            "title": "Recovery Code"
+          },
+          "new_pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recovery_code"
+        ],
+        "title": "ProfilePinRecoverRequest"
+      },
       "ProfilePinRequest": {
         "properties": {
           "pin": {
@@ -13237,6 +14489,19 @@
           "pin"
         ],
         "title": "ProfilePinRequest"
+      },
+      "ProfileRecoveryCodeRequest": {
+        "properties": {
+          "current_pin": {
+            "type": "string",
+            "title": "Current Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_pin"
+        ],
+        "title": "ProfileRecoveryCodeRequest"
       },
       "ProfileUpdateRequest": {
         "properties": {

@@ -47,6 +47,7 @@ Accédez directement à la fiche explicative correspondant à l'écran sur leque
 | **Simulateur Financier** | 🔮 [13_SIMULATEUR_FINANCIER.md](pages/13_SIMULATEUR_FINANCIER.md) | Projections de trésorerie sur 1 à 30 ans, multi-scénarios, événements et inflation. |
 | **Journal d'Audit & Undo/Redo** | 🕓 [14_JOURNAL_ACTIONS_ET_UNDO_REDO.md](pages/14_JOURNAL_ACTIONS_ET_UNDO_REDO.md) | Historique complet des mutations, snapshots JSON, attribution multi-utilisateurs et Ctrl+Z. |
 | **Synchronisation Directe** | 🏦 [15_SYNCHRONISATION_BANCAIRE_DIRECTE.md](pages/15_SYNCHRONISATION_BANCAIRE_DIRECTE.md) | Relevé bancaire automatique local (Woob), coffre-fort AES-256 et sas d'intégrité. |
+| **Sécurité PIN & Sauvegardes** | 🔒 [16_SECURITE_PIN_ET_SAUVEGARDES.md](pages/16_SECURITE_PIN_ET_SAUVEGARDES.md) | PIN de profil appliqué par le serveur, code de récupération, PIN oublié et sauvegardes globales chiffrées. |
 
 ---
 

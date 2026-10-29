@@ -1206,6 +1206,8 @@
                 <input type="password" id="masterProfileNewPinInput" maxlength="10" placeholder="••••" style="width:100%; font-size:18px; letter-spacing:4px; text-align:center; padding:8px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main);" onkeydown="if(event.key === 'Enter') window.ConfigView.submitSavePin()" />
             </div>
 
+            <div data-i18n="pin_info_html" style="font-size:11.5px; line-height:1.5; color:var(--text-muted); background:var(--bg-base); border:1px solid var(--border-color); border-radius:8px; padding:10px 12px; margin-bottom:14px;"><strong>Ce que protège le PIN :</strong> sans lui, l'application et le serveur refusent l'accès aux données de ce profil, sur tous les appareils. Après 5 erreurs, il faut attendre 5 minutes.<br><strong>Code de récupération :</strong> affiché une seule fois à chaque nouveau PIN. Notez-le : il permet de réinitialiser un PIN oublié et de restaurer ce profil sur une autre machine.<br><strong>Limite :</strong> le PIN protège l'accès par l'application, pas les fichiers sur le disque du serveur.</div>
+
             <div id="masterProfilePinConfigError" style="display:none; color:#ef4444; font-size:12px; margin-bottom:12px; background:rgba(239,68,68,0.1); padding:8px 12px; border-radius:6px;"></div>
 
             <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:20px;">
