@@ -12,16 +12,15 @@ import json
 import logging
 import os
 import re
-import zipfile
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
 
-from app.database import DATA_DIR, SessionLocal, get_engine, get_current_db_path, get_current_uploads_dir
+from app.database import DATA_DIR, SessionLocal
 from app.models import GlobalConfig
-from app.profile_manager import load_profiles_data, ensure_no_other_protected_profile
+from app.profile_manager import ensure_no_other_protected_profile
+from app.services.backup_archive import build_global_archive, is_v2_archive
 
 logger = logging.getLogger(__name__)
 
@@ -124,51 +123,8 @@ def run_backup_now() -> dict:
     filepath = os.path.join(BACKUPS_DIR, filename)
 
     try:
-        # Checkpoint WAL sur tous les profils actifs
-        data = load_profiles_data()
-        for p in data.get("profiles", []):
-            try:
-                eng = get_engine(p["id"])
-                with eng.connect() as conn:
-                    conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
-            except Exception:
-                pass
-
-        with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-            # 1. Fichier profiles.json
-            profiles_json_path = os.path.join(DATA_DIR, "profiles.json")
-            if os.path.exists(profiles_json_path):
-                zipf.write(profiles_json_path, arcname="profiles.json")
-
-            # 2. Profil par défaut (omnibank.db & uploads/)
-            def_db = os.path.join(DATA_DIR, "omnibank.db")
-            if os.path.exists(def_db):
-                zipf.write(def_db, arcname="omnibank.db")
-
-            def_uploads = os.path.join(DATA_DIR, "uploads")
-            if os.path.isdir(def_uploads):
-                for root, _dirs, files in os.walk(def_uploads):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.join(
-                            "uploads",
-                            os.path.relpath(file_path, start=def_uploads),
-                        )
-                        zipf.write(file_path, arcname=arcname)
-
-            # 3. Répertoire profiles/ avec tous les profils supplémentaires
-            prof_dir = os.path.join(DATA_DIR, "profiles")
-            if os.path.isdir(prof_dir):
-                for root, _dirs, files in os.walk(prof_dir):
-                    for file in files:
-                        if file.endswith(("-wal", "-shm")):
-                            continue
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.join(
-                            "profiles",
-                            os.path.relpath(file_path, start=prof_dir),
-                        )
-                        zipf.write(file_path, arcname=arcname)
+        # Profils protégés par PIN chiffrés dans l'archive (backup_archive)
+        build_global_archive(filepath)
 
         size = os.path.getsize(filepath)
         logger.info(f"[AutoBackup] Backup créé : {filename} ({size} octets)")
@@ -277,7 +233,6 @@ def get_auto_backup_status():
 @router.get("/download/{filename}")
 def download_auto_backup(filename: str):
     """Télécharge un backup auto spécifique."""
-    ensure_no_other_protected_profile()
     # Validation stricte du nom de fichier (sécurité)
     if not re.match(r"^auto_backup_(all_profiles_)?\d{8}_\d{6}\.zip$", filename):
         raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
@@ -285,6 +240,10 @@ def download_auto_backup(filename: str):
     filepath = os.path.join(BACKUPS_DIR, filename)
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail="Fichier introuvable.")
+
+    # Anciennes archives (avant chiffrement des profils protégés) : tout y est en clair.
+    if not is_v2_archive(filepath):
+        ensure_no_other_protected_profile()
 
     return FileResponse(
         path=filepath,

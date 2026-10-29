@@ -20,7 +20,7 @@ from app.profile_manager import (
     verify_pin,
     clear_pin
 )
-from app.profile_manager import regenerate_recovery_code, verify_recovery_code
+from app.profile_manager import regenerate_recovery_code, verify_recovery_code, ensure_backup_key
 from app.database import get_engine, dispose_engine, get_db
 from app.init_data import init_db
 from app.services import stats_cache, pin_session
@@ -75,7 +75,7 @@ def _sanitize_profile(profile: dict) -> dict:
     clean = dict(profile)
     clean["has_pin"] = bool(clean.get("pin_hash"))
     clean["has_recovery_code"] = bool(clean.get("recovery_hash"))
-    for key in ("pin_hash", "pin_salt", "recovery_hash", "recovery_salt"):
+    for key in ("pin_hash", "pin_salt", "recovery_hash", "recovery_salt", "backup_keys", "backup_key_id"):
         clean.pop(key, None)
     return clean
 
@@ -294,6 +294,7 @@ def api_activate_profile(profile_id: str, response: Response, req: Optional[Prof
     session_token = None
     if target.get("pin_hash"):
         _verify_pin_or_fail(profile_id, req.pin if req else None, "Code PIN incorrect.")
+        ensure_backup_key(profile_id, req.pin)
         session_token = _issue_session(response, profile_id)
 
     _switch_active_profile(profile_id)
@@ -349,7 +350,7 @@ def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, response: Re
     new_pin = (req.new_pin or "").strip()
     try:
         if new_pin:
-            recovery_code = set_pin(profile_id, new_pin)
+            recovery_code = set_pin(profile_id, new_pin, unlock_secret=req.recovery_code)
         else:
             clear_pin(profile_id)
             recovery_code = None
@@ -378,7 +379,7 @@ def api_regenerate_recovery_code(profile_id: str, req: ProfileRecoveryCodeReques
     if not active_profile.get("pin_hash"):
         raise HTTPException(status_code=400, detail="Ce profil n'est pas protégé par un code PIN.")
     _verify_pin_or_fail(profile_id, req.current_pin, "Code PIN actuel incorrect.")
-    return {"ok": True, "recovery_code": regenerate_recovery_code(profile_id)}
+    return {"ok": True, "recovery_code": regenerate_recovery_code(profile_id, current_pin=req.current_pin)}
 
 
 @router.post("/{profile_id}/pin")
@@ -399,7 +400,7 @@ def api_set_pin(profile_id: str, req: ProfilePinRequest, response: Response):
         _verify_pin_or_fail(profile_id, req.current_pin, "Code PIN actuel incorrect.")
 
     try:
-        recovery_code = set_pin(profile_id, req.pin)
+        recovery_code = set_pin(profile_id, req.pin, unlock_secret=req.current_pin if had_pin else None)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

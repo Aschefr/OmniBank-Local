@@ -3812,5 +3812,7 @@
   "autopilot_btn_toggle_mode_active": "Standard Mode",
   "autopilot_confirm_unlink_forecast": "Unlink this transaction and restore the original entry?",
   "autopilot_action_linked_forecast_done_desc": "The transaction was manually verified and linked to its budget forecast.",
-  "autopilot_feed_btn_unlink_manual_title": "Unlink this transaction and restore the original entry"
+  "autopilot_feed_btn_unlink_manual_title": "Unlink this transaction and restore the original entry",
+  "pin_info_html": "<strong>What the PIN protects:</strong> without it, the app and the server refuse access to this profile's data, on every device. After 5 wrong attempts, you must wait 5 minutes.<br><strong>Recovery code:</strong> shown only once for each new PIN. Write it down: it resets a forgotten PIN and lets you restore this profile on another machine.<br><strong>Limit:</strong> the PIN protects access through the app, not the files on the server's disk.",
+  "backup_global_info_html": "🔐 PIN-protected profiles are <strong>encrypted</strong> in the global backup: it can be made even while they are locked. Restoring them requires their PIN (on this server) or their recovery code (on another machine). A profile whose code is not provided is skipped and its current data is kept."
 }

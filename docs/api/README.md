@@ -70,17 +70,19 @@ Le script inspecte dynamiquement l'instance `app` de `app/main.py` et met à jou
 
 ## 📌 En-têtes & Architecture Multi-Profils
 
-### En-tête `X-Profile-ID`
-OmniBank Local supporte l'isolation stricte multi-profils (Personnel, Professionnel, Association). 
-Pour cibler un profil spécifique lors de vos appels API, fournissez son identifiant :
+### Profil actif et en-tête `X-OmniBank-Session`
+OmniBank Local supporte l'isolation stricte multi-profils (Personnel, Professionnel, Association).
+Les appels API opèrent sur le **profil actif** ; pour en changer : `POST /api/profiles/{id}/activate`.
+
+Si le profil actif est protégé par un PIN, `/activate` (avec `{"pin": "..."}`) renvoie un `session_token` à fournir à chaque appel :
 
 ```http
 GET /api/transactions/ HTTP/1.1
 Host: 127.0.0.1:8434
-X-Profile-ID: association_loi_1901
+X-OmniBank-Session: <session_token>
 ```
 
-*Note : Si aucun en-tête `X-Profile-ID` n'est fourni, l'application utilise automatiquement le profil actuellement sélectionné en session.*
+*Sans session valide, le serveur répond `401` avec `{"code": "pin_required"}`. Détails : [Sécurité PIN & Sauvegardes](../fr/pages/16_SECURITE_PIN_ET_SAUVEGARDES.md).*
 
 ---
 

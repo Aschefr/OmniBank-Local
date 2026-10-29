@@ -67,14 +67,24 @@ Contrairement aux configurations par défaut de FastAPI qui s'appuient sur `cdn.
 
 L'application permet d'isoler des profils distincts (ex: *Personnel*, *Professionnel*, *Association*).
 
-### En-tête `X-Profile-ID`
-Pour cibler la base de données d'un profil particulier lors d'un appel REST :
+### Profil actif
+Les appels REST opèrent toujours sur le **profil actif** du serveur. Pour changer de profil : `POST /api/profiles/{id}/activate`.
+
+### En-tête `X-OmniBank-Session` (profils protégés par PIN)
+Si le profil actif est protégé par un PIN, chaque appel exige une session déverrouillée, obtenue avec le PIN :
+```http
+POST /api/profiles/association_loi_1901/activate HTTP/1.1
+Content-Type: application/json
+
+{"pin": "1234"}
+```
+La réponse contient `session_token`, à renvoyer ensuite :
 ```http
 GET /api/transactions/ HTTP/1.1
 Host: 127.0.0.1:8434
-X-Profile-ID: association_loi_1901
+X-OmniBank-Session: <session_token>
 ```
-*Si cet en-tête n'est pas fourni, le backend opère automatiquement sur le profil actuellement actif en mémoire.*
+*Sans session valide, le serveur répond `401` avec `{"code": "pin_required"}`. Détails : [Sécurité PIN & Sauvegardes](pages/16_SECURITE_PIN_ET_SAUVEGARDES.md).*
 
 ### En-têtes Standard
 - `Content-Type: application/json` pour toute requête `POST`, `PUT` ou `PATCH` transmettant un corps JSON.
@@ -386,7 +396,7 @@ const response = await fetch("http://127.0.0.1:8434/api/transactions/", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "X-Profile-ID": "default"
+    "X-OmniBank-Session": "<session_token>"  // seulement si le profil actif a un PIN
   },
   body: JSON.stringify({
     date_operation: "2026-10-03",
@@ -408,7 +418,7 @@ console.log("Transaction créée avec ID :", newTransaction.id);
 import requests
 
 url = "http://127.0.0.1:8434/api/backup/download"
-headers = {"X-Profile-ID": "default"}
+headers = {"X-OmniBank-Session": "<session_token>"}  # seulement si le profil actif a un PIN
 
 with requests.get(url, headers=headers, stream=True) as r:
     r.raise_for_status()

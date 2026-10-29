@@ -456,6 +456,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             📂 <span data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</span>
                         </button>
                     </div>
+                    <p data-i18n="backup_global_info_html" style="font-size:12px; line-height:1.5; color:var(--text-muted); margin:10px 0 0 0;">${window.i18n ? window.i18n.t('backup_global_info_html') : ''}</p>
 
                     <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
 

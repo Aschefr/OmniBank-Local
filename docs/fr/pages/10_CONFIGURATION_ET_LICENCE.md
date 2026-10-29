@@ -101,3 +101,4 @@ La page **Configuration** regroupe tous les réglages généraux d'OmniBank Loca
 
 - **Création d'un Nouveau Profil** : Permet d'isoler totalement différentes comptabilités sur la même machine (ex: *Personnel*, *Activité Freelance*, *Association sportive*).
 - **Sélecteur Actif** : Basculez d'un profil à un autre en 1 clic sans avoir à redémarrer l'application.
+- **Code PIN facultatif** : Protège réellement l'accès aux données du profil (appliqué par le serveur), avec code de récupération et sauvegardes chiffrées. Voir [Sécurité PIN & Sauvegardes](16_SECURITE_PIN_ET_SAUVEGARDES.md).

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
@@ -7,9 +7,13 @@ import zipfile
 import tempfile
 import shutil
 from datetime import datetime
+from typing import Optional
+from urllib.parse import quote
+import json
 
 from app.database import get_db, get_engine, DATA_DIR, get_current_db_path, get_current_uploads_dir, dispose_engine
-from app.profile_manager import get_active_profile, load_profiles_data, ensure_profiles_initialized, ensure_no_other_protected_profile
+from app.profile_manager import get_active_profile, load_profiles_data, ensure_profiles_initialized
+from app.services.backup_archive import build_global_archive, restore_global_archive, RestoreError
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
@@ -143,59 +147,24 @@ async def upload_backup(file: UploadFile = File(...)):
 
 @router.get("/download-all")
 async def download_all_profiles_backup():
-    """Sauvegarde globale complète : englobe profiles.json et tous les jeux de données."""
-    ensure_no_other_protected_profile()
+    """Sauvegarde globale complète : tous les profils, ceux protégés par PIN étant chiffrés."""
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     tmp_path = tmp_file.name
     tmp_file.close()
 
     try:
-        # Checkpoint WAL sur tous les profils actifs
-        data = load_profiles_data()
-        for p in data.get("profiles", []):
-            try:
-                eng = get_engine(p["id"])
-                with eng.connect() as conn:
-                    conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
-            except Exception:
-                pass
-
-        with zipfile.ZipFile(tmp_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # 1. Fichier profiles.json
-            profiles_json_path = os.path.join(DATA_DIR, "profiles.json")
-            if os.path.exists(profiles_json_path):
-                zipf.write(profiles_json_path, arcname="profiles.json")
-
-            # 2. Profil par défaut (omnibank.db & uploads/)
-            def_db = os.path.join(DATA_DIR, "omnibank.db")
-            if os.path.exists(def_db):
-                zipf.write(def_db, arcname="omnibank.db")
-
-            def_uploads = os.path.join(DATA_DIR, "uploads")
-            if os.path.isdir(def_uploads):
-                for root, dirs, files in os.walk(def_uploads):
-                    for f in files:
-                        fp = os.path.join(root, f)
-                        arc = os.path.join("uploads", os.path.relpath(fp, start=def_uploads))
-                        zipf.write(fp, arcname=arc)
-
-            # 3. Répertoire profiles/ avec tous les profils supplémentaires
-            prof_dir = os.path.join(DATA_DIR, "profiles")
-            if os.path.isdir(prof_dir):
-                for root, dirs, files in os.walk(prof_dir):
-                    for f in files:
-                        if f.endswith(("-wal", "-shm")):
-                            continue
-                        fp = os.path.join(root, f)
-                        arc = os.path.join("profiles", os.path.relpath(fp, start=prof_dir))
-                        zipf.write(fp, arcname=arc)
-
+        result = build_global_archive(tmp_path)
         filename = f"omnibank_GLOBAL_ALL_PROFILES_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        headers = {}
+        if result["skipped"]:
+            # Profils protégés sans clé (PIN antérieur à cette version, jamais déverrouillé depuis)
+            headers["X-OmniBank-Skipped-Profiles"] = quote(", ".join(result["skipped"]))
 
         return FileResponse(
             path=tmp_path,
             filename=filename,
             media_type='application/zip',
+            headers=headers,
             background=BackgroundTask(os.remove, tmp_path)
         )
     except Exception as e:
@@ -205,11 +174,21 @@ async def download_all_profiles_backup():
 
 
 @router.post("/upload-all")
-async def upload_all_profiles_backup(file: UploadFile = File(...)):
-    """Restaure une sauvegarde globale complète englobant tous les profils."""
-    ensure_no_other_protected_profile()
+async def upload_all_profiles_backup(file: UploadFile = File(...), secrets: Optional[str] = Form(None)):
+    """Restaure une sauvegarde globale.
+
+    Sans `secrets`, répond 409 avec la liste des profils qui exigent un PIN / code de récupération
+    (profils chiffrés dans l'archive ou protégés sur ce serveur). `secrets` (JSON) :
+    {profile_id: {"secret": "...", "new_pin": "..."}} ; un profil absent est ignoré."""
     if not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Le fichier doit être une archive ZIP.")
+
+    provided = None
+    if secrets is not None:
+        try:
+            provided = json.loads(secrets) if secrets.strip() else {}
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Paramètre 'secrets' invalide.")
 
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     tmp_path = tmp_file.name
@@ -222,32 +201,8 @@ async def upload_all_profiles_backup(file: UploadFile = File(...)):
         if not zipfile.is_zipfile(tmp_path):
             raise HTTPException(status_code=400, detail="Archive ZIP invalide.")
 
-        # Fermer toutes les connexions DB ouvertes
-        data = load_profiles_data()
-        for p in data.get("profiles", []):
-            dispose_engine(p["id"])
+        result = restore_global_archive(tmp_path, provided)
 
-        with zipfile.ZipFile(tmp_path, 'r') as zip_ref:
-            # Rejeter les archives profil unique (pas de profiles.json)
-            if "profiles.json" not in zip_ref.namelist():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cette archive est une sauvegarde de profil unique. "
-                           "Utilisez le bouton 'Restaurer Sauvegarde' à la place."
-                )
-
-            # Validation anti-path-traversal (Zip Slip protection)
-            abs_data_dir = os.path.realpath(DATA_DIR)
-            for member in zip_ref.namelist():
-                member_path = os.path.realpath(os.path.join(DATA_DIR, member))
-                if not member_path.startswith(abs_data_dir + os.sep) and member_path != abs_data_dir:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Archive ZIP suspecte : chemin interdit détecté ({member})"
-                    )
-            zip_ref.extractall(DATA_DIR)
-
-        ensure_profiles_initialized()
         from app.init_data import init_db
         from app.services import stats_cache
         from app.services.bank_sync.pending_store import _PENDING_SYNC_DATA
@@ -255,7 +210,14 @@ async def upload_all_profiles_backup(file: UploadFile = File(...)):
         stats_cache.invalidate()
         _PENDING_SYNC_DATA.clear()
 
-        return {"ok": True, "message": "Restauration globale effectuée avec succès. Rechargement nécessaire.", "reload_required": True}
+        message = "Restauration globale effectuée avec succès. Rechargement nécessaire."
+        if result["skipped"]:
+            message += f" Profils non restaurés (données locales conservées) : {', '.join(result['skipped'])}."
+        return {"ok": True, "message": message, "reload_required": True, **result}
+    except RestoreError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail, headers=e.headers)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de restauration globale: {str(e)}")
     finally:
