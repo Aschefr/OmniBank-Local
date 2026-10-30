@@ -58,10 +58,10 @@ Toute transaction `Transaction` possède une date de rapprochement `reconciliati
 - **Solde En Cours (Prévu)** : $$\text{Solde Pointé} + \sum \text{Transactions Non Rapprochées (reconciliation\_date} = \text{null)}$$
 
 ### 2. Procédure de Rapprochement (Pointage)
-Depuis la vue Historique ou Tableau de Bord (`static/js/views/all_operations.js`) :
+Depuis la vue Historique ou Journal (`static/js/views/all_operations.js`) :
 1. L'utilisateur bascule le statut de l'opération dans la colonne Rapprochement (ou édite sa date de rapprochement) à la réception de son relevé bancaire officiel.
 2. Le frontend émet une requête optimisée `PATCH /api/transactions/{id}` enregistrant ou supprimant la `reconciliation_date`.
-3. Le tableau de bord et l'historique recalculent dynamiquement le solde pointé et ajustent la différence avec le solde en cours.
+3. Le Journal et l'Historique recalculent dynamiquement le solde pointé et ajustent la différence avec le solde en cours.
 
 ---
 

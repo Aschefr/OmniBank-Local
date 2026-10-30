@@ -29,7 +29,7 @@ Au tout premier démarrage de l'application, l'assistant d'accueil s'affiche aut
 
 Pour alimenter votre compte sans saisie manuelle fastidieuse :
 
-1. Allez sur le **Tableau de Bord** ou dans l'**Historique**, puis cliquez sur le bouton **"📥 Importer un relevé"**.
+1. Allez dans le **Journal** ou dans l'**Historique**, puis cliquez sur le bouton **"📥 Importer un relevé"**.
 2. **Sélection du fichier** : Glissez-déposez le fichier `.csv`, `.xlsx` ou `.txt` téléchargé depuis le site web de votre banque.
 3. **Mapping des colonnes** :
    - L'assistant d'importation identifie automatiquement le délimiteur (virgule, point-virgule ou tabulation) et l'encodage (UTF-8, ISO-8859-1).
@@ -82,7 +82,7 @@ En cas de changement d'ordinateur, réinstallez OmniBank Local, allez dans **Con
 L'Auto-Pilote simplifie votre quotidien en prenant en charge le rapprochement et la catégorisation sans jamais envoyer vos données à des tiers :
 
 1. **Activation** : Rendez-vous dans **🤖 Auto-Pilote** et activez le mode souhaité (**Mode Veille** pour tester les suggestions ou **Mode Actif** pour une autonomie complète).
-2. **Surveillance Discrète (Cockpit)** : Le widget Cockpit présent sur le Tableau de Bord vous indique en temps réel l'état du système, le nombre de décisions prises et la file d'attente.
+2. **Surveillance Discrète (Cockpit)** : Le widget Auto-Pilote présent sur le Cockpit et le Tableau de bord vous indique en temps réel l'état du système, le nombre de décisions prises et la file d'attente.
 3. **Revue en 1 Clic** : Si une opération présente une ambiguïté, retrouvez-la dans la **File de Revue** pour la valider ou la réassigner d'un simple clic.
 4. **Réversibilité Absolue** : N'importe quelle décision prise par l'Auto-Pilote peut être annulée individuellement via le bouton **Rollback** dans le Flux de Décisions.
 

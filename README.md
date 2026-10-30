@@ -40,7 +40,7 @@ Dès le premier lancement, un **Assistant d'Initialisation** vous guide pour con
 ![Setup Wizard](screenshots/01_wizard_acceuil.png)
 
 ### 📈 Analytique & Gestion Quotidienne
-*   **Tableau de Bord Dynamique** : Une vue d'ensemble de vos soldes, de vos budgets et de vos prochaines échéances.
+*   **Cockpit, Tableau de bord & Journal** : Le Cockpit résume votre cycle en un coup d'œil (reste à vivre, rythme de dépense), le Tableau de bord détaille soldes et moyennes, le Journal liste les opérations à saisir et rapprocher.
 *   **Historique Virtualisé** : Gérez des milliers de transactions avec une fluidité parfaite grâce au rendu ultra-rapide.
 *   **Rapprochement Intelligent** : Un système visuel pour pointer vos opérations. Comparez d'un coup d'œil vos relevés bancaires (avant) et votre comptabilité propre (après).
 
@@ -161,7 +161,7 @@ From the very first launch, an **Initialization Assistant** guides you through c
 ![Setup Wizard](screenshots/01_wizard_acceuil.png)
 
 ### 📈 Analytics & Daily Management
-*   **Dynamic Dashboard**: An overview of your balances, budgets, and upcoming deadlines.
+*   **Cockpit, Dashboard & Ledger**: the Cockpit sums up your cycle at a glance (remaining budget, spending pace), the Dashboard details balances and averages, the Ledger lists the operations to enter and reconcile.
 *   **Virtualized History**: Manage thousands of transactions with perfect fluidity thanks to ultra-fast rendering.
 *   **Smart Reconciliation**: A visual system to check your operations. Compare bank statements (before) and your clean accounting (after) at a glance.
 
