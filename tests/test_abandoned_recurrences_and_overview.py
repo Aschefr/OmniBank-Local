@@ -12,6 +12,9 @@ from app.routers.maintenance import (
 
 
 def test_abandoned_recurrences_and_overview_lifecycle():
+    # Fresh checkout (CI): this test can run before anything has created the schema.
+    from app.database import Base, get_engine
+    Base.metadata.create_all(bind=get_engine())
     db = SessionLocal()
     created_tpl_ids = []
     created_tx_ids = []
