@@ -279,7 +279,15 @@ window.TimelineView = {
         }
 
         container.style.display = 'block';
-        
+
+        // Mobile: the period bar sits above the list; the screen bottom belongs to the tab bar.
+        const tableBox = container.parentElement && container.parentElement.querySelector('.timeline-table-container');
+        if (tableBox) {
+            const onMobile = window.matchMedia('(max-width: 768px)').matches;
+            if (onMobile && container.nextElementSibling !== tableBox) tableBox.before(container);
+            if (!onMobile && tableBox.nextElementSibling !== container) tableBox.after(container);
+        }
+
         if (this.currentPeriodIndex > 0 && (!window.app.payHistory || this.currentPeriodIndex - 1 >= window.app.payHistory.length)) {
             this.currentPeriodIndex = 0;
             ProfileStorage.set('timeline_period_index', 0);
