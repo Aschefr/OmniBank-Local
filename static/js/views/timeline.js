@@ -57,6 +57,9 @@ window.TimelineView = {
                         <button id="btnMobilePendingSync" class="btn btn-gold btn-sm mobile-pending-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.openPendingReviewModal(this) : null" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
                             <span>📥</span> <span id="btnMobilePendingSyncLabel">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span id="btnMobilePendingSyncCount" class="badge" style="background: rgba(0,0,0,0.3); color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
                         </button>
+                        <button id="btnMobilePeriodToggle" type="button" class="btn btn-secondary btn-sm mobile-period-toggle${ProfileStorage.get('timeline_mobile_period_open') === '1' ? ' is-open' : ''}" onclick="window.TimelineView.toggleMobilePeriod()" aria-controls="timelinePaycheckWidget" aria-expanded="${ProfileStorage.get('timeline_mobile_period_open') === '1'}">
+                            <span>📅</span> <span data-i18n="label_period">${window.i18n.t('label_period') || 'Période'}</span>
+                        </button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -266,12 +269,29 @@ window.TimelineView = {
         await this.loadData(false, didSWR);
     },
 
+    // Mobile: the period bar is collapsed behind the "Période" button in the header.
+    toggleMobilePeriod() {
+        const open = ProfileStorage.get('timeline_mobile_period_open') !== '1';
+        ProfileStorage.set('timeline_mobile_period_open', open ? '1' : '0');
+        const btn = document.getElementById('btnMobilePeriodToggle');
+        if (btn) {
+            btn.classList.toggle('is-open', open);
+            btn.setAttribute('aria-expanded', String(open));
+        }
+        const widget = document.getElementById('timelinePaycheckWidget');
+        if (widget) {
+            widget.classList.toggle('mobile-period-open', open);
+        }
+    },
+
     renderPaycheckWidget(stats) {
         const container = document.getElementById('timelinePaycheckWidget');
         if (!container) return;
 
         const cfg = window.app && window.app.config ? window.app.config : {};
         const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        const periodBtn = document.getElementById('btnMobilePeriodToggle');
+        if (periodBtn) periodBtn.hidden = Boolean(isOrgMode || !stats.next_pay_date);
         if (isOrgMode || !stats.next_pay_date) {
             container.innerHTML = '';
             container.style.display = 'none';
@@ -279,14 +299,15 @@ window.TimelineView = {
         }
 
         container.style.display = 'block';
+        container.classList.toggle('mobile-period-open', ProfileStorage.get('timeline_mobile_period_open') === '1');
 
-        // Mobile: the period bar sits above the list; the screen bottom belongs to the tab bar.
-        const tableBox = container.parentElement && container.parentElement.querySelector('.timeline-table-container');
-        if (tableBox) {
-            const onMobile = window.matchMedia('(max-width: 768px)').matches;
-            if (onMobile && container.nextElementSibling !== tableBox) tableBox.before(container);
-            if (!onMobile && tableBox.nextElementSibling !== container) tableBox.after(container);
-        }
+        // Mobile: the period bar lives in the sticky header (opened by the "Période" button);
+        // the screen bottom belongs to the tab bar. Desktop: below the list.
+        const header = document.getElementById('timelineHeader');
+        const tableBox = document.querySelector('#mainContent .timeline-table-container');
+        const onMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (onMobile && header && container.parentElement !== header) header.appendChild(container);
+        if (!onMobile && tableBox && tableBox.nextElementSibling !== container) tableBox.after(container);
 
         if (this.currentPeriodIndex > 0 && (!window.app.payHistory || this.currentPeriodIndex - 1 >= window.app.payHistory.length)) {
             this.currentPeriodIndex = 0;

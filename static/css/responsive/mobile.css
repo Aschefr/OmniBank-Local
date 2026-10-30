@@ -642,7 +642,7 @@
     /* Paycheck period bar: above the list on mobile (moved by timeline.js); bottom is the tab bar */
     #timelinePaycheckWidget {
         position: static !important;
-        margin: 0 0 8px 0 !important;
+        margin: 8px 0 0 0 !important;
         width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
@@ -4763,5 +4763,31 @@ button, .btn, .nav-btn, [role="button"] {
 
     body:has(#historyTotalsFooter) .app-main {
         padding-bottom: calc(130px + var(--tabbar-h)) !important;
+    }
+}
+
+/* ── Journal period bar: collapsed behind the header "Période" button on mobile ── */
+.mobile-period-toggle {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-period-toggle:not([hidden]) {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 4px;
+        height: 36px !important;
+        padding: 0 10px !important;
+        font-size: 13px !important;
+        margin-left: auto;
+    }
+
+    .mobile-period-toggle.is-open {
+        border-color: var(--accent) !important;
+        color: var(--accent) !important;
+    }
+
+    #timelinePaycheckWidget:not(.mobile-period-open) {
+        display: none !important;
     }
 }
