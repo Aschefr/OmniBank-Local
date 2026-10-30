@@ -180,3 +180,98 @@ def test_cockpit_forecast_coming_transactions():
     assert any(op["description"] == "Octopus Energie" for op in st["operations"])
     db.close()
 
+
+
+def test_cockpit_forecast_anchoring_and_outgoing_transfers():
+    """Vérifie l'ancrage réaliste des recettes dans le Cockpit et la prise en compte des virements sortants d'épargne."""
+    db = TestingSessionLocal()
+    today = date.today()
+
+    # Définir une paie de base de 2500€
+    db.add(GlobalConfig(key="override_paycheck_amount", value="2500.0"))
+    db.add(GlobalConfig(key="override_paycheck_date", value=str(today)))
+
+    # Ajouter une récurrence de recette active de 150€ (Aide de Marine)
+    rec_aide = RecurrenceTemplate(
+        id=5,
+        description="Aide de Marine",
+        amount=150.0,
+        type="income",
+        frequency="Monthly",
+        to_account_id=1
+    )
+    db.add(rec_aide)
+
+    from app.services.simulator_engine import _add_months
+    # Ajouter un virement sortant déjà matérialisé vers le Livret A pour le mois prochain (M+1)
+    next_month_date = _add_months(date(today.year, today.month, 10), 1)
+    tx_transfer = Transaction(
+        from_account_id=1,
+        to_account_id=2,
+        amount=250.0,
+        type="transfer",
+        category="Épargne",
+        description="Virement Livret A",
+        date_operation=next_month_date,
+        reconciliation_date=None
+    )
+    db.add(tx_transfer)
+    db.commit()
+
+    summary = get_cockpit_forecast_summary(db=db, account_id=1)
+    nm = summary["next_month"]
+
+    # Le revenu prévu pour le mois prochain doit être ancré sur le salaire (2500) + la récurrence (150) = 2650€
+    assert nm["projected_income"] == 2650.0
+
+    # Les charges fixes prévues doivent intégrer le loyer (600€) + le virement sortant d'épargne (250€)
+    assert nm["fixed_charges"] >= 850.0
+    db.close()
+
+
+def test_cockpit_mode_simulator_exact_parity(setup_forecast_db):
+    """
+    Vérifie la parité exacte centime pour centime entre le prévisionnel Cockpit
+    (Cap sur le mois prochain) et les chiffres du Simulateur avec les paramètres Mode Cockpit
+    (conservative_weight=1.0, income_mode='auto', seasonality_mode='disabled').
+    """
+    from app.services.simulator_engine import run_simulation
+    db = TestingSessionLocal()
+    today = date.today()
+
+    tx_pay = Transaction(
+        to_account_id=1,
+        amount=2500.0,
+        type="income",
+        category="Salaire",
+        description="Virement Employeur Salaire",
+        date_operation=today - timedelta(days=20),
+        reconciliation_date=today - timedelta(days=20)
+    )
+    db.add(tx_pay)
+    db.commit()
+
+    cockpit_summary = get_cockpit_forecast_summary(db=db, account_id=1)
+    nm_cockpit = cockpit_summary["next_month"]
+
+    sim_res = run_simulation(
+        db,
+        account_id=1,
+        horizon_months=12,
+        conservative_weight=1.0,
+        income_mode="auto",
+        seasonality_mode="disabled",
+        variable_expense_adjustment_pct=0.0,
+        inflation_rate=0.0
+    )
+    db.close()
+
+    next_month_str = nm_cockpit["month"]
+    sim_m1 = next((m for m in sim_res["monthly_data"] if m["month"] == next_month_str), None)
+    assert sim_m1 is not None
+
+    # Parité stricte centime pour centime
+    assert sim_m1["baseline_income"] == nm_cockpit["projected_income"]
+    assert sim_m1["baseline_fixed"] == nm_cockpit["fixed_charges"]
+    assert sim_m1["baseline_variable"] == nm_cockpit["variable_expenses"]
+    assert sim_m1["baseline_net"] == nm_cockpit["projected_net"]

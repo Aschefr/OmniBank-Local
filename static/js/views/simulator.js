@@ -85,32 +85,47 @@ window.SimulatorView = {
         this.accountId = savedAcc && savedAcc !== 'null' && savedAcc !== '' ? parseInt(savedAcc) : null;
         const savedScId = getSetting('sim_active_scenario', null);
         this.activeScenarioId = savedScId && savedScId !== 'null' && savedScId !== '' ? parseInt(savedScId) : null;
-        this.incomeMode = getSetting('sim_income_mode', 'historical_n1');
+        const rawSimMode = getSetting('sim_mode', 'recommended');
+        this.simMode = (rawSimMode === 'advanced' || rawSimMode === 'custom') ? 'advanced' : 'recommended';
+
+        // Custom parameters backup / memory
+        const savedCustomWeight = getSetting('sim_custom_conservative_weight', getSetting('sim_conservative_weight', '0.20'));
+        const customWeight = (savedCustomWeight !== null && savedCustomWeight !== '') ? parseFloat(savedCustomWeight) : 0.20;
+        const customIncomeMode = getSetting('sim_custom_income_mode', getSetting('sim_income_mode', 'historical_n1'));
         const savedCustom = getSetting('sim_custom_income', null);
-        this.customIncomeAmount = savedCustom && savedCustom !== 'null' && savedCustom !== '' ? parseFloat(savedCustom) : null;
-        const savedInflation = getSetting('sim_inflation_rate', '0.0');
-        this.inflationRate = savedInflation && savedInflation !== 'null' && savedInflation !== '' ? parseFloat(savedInflation) : 0.0;
-        const savedVarAdj = getSetting('sim_var_expense_adj', '0.0');
-        this.varExpenseAdjustmentPct = savedVarAdj && savedVarAdj !== 'null' && savedVarAdj !== '' ? parseFloat(savedVarAdj) : 0.0;
-        const savedOutlierSens = getSetting('sim_outlier_sensitivity', '2');
-        this.outlierSensitivity = savedOutlierSens && savedOutlierSens !== 'null' && savedOutlierSens !== '' ? parseInt(savedOutlierSens) : 2;
-        const rawSeasonality = getSetting('sim_seasonality_mode', 'disabled');
-        this.seasonalityMode = ['disabled', 'historical', 'preset_standard'].includes(rawSeasonality) ? rawSeasonality : 'disabled';
-        const savedSeasIntensity = getSetting('sim_seasonality_intensity', '1.0');
-        this.seasonalityIntensity = (savedSeasIntensity !== null && savedSeasIntensity !== undefined && savedSeasIntensity !== '') ? Math.max(0.0, Math.min(1.0, parseFloat(savedSeasIntensity))) : 1.0;
-        if (isNaN(this.seasonalityIntensity)) this.seasonalityIntensity = 1.0;
-        this.isSeasonalityProfileOpen = getSetting('sim_seasonality_profile_open', 'false') === 'true';
-        
-        const savedWeight = getSetting('sim_conservative_weight', null);
-        if (savedWeight !== null && savedWeight !== undefined && savedWeight !== '') {
-            this.conservativeWeight = parseFloat(savedWeight);
+        const customIncomeAmt = (savedCustom && savedCustom !== 'null' && savedCustom !== '') ? parseFloat(savedCustom) : null;
+        const customInflation = parseFloat(getSetting('sim_custom_inflation_rate', getSetting('sim_inflation_rate', '0.0'))) || 0.0;
+        const customVarAdj = parseFloat(getSetting('sim_custom_var_expense_adj', getSetting('sim_var_expense_adj', '0.0'))) || 0.0;
+        const customOutlierSens = parseInt(getSetting('sim_custom_outlier_sensitivity', getSetting('sim_outlier_sensitivity', '2'))) || 2;
+        const rawCustomSeasonality = getSetting('sim_custom_seasonality_mode', getSetting('sim_seasonality_mode', 'disabled'));
+        const customSeasonality = ['disabled', 'historical', 'preset_standard'].includes(rawCustomSeasonality) ? rawCustomSeasonality : 'disabled';
+        const savedSeasIntensity = getSetting('sim_custom_seasonality_intensity', getSetting('sim_seasonality_intensity', '1.0'));
+        const customSeasIntensity = (savedSeasIntensity !== null && savedSeasIntensity !== undefined && savedSeasIntensity !== '') ? Math.max(0.0, Math.min(1.0, parseFloat(savedSeasIntensity))) : 1.0;
+
+        if (this.simMode === 'recommended') {
+            this.conservativeWeight = 1.0;
+            this.incomeMode = 'auto';
+            this.customIncomeAmount = null;
+            this.inflationRate = 0.0;
+            this.varExpenseAdjustmentPct = 0.0;
+            this.outlierSensitivity = 2;
+            this.seasonalityMode = 'disabled';
+            this.seasonalityIntensity = 1.0;
         } else {
-            const savedProf = ProfileStorage.get('sim_projection_profile');
-            this.conservativeWeight = (savedProf === 'conservative') ? 1.0 : ((savedProf === 'realistic') ? 0.0 : 0.20);
+            this.conservativeWeight = isNaN(customWeight) ? 0.20 : customWeight;
+            this.incomeMode = customIncomeMode;
+            this.customIncomeAmount = customIncomeAmt;
+            this.inflationRate = customInflation;
+            this.varExpenseAdjustmentPct = customVarAdj;
+            this.outlierSensitivity = customOutlierSens;
+            this.seasonalityMode = customSeasonality;
+            this.seasonalityIntensity = isNaN(customSeasIntensity) ? 1.0 : customSeasIntensity;
         }
-        if (isNaN(this.conservativeWeight)) this.conservativeWeight = 0.20;
+
+        this.isSeasonalityProfileOpen = getSetting('sim_seasonality_profile_open', 'false') === 'true';
 
         // Synchronisation du ProfileStorage local avec les valeurs résolues
+        ProfileStorage.set('sim_mode', this.simMode);
         ProfileStorage.set('sim_horizon', this.horizonMonths);
         if (this.accountId !== null) ProfileStorage.set('sim_account', this.accountId);
         if (this.activeScenarioId !== null) ProfileStorage.set('sim_active_scenario', this.activeScenarioId);
@@ -902,6 +917,15 @@ window.SimulatorView = {
                 </div>
 
                 <div class="view-header-toolbar">
+                    <!-- Mode Toggle: Conseillé vs Avancé -->
+                    <div class="sim-mode-toggle-group" id="simModeToggleGroup" style="display:inline-flex;background:var(--bg-base);border:1px solid var(--border-color);border-radius:20px;padding:2px;gap:2px;align-items:center;">
+                        <button type="button" id="simModeRecommendedBtn" class="btn btn-xs ${this.simMode === 'recommended' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 12px;border-radius:16px;display:inline-flex;align-items:center;gap:5px;font-weight:${this.simMode === 'recommended' ? '700' : '500'};" onclick="window.SimulatorView.setSimMode('recommended')" title="${window.i18n.t('sim_mode_recommended_tooltip') || 'Paramètres conseillés (100% socle garanti, charges certaines, lissée)'}">
+                            <span>🎯</span> <span data-i18n="sim_mode_recommended">${window.i18n.t('sim_mode_recommended') || 'Conseillé'}</span>
+                        </button>
+                        <button type="button" id="simModeAdvancedBtn" class="btn btn-xs ${this.simMode === 'advanced' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 12px;border-radius:16px;display:inline-flex;align-items:center;gap:5px;font-weight:${this.simMode === 'advanced' ? '700' : '500'};" onclick="window.SimulatorView.setSimMode('advanced')" title="${window.i18n.t('sim_mode_advanced_tooltip') || 'Personnaliser les curseurs de projection'}">
+                            <span>⚙️</span> <span data-i18n="sim_mode_advanced">${window.i18n.t('sim_mode_advanced') || 'Avancé'}</span>
+                        </button>
+                    </div>
                     <div class="filter-pill">
                         <span class="filter-pill-label">🏦 <span data-i18n="sim_account_label">${window.i18n.t('sim_account_label')}</span></span>
                         <select id="simAccountSelect" class="filter-pill-select" style="min-width:140px;" onchange="window.SimulatorView.onAccountChange(this.value)">
@@ -935,8 +959,22 @@ window.SimulatorView = {
                 </div>
             </div>
 
-            <!-- ═══ Collapsible Advanced Controls Panel ═══ -->
-            <div class="sim-card" style="margin-bottom:16px;padding:0;overflow:hidden;">
+            <!-- ═══ Mode Conseillé : Bandeau discret (réglages personnalisés masqués) ═══ -->
+            <div id="simRecommendedStrip" class="sim-card" style="margin-bottom:16px;padding:10px 16px;display:${this.simMode === 'recommended' ? 'flex' : 'none'};align-items:center;justify-content:space-between;background:rgba(99, 102, 241, 0.06);border:1px solid rgba(99, 102, 241, 0.2);border-radius:10px;gap:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:16px;">🎯</span>
+                    <div>
+                        <strong style="font-size:12px;color:var(--text-main);" data-i18n="sim_recommended_mode_banner_title">${window.i18n.t('sim_recommended_mode_banner_title') || 'Paramètres conseillés actifs'}</strong>
+                        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;" data-i18n="sim_recommended_mode_banner_desc">${window.i18n.t('sim_recommended_mode_banner_desc') || 'Projection basée sur vos rentrées et charges certaines (100% socle garanti, lissée).'}</span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-xs" onclick="window.SimulatorView.setSimMode('advanced')" style="font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;">
+                    <span>⚙️</span> <span data-i18n="sim_btn_switch_advanced">${window.i18n.t('sim_btn_switch_advanced') || 'Afficher les paramètres avancés'}</span>
+                </button>
+            </div>
+
+            <!-- ═══ Mode Avancé : Panneau de réglages personnalisés (masqué en mode conseillé) ═══ -->
+            <div class="sim-card" id="simAdvancedCard" style="margin-bottom:16px;padding:0;overflow:hidden;display:${this.simMode === 'advanced' ? 'block' : 'none'};">
                 <div class="sim-collapsible-header" onclick="window.SimulatorView.toggleSection('advanced')">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-size:13px;">⚙️</span>
@@ -946,6 +984,15 @@ window.SimulatorView = {
                     <span class="sim-collapsible-chevron ${advancedOpen ? 'open' : ''}" id="simAdvancedChevron">▸</span>
                 </div>
                 <div class="sim-collapsible-body ${advancedOpen ? 'open' : ''}" id="simAdvancedBody">
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255, 255, 255, 0.03);border:1px solid var(--border-color);border-radius:8px;padding:6px 12px;margin-bottom:14px;font-size:11px;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);">
+                            <span>⚙️</span>
+                            <span data-i18n="sim_advanced_mode_banner_desc">${window.i18n.t('sim_advanced_mode_banner_desc') || 'Paramètres de simulation avancés actifs. Ajustez les curseurs ci-dessous.'}</span>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-xs" onclick="window.SimulatorView.setSimMode('recommended')" style="font-size:11px;color:var(--accent, #6366f1);white-space:nowrap;">
+                            <span>🎯</span> <span data-i18n="sim_btn_align_recommended">${window.i18n.t('sim_btn_align_recommended') || 'Revenir aux paramètres conseillés'}</span>
+                        </button>
+                    </div>
                     <div class="sim-sliders-grid" style="gap:24px;align-items:start;">
                         <!-- Colonne 1 : Curseur de Prudence & Réalisme -->
                         <div style="display:flex;flex-direction:column;gap:6px;">
@@ -1079,7 +1126,8 @@ window.SimulatorView = {
                                 <span data-i18n="sim_income_mode_label">${window.i18n.t('sim_income_mode_label')}</span>
                             </label>
                             <select id="simIncomeModeSelect" class="inline-input" style="padding:3px 8px;font-size:12px;font-weight:500;border-radius:6px;width:auto;min-width:280px;" onchange="window.SimulatorView.onIncomeModeChange(this.value)">
-                                <option value="historical_n1" ${(!this.incomeMode || this.incomeMode === 'historical_n1' || this.incomeMode === 'auto') ? 'selected' : ''}>${window.i18n.t('sim_income_mode_historical')}</option>
+                                <option value="auto" ${(!this.incomeMode || this.incomeMode === 'auto') ? 'selected' : ''}>${(window.i18n.t('sim_income_mode_auto') || 'Automatique (Historique & Salaire)').replace('{amount}', (estSalary || 2500).toLocaleString('fr-FR'))}</option>
+                                <option value="historical_n1" ${this.incomeMode === 'historical_n1' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_historical')}</option>
                                 <option value="average" ${this.incomeMode === 'average' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_average')}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €/m)` : ''}</option>
                                 <option value="custom" ${this.incomeMode === 'custom' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_custom')}</option>
                                 <option value="none" ${this.incomeMode === 'none' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_none')}</option>
@@ -1941,6 +1989,7 @@ window.SimulatorView = {
     onConservativeWeightInput(val) {
         const intVal = parseInt(val) || 0;
         this.conservativeWeight = intVal / 100.0;
+        this._onCustomParamTouch();
         const badge = document.getElementById('simPrudenceBadge');
         if (badge) {
             badge.textContent = this.getPrudenceBadgeText(this.conservativeWeight);
@@ -1970,6 +2019,7 @@ window.SimulatorView = {
 
     async setPrudenceWeight(val) {
         this.conservativeWeight = val;
+        this._onCustomParamTouch();
         const slider = document.getElementById('simPrudenceSlider');
         if (slider) slider.value = Math.round(val * 100);
         const badge = document.getElementById('simPrudenceBadge');
@@ -1988,6 +2038,7 @@ window.SimulatorView = {
 
     async setVarExpenseAdjustment(val) {
         this.varExpenseAdjustmentPct = val;
+        this._onCustomParamTouch();
         const slider = document.getElementById('simVarAdjSlider');
         if (slider) slider.value = Math.round(val * 100);
         const badge = document.getElementById('simVarAdjBadge');
@@ -2049,6 +2100,7 @@ window.SimulatorView = {
     onOutlierSensitivityInput(val) {
         const intVal = Math.min(5, Math.max(1, parseInt(val) || 2));
         this.outlierSensitivity = intVal;
+        this._onCustomParamTouch();
         const badge = document.getElementById('simOutlierBadge');
         if (badge) {
             badge.textContent = this.getOutlierSensitivityLabel(intVal);
@@ -2077,6 +2129,7 @@ window.SimulatorView = {
     async setOutlierSensitivity(level) {
         const intVal = Math.min(5, Math.max(1, parseInt(level) || 2));
         this.outlierSensitivity = intVal;
+        this._onCustomParamTouch();
         const slider = document.getElementById('simOutlierSlider');
         if (slider) slider.value = intVal;
         const badge = document.getElementById('simOutlierBadge');
@@ -2166,6 +2219,7 @@ window.SimulatorView = {
 
     async setSeasonalityMode(mode) {
         this.seasonalityMode = mode;
+        this._onCustomParamTouch();
         this._saveParam('sim_seasonality_mode', mode);
         await this.runSimulation();
         this.render();
@@ -2220,7 +2274,124 @@ window.SimulatorView = {
         this.render();
     },
 
+    async setSimMode(mode) {
+        const targetMode = (mode === 'advanced' || mode === 'custom') ? 'advanced' : 'recommended';
+        if (targetMode === this.simMode) return;
+        this.simMode = targetMode;
+        this._saveParam('sim_mode', targetMode);
+
+        if (targetMode === 'recommended') {
+            this.conservativeWeight = 1.0;
+            this.incomeMode = 'auto';
+            this.customIncomeAmount = null;
+            this.varExpenseAdjustmentPct = 0.0;
+            this.inflationRate = 0.0;
+            this.seasonalityMode = 'disabled';
+            this.seasonalityIntensity = 1.0;
+            this.outlierSensitivity = 2;
+
+            this._batchSaveParams({
+                sim_conservative_weight: '1.0',
+                sim_income_mode: 'auto',
+                sim_custom_income: '',
+                sim_var_expense_adj: '0.0',
+                sim_inflation_rate: '0.0',
+                sim_seasonality_mode: 'disabled',
+                sim_seasonality_intensity: '1.0',
+                sim_outlier_sensitivity: '2'
+            });
+
+            await this.runSimulation();
+            this.render();
+            if (typeof showToast === 'function') {
+                showToast(window.i18n.t('sim_toast_mode_recommended_activated') || 'Paramètres conseillés activés : projection sur socle garanti', 'info');
+            }
+        } else {
+            // Restore custom / advanced settings
+            const getSetting = (k, fb) => {
+                const s = ProfileStorage.get(k);
+                return (s !== null && s !== undefined && s !== '') ? s : fb;
+            };
+            const customWeight = parseFloat(getSetting('sim_custom_conservative_weight', getSetting('sim_conservative_weight', '0.20')));
+            this.conservativeWeight = isNaN(customWeight) ? 0.20 : customWeight;
+            this.incomeMode = getSetting('sim_custom_income_mode', 'historical_n1');
+            const customInc = getSetting('sim_custom_income', null);
+            this.customIncomeAmount = (customInc && customInc !== 'null' && customInc !== '') ? parseFloat(customInc) : null;
+            this.varExpenseAdjustmentPct = parseFloat(getSetting('sim_custom_var_expense_adj', '0.0')) || 0.0;
+            this.inflationRate = parseFloat(getSetting('sim_custom_inflation_rate', '0.0')) || 0.0;
+            this.seasonalityMode = getSetting('sim_custom_seasonality_mode', 'disabled');
+            this.seasonalityIntensity = parseFloat(getSetting('sim_custom_seasonality_intensity', '1.0')) || 1.0;
+            this.outlierSensitivity = parseInt(getSetting('sim_custom_outlier_sensitivity', '2')) || 2;
+
+            this._batchSaveParams({
+                sim_conservative_weight: String(this.conservativeWeight),
+                sim_income_mode: String(this.incomeMode),
+                sim_custom_income: this.customIncomeAmount !== null ? String(this.customIncomeAmount) : '',
+                sim_var_expense_adj: String(this.varExpenseAdjustmentPct),
+                sim_inflation_rate: String(this.inflationRate),
+                sim_seasonality_mode: String(this.seasonalityMode),
+                sim_seasonality_intensity: String(this.seasonalityIntensity),
+                sim_outlier_sensitivity: String(this.outlierSensitivity)
+            });
+
+            await this.runSimulation();
+            this.render();
+            if (typeof showToast === 'function') {
+                showToast(window.i18n.t('sim_toast_mode_advanced_activated') || 'Paramètres avancés activés', 'info');
+            }
+        }
+    },
+
+    _onCustomParamTouch() {
+        if (this.simMode === 'recommended') {
+            this.simMode = 'advanced';
+            this._saveParam('sim_mode', 'advanced');
+            this.updateModeToggleUI();
+        }
+        this._saveCustomParams();
+    },
+
+    _saveCustomParams() {
+        this._batchSaveParams({
+            sim_custom_conservative_weight: String(this.conservativeWeight),
+            sim_custom_income_mode: String(this.incomeMode),
+            sim_custom_income: this.customIncomeAmount !== null ? String(this.customIncomeAmount) : '',
+            sim_custom_var_expense_adj: String(this.varExpenseAdjustmentPct),
+            sim_custom_inflation_rate: String(this.inflationRate),
+            sim_custom_seasonality_mode: String(this.seasonalityMode),
+            sim_custom_seasonality_intensity: String(this.seasonalityIntensity),
+            sim_custom_outlier_sensitivity: String(this.outlierSensitivity)
+        });
+    },
+
+    updateModeToggleUI() {
+        const recBtn = document.getElementById('simModeRecommendedBtn') || document.getElementById('simModeCockpitBtn');
+        const advBtn = document.getElementById('simModeAdvancedBtn') || document.getElementById('simModeCustomBtn');
+        if (recBtn && advBtn) {
+            if (this.simMode === 'recommended') {
+                recBtn.className = 'btn btn-xs btn-primary';
+                recBtn.style.fontWeight = '700';
+                advBtn.className = 'btn btn-xs btn-ghost';
+                advBtn.style.fontWeight = '500';
+            } else {
+                recBtn.className = 'btn btn-xs btn-ghost';
+                recBtn.style.fontWeight = '500';
+                advBtn.className = 'btn btn-xs btn-primary';
+                advBtn.style.fontWeight = '700';
+            }
+        }
+        const recStrip = document.getElementById('simRecommendedStrip');
+        if (recStrip) {
+            recStrip.style.display = this.simMode === 'recommended' ? 'flex' : 'none';
+        }
+        const advCard = document.getElementById('simAdvancedCard');
+        if (advCard) {
+            advCard.style.display = this.simMode === 'advanced' ? 'block' : 'none';
+        }
+    },
+
     async resetToRecommendedSettings() {
+        this.simMode = 'advanced';
         this.conservativeWeight = 0.20;
         this.varExpenseAdjustmentPct = 0.0;
         this.outlierSensitivity = 2;
@@ -2349,7 +2520,9 @@ window.SimulatorView = {
             breakEvenContainer.innerHTML = this.renderBreakEvenBanner(data);
         }
 
-        // 5. Update Advanced Summary
+        // 5. Update Advanced Summary & Mode Controls
+        this.updateModeToggleUI();
+
         const summaryEl = document.getElementById('simAdvancedSummary');
         if (summaryEl) {
             const estSalary = (data && data.predicted_salary) ? Math.round(data.predicted_salary) : 0;
@@ -2419,6 +2592,32 @@ window.SimulatorView = {
             seasStrip.innerHTML = this.renderSeasonality12MonthsStrip(data);
         }
 
+        // Sync Prudence Controls
+        const prudenceSlider = document.getElementById('simPrudenceSlider');
+        if (prudenceSlider && document.activeElement !== prudenceSlider) {
+            prudenceSlider.value = Math.round((this.conservativeWeight || 0) * 100);
+        }
+        const prudenceBadge = document.getElementById('simPrudenceBadge');
+        if (prudenceBadge) {
+            prudenceBadge.textContent = this.getPrudenceBadgeText(this.conservativeWeight || 0);
+            prudenceBadge.style.color = (this.conservativeWeight || 0) === 0 ? '#10b981' : ((this.conservativeWeight || 0) >= 0.8 ? '#ef4444' : ((this.conservativeWeight || 0) >= 0.4 ? '#f59e0b' : 'var(--text-main)'));
+        }
+        const prudenceExplainer = document.getElementById('simPrudenceExplainer');
+        if (prudenceExplainer) {
+            prudenceExplainer.innerHTML = this.getPrudenceExplainerText(this.conservativeWeight || 0);
+        }
+
+        // Sync Effort Controls
+        const varAdjSlider = document.getElementById('simVarAdjSlider');
+        if (varAdjSlider && document.activeElement !== varAdjSlider) {
+            varAdjSlider.value = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
+        }
+        const varAdjBadge = document.getElementById('simVarAdjBadge');
+        if (varAdjBadge) {
+            varAdjBadge.textContent = `${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(this.varExpenseAdjustmentPct * 100)}%${(data && data.avg_variable_expense && this.varExpenseAdjustmentPct !== 0) ? ` (${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(data.avg_variable_expense * this.varExpenseAdjustmentPct).toLocaleString('fr-FR')} €/m)` : ''}`;
+            varAdjBadge.style.color = this.varExpenseAdjustmentPct < 0 ? '#10b981' : (this.varExpenseAdjustmentPct > 0 ? '#ef4444' : 'var(--text-main)');
+        }
+
         // 6. Update Monthly Table (only on demand or settled pause)
         if (updateTable) {
             const tableContainer = document.getElementById('simMonthlyTableContainer');
@@ -2430,6 +2629,7 @@ window.SimulatorView = {
 
     async onIncomeModeChange(val) {
         this.incomeMode = val;
+        this._onCustomParamTouch();
         this._saveParam('sim_income_mode', val);
         if (val === 'custom' && !this.customIncomeAmount) {
             const defaultAmt = (this.simulationData && this.simulationData.predicted_salary) ? this.simulationData.predicted_salary : 2500;
@@ -2442,6 +2642,7 @@ window.SimulatorView = {
 
     async onCustomIncomeChange(val) {
         this.customIncomeAmount = parseFloat(val) || 0;
+        this._onCustomParamTouch();
         this._saveParam('sim_custom_income', this.customIncomeAmount);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
@@ -2455,7 +2656,8 @@ window.SimulatorView = {
     },
 
     async onInflationChange(val) {
-        this.inflationRate = (parseFloat(val) || 0) / 100;  // Convert from % to decimal
+        this.inflationRate = (parseFloat(val) || 0) / 100;
+        this._onCustomParamTouch();  // Convert from % to decimal
         this._saveParam('sim_inflation_rate', this.inflationRate);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
@@ -2464,6 +2666,7 @@ window.SimulatorView = {
     onVarExpenseAdjustmentInput(val) {
         const intVal = parseInt(val) || 0;
         this.varExpenseAdjustmentPct = intVal / 100.0;
+        this._onCustomParamTouch();
         const badge = document.getElementById('simVarAdjBadge');
         if (badge) {
             const avgVar = (this.simulationData && this.simulationData.avg_variable_expense) ? this.simulationData.avg_variable_expense : 0;
@@ -2498,6 +2701,7 @@ window.SimulatorView = {
     },
 
     async applyBreakEvenEffort(pct) {
+        this._onCustomParamTouch();
         // Arrondi au pourcent supérieur (pas de 1%), plafonné à 100%
         let targetPct = Math.min(100, Math.ceil(pct));
         this.varExpenseAdjustmentPct = -(targetPct / 100.0);
@@ -2518,6 +2722,7 @@ window.SimulatorView = {
 
     async resetEffort() {
         this.varExpenseAdjustmentPct = 0.0;
+        this._onCustomParamTouch();
         this._saveParam('sim_var_expense_adj', 0.0);
         const slider = document.getElementById('simVarAdjSlider');
         if (slider) slider.value = 0;

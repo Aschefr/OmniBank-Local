@@ -4315,7 +4315,7 @@ window.OverviewView = {
             ? t('cockpit_forecast_open_simulator', 'Accéder au Simulateur')
             : t('cockpit_forecast_enable_and_open_simulator', 'Activer et accéder au Simulateur');
         const simBtnAction = isSimEnabled
-            ? "window.app.loadView('simulator')"
+            ? "window.OverviewView.openSimulatorInCockpitMode()"
             : "window.OverviewView.enableAndOpenSimulator()";
         const simBtnExtraClass = isSimEnabled ? '' : ' sim-disabled';
 
@@ -4331,7 +4331,7 @@ window.OverviewView = {
         const varHint = isOrgMode ? t('cockpit_org_forecast_var_hint', 'Activités & fonctionnement courant') : t('cockpit_forecast_next_month_variable_hint', 'Vie courante (saisonnalité incluse)');
         const varTooltip = isOrgMode ? t('cockpit_org_forecast_variable_tooltip', 'Estimation des dépenses courantes de fonctionnement et projets selon le rythme moyen et la saisonnalité.') : t('cockpit_forecast_next_month_variable_tooltip', 'Estimation des dépenses courantes variables basée sur votre rythme moyen et la saisonnalité du mois.');
 
-        const netLabel = isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_next_month_remaining', 'Reste à vivre estimé');
+        const netLabel = isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_next_month_remaining', 'Marge nette estimée');
         const netHint = isOrgMode ? t('cockpit_org_forecast_net_hint', 'Excédent ou besoin prévisionnel') : t('cockpit_forecast_next_month_remaining_hint', 'Marge nette prévisionnelle');
         const netTooltip = isOrgMode ? t('cockpit_org_forecast_net_tooltip', 'Résultat net estimé (Recettes - Charges de structure - Dépenses courantes) pour le mois prochain.') : t('cockpit_forecast_next_month_remaining_tooltip', 'Capacité d\'épargne ou marge disponible nette en fin de mois (Recettes - Fixes - Variables).');
 
@@ -4365,7 +4365,10 @@ window.OverviewView = {
                 : t('cockpit_forecast_next_month_income_tooltip', 'Total des salaires et rentrées prévisibles pour le mois prochain selon vos récurrences et votre historique.'),
             actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
             onActionClick: () => {
-                if (window.app && window.app.loadView) {
+                if (window.OverviewView && window.OverviewView.openSimulatorInCockpitMode) {
+                    window.OverviewView.openSimulatorInCockpitMode();
+                } else if (window.app && window.app.loadView) {
+                    if (typeof ProfileStorage !== 'undefined') ProfileStorage.set('sim_mode', 'recommended');
                     window.app.loadView('simulator');
                 }
             }
@@ -4391,7 +4394,10 @@ window.OverviewView = {
                 : t('cockpit_forecast_next_month_fixed_tooltip', 'Total des charges récurrentes engagées (loyer, abonnements, mensualités, factures).'),
             actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
             onActionClick: () => {
-                if (window.app && window.app.loadView) {
+                if (window.OverviewView && window.OverviewView.openSimulatorInCockpitMode) {
+                    window.OverviewView.openSimulatorInCockpitMode();
+                } else if (window.app && window.app.loadView) {
+                    if (typeof ProfileStorage !== 'undefined') ProfileStorage.set('sim_mode', 'recommended');
                     window.app.loadView('simulator');
                 }
             }
@@ -4420,7 +4426,10 @@ window.OverviewView = {
                 : t('cockpit_forecast_next_month_variable_tooltip', 'Estimation des dépenses courantes variables basée sur votre rythme moyen et la saisonnalité du mois.'),
             actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
             onActionClick: () => {
-                if (window.app && window.app.loadView) {
+                if (window.OverviewView && window.OverviewView.openSimulatorInCockpitMode) {
+                    window.OverviewView.openSimulatorInCockpitMode();
+                } else if (window.app && window.app.loadView) {
+                    if (typeof ProfileStorage !== 'undefined') ProfileStorage.set('sim_mode', 'recommended');
                     window.app.loadView('simulator');
                 }
             }
@@ -4429,7 +4438,7 @@ window.OverviewView = {
         // 4. Reste à vivre / Résultat net
         this._cachedCockpitTileData['next_month_remaining'] = {
             icon: '💰',
-            title: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_sheet_remaining_title', 'Reste à vivre estimé'),
+            title: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_sheet_remaining_title', 'Marge nette estimée'),
             value: `${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}`,
             valueClass: netVal >= 0 ? 'text-green' : 'text-red',
             badge: netVal >= 0 ? (isOrgMode ? '✨ Excédent' : '✨ Épargne') : (isOrgMode ? '⚠️ Besoin' : '⚠️ Déficit'),
@@ -4439,8 +4448,9 @@ window.OverviewView = {
                 { label: t('cockpit_forecast_sheet_ref_month', 'Mois de projection'), value: monthLabel },
                 { label: isOrgMode ? t('cockpit_org_forecast_income', 'Recettes prévues') : t('cockpit_forecast_next_month_income', 'Recettes prévues'), value: `+${formatCurrency(incomeVal)}`, valueClass: 'text-green' },
                 { label: isOrgMode ? t('cockpit_org_forecast_fixed', 'Charges de structure') : t('cockpit_forecast_next_month_fixed', 'Charges fixes'), value: `-${formatCurrency(fixedVal)}`, valueClass: 'text-red' },
+                { label: t('cockpit_forecast_sheet_rem_after_fixed', 'Marge après charges fixes (disponible)'), value: `${formatCurrency(remainingAfterFixed)}`, valueClass: remainingAfterFixed >= 0 ? 'text-main' : 'text-red' },
                 { label: isOrgMode ? t('cockpit_org_forecast_var', 'Dépenses courantes') : t('cockpit_forecast_next_month_variable', 'Dépenses variables'), value: `-${formatCurrency(varVal)}`, valueClass: 'text-red' },
-                { label: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_next_month_remaining', 'Marge nette prévisionnelle'), value: `${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}`, valueClass: netVal >= 0 ? 'text-green' : 'text-red' },
+                { label: isOrgMode ? t('cockpit_org_forecast_net_result', 'Résultat net estimé') : t('cockpit_forecast_next_month_remaining', 'Marge nette estimée'), value: `${netVal >= 0 ? '+' : ''}${formatCurrency(netVal)}`, valueClass: netVal >= 0 ? 'text-green' : 'text-red' },
                 ...(endBalVal !== null ? [
                     { label: t('cockpit_forecast_next_month_end_balance', 'Solde fin de mois estimé'), value: formatCurrency(endBalVal), valueClass: endBalVal >= 0 ? 'text-main' : 'text-red' }
                 ] : []),
@@ -4453,7 +4463,10 @@ window.OverviewView = {
                 : t('cockpit_forecast_next_month_remaining_tooltip', 'Capacité d\'épargne ou marge disponible nette en fin de mois (Recettes - Fixes - Variables).'),
             actionBtnText: t('cockpit_forecast_open_simulator', 'Accéder au Simulateur'),
             onActionClick: () => {
-                if (window.app && window.app.loadView) {
+                if (window.OverviewView && window.OverviewView.openSimulatorInCockpitMode) {
+                    window.OverviewView.openSimulatorInCockpitMode();
+                } else if (window.app && window.app.loadView) {
+                    if (typeof ProfileStorage !== 'undefined') ProfileStorage.set('sim_mode', 'recommended');
                     window.app.loadView('simulator');
                 }
             }
@@ -4572,9 +4585,6 @@ window.OverviewView = {
 
     async showCockpitTileInfo(tileKey) {
         if (!this._cachedCockpitTileData) this._cachedCockpitTileData = {};
-        if (!this._fullHistoryLoaded && tileKey && tileKey.startsWith('next_month_')) {
-            await this._loadFullHistory();
-        }
         let data = this._cachedCockpitTileData[tileKey];
 
         // Handle hero overdraft card on demand
@@ -5531,6 +5541,23 @@ window.OverviewView = {
                 }
             }
         });
+    },
+
+        openSimulatorInCockpitMode() {
+        if (typeof ProfileStorage !== 'undefined') {
+            ProfileStorage.set('sim_mode', 'recommended');
+            ProfileStorage.set('sim_conservative_weight', '1.0');
+            ProfileStorage.set('sim_income_mode', 'auto');
+            ProfileStorage.set('sim_var_expense_adj', '0.0');
+            ProfileStorage.set('sim_inflation_rate', '0.0');
+            ProfileStorage.set('sim_seasonality_mode', 'disabled');
+            if (this._selectedAccountId) {
+                ProfileStorage.set('sim_account', this._selectedAccountId);
+            }
+        }
+        if (window.app && window.app.loadView) {
+            window.app.loadView('simulator');
+        }
     },
 
     async enableAndOpenSimulator() {
