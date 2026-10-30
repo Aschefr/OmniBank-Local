@@ -78,17 +78,9 @@ window.OverviewView = {
                 <div class="overview-top-bar">
                     <div class="overview-header-main">
                         <div class="overview-title-group">
-                            <h2 class="overview-main-title">👀 <span data-i18n="nav_overview">${window.i18n.t('nav_overview')}</span></h2>
+                            <h2 class="overview-main-title">${this._displayMode === 'cockpit' ? `🎛️ <span data-i18n="nav_cockpit">${window.i18n.t('nav_cockpit') || 'Cockpit'}</span>` : `📊 <span data-i18n="nav_overview_full">${window.i18n.t('nav_overview_full') || 'Tableau de bord'}</span>`}</h2>
                             <div id="ovOrgTag" class="overview-org-tag" style="display:none;">🏢 <span data-i18n="overview_org_badge">${window.i18n.t('overview_org_badge') || 'Mode Organisation'}</span></div>
                             <div id="ovHealthBadge" class="overview-health-badge">—</div>
-                        </div>
-                        <div class="overview-mode-toggle" id="ovModeToggle">
-                            <button class="overview-mode-btn ${this._displayMode === 'cockpit' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('cockpit')" data-i18n-title="overview_mode_cockpit_tooltip" title="${window.i18n.t('overview_mode_cockpit_tooltip') || 'Vue simplifiée avec jauges visuelles'}">
-                                🎛️ <span data-i18n="overview_mode_cockpit">${window.i18n.t('overview_mode_cockpit') || 'Cockpit'}</span>
-                            </button>
-                            <button class="overview-mode-btn ${this._displayMode === 'full' ? 'active' : ''}" onclick="window.OverviewView.setDisplayMode('full')" data-i18n-title="overview_mode_full_tooltip" title="${window.i18n.t('overview_mode_full_tooltip') || 'Tableau de bord complet avec toutes les sections'}">
-                                📊 <span data-i18n="overview_mode_full">${window.i18n.t('overview_mode_full') || 'Complet'}</span>
-                            </button>
                         </div>
                     </div>
                     <div class="overview-controls-bar">

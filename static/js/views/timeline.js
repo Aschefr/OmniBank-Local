@@ -53,7 +53,7 @@ window.TimelineView = {
             <div id="timelineHeader" class="view-header-sticky-container">
                 <div class="view-header-bar" style="position:static; margin:0; padding:0 0 10px 0;">
                     <div class="view-header-title-group">
-                        <h2 class="view-header-title">🏠 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
+                        <h2 class="view-header-title">📒 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
                         <button id="btnMobilePendingSync" class="btn btn-gold btn-sm mobile-pending-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.openPendingReviewModal(this) : null" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
                             <span>📥</span> <span id="btnMobilePendingSyncLabel">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span id="btnMobilePendingSyncCount" class="badge" style="background: rgba(0,0,0,0.3); color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
                         </button>
