@@ -472,6 +472,9 @@ def run_simulation(
         ).order_by(Transaction.date_operation.desc()).first()
         if main_pay_tx:
             pay_account_id = main_pay_tx.to_account_id
+        else:
+            main_acc = get_main_account(db)
+            pay_account_id = main_acc.id if main_acc else None
 
     predicted_salary_for_account = predicted_salary if (not target_acc_ids or (pay_account_id and pay_account_id in target_acc_ids)) else 0.0
 
@@ -698,9 +701,9 @@ def run_simulation(
             is_in = (not target_acc_ids or t.to_account_id in target_acc_ids) and (not t.from_account_id or not target_acc_ids or t.from_account_id not in target_acc_ids)
             is_out = (not target_acc_ids or t.from_account_id in target_acc_ids) and (not t.to_account_id or not target_acc_ids or t.to_account_id not in target_acc_ids)
 
-            if t.type == "income" and is_in:
+            if (t.type == "income" or (t.type == "transfer" and is_in)) and is_in:
                 existing_income_total += abs(t.amount)
-            elif t.type == "expense_fixed" and is_out:
+            elif (t.type in ("expense_fixed", "transfer") and is_out):
                 existing_fixed_total += abs(t.amount)
             elif t.type == "expense_var" and is_out:
                 existing_var_total += abs(t.amount)
@@ -1246,14 +1249,42 @@ def get_cockpit_forecast_summary(
         except Exception:
             pass
 
-    seasonality_mode = sim_settings.get("seasonality_mode", "disabled")
-    seasonality_intensity = float(sim_settings.get("seasonality_intensity", 1.0))
-    conservative_weight = float(sim_settings.get("conservative_weight", 0.0))
-    outlier_sens = int(sim_settings.get("outlier_sensitivity", 2))
-    var_adj = float(sim_settings.get("var_expense_adjustment_pct", 0.0))
-    inc_mode = sim_settings.get("income_mode", "auto")
-    custom_inc = sim_settings.get("custom_income_amount")
-    custom_inc_float = float(custom_inc) if custom_inc is not None else None
+    def _get_cfg_val(k: str, default=None):
+        r = db.query(GlobalConfig).filter(GlobalConfig.key == k).first()
+        return r.value if r and r.value is not None else default
+
+    seasonality_mode = sim_settings.get("seasonality_mode") or _get_cfg_val("sim_seasonality_mode", "disabled")
+    try:
+        seasonality_intensity = float(sim_settings.get("seasonality_intensity") or _get_cfg_val("sim_seasonality_intensity", "1.0"))
+    except (ValueError, TypeError):
+        seasonality_intensity = 1.0
+
+    # Poids de prudence : par défaut 1.0 dans le Cockpit (socle contractuel/récurrent connu garanti)
+    # pour éviter la sur-estimation de N-1, sauf si l'utilisateur l'a explicitement réglé.
+    cw_raw = sim_settings.get("conservative_weight") if "conservative_weight" in sim_settings else _get_cfg_val("sim_conservative_weight")
+    if cw_raw is not None and str(cw_raw).strip() != "":
+        try:
+            conservative_weight = float(cw_raw)
+        except (ValueError, TypeError):
+            conservative_weight = 1.0
+    else:
+        conservative_weight = 1.0
+
+    outlier_sens_raw = sim_settings.get("outlier_sensitivity") or _get_cfg_val("sim_outlier_sensitivity", "2")
+    try:
+        outlier_sens = int(outlier_sens_raw)
+    except (ValueError, TypeError):
+        outlier_sens = 2
+
+    var_adj_raw = sim_settings.get("var_expense_adjustment_pct") or _get_cfg_val("sim_var_expense_adj", "0.0")
+    try:
+        var_adj = float(var_adj_raw)
+    except (ValueError, TypeError):
+        var_adj = 0.0
+
+    inc_mode = sim_settings.get("income_mode") or _get_cfg_val("sim_income_mode", "auto")
+    custom_inc = sim_settings.get("custom_income_amount") or _get_cfg_val("sim_custom_income")
+    custom_inc_float = float(custom_inc) if custom_inc is not None and str(custom_inc).strip() != "" else None
 
     sim_result = run_simulation(
         db=db,
