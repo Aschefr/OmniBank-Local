@@ -408,11 +408,8 @@ class App {
         ]);
 
         // Restore view from ProfileStorage
-        let savedView = ProfileStorage.get('omni_current_view') || this.currentView;
-        // If overview is enabled and no saved view, default to overview
-        if (!ProfileStorage.get('omni_current_view') && this.config.enable_overview === 'true') {
-            savedView = 'overview';
-        }
+        // First visit opens the Cockpit
+        let savedView = ProfileStorage.get('omni_current_view') || 'overview';
         await this.loadView(savedView);
 
         // Horodatage d'initialisation pour éviter les faux rebonds visibilitychange au premier affichage mobile
@@ -791,15 +788,7 @@ class App {
 
     onLogoClick(e) {
         if (e) e.preventDefault();
-        const isOverviewEnabled = Boolean(this.config && (this.config.enable_overview === 'true' || this.config.enable_overview === true));
-        if (isOverviewEnabled) {
-            this.loadView('overview');
-            if (window.OverviewView && typeof window.OverviewView.setMode === 'function') {
-                window.OverviewView.setMode('cockpit');
-            }
-        } else {
-            this.loadView('dashboard');
-        }
+        this.loadView('overview');
     }
 
     loadView(viewName) {
@@ -817,18 +806,31 @@ class App {
         if (viewName === 'simulator' && this.config.enable_simulator === 'false') {
             viewName = 'dashboard';
         }
+        // Cockpit ('overview') and Tableau de bord ('overview_full') are two nav entries
+        // for the two display modes of the same overview view.
+        const navView = viewName;
+        if (viewName === 'overview' || viewName === 'overview_full') {
+            const mode = viewName === 'overview_full' ? 'full' : 'cockpit';
+            if (this.currentView === 'overview' && window.OverviewView && window.OverviewView._displayMode !== mode && window.OverviewView.destroy) {
+                window.OverviewView.destroy();
+            }
+            ProfileStorage.set('overview_display_mode', mode);
+            if (this.config) this.config.overview_display_mode = mode;
+            if (window.OverviewView) window.OverviewView._displayMode = mode;
+            viewName = 'overview';
+        }
         this.currentView = viewName;
 
         if (window.ErrorReporter && typeof window.ErrorReporter.recordBreadcrumb === 'function') {
             window.ErrorReporter.recordBreadcrumb('NAV', `Navigated to view: ${viewName}`);
         }
 
-        ProfileStorage.set('omni_current_view', viewName);
+        ProfileStorage.set('omni_current_view', navView);
         this.updateHeaderHistoryState();
         
         // Update nav buttons active state
         document.querySelectorAll('.nav-btn').forEach(b => {
-            if (b.getAttribute('data-view') === viewName) {
+            if (b.getAttribute('data-view') === navView) {
                 b.classList.add('active');
                 if (b.closest('.main-nav')) {
                     b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
