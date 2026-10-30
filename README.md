@@ -252,7 +252,7 @@ Access the interface at `http://localhost:8434`.
 
 1. `python -m venv venv`
 2. `.\venv\Scripts\activate`
-3. `pip install -r requirements.txt`
+3. `pip install -r requirements-dev.txt`
 4. `uvicorn app.main:app --host 127.0.0.1 --port 8434 --reload`
 
 ## 📝 Licence / License
