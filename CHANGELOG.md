@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Simulator Mode Toggle (Conseillé vs Avancé) & Strict Parity 🔮🎯⚙️**: Added a segmented control in the Simulator page (`[ 🎯 Conseillé ] [ ⚙️ Avancé ]`) allowing seamless switching between recommended baseline parameters (100% contractual guarantee, auto income baseline, 0% inflation, smoothed seasonality) and customizable advanced projection settings. In "Conseillé" mode, all complex manual sliders are now cleanly hidden to present an uncluttered, focus-oriented forecast that strictly matches the Overview Cockpit figures cent-for-cent. Switching to "Avancé" reveals the full suite of granular sliders with automatic memory and restore capabilities. Removed redundant status badges from the collapsible header.
+
+### Fixed & Ergonomics
+- **Cockpit Forecast Anchoring & Terminology Alignment 🔮🎯**: Grounded next-month Cockpit forecast projections in verifiable contractual baselines (regular salary and active recurring revenues) to prevent past one-off windfalls, bonuses, or reimbursements from overestimating upcoming income. Fixed simulator settings profile lookup in the forecast engine, added support for instantiated outgoing transfers on selected accounts, restored the interactive detail info sheet modal on forecast tile clicks, and clarified Cockpit KPI labeling from "Estimated Net Remaining" to "Estimated Net Margin" with transparent disposable margin breakdowns.
+
 ## [1.2.11] - 2026-10-27
 
 ### Added & Improved
