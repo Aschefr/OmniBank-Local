@@ -87,8 +87,11 @@ jobs:
 
   build-ios:
     name: "iOS (.ipa & Xcode Archive)"
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_ios == true) || secrets.IOS_DIST_CERT_P12_BASE64 != '' }}
+    # The secrets context is not allowed in job/step `if:`; expose it through env instead.
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_ios }}
     runs-on: macos-latest
+    env:
+      HAS_IOS_SIGNING: ${{ secrets.IOS_DIST_CERT_P12_BASE64 != '' && secrets.IOS_PROVISIONING_PROFILE_BASE64 != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -112,7 +115,7 @@ jobs:
           npm run cap:sync
 
       - name: Build Signed iOS IPA (when Apple Developer Secrets are configured)
-        if: ${{ secrets.IOS_DIST_CERT_P12_BASE64 != '' && secrets.IOS_PROVISIONING_PROFILE_BASE64 != '' }}
+        if: ${{ env.HAS_IOS_SIGNING == 'true' }}
         env:
           IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
@@ -144,7 +147,7 @@ jobs:
             archive
 
       - name: Verify iOS Xcode Project Compilation (Unsigned CI Check)
-        if: ${{ secrets.IOS_DIST_CERT_P12_BASE64 == '' }}
+        if: ${{ env.HAS_IOS_SIGNING != 'true' }}
         run: |
           xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
