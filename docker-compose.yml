@@ -2,6 +2,8 @@
 services:
   api:
     build: .
+    # Source folders are mounted below, so reload on code changes (dev setup).
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8434", "--reload", "--reload-dir", "app"]
     ports:
       # Local machine only by default. Set OMNIBANK_BIND_IP=0.0.0.0 to open to the LAN (mobile app).
       - "${OMNIBANK_BIND_IP:-127.0.0.1}:8434:8434"
