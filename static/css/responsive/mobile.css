@@ -4651,3 +4651,38 @@ button, .btn, .nav-btn, [role="button"] {
         font-weight: 500;
     }
 }
+
+/* ── Dashboard + Historique header: secondary actions on one compact row, <= 768px ──
+   Every action stays one tap away; icon above a short wrapped label. */
+@media (max-width: 768px) {
+    #timelineHeader .view-header-toolbar,
+    #historyHeader .view-header-toolbar {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    #timelineHeader .view-header-toolbar .toolbar-btn.btn-secondary,
+    #historyHeader .view-header-toolbar .toolbar-btn.btn-secondary {
+        flex: 1 1 0 !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: 48px !important;
+        padding: 4px 4px !important;
+        gap: 2px !important;
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        hyphens: auto;
+        overflow-wrap: anywhere;
+    }
+
+    #timelineHeader .view-header-toolbar .btn.toolbar-btn.btn-primary,
+    #historyHeader .view-header-toolbar .btn.toolbar-btn.btn-primary {
+        flex: 1 0 100% !important;
+        order: 10;
+        height: 44px !important;
+        min-height: 44px !important;
+        font-size: 14px !important;
+    }
+}
