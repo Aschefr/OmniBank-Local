@@ -1628,14 +1628,21 @@ window.SetupWizard = {
             .wiz-scene-desc { font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.45; }
             .wiz-scene-tag { display:inline-block; margin-top:6px; font-size:10.5px; font-weight:700; padding:2px 8px;
                 border-radius:999px; background:rgba(99,102,241,.14); color:var(--accent); }
-            .demo-banner { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9000; display:flex;
-                gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; max-width:calc(100vw - 24px);
-                padding:10px 16px; border-radius:14px; background:var(--bg-card, #1e2530); color:var(--text-main);
-                border:1px solid var(--accent); box-shadow:0 8px 30px rgba(0,0,0,.35); font-size:12.5px; }
-            .demo-banner-btn { border:1px solid var(--border-color); background:transparent; color:var(--text-main);
-                border-radius:8px; padding:5px 12px; cursor:pointer; font-size:12px; font-weight:600; }
+            /* In-flow strip under the header: pushes content down instead of covering it. */
+            .demo-banner { flex-shrink:0; display:flex; gap:8px 12px; align-items:center; flex-wrap:wrap;
+                justify-content:center; padding:6px 16px; background:var(--accent-subtle, rgba(99,102,241,.14));
+                border-bottom:1px solid var(--accent-border, rgba(99,102,241,.35)); color:var(--text-main); font-size:13px; }
+            .demo-banner-text { line-height:1.3; }
+            .demo-banner-actions { display:flex; gap:8px; }
+            .demo-banner-btn { border:1px solid var(--border-color); background:var(--bg-surface, transparent); color:var(--text-main);
+                border-radius:8px; padding:4px 12px; min-height:30px; cursor:pointer; font-size:12px; font-weight:600; }
             .demo-banner-btn:hover { border-color:var(--accent); }
-            .demo-banner-btn.danger { background:var(--danger, #ff5630); border-color:transparent; color:#fff; }
+            .demo-banner-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+            .demo-banner-btn.danger { color:var(--danger, #ff5630); border-color:var(--danger, #ff5630); }
+            @media (max-width: 768px) {
+                .demo-banner { justify-content:space-between; padding:8px 12px; }
+                .demo-banner-btn { min-height:40px; font-size:13px; }
+            }
         `;
         document.head.appendChild(st);
     },
@@ -1715,10 +1722,13 @@ window.SetupWizard = {
         el.id = 'demoModeBanner';
         el.className = 'demo-banner';
         el.innerHTML = `
-            <span>🧪 <strong>${this._t('demo_banner_title', 'Mode démo')}</strong> — ${this._t('demo_banner_desc', 'vous explorez des données fictives.')}</span>
-            <button id="demoBannerReset" class="demo-banner-btn danger" onclick="window.SetupWizard.resetDemo()">↺ ${this._t('demo_banner_reset', 'Repartir à neuf')}</button>
-            <button id="demoBannerKeep" class="demo-banner-btn" onclick="window.SetupWizard.hideDemoBanner()">${this._t('demo_banner_keep', 'Garder et continuer')}</button>`;
-        document.body.appendChild(el);
+            <span class="demo-banner-text"><strong>${this._t('demo_banner_title', 'Mode démo')}</strong> — ${this._t('demo_banner_desc', 'vous explorez des données fictives.')}</span>
+            <span class="demo-banner-actions">
+                <button id="demoBannerReset" class="demo-banner-btn danger" onclick="window.SetupWizard.resetDemo()">↺ ${this._t('demo_banner_reset', 'Repartir à neuf')}</button>
+                <button id="demoBannerKeep" class="demo-banner-btn" onclick="window.SetupWizard.hideDemoBanner()">${this._t('demo_banner_keep', 'Garder et continuer')}</button>
+            </span>`;
+        const header = document.querySelector('.app-header');
+        if (header) header.after(el); else document.body.appendChild(el);
     },
 
     hideDemoBanner() {
