@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T18:00:00Z",
+  "title": "Design System: OmniBank Local",
+  "extensions": {
+    "colorMeta": {
+      "accent-profile": { "role": "primary", "displayName": "Profile Accent", "canonical": "var(--accent)", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4f46e5", "#6366f1", "#818cf8", "#a5b4fc", "#e0e7ff"] },
+      "ink-night": { "role": "neutral", "displayName": "Ink Night", "tonalRamp": ["#0b0f14", "#11161d", "#161c24", "#1c2430", "#212b36", "#2a3441", "#333d48", "#454f5b"] },
+      "slate-surface": { "role": "neutral", "displayName": "Slate Surface" },
+      "income-green": { "role": "tertiary", "displayName": "Income Green" },
+      "expense-red": { "role": "tertiary", "displayName": "Expense Red" },
+      "transfer-cyan": { "role": "tertiary", "displayName": "Transfer Cyan" },
+      "warning-amber": { "role": "tertiary", "displayName": "Warning Amber" },
+      "titanium-accent": { "role": "primary", "displayName": "Titanium Accent" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "View titles." },
+      "data": { "displayName": "Data", "purpose": "Amounts and balances, tabular numerals." },
+      "label": { "displayName": "Label", "purpose": "Column headers, field labels, eyebrows." }
+    },
+    "shadows": [
+      { "name": "resting", "value": "0 1px 2px 0 rgba(0, 0, 0, 0.24)", "purpose": "Subtle card lift in dark themes." },
+      { "name": "floating", "value": "0 8px 16px 0 rgba(0, 0, 0, 0.24)", "purpose": "Menus, popovers, modals." }
+    ],
+    "motion": [
+      { "name": "state", "value": "0.2s ease", "purpose": "Hover and state transitions on buttons and rows." }
+    ],
+    "breakpoints": [
+      { "name": "phone", "value": "768px" },
+      { "name": "tablet", "value": "1024px" }
+    ],
+    "themes": ["classic-dark (default)", "classic-light", "titanium-dark", "titanium-light (Albâtre)"]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single main action of a screen, in the profile accent.",
+      "html": "<button class=\"ds-btn-primary\">Nouvelle opération</button>",
+      "css": ".ds-btn-primary { background: var(--accent, #6366f1); color: #fff; padding: 8px 16px; border: none; border-radius: 8px; font: 600 13px Inter, sans-serif; cursor: pointer; transition: background 0.2s; } .ds-btn-primary:hover { background: var(--accent-hover, #4f46e5); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Frequent secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\">Importer un relevé</button>",
+      "css": ".ds-btn-secondary { background: rgba(145,158,171,0.08); color: var(--text-main, #f9fafb); padding: 8px 16px; border: none; border-radius: 8px; font: 600 13px Inter, sans-serif; cursor: pointer; transition: background 0.2s; } .ds-btn-secondary:hover { background: rgba(145,158,171,0.16); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, #6366f1); outline-offset: 2px; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text and amount fields.",
+      "html": "<input class=\"ds-input\" placeholder=\"Rechercher…\">",
+      "css": ".ds-input { background: var(--bg-input, #1c2430); color: var(--text-main, #f9fafb); border: 1px solid var(--border-color, #333d48); border-radius: 8px; padding: 8px 12px; font: 400 14px Inter, sans-serif; } .ds-input:focus-visible { outline: none; border-color: var(--accent, #6366f1); box-shadow: 0 0 0 2px var(--accent-subtle, rgba(99,102,241,0.18)); }"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "Category label on a ledger row.",
+      "html": "<span class=\"ds-chip\">Alimentation</span>",
+      "css": ".ds-chip { display: inline-block; background: var(--bg-input, #1c2430); color: var(--text-main, #f9fafb); border-radius: 4px; padding: 2px 8px; font: 600 12px Inter, sans-serif; }"
+    },
+    {
+      "name": "KPI Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "One hero figure with one line of context.",
+      "html": "<div class=\"ds-kpi\"><div class=\"ds-kpi-label\">Reste à vivre</div><div class=\"ds-kpi-value\">4 452,33 €</div><div class=\"ds-kpi-ctx\">sur 5 152,45 € initial</div></div>",
+      "css": ".ds-kpi { background: var(--bg-card, #212b36); border: 1px solid var(--border-color, #333d48); border-radius: 12px; padding: 24px; font-family: Inter, sans-serif; color: var(--text-main, #f9fafb); } .ds-kpi-label { font: 600 12px Inter, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted, #919eab); } .ds-kpi-value { font: 700 32px Inter, sans-serif; font-variant-numeric: tabular-nums; margin: 6px 0; } .ds-kpi-ctx { font-size: 13px; color: var(--text-muted, #919eab); }"
+    },
+    {
+      "name": "Ledger Row",
+      "kind": "custom",
+      "description": "Transaction row: date, label, category, right-aligned amount.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-row-date\">28/10/2026</span><span class=\"ds-row-label\">Salaire Entreprise</span><span class=\"ds-chip\">Salaire</span><span class=\"ds-row-amt\">+2 800,00 €</span></div>",
+      "css": ".ds-row { display: grid; grid-template-columns: 110px 1fr auto 120px; gap: 16px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color, #333d48); font: 400 14px Inter, sans-serif; color: var(--text-main, #f9fafb); } .ds-row:hover { background: var(--bg-surface-hover, rgba(255,255,255,0.035)); } .ds-row-date { font-variant-numeric: tabular-nums; color: var(--text-muted, #919eab); } .ds-row-amt { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-income, #36b37e); } .ds-chip { background: var(--bg-input, #1c2430); border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le Registre du Trésorier",
+    "overview": "OmniBank is a modern account book. Its job is to make figures trustworthy at a glance: columns align, amounts read in tabular digits, and every colour carries meaning (which account, which direction of money, which state) before it carries mood. The interface is calm and precise rather than flashy; the satisfaction comes from a ledger that balances, not from decoration.\n\nIt serves two equal contexts: a dense workspace on PC, where a treasurer reconciles and analyses for long sessions, and a fast one-handed phone, where an entry or a check takes seconds. Density is welcome on PC as long as type stays legible; on phone, the same data is reorganised, never just shrunk.\n\nThe system ships four themes that must stay in step: Classique sombre (default) and Classique clair, Titanium sombre and Albâtre clair. Classique sombre and Titanium sombre are the two reference themes; every change is checked in both, plus one light theme. The interface accent is not fixed: it is the colour the user picks for their profile, so no design may depend on a specific accent hue.",
+    "keyCharacteristics": [
+      "Figures first: amounts in tabular numerals, right-aligned in tables, one hero figure per card.",
+      "Colour is semantic: per-account colours, income green, expense red, transfer cyan; the profile accent marks the user's own actions and the current location.",
+      "One line-icon set (stroke icons inheriting `currentColor`), no emoji in interface chrome.",
+      "Tonal layering over shadows; thin rules separate ledger rows.",
+      "Same structure in all four themes; only the tokens change."
+    ],
+    "rules": [
+      { "name": "The Meaning-Before-Mood Rule", "body": "A colour on a figure must answer \"which account?\" or \"money in or out?\". Decorative colour on data is prohibited.", "section": "colors" },
+      { "name": "The Borrowed Accent Rule", "body": "The accent belongs to the user. Never hard-code the default indigo (#6366f1) or a theme accent in a component; always read `var(--accent)` and its derived tokens, and check legibility of white text on light accents.", "section": "colors" },
+      { "name": "The Contrast Floor Rule", "body": "Text meets WCAG AA (4.5:1, 3:1 for 18px+ bold) in all four themes. Muted text is for labels and reconciled rows, never for figures the user must act on.", "section": "colors" },
+      { "name": "The 12-Pixel Floor Rule", "body": "Functional text (labels, table cells, buttons, badges, metadata) is never below 12px on desktop and 13px on phone. 11px is reserved for non-interactive fine print. The current codebase has many 10–11.5px sizes; they are debt to retire, not precedent.", "section": "typography" },
+      { "name": "The Tabular Figures Rule", "body": "Every amount, balance, percentage and date column uses `font-variant-numeric: tabular-nums` and is right-aligned in tables.", "section": "typography" },
+      { "name": "The Reorganise-Don't-Shrink Rule", "body": "On phone, a dense desktop component is redesigned for the phone, never just scaled down or wrapped until labels overlap. No horizontal page scroll; wide tables scroll inside their own container with a sticky first column.", "section": "layout" },
+      { "name": "The Flat Ledger Rule", "body": "Rows and cards rest flat; only things that float above the page (menus, dialogs, toasts) get a real shadow. Floating banners never cover data the user is reading.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do read the accent from `var(--accent)` so the profile colour drives the interface.",
+      "Do keep each account's colour identical across sidebar, chips, cards and charts.",
+      "Do use one stroke-icon set that inherits `currentColor`.",
+      "Do use tabular numerals and right alignment for every amount.",
+      "Do check every change in Classique sombre, Titanium sombre and one light theme, at 1920×1200 and 390×844."
+    ],
+    "donts": [
+      "Don't use emoji as interface icons in navigation, buttons or headers.",
+      "Don't set functional text below 12px (13px on phone).",
+      "Don't hard-code colours in inline styles; use theme tokens so all four themes follow.",
+      "Don't let floating banners or toasts cover table rows or figures.",
+      "Don't use colour on figures for decoration; colour means account or money direction."
+    ]
+  }
+}
