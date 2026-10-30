@@ -59,10 +59,10 @@ Every `Transaction` model holds a `reconciliation_date` (nullable Date field):
 - **Pending (Expected) Balance**: $$\text{Reconciled Balance} + \sum \text{Pending Transactions (reconciliation\_date} = \text{null)}$$
 
 ### 2. Reconciliation Procedure
-From the History or Dashboard views (`static/js/views/all_operations.js`):
+From the History or Ledger views (`static/js/views/all_operations.js`):
 1. Upon receiving an official bank statement, the user toggles the transaction status in the **Reconciliation** column (or edits its reconciliation date).
 2. The frontend sends an optimized `PATCH /api/transactions/{id}` request recording or clearing `reconciliation_date`.
-3. The dashboard and history table dynamically recalculate the reconciled balance and adjust the difference with pending balances.
+3. The Ledger and History tables dynamically recalculate the reconciled balance and adjust the difference with pending balances.
 
 ---
 

@@ -24,9 +24,9 @@ The Auto-Pilot is founded on four foundational principles:
 
 ---
 
-## 🎛️ 3. The Cockpit Widget (Dashboard & Overview)
+## 🎛️ 3. The Auto-Pilot Widget (Cockpit & Dashboard)
 
-On the **Dashboard** and **Overview** screens, a sliding drawer **Auto-Pilot Cockpit** provides instant operational status:
+On the **Cockpit** and **Dashboard** screens, a sliding drawer **Auto-Pilot** panel provides instant operational status:
 
 - **State Indicator**: Colored badge showing Green (Active) or Muted Gray (Monitoring).
 - **Active Rules**: Total count of merchant patterns and learned mappings (`bank_label_mappings`).

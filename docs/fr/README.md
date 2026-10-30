@@ -32,7 +32,7 @@ Accédez directement à la fiche explicative correspondant à l'écran sur leque
 
 | Page / Fonctionnalité | Document de Référence | Description |
 | :--- | :--- | :--- |
-| **Tableau de Bord** | 📊 [01_TABLEAU_DE_BORD.md](pages/01_TABLEAU_DE_BORD.md) | Synthèse visuelle des comptes, graphiques et saisie rapide d'opérations. |
+| **Cockpit, Tableau de bord & Journal** | 📊 [01_TABLEAU_DE_BORD.md](pages/01_TABLEAU_DE_BORD.md) | Écran d'accueil (Cockpit), vue détaillée (Tableau de bord), liste des opérations du cycle (Journal) et navigation. |
 | **Historique & Opérations** | 📜 [02_HISTORIQUE_ET_OPERATIONS.md](pages/02_HISTORIQUE_ET_OPERATIONS.md) | Liste complète des transactions, filtres multicritères et rapprochement bancaire. |
 | **Synthèse financière** | 📈 [03_SYNTHESE.md](pages/03_SYNTHESE.md) | Bilan des entrées/sorties par catégorie et export de rapports PDF. |
 | **Budgets & IA** | 🎯 [04_BUDGETS_ET_SUGGESTIONS_IA.md](pages/04_BUDGETS_ET_SUGGESTIONS_IA.md) | Gestion des enveloppes budgétaires, plafonds et générateur de conseils par Ollama. |
