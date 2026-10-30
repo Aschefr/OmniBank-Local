@@ -639,27 +639,22 @@
         transform-origin: center right !important;
     }
 
-    /* Paycheck Bottom Navigator Widget Mobile Dock */
+    /* Paycheck period bar: above the list on mobile (moved by timeline.js); bottom is the tab bar */
     #timelinePaycheckWidget {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        margin: 0 !important;
+        position: static !important;
+        margin: 0 0 8px 0 !important;
         width: 100% !important;
-        max-width: 100vw !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
-        z-index: 900 !important;
     }
 
     #timelinePaycheckWidget > .paycheck-widget-inner,
     #timelinePaycheckWidget > div {
-        border-radius: 16px 16px 0 0 !important;
-        border-bottom: none !important;
+        border-radius: 12px !important;
         padding: 8px 12px 10px 12px !important;
         background: var(--bg-surface) !important;
-        box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.5) !important;
-        border-top: 1px solid var(--border-color) !important;
+        box-shadow: none !important;
+        border: 1px solid var(--border-color) !important;
         display: flex !important;
         flex-direction: column !important;
         gap: 6px !important;
@@ -4684,5 +4679,89 @@ button, .btn, .nav-btn, [role="button"] {
         height: 44px !important;
         min-height: 44px !important;
         font-size: 14px !important;
+    }
+}
+
+/* ── Mobile bottom tab bar ── */
+.mobile-tabbar {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    :root {
+        --tabbar-h: calc(58px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+    }
+
+    .mobile-tabbar {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 860;
+        height: var(--tabbar-h);
+        padding: 0 4px var(--safe-bottom, env(safe-area-inset-bottom, 0px)) 4px;
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border-color);
+        box-sizing: border-box;
+    }
+
+    .mobile-tabbar .tabbar-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        height: 100%;
+        margin: 0;
+        padding: 4px 2px;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: var(--text-muted);
+        font: 600 12px/1.1 'Inter', sans-serif;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .mobile-tabbar .tabbar-btn svg {
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+    }
+
+    .mobile-tabbar .tabbar-btn span {
+        max-width: 100%;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .mobile-tabbar .tabbar-btn.active {
+        color: var(--accent);
+        background: transparent;
+    }
+
+    .mobile-tabbar .tabbar-btn:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
+
+    /* Content and fixed footers clear the tab bar */
+    .app-main {
+        padding-bottom: calc(24px + var(--tabbar-h)) !important;
+    }
+
+    .view-footer,
+    #historyTotalsFooter {
+        bottom: var(--tabbar-h) !important;
+    }
+
+    body:has(#historyTotalsFooter) .app-main {
+        padding-bottom: calc(130px + var(--tabbar-h)) !important;
     }
 }
