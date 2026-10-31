@@ -82,7 +82,7 @@ When switching computers, reinstall OmniBank Local, go to **Settings > Data Mana
 Auto-Pilot streamlines your daily financial tracking by taking over statement reconciliation and categorization without ever sending your records to the cloud:
 
 1. **Activation**: Open **🤖 Auto-Pilot** and pick your desired mode (**Monitoring Mode** to test recommendations or **Active Mode** for full autonomous reconciliation).
-2. **Discreet Oversight (Cockpit)**: The Auto-Pilot widget on the Cockpit and the Dashboard informs you of system status, active rules, and pending review counts in real time.
+2. **Discreet Oversight (Cockpit)**: The Auto-Pilot widget on the Cockpit informs you of system status, active rules, and pending review counts in real time.
 3. **1-Click Review Queue**: If an ambiguous or large transaction is detected, inspect it in the **Review Queue** to validate or reassign categories with a single click.
 4. **Absolute Reversibility**: Any decision executed by Auto-Pilot can be rolled back individually via the **Rollback** button in the Decision Feed.
 

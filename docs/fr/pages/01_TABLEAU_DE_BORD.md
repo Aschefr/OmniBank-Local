@@ -1,14 +1,16 @@
-# 📊 Documentation Page : Cockpit, Tableau de bord et Journal
+# 📊 Documentation Page : Cockpit et Journal
 
-OmniBank Local propose trois vues complémentaires pour suivre le cycle en cours (d'une paie à la suivante) :
+OmniBank Local propose deux vues complémentaires pour suivre le cycle en cours (d'une paie à la suivante) :
 
 | Vue | Rôle | Accès |
 |---|---|---|
-| **🎛️ Cockpit** | L'essentiel en un coup d'œil : reste à vivre, dépenses pointées, rythme de dépense. **Écran d'accueil** de l'application. | Menu principal, clic sur le logo, onglet mobile |
-| **📊 Tableau de bord** | La version détaillée : soldes, moyennes, opérations à rapprocher, tendances. | Menu principal, menu « Plus » sur mobile |
+| **🎛️ Cockpit** | L'essentiel en un coup d'œil : reste à vivre, dépenses pointées, rythme de dépense, patrimoine net. **Écran d'accueil** de l'application. | Menu principal, clic sur le logo, onglet mobile |
 | **📒 Journal** | La liste des opérations du cycle, pour saisir, rapprocher et filtrer. | Menu principal, onglet mobile |
 
-Le Cockpit et le Tableau de bord sont toujours disponibles : ils ne se désactivent pas dans la Configuration.
+Le Cockpit est toujours disponible : il ne se désactive pas dans la Configuration.
+
+> [!NOTE]
+> L'ancien **Tableau de bord** a été retiré. Ses informations se trouvent désormais ailleurs : patrimoine net sur le Cockpit, opérations à rapprocher dans le Journal, moyennes & rythme et Top 6 des dépenses dans **Tendances**, budgets et épargne dans **Budgets**.
 
 ---
 
@@ -28,21 +30,14 @@ Vue simplifiée, pensée pour un contrôle quotidien rapide :
 - **Reste à vivre** : jauge circulaire du pourcentage restant et montant restant sur le reste à vivre initial du cycle.
 - **Dépenses pointées** : part des dépenses prévues déjà rapprochées, avec le reste à venir.
 - **Rythme de dépense (€/jour)** : jauge à aiguille comparant votre dépense quotidienne à votre moyenne, avec un verdict (ex. « Dans les clous »).
+- **Patrimoine net** : total de vos comptes et livrets (ou solde du compte choisi) ; un clic ouvre la page Comptes.
 - **Projection fin de cycle** : solde prévisionnel à la prochaine paie.
 - **Auto-Pilote** et **À rapprocher** : état de l'Auto-Pilote, opérations à vérifier et nombre d'opérations en attente de rapprochement (un clic ouvre le Journal).
 - **Cap sur le mois prochain** : recettes prévues, charges fixes, dépenses variables estimées et marge nette estimée, avec un lien vers le Simulateur.
 
-## 📊 2. Le Tableau de bord
+Dans l'en-tête du Cockpit : choix du compte affiché, état de l'Auto-Pilote et bouton **Nouvelle opération**.
 
-Vue complète des mêmes données, pour une analyse plus poussée :
-- **Cartes de synthèse** : patrimoine net, reste à vivre, projection fin de cycle, prochaine paie.
-- **Moyennes & rythme** : revenus, dépenses fixes, dépenses variables et solde net moyens, sur une période réglable (1 semaine à tout l'historique) et par mois, semaine, jour ou heure.
-- **Opérations à rapprocher** : liste filtrable (passées, dépenses, recettes), rapprochement en un clic ou en lot pour les échéances passées.
-- **Graphique de tendance** de l'évolution des soldes.
-
-Dans l'en-tête du Cockpit comme du Tableau de bord : choix du compte affiché, état de l'Auto-Pilote et bouton **Nouvelle opération**.
-
-## 📒 3. Le Journal
+## 📒 2. Le Journal
 
 La liste des opérations du cycle en cours, l'outil de travail quotidien :
 - **Colonnes** : date, libellé, catégorie, montant, rapprochement et actions ; d'autres colonnes (comptes, enveloppe, récurrence, pièces jointes…) s'activent via le bouton **Colonnes**.
@@ -53,7 +48,7 @@ La liste des opérations du cycle en cours, l'outil de travail quotidien :
 
 Pour consulter toutes les opérations, toutes périodes confondues, utilisez l'**Historique**.
 
-## ➕ 4. Saisie rapide (Nouvelle opération)
+## ➕ 3. Saisie rapide (Nouvelle opération)
 
 Le bouton **Nouvelle opération** ouvre la modale de création :
 - **Compte(s)** : « Depuis » et/ou « Vers » selon le sens (dépense, recette ou virement).
@@ -63,14 +58,14 @@ Le bouton **Nouvelle opération** ouvre la modale de création :
 
 Sur mobile, la saisie s'ouvre dans une fenêtre adaptée au téléphone : montant, libellé, comptes « Depuis » et « Vers » côte à côte (choix « — » pour aucun compte), date et catégorie, puis **Plus d'options** pour la récurrence, l'enveloppe, la date de rapprochement, le bordereau et les pièces jointes (ouvert d'office si l'opération les utilise). Le menu **⋯** de l'en-tête regroupe Mode Auto-Pilote, Dupliquer, Ignorer et Supprimer.
 
-## 🤖 5. Widget Auto-Pilote
+## 🤖 4. Widget Auto-Pilote
 
-Le Cockpit et le Tableau de bord affichent l'état de l'Auto-Pilote :
+Le Cockpit affiche l'état de l'Auto-Pilote :
 - **Statut en direct** : actif ou en veille.
 - **Opérations à vérifier** : nombre de décisions en attente de votre revue.
 - **Accès rapide au Centre de contrôle** de l'Auto-Pilote.
 
-## 🧭 6. Navigation et contrôles d'en-tête
+## 🧭 5. Navigation et contrôles d'en-tête
 
 - **Sur ordinateur** : menu horizontal en haut de l'écran.
 - **Sur mobile** : barre d'onglets en bas de l'écran (Cockpit, Journal, Auto-Pilote, Chat IA s'il est activé, et **Plus** pour toutes les autres vues).

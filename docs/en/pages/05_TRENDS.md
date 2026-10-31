@@ -24,3 +24,9 @@ The **Trends** page tracks medium and long-term financial evolution using advanc
 
 ### 3. Trend Metrics
 Calculated summary metrics display average monthly spending, peak spending periods, and percentage shifts between consecutive time windows.
+
+### 4. Averages & Pace
+Average income, fixed expenses, variable expenses and net balance for the selected account, over an adjustable period (1 week to all history), shown per month, week, day or hour.
+
+### 5. Top 6 Expenses of the Month
+The six most expensive categories of the current month (all, fixed or variable). Clicking a category opens its operations in History.

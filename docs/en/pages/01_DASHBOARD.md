@@ -1,14 +1,16 @@
-# 📊 Page Documentation: Cockpit, Dashboard and Ledger
+# 📊 Page Documentation: Cockpit and Ledger
 
-OmniBank Local offers three complementary views of the current cycle (from one payday to the next):
+OmniBank Local offers two complementary views of the current cycle (from one payday to the next):
 
 | View | Purpose | Access |
 |---|---|---|
-| **🎛️ Cockpit** | The essentials at a glance: remaining budget, reconciled spending, spending pace. The app's **home screen**. | Main menu, logo click, mobile tab |
-| **📊 Dashboard** | The detailed version: balances, averages, operations to reconcile, trends. | Main menu, "More" menu on mobile |
+| **🎛️ Cockpit** | The essentials at a glance: remaining budget, reconciled spending, spending pace, net worth. The app's **home screen**. | Main menu, logo click, mobile tab |
 | **📒 Ledger** | The cycle's list of operations, to enter, reconcile and filter. | Main menu, mobile tab |
 
-The Cockpit and the Dashboard are always available: they cannot be disabled in Configuration.
+The Cockpit is always available: it cannot be disabled in Configuration.
+
+> [!NOTE]
+> The former **Dashboard** has been retired. Its information now lives elsewhere: net worth on the Cockpit, operations to reconcile in the Ledger, averages & pace and the top 6 expenses in **Trends**, budgets and savings in **Budgets**.
 
 ---
 
@@ -28,21 +30,14 @@ A simplified view for a quick daily check:
 - **Remaining budget**: ring gauge of the share left and amount left out of the cycle's initial remaining budget.
 - **Reconciled spending**: share of expected expenses already reconciled, and what is still to come.
 - **Spending pace (€/day)**: needle gauge comparing your daily spending to your average, with a verdict (e.g. "On track").
+- **Net worth**: total of your accounts and savings (or the selected account's balance); one click opens Accounts.
 - **End-of-cycle projection**: forecast balance at the next payday.
 - **Auto-Pilot** and **To reconcile**: Auto-Pilot status, operations to review and number of operations awaiting reconciliation (one click opens the Ledger).
 - **Next month outlook**: expected income, fixed charges, estimated variable spending and estimated net margin, with a link to the Simulator.
 
-## 📊 2. The Dashboard
+The Cockpit header offers an account selector, the Auto-Pilot status and the **New transaction** button.
 
-The full view of the same data, for deeper analysis:
-- **Summary cards**: net worth, remaining budget, end-of-cycle projection, next payday.
-- **Averages & pace**: average income, fixed expenses, variable expenses and net balance, over an adjustable period (1 week to all history) and per month, week, day or hour.
-- **Operations to reconcile**: filterable list (past, expenses, income), one-click reconciliation or batch reconciliation of past due items.
-- **Trend chart** of balance evolution.
-
-Both the Cockpit and the Dashboard header offer an account selector, the Auto-Pilot status and the **New transaction** button.
-
-## 📒 3. The Ledger
+## 📒 2. The Ledger
 
 The current cycle's list of operations, the everyday working tool:
 - **Columns**: date, description, category, amount, reconciliation and actions; more columns (accounts, envelope, recurrence, attachments…) can be enabled with the **Columns** button.
@@ -53,7 +48,7 @@ The current cycle's list of operations, the everyday working tool:
 
 To browse every operation across all periods, use **History**.
 
-## ➕ 4. Quick Entry (New transaction)
+## ➕ 3. Quick Entry (New transaction)
 
 The **New transaction** button opens the creation modal:
 - **Account(s)**: "From" and/or "To" depending on direction (expense, income or transfer).
@@ -63,14 +58,14 @@ The **New transaction** button opens the creation modal:
 
 On mobile the form opens in a phone-sized window: amount, description, "From" and "To" accounts side by side ("—" for no account), date and category, then **More options** for recurrence, envelope, reconciliation date, slip and attachments (opened automatically when the operation uses them). The header **⋯** menu holds Auto-Pilot mode, Duplicate, Skip and Delete.
 
-## 🤖 5. Auto-Pilot Widget
+## 🤖 4. Auto-Pilot Widget
 
-The Cockpit and the Dashboard show the Auto-Pilot status:
+The Cockpit shows the Auto-Pilot status:
 - **Live status**: active or on standby.
 - **Operations to review**: number of decisions awaiting your review.
 - **Quick access to the Auto-Pilot Control Center**.
 
-## 🧭 6. Navigation and Header Controls
+## 🧭 5. Navigation and Header Controls
 
 - **On desktop**: horizontal menu at the top of the screen.
 - **On mobile**: tab bar at the bottom of the screen (Cockpit, Ledger, Auto-Pilot, AI Chat when enabled, and **More** for every other view).

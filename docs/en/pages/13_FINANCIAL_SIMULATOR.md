@@ -70,4 +70,4 @@ For realistic long-term modeling, the simulator includes three configurable modu
 > Run a financial stress test by increasing inflation by 2% and inserting an unexpected €3,000 emergency expense to gauge the resilience of your long-term plan.
 
 > [!NOTE]
-> All simulator events and projections are completely virtual: they never alter your active transactions or your actual bank balances on the Dashboard.
+> All simulator events and projections are completely virtual: they never alter your active transactions or your actual bank balances.
