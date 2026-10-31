@@ -247,10 +247,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
             <div class="config-tab-pane" id="configPane_ai" style="${activeTab === 'ai' ? '' : 'display: none;'}">
                 <!-- Ollama AI Settings -->
-                <div class="config-card config-ai-card" id="configAiCard" >
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></span> <span data-i18n="config_ai_title">Configuration Ollama (Assistant IA)</span></h3>
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                <div class="config-card config-ai-card" id="configAiCard">
+                    <div class="config-card-header">
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></span> <span data-i18n="config_ai_title">${window.i18n.t('config_ai_title')}</span></h3>
+                        <label>
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_ai" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
                                 <span class="slider"></span>
@@ -258,102 +258,91 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <span data-i18n="config_ai_enable">${window.i18n.t('config_ai_enable')}</span>
                         </label>
                     </div>
-                    
+
                     <div id="ollamaSettings">
-                        <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
-                            ${window.i18n.t('config_ai_desc')}
-                        </p>
-                    
-                        <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_url">URL Ollama</label>
-                                <input type="text" id="conf_ollama_url" class="inline-input" placeholder="http://127.0.0.1:11434" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
+                        <p data-i18n="config_ai_desc">${window.i18n.t('config_ai_desc')}</p>
+
+                        <h4 class="config-group-title" data-i18n="config_ai_group_connection">${window.i18n.t('config_ai_group_connection')}</h4>
+                        <div class="flex-row-mobile-col config-field-row">
+                            <div class="config-field">
+                                <label class="config-label" for="conf_ollama_url" data-i18n="config_ai_url">URL Ollama</label>
+                                <input type="text" id="conf_ollama_url" class="inline-input" placeholder="http://127.0.0.1:11434" onchange="window.ConfigView.save()">
                             </div>
-                            <div style="display: flex; align-items: flex-end;">
-                                <button class="btn btn-secondary" onclick="window.ConfigView.fetchModels()" style="height: 35px;" data-i18n="config_ai_test_btn">🔄 Tester & Récupérer Modèles</button>
-                            </div>
+                            <button class="btn btn-secondary config-field-action" onclick="window.ConfigView.fetchModels()" data-i18n="config_ai_test_btn">Tester la connexion</button>
+                        </div>
+                        <p id="aiConnStatus" class="config-status" role="status"></p>
+
+                        <div class="config-field">
+                            <label class="config-label" for="conf_ollama_model" data-i18n="config_ai_model">Modèle sélectionné</label>
+                            <select id="conf_ollama_model" class="inline-input" onchange="window.ConfigView.save()">
+                                <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
+                            </select>
+                            <p class="config-help" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
                         </div>
 
-                        <div class="flex-row-mobile-col" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_model">Modèle Sélectionné</label>
-                                <select id="conf_ollama_model" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px;" onchange="window.ConfigView.save()">
-                                    <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
-                                </select>
-                                <p style="font-size: 11.5px; color: var(--color-expense); margin-top: 5px;" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex-row-mobile-col" style="display: flex; gap: 20px; margin-bottom: 15px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_temp">Température (Créativité)</label>
-                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                                    <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" style="flex: 1;" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
-                                    <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" style="width: 60px; border: 1px solid var(--border-color); padding: 5px; text-align: center;" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
+                        <details class="config-collapse">
+                            <summary data-i18n="config_ai_advanced">${window.i18n.t('config_ai_advanced')}</summary>
+                            <div class="flex-row-mobile-col config-field-row config-field-row-top">
+                                <div class="config-field">
+                                    <label class="config-label" for="conf_ollama_temp_slider" data-i18n="config_ai_temp">Température (Créativité)</label>
+                                    <div class="config-slider-row">
+                                        <input type="range" id="conf_ollama_temp_slider" min="0" max="1" step="0.1" value="0.3" oninput="document.getElementById('conf_ollama_temp').value = this.value" onchange="window.ConfigView.save()">
+                                        <input type="number" id="conf_ollama_temp" class="inline-input" min="0" max="1" step="0.1" value="0.3" oninput="document.getElementById('conf_ollama_temp_slider').value = this.value" onchange="window.ConfigView.save()">
+                                    </div>
+                                    <p class="config-help" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
                                 </div>
-                                <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_temp_hint">${window.i18n.t('config_ai_temp_hint')}</p>
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_ai_ctx">Taille du Contexte</label>
-                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
-                                    <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" style="border: 1px solid var(--border-color); padding: 8px;" onchange="window.ConfigView.save()">
-                                    <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='65536'; window.ConfigView.save()">64K</button>
-                                        <button class="btn btn-secondary btn-xs" style="padding: 3px 8px; font-size: 11px;" onclick="document.getElementById('conf_ollama_ctx').value='131072'; window.ConfigView.save()">128K</button>
+                                <div class="config-field">
+                                    <label class="config-label" for="conf_ollama_ctx" data-i18n="config_ai_ctx">Taille du Contexte</label>
+                                    <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" onchange="window.ConfigView.save()">
+                                    <div class="config-chip-row">
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='65536'; window.ConfigView.save()">64K</button>
+                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='131072'; window.ConfigView.save()">128K</button>
                                     </div>
-                                </div>
-                                <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 5px;" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
-                            </div>
-                        </div>
-
-                        <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(51, 102, 255, 0.05); border: 1px dashed var(--accent);">
-                            <h5 style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold; color: var(--accent);" data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</h5>
-                            <ul style="margin: 0; padding-left: 15px; font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
-                                <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
-                                <li style="margin-top: 4px;" data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
-                            </ul>
-                        </div>
-
-                        <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
-
-                        <div style="margin-top: 15px;">
-                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                                <h4 style="margin:0; font-size: 13.5px;" data-i18n="settings_ai_reports_title">Bilans Périodiques Proactifs</h4>
-                                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                                    <span class="toggle-switch">
-                                        <input type="checkbox" id="conf_ai_reports_enabled" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
-                                        <span class="slider"></span>
-                                    </span>
-                                    <span data-i18n="settings_ai_reports_enable">Activer les bilans de santé financière par l'IA</span>
-                                </label>
-                            </div>
-                            <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;" data-i18n="settings_ai_reports_enable_desc">Génère périodiquement une courte notification analytique résumant votre état de santé financière.</p>
-                            
-                            <div id="aiReportsSubSettings" style="display: none;">
-                                <div class="flex-row-mobile-col" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
-                                    <div style="flex: 1; min-width: 180px;">
-                                        <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="settings_ai_reports_freq">Fréquence des rapports</label>
-                                        <select id="conf_ai_reports_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
-                                            <option value="daily" data-i18n="settings_ai_reports_freq_daily">Quotidien</option>
-                                            <option value="weekly" data-i18n="settings_ai_reports_freq_weekly">Hebdomadaire (Recommandé)</option>
-                                            <option value="monthly" data-i18n="settings_ai_reports_freq_monthly">Mensuel</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-secondary" id="btnTriggerAIReport" onclick="window.ConfigView.triggerAIReportGeneration()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                                            ⚡ <span data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</span>
-                                        </button>
-                                    </div>
+                                    <p class="config-help" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
                                 </div>
                             </div>
-                        </div>
-
+                            <div class="config-tip">
+                                <strong data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</strong>
+                                <ul>
+                                    <li data-i18n="config_ai_temp_hint_detail">${window.i18n.t('config_ai_temp_hint_detail')}</li>
+                                    <li data-i18n="config_ai_ctx_hint_detail">${window.i18n.t('config_ai_ctx_hint_detail')}</li>
+                                </ul>
+                            </div>
+                        </details>
                     </div> <!-- End ollamaSettings -->
+                </div>
+
+                <!-- Proactive reports -->
+                <div class="config-card" id="configAiReportsCard">
+                    <div class="config-card-header">
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> <span data-i18n="settings_ai_reports_title">Bilans périodiques</span></h3>
+                        <label>
+                            <span class="toggle-switch">
+                                <input type="checkbox" id="conf_ai_reports_enabled" onchange="window.ConfigView.toggleAIReports(this.checked); window.ConfigView.save()">
+                                <span class="slider"></span>
+                            </span>
+                            <span data-i18n="settings_ai_reports_enable">Activer les bilans</span>
+                        </label>
+                    </div>
+                    <p data-i18n="settings_ai_reports_enable_desc">Génère périodiquement une courte notification analytique résumant votre état de santé financière.</p>
+                    <div id="aiReportsSubSettings" style="display: none;">
+                        <div class="flex-row-mobile-col config-field-row">
+                            <div class="config-field">
+                                <label class="config-label" for="conf_ai_reports_frequency" data-i18n="settings_ai_reports_freq">Fréquence des rapports</label>
+                                <select id="conf_ai_reports_frequency" class="inline-input" onchange="window.ConfigView.save()">
+                                    <option value="daily" data-i18n="settings_ai_reports_freq_daily">Quotidien</option>
+                                    <option value="weekly" data-i18n="settings_ai_reports_freq_weekly">Hebdomadaire (Recommandé)</option>
+                                    <option value="monthly" data-i18n="settings_ai_reports_freq_monthly">Mensuel</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary config-field-action" id="btnTriggerAIReport" onclick="window.ConfigView.triggerAIReportGeneration()" data-i18n="settings_ai_btn_generate_report">Générer un bilan maintenant</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
