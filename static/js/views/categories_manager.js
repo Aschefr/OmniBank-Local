@@ -12,10 +12,10 @@ window.CategoriesView = {
 
         let typeSettingsHtml = types.map(t => `
             <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:12px; color:var(--text-muted);">${t.default}</label>
+                <label style="font-size:12px; color:var(--text-muted);">${window.i18n.t('type_' + t.key) || t.default}</label>
                 <input type="text" id="type_label_${t.key}" class="inline-input" 
                        value="${window.app.getTypeLabel(t.key)}" 
-                       placeholder="${t.default}" 
+                       placeholder="${window.i18n.t('type_' + t.key) || t.default}" 
                        style="border:1px solid var(--border-color); padding: 5px;">
             </div>
         `).join('');
