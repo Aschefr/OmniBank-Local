@@ -378,9 +378,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
                 <!-- Auto Backup Card -->
                 <div class="config-card" id="configAutoBackupCard" >
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
+                    <div class="config-card-header">
                         <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> <span data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</span></h3>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <label>
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_auto_backup_enabled" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
                                 <span class="slider"></span>
@@ -388,32 +388,30 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <span data-i18n="config_auto_backup_enable">${window.i18n.t('config_auto_backup_enable')}</span>
                         </label>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_auto_backup_desc">${window.i18n.t('config_auto_backup_desc')}</p>
+                    <p data-i18n="config_auto_backup_desc">${window.i18n.t('config_auto_backup_desc')}</p>
 
                     <div id="autoBackupSettings">
-                        <div class="flex-row-mobile-col" style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 150px;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_frequency">${window.i18n.t('config_auto_backup_frequency')}</label>
-                                <select id="conf_auto_backup_frequency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                        <div class="flex-row-mobile-col config-field-row">
+                            <div class="config-field">
+                                <label class="config-label" for="conf_auto_backup_frequency" data-i18n="config_auto_backup_frequency">${window.i18n.t('config_auto_backup_frequency')}</label>
+                                <select id="conf_auto_backup_frequency" class="inline-input" onchange="window.ConfigView.save()">
                                     <option value="daily" data-i18n="config_auto_backup_freq_daily">${window.i18n.t('config_auto_backup_freq_daily')}</option>
                                     <option value="weekly" data-i18n="config_auto_backup_freq_weekly">${window.i18n.t('config_auto_backup_freq_weekly')}</option>
                                     <option value="monthly" data-i18n="config_auto_backup_freq_monthly">${window.i18n.t('config_auto_backup_freq_monthly')}</option>
                                 </select>
                             </div>
-                            <div style="flex: 1; min-width: 150px;">
-                                <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_auto_backup_max_count">${window.i18n.t('config_auto_backup_max_count')}</label>
-                                <select id="conf_auto_backup_max_count" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px; margin-top: 5px; width: 100%;" onchange="window.ConfigView.save()">
+                            <div class="config-field">
+                                <label class="config-label" for="conf_auto_backup_max_count" data-i18n="config_auto_backup_max_count">${window.i18n.t('config_auto_backup_max_count')}</label>
+                                <select id="conf_auto_backup_max_count" class="inline-input" onchange="window.ConfigView.save()">
                                     <option value="3">3</option>
                                     <option value="5" selected>5</option>
                                     <option value="10">10</option>
                                     <option value="20">20</option>
                                 </select>
                             </div>
-                            <div>
-                                <button class="btn btn-secondary" id="btnTriggerAutoBackup" onclick="window.ConfigView.triggerAutoBackup()" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                                    ▶️ <span data-i18n="config_auto_backup_trigger">${window.i18n.t('config_auto_backup_trigger')}</span>
-                                </button>
-                            </div>
+                            <button class="btn btn-secondary config-field-action" id="btnTriggerAutoBackup" onclick="window.ConfigView.triggerAutoBackup()">
+                                <span data-i18n="config_auto_backup_trigger">${window.i18n.t('config_auto_backup_trigger')}</span>
+                            </button>
                         </div>
                         <div id="autoBackupStatusPanel"></div>
                     </div>

@@ -29,7 +29,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 const txtPin = window.i18n ? window.i18n.t('profiles_btn_pin') : '🔑 PIN';
 
                 return `
-                    <div style="background: var(--bg-card, var(--bg-surface)); border: ${isActive ? '2px solid var(--accent)' : '1px solid var(--border-color)'}; ${isActive ? 'box-shadow: 0 4px 16px var(--accent-glow);' : ''} border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+                    <div class="config-profile-card" style="background: var(--bg-card, var(--bg-surface)); border: ${isActive ? '2px solid var(--accent)' : '1px solid var(--border-color)'}; ${isActive ? 'box-shadow: 0 4px 16px var(--accent-glow);' : ''} border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
                         <div>
                             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
                                 <div style="display:flex; align-items:center; gap: 8px;">
@@ -37,21 +37,21 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                     <span style="font-size: 16px; line-height: 1;">${pIcon}</span>
                                     <strong style="font-size: 14px; color: var(--text-main);">${safeName}</strong>
                                 </div>
-                                ${isActive ? `<span style="font-size: 10px; font-weight: 700; background: var(--accent-subtle); border: 1px solid var(--accent-border); color: var(--accent); padding: 2px 8px; border-radius: 10px;" data-i18n="profiles_active">${txtActive}</span>` : ''}
+                                ${isActive ? `<span style="font-size: 12px; font-weight: 700; background: var(--accent-subtle); border: 1px solid var(--accent-border); color: var(--accent); padding: 2px 8px; border-radius: 10px;" data-i18n="profiles_active">${txtActive}</span>` : ''}
                             </div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+                            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
                                 ${isDefault ? `<span style="display:inline-block; margin-right:6px;" data-i18n="profiles_default">${txtDefault}</span>` : ''}
                                 <span>🔒 PIN: ${p.has_pin ? txtPinEnabled : txtPinNone}</span>
                                 ${(isActive && p.has_pin && !p.has_recovery_code) ? `<div style="margin-top:6px; color:#f59e0b;">⚠️ Aucun code de récupération : en cas d'oubli du PIN, seule la commande serveur permettra de le réinitialiser.</div>` : ''}
                             </div>
                         </div>
 
-                        <div style="display:flex; gap:6px; flex-wrap:wrap; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 8px;">
-                            ${!isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.app.switchProfile('${p.id}')" data-i18n="profiles_btn_switch">${txtSwitch}</button>` : ''}
-                            ${isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._showEditProfileModal('${p.id}', '${safeName.replace(/'/g, "\\'")}', '${p.color}', '${pIcon.replace(/'/g, "\\'")}', '${p.currency || 'EUR'}', ${p.pay_cycle_day || 28}, '${p.date_format || 'DD/MM/YYYY'}')" data-i18n="profiles_btn_edit">${txtEdit}</button>` : ''}
-                            ${isActive ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._showManagePinModal('${p.id}', ${p.has_pin})" data-i18n="profiles_btn_pin">${txtPin}</button>` : ''}
-                            ${(isActive && p.has_pin) ? `<button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="window.ConfigView._regenerateRecoveryCode('${p.id}')">🗝️ ${p.has_recovery_code ? 'Nouveau code de récupération' : 'Créer un code de récupération'}</button>` : ''}
-                            ${(isActive && !isDefault) ? `<button class="btn btn-danger" style="padding: 3px 8px; font-size: 11px; margin-left:auto;" onclick="window.ConfigView._deleteProfilePrompt('${p.id}', '${safeName.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+                        <div class="config-profile-actions" style="display:flex; gap:6px; flex-wrap:wrap; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 8px;">
+                            ${!isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.app.switchProfile('${p.id}')" data-i18n="profiles_btn_switch">${txtSwitch}</button>` : ''}
+                            ${isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._showEditProfileModal('${p.id}', '${safeName.replace(/'/g, "\\'")}', '${p.color}', '${pIcon.replace(/'/g, "\\'")}', '${p.currency || 'EUR'}', ${p.pay_cycle_day || 28}, '${p.date_format || 'DD/MM/YYYY'}')" data-i18n="profiles_btn_edit">${txtEdit}</button>` : ''}
+                            ${isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._showManagePinModal('${p.id}', ${p.has_pin})" data-i18n="profiles_btn_pin">${txtPin}</button>` : ''}
+                            ${(isActive && p.has_pin) ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._regenerateRecoveryCode('${p.id}')">🗝️ ${p.has_recovery_code ? 'Nouveau code de récupération' : 'Créer un code de récupération'}</button>` : ''}
+                            ${(isActive && !isDefault) ? `<button class="btn btn-danger config-profile-btn" style="margin-left:auto;" onclick="window.ConfigView._deleteProfilePrompt('${p.id}', '${safeName.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
                         </div>
                     </div>
                 `;

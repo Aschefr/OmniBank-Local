@@ -10,11 +10,9 @@ window.ConfigDiagnostics = {
         return `
             <div id="configDiagSection" class="config-card config-diag-section" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: border-color 0.3s ease;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;" data-i18n="config_diag_title">
-                        🛠️ ${window.i18n?.t('config_diag_title') || 'Diagnostics & Rapport d\'Incident'}
-                    </h3>
+                    <h3 style="margin: 0;"><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> <span data-i18n="config_diag_title">${window.i18n?.t('config_diag_title') || 'Diagnostics & Rapport d\'Incident'}</span></h3>
                     <span style="font-size: 11px; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                        Zero-Cloud Privacy 🛡️
+                        Zero-Cloud Privacy
                     </span>
                 </div>
                 
@@ -31,16 +29,16 @@ window.ConfigDiagnostics = {
 
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
                     <button class="btn btn-primary" onclick="window.ConfigDiagnostics.copyReport()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding: 8px 16px; border-radius: 8px;">
-                        <span>📋</span> <span data-i18n="config_diag_copy_btn">${window.i18n?.t('config_diag_copy_btn') || 'Copier le rapport d\'incident'}</span>
+                        <span data-i18n="config_diag_copy_btn">${window.i18n?.t('config_diag_copy_btn') || 'Copier le rapport d\'incident'}</span>
                     </button>
                     <button class="btn btn-secondary" onclick="window.ConfigDiagnostics.openGitHub()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px;">
-                        <span>🐙</span> <span data-i18n="config_diag_github_btn">${window.i18n?.t('config_diag_github_btn') || 'Créer une Issue GitHub'}</span>
+                        <span data-i18n="config_diag_github_btn">${window.i18n?.t('config_diag_github_btn') || 'Créer une Issue GitHub'}</span>
                     </button>
                     <button class="btn btn-secondary" onclick="window.ConfigDiagnostics.togglePreview()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px;">
-                        <span>🔍</span> <span id="diag_preview_toggle_text" data-i18n="config_diag_preview_btn">${window.i18n?.t('config_diag_preview_btn') || 'Prévisualiser le rapport'}</span>
+                        <span id="diag_preview_toggle_text" data-i18n="config_diag_preview_btn">${window.i18n?.t('config_diag_preview_btn') || 'Prévisualiser le rapport'}</span>
                     </button>
                     <button class="btn btn-secondary" onclick="window.ConfigDiagnostics.clearLogs()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; margin-left: auto; color: var(--text-muted);">
-                        <span>🧹</span> <span data-i18n="config_diag_clear_btn">${window.i18n?.t('config_diag_clear_btn') || 'Vider les logs'}</span>
+                        <span data-i18n="config_diag_clear_btn">${window.i18n?.t('config_diag_clear_btn') || 'Vider les logs'}</span>
                     </button>
                 </div>
 
