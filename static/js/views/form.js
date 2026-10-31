@@ -129,6 +129,8 @@ window.FormView = {
             skipBtn.style.display = 'none';
             this._updateSkipBtnUI();
         }
+        const dupBtn = document.getElementById('op_dup_btn');
+        if (dupBtn) dupBtn.style.display = 'none';
         
         document.getElementById('op_is_recurrent').checked = false;
         document.getElementById('op_is_recurrent').disabled = false;
@@ -423,6 +425,8 @@ window.FormView = {
         if (skipBtn) {
             skipBtn.style.display = tx.recurrence_id ? 'inline-flex' : 'none';
         }
+        const dupBtn = document.getElementById('op_dup_btn');
+        if (dupBtn) dupBtn.style.display = 'inline-flex';
 
         const foreignBox = document.getElementById('op_foreign_currency_box');
         if (foreignBox) {
@@ -477,7 +481,17 @@ window.FormView = {
         this._resetDeleteBtnStyle();
     },
     
+    // Edit modal "Dupliquer": reopen the form as a copy of the operation being edited
+    duplicateCurrent() {
+        const tx = this.currentTxBase;
+        if (!tx) return;
+        this.close();
+        this.openDuplicate(tx);
+    },
+
     async openDuplicate(tx) {
+        const dupBtn = document.getElementById('op_dup_btn');
+        if (dupBtn) dupBtn.style.display = 'none';
         // Similar to openEdit but resets transaction ID and overrides operation dates to today
         this.currentTxId = null;
         this.currentTxBase = null;
@@ -779,7 +793,9 @@ window.FormView = {
         const renderAcc = (selectId, currentVal) => {
             const select = document.getElementById(selectId);
             if (!select) return;
-            select.innerHTML = this.accounts
+            // Mobile shows a dropdown, which needs an explicit "no account" choice
+            const blank = window.MobileOpForm && window.MobileOpForm.isMobile() ? '<option value="">—</option>' : '';
+            select.innerHTML = blank + this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
                 .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? (window.i18n.t('acc_closed_suffix') || ' (Fermé)') : ''}</option>`).join('');
             select.value = currentVal || '';

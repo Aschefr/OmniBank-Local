@@ -53,12 +53,19 @@ window.TimelineView = {
             <div id="timelineHeader" class="view-header-sticky-container">
                 <div class="view-header-bar" style="position:static; margin:0; padding:0 0 10px 0;">
                     <div class="view-header-title-group">
-                        <h2 class="view-header-title">🏠 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
+                        <h2 class="view-header-title">📒 <span data-i18n="nav_timeline">${window.i18n.t('nav_timeline')}</span></h2>
                         <button id="btnMobilePendingSync" class="btn btn-gold btn-sm mobile-pending-sync-btn" onclick="window.BankSyncView ? window.BankSyncView.openPendingReviewModal(this) : null" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
                             <span>📥</span> <span id="btnMobilePendingSyncLabel">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span id="btnMobilePendingSyncCount" class="badge" style="background: rgba(0,0,0,0.3); color: #fff; padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
                         </button>
+                        <button id="btnMobilePeriodToggle" type="button" class="btn btn-secondary btn-sm mobile-period-toggle${ProfileStorage.get('timeline_mobile_period_open') === '1' ? ' is-open' : ''}" onclick="window.TimelineView.toggleMobilePeriod()" aria-controls="timelinePaycheckWidget" aria-expanded="${ProfileStorage.get('timeline_mobile_period_open') === '1'}">
+                            <span>📅</span> <span data-i18n="label_period">${window.i18n.t('label_period') || 'Période'}</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm mobile-actions-toggle" onclick="window.MobileHeader.toggleActions(this)" aria-expanded="false" aria-label="${window.i18n.t('label_more_actions') || 'Plus d’actions'}" title="${window.i18n.t('label_more_actions') || 'Plus d’actions'}">⋯</button>
                     </div>
                     <div class="view-header-toolbar">
+                        <button id="btnTimelinePendingMenu" type="button" class="btn btn-secondary toolbar-btn mobile-pending-menu-item" onclick="document.getElementById('btnMobilePendingSync').click()" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
+                            <span>📥</span> <span class="pending-menu-label">${window.i18n.t('bank_sync_pending_badge_short') || 'Dernier relevé bancaire importé'}</span> <span class="pending-menu-count badge"></span>
+                        </button>
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                         <button id="btnImportStatement" class="btn btn-secondary toolbar-btn" onclick="window.ImportWizard.open()">
                             <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
@@ -69,14 +76,17 @@ window.TimelineView = {
                         <button id="btnTimelineAutomations" class="btn btn-secondary toolbar-btn" onclick="window.TimelineView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes d\'opérations'}">
                             <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
                         </button>
-                        <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
+                        <button class="btn btn-primary toolbar-btn mobile-fab" onclick="window.TimelineView.showAddRow()" aria-label="${window.i18n.t('btn_add_operation')}" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
 
                 <!-- Dedicated Structured Filter Bar -->
-                <div class="view-filter-bar" style="margin-bottom: 0;">
+                <div id="timelineFilterBar" class="view-filter-bar" style="margin-bottom: 0;">
                     <div class="view-filter-group">
                         <input type="text" id="timelineSearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="🔍 Rechercher..." style="min-width:140px; max-width:200px; height:36px; font-size:12.5px; padding: 0 10px; border-radius:10px;" oninput="window.TimelineView.applyFilters()">
+                        <button type="button" class="btn btn-secondary mobile-filters-toggle" onclick="window.MobileHeader.toggleFilters(this)" aria-expanded="false">
+                            <span data-i18n="label_filters">${window.i18n.t('label_filters') || 'Filtres'}</span> <span class="mobile-filters-count" hidden>0</span>
+                        </button>
                         
                         <div class="filter-pill">
                             <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
@@ -199,6 +209,7 @@ window.TimelineView = {
 
     async init() {
         this.applyColSettings();
+        if (window.MobileHeader) window.MobileHeader.bindFilterCount('timelineFilterBar');
         
         const cfg = window.app && window.app.config ? window.app.config : {};
         const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
@@ -266,12 +277,29 @@ window.TimelineView = {
         await this.loadData(false, didSWR);
     },
 
+    // Mobile: the period bar is collapsed behind the "Période" button in the header.
+    toggleMobilePeriod() {
+        const open = ProfileStorage.get('timeline_mobile_period_open') !== '1';
+        ProfileStorage.set('timeline_mobile_period_open', open ? '1' : '0');
+        const btn = document.getElementById('btnMobilePeriodToggle');
+        if (btn) {
+            btn.classList.toggle('is-open', open);
+            btn.setAttribute('aria-expanded', String(open));
+        }
+        const widget = document.getElementById('timelinePaycheckWidget');
+        if (widget) {
+            widget.classList.toggle('mobile-period-open', open);
+        }
+    },
+
     renderPaycheckWidget(stats) {
         const container = document.getElementById('timelinePaycheckWidget');
         if (!container) return;
 
         const cfg = window.app && window.app.config ? window.app.config : {};
         const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;
+        const periodBtn = document.getElementById('btnMobilePeriodToggle');
+        if (periodBtn) periodBtn.hidden = Boolean(isOrgMode || !stats.next_pay_date);
         if (isOrgMode || !stats.next_pay_date) {
             container.innerHTML = '';
             container.style.display = 'none';
@@ -279,7 +307,16 @@ window.TimelineView = {
         }
 
         container.style.display = 'block';
-        
+        container.classList.toggle('mobile-period-open', ProfileStorage.get('timeline_mobile_period_open') === '1');
+
+        // Mobile: the period bar lives in the sticky header (opened by the "Période" button);
+        // the screen bottom belongs to the tab bar. Desktop: below the list.
+        const header = document.getElementById('timelineHeader');
+        const tableBox = document.querySelector('#mainContent .timeline-table-container');
+        const onMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (onMobile && header && container.parentElement !== header) header.appendChild(container);
+        if (!onMobile && tableBox && tableBox.nextElementSibling !== container) tableBox.after(container);
+
         if (this.currentPeriodIndex > 0 && (!window.app.payHistory || this.currentPeriodIndex - 1 >= window.app.payHistory.length)) {
             this.currentPeriodIndex = 0;
             ProfileStorage.set('timeline_period_index', 0);
@@ -980,6 +1017,7 @@ window.TimelineView = {
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${attachHtml}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
+                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}">${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {
@@ -1154,7 +1192,7 @@ window.TimelineView = {
             // Apply highlight via inline styles (beats any CSS specificity)
             const highlightColor = 'rgba(99, 102, 241, 0.35)';
             row.style.setProperty('background-color', highlightColor, 'important');
-            row.querySelectorAll('td').forEach(td => {
+            (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                 td.style.setProperty('background-color', highlightColor, 'important');
             });
 
@@ -1162,7 +1200,7 @@ window.TimelineView = {
             setTimeout(() => {
                 row.style.transition = 'background-color 1s ease-out';
                 row.style.setProperty('background-color', 'transparent', 'important');
-                row.querySelectorAll('td').forEach(td => {
+                (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                     td.style.transition = 'background-color 1s ease-out';
                     td.style.setProperty('background-color', 'transparent', 'important');
                 });
@@ -1171,7 +1209,7 @@ window.TimelineView = {
                 setTimeout(() => {
                     row.style.removeProperty('background-color');
                     row.style.removeProperty('transition');
-                    row.querySelectorAll('td').forEach(td => {
+                    (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                         td.style.removeProperty('background-color');
                         td.style.removeProperty('transition');
                     });

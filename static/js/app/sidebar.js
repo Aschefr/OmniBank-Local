@@ -11,12 +11,6 @@ window.AppModules.sidebar = {
             btn.classList.toggle('is-hidden', !isAiEnabled);
         });
 
-        const isOverviewEnabled = Boolean(this.config && (this.config.enable_overview === 'true' || this.config.enable_overview === true));
-        document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
-            btn.style.display = isOverviewEnabled ? '' : 'none';
-            btn.classList.toggle('is-hidden', !isOverviewEnabled);
-        });
-
         const isSimEnabled = !this.config || (this.config.enable_simulator !== 'false' && this.config.enable_simulator !== false);
         document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {
             btn.style.display = isSimEnabled ? '' : 'none';

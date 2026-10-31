@@ -13,7 +13,7 @@ La page **Historique & Opérations** est l'outil principal de recherche, de filt
 *État des opérations avant le pointage bancaire.*
 
 ![Après Rapprochement](../../../screenshots/02_dashboard_après_rapprochement.png)
-*État du tableau de bord et des soldes après pointage des opérations.*
+*État du Journal et des soldes après pointage des opérations.*
 
 ---
 

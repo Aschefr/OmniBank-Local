@@ -59,6 +59,7 @@ window.AllOperationsView = {
                         <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn${this.isDrillDown ? ' visible' : ''}" style="${this.isDrillDown ? 'display:inline-flex;' : 'display:none;'} align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.AllOperationsView.backToView || 'analytics'; window.AllOperationsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
                             <span>⬅️</span> <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span>
                         </button>
+                        <button type="button" class="btn btn-secondary btn-sm mobile-actions-toggle" onclick="window.MobileHeader.toggleActions(this)" aria-expanded="false" aria-label="${window.i18n.t('label_more_actions') || 'Plus d’actions'}" title="${window.i18n.t('label_more_actions') || 'Plus d’actions'}">⋯</button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -71,14 +72,17 @@ window.AllOperationsView = {
                         <button id="btnOperationsAutomations" class="btn btn-secondary toolbar-btn" onclick="window.AllOperationsView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes des opérations'}">
                             <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
                         </button>
-                        <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
+                        <button class="btn btn-primary toolbar-btn mobile-fab" onclick="window.TimelineView.showAddRow()" aria-label="${window.i18n.t('btn_add_operation')}" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
 
                 <!-- Dedicated Structured Filter Bar -->
-                <div class="view-filter-bar" style="margin-bottom: 0;">
+                <div id="historyFilterBar" class="view-filter-bar" style="margin-bottom: 0;">
                     <div class="view-filter-group">
                         <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="🔍 Rechercher..." style="min-width: 140px; max-width: 180px; height:36px; font-size:12.5px; padding: 0 10px; border-radius:10px;" oninput="window.AllOperationsView.applyFilters()">
+                        <button type="button" class="btn btn-secondary mobile-filters-toggle" onclick="window.MobileHeader.toggleFilters(this)" aria-expanded="false">
+                            <span data-i18n="label_filters">${window.i18n.t('label_filters') || 'Filtres'}</span> <span class="mobile-filters-count" hidden>0</span>
+                        </button>
 
                         <div class="filter-pill" style="padding: 0 6px 0 10px;">
                             <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
@@ -171,6 +175,7 @@ window.AllOperationsView = {
 
     async init() {
         this.applyColSettings();
+        if (window.MobileHeader) window.MobileHeader.bindFilterCount('historyFilterBar');
         // Lazily create VirtualTable
         if (!this._vt) {
             this._vt = new VirtualTable({
@@ -811,6 +816,7 @@ window.AllOperationsView = {
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-'}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
+                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}">${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {
@@ -959,7 +965,7 @@ window.AllOperationsView = {
                 row.classList.add(cssClass);
                 row.style.setProperty('background-color', highlightColor, 'important');
                 row.style.setProperty('outline', '2px solid #8b5cf6', 'important');
-                row.querySelectorAll('td').forEach(td => {
+                (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                     td.classList.add(cssClass);
                     td.style.setProperty('background-color', highlightColor, 'important');
                 });
@@ -969,7 +975,7 @@ window.AllOperationsView = {
                     row.style.transition = 'background-color 1s ease-out, outline 1s ease-out';
                     row.style.setProperty('background-color', 'transparent', 'important');
                     row.style.setProperty('outline', '2px solid transparent', 'important');
-                    row.querySelectorAll('td').forEach(td => {
+                    (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                         td.style.transition = 'background-color 1s ease-out';
                         td.style.setProperty('background-color', 'transparent', 'important');
                     });
@@ -980,7 +986,7 @@ window.AllOperationsView = {
                         row.style.removeProperty('background-color');
                         row.style.removeProperty('outline');
                         row.style.removeProperty('transition');
-                        row.querySelectorAll('td').forEach(td => {
+                        (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                             td.classList.remove(cssClass);
                             td.style.removeProperty('background-color');
                             td.style.removeProperty('transition');
