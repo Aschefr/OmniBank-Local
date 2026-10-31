@@ -175,12 +175,12 @@ window.CategoriesView = {
                     <span class="category-group-badge" style="background: rgba(51,102,255,0.1); padding: 4px 8px; border-radius: 6px;">${window.app.getTypeLabel(t)}</span>
                     <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">(${cats.length})</span>
                 </h4>
-                <table class="data-table" style="width: 100%;">
+                <table class="data-table cat-table" style="width: 100%;">
                     <thead>
                         <tr>
                             <th data-i18n="th_name">Name</th>
                             <th data-i18n="th_status">Status</th>
-                            <th style="width: 120px; text-align: right;" data-i18n="th_actions">Actions</th>
+                            <th class="cat-col-actions" style="width: 120px; text-align: right;" data-i18n="th_actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -197,17 +197,17 @@ window.CategoriesView = {
                     const isClosed = cat.is_closed;
                     const rowStyle = isClosed ? 'opacity: 0.5;' : '';
                     const statusBadge = isClosed 
-                        ? `<span style="background:rgba(239,68,68,0.15); color:#ff5630; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_closed_cat') || 'Closed'}</span>` 
-                        : `<span style="background:rgba(16,185,129,0.15); color:#10b981; padding:2px 6px; border-radius:4px; font-size:10px;">${window.i18n.t('badge_active') || 'Active'}</span>`;
+                        ? `<span class="cat-status-badge is-closed">${window.i18n.t('badge_closed_cat') || 'Closed'}</span>` 
+                        : `<span class="cat-status-badge is-active">${window.i18n.t('badge_active') || 'Active'}</span>`;
                     
                     html += `
                     <tr style="${rowStyle}">
                         <td style="padding-left: 10px;"><strong>${cat.name}</strong></td>
                         <td>${statusBadge}</td>
                         <td style="text-align: right; white-space: nowrap; overflow: visible;">
-                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Edit'}">✏️</button>
-                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Reopen') : (window.i18n.t('tooltip_close') || 'Close')}">${isClosed ? '🔓' : '🔒'}</button>
-                            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">✕</button>
+                            <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Edit'}">✏️</button>
+                            <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Reopen') : (window.i18n.t('tooltip_close') || 'Close')}">${isClosed ? '🔓' : '🔒'}</button>
+                            <button class="btn btn-danger cat-action-btn" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">✕</button>
                         </td>
                     </tr>
                     `;

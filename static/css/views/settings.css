@@ -884,4 +884,45 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
     border-radius: 4px !important;
 }
 
+/* Categories list: status badge and row actions (12px text, comfortable touch targets) */
+.cat-status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
 
+.cat-status-badge.is-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.cat-status-badge.is-closed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ff5630;
+}
+
+.cat-action-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 32px;
+    min-height: 28px;
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+    /* The row already shows closed categories dimmed with a reopen button: drop the status column to make room for 44px buttons */
+    .cat-table th:nth-child(2),
+    .cat-table td:nth-child(2) {
+        display: none;
+    }
+
+    .cat-table th.cat-col-actions {
+        width: auto !important;
+    }
+
+    .cat-action-btn {
+        min-width: 44px;
+        height: 44px !important;
+        min-height: 44px !important;
+        font-size: 14px;
+    }
+}
