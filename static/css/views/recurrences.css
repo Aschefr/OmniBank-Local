@@ -178,3 +178,74 @@ body.theme-titanium-light .gantt-popover {
         min-height: 40px !important;
     }
 }
+
+/* Table: tighter cell padding so all columns fit on a laptop without a horizontal scrollbar */
+@media (min-width: 769px) {
+    .rec-table th,
+    .rec-table td {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+}
+
+/* Phones: each recurrence is a compact card (title on top, values in a 2-column grid) */
+@media (max-width: 768px) {
+    .rec-table tbody tr[id^="rec-row-"] {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 14px;
+        align-items: start;
+        padding: 12px !important;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td {
+        display: flex !important;
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 3px;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: auto !important;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td::before {
+        margin: 0 !important;
+        font-size: 12px !important;
+    }
+
+    /* marker + chevron cells carry no label: the chevron moves to the top-right corner */
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(1) {
+        display: none !important;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1;
+        align-items: flex-end !important;
+        justify-content: center;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(2)::before {
+        display: none;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(3) {
+        grid-column: 1;
+        grid-row: 1;
+        font-size: 15px !important;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(4) {
+        grid-column: 1 / -1;
+    }
+
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(4) select {
+        width: 100%;
+    }
+
+    /* the two amounts are the most useful figures: keep them on one line each */
+    .rec-table tbody tr[id^="rec-row-"] > td:nth-last-child(-n+2) {
+        grid-column: auto;
+    }
+}
