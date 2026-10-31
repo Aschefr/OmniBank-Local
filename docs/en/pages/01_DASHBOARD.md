@@ -47,7 +47,7 @@ Both the Cockpit and the Dashboard header offer an account selector, the Auto-Pi
 The current cycle's list of operations, the everyday working tool:
 - **Columns**: date, description, category, amount, reconciliation and actions; more columns (accounts, envelope, recurrence, attachments…) can be enabled with the **Columns** button.
 - **Filters**: search, period, type, category and "Unreconciled before pay".
-- **Actions**: **Import statement**, **Fetch online** (when a bank is connected), **Automations** and **New transaction**.
+- **Actions**: **Import statement**, **Fetch online** (when a bank is connected), **Automations** and **New transaction**. On mobile, the first three are in the **⋯** menu, the filters sit behind the **Filters** button (showing how many are active) and **New transaction** is the round **＋** button at the bottom right. History works the same way.
 - **Reconciliation**: a **Reconcile** button on each operation; reconciled operations are dimmed and show their reconciliation date.
 - **Period bar**: navigate between cycles (◀ 📅 ▶) and **Close current month**. On desktop it sits at the bottom of the list; on mobile it opens in the header from the **📅 Period** button.
 
