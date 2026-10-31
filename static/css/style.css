@@ -24,7 +24,7 @@
 @import url('./views/bank_sync.css?v=82');
 @import url('./views/recurrences.css?v=82');
 @import url('./views/chat.css?v=83');
-@import url('./views/settings.css?v=84');
+@import url('./views/settings.css?v=86');
 @import url('./views/autopilot.css?v=86');
 @import url('./views/cockpit.css?v=82');
 
@@ -34,5 +34,5 @@
 @import url('./themes/executive_overrides.css?v=82');
 
 /* 5. Responsive & Media Queries */
-@import url('./responsive/mobile.css?v=84');
+@import url('./responsive/mobile.css?v=85');
 @import url('./responsive/print.css?v=82');

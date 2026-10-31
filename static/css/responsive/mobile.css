@@ -3222,7 +3222,7 @@ select.inline-input:focus option:checked {
     .inline-input,
     .btn-filter,
     .config-tab-btn {
-        min-height: 36px !important;
+        min-height: 40px !important;
     }
 
     .theme-card {

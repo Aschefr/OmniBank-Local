@@ -926,3 +926,225 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
         font-size: 14px;
     }
 }
+
+/* ══ Configuration page: cards, tabs, groups, danger zone ══ */
+.config-card {
+    margin-bottom: 20px;
+    background: var(--bg-surface);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.config-tabs-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.config-tabs-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.config-tab-btn {
+    flex-shrink: 0;
+}
+
+.config-tab-icon,
+.config-h-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.config-h-icon {
+    color: var(--accent);
+}
+
+.config-svg {
+    flex-shrink: 0;
+}
+
+/* Toggle rows: sentence case, one per line, divided */
+.config-toggle-list {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 8px;
+}
+
+.config-card label.config-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 13.5px !important;
+    font-weight: 500;
+    text-transform: none !important;
+    letter-spacing: 0;
+    color: var(--text-main) !important;
+}
+
+.config-card label.config-toggle-row:first-child {
+    border-top: none;
+}
+
+/* Grouped action buttons */
+.config-card h4.config-group-title {
+    margin: 20px 0 10px;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted) !important;
+}
+
+.config-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.config-btn-row .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.config-card p.config-help {
+    margin: 10px 0 0;
+    font-size: 12px !important;
+}
+
+/* Collapsed block inside a card */
+.config-collapse {
+    margin-top: 18px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.config-collapse > summary,
+.config-danger > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.config-collapse > summary::-webkit-details-marker,
+.config-danger > summary::-webkit-details-marker {
+    display: none;
+}
+
+.config-collapse > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.config-collapse > summary::before,
+.config-danger > summary::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.config-collapse[open] > summary::before,
+.config-danger[open] > summary::after {
+    transform: rotate(45deg);
+}
+
+/* Danger zone: closed by default, red accent only here */
+.config-danger {
+    border-color: color-mix(in srgb, var(--color-expense-fixed, #ff5630) 40%, var(--border-color));
+}
+
+.config-danger > summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+}
+
+.config-danger > summary .config-h-icon {
+    color: var(--color-expense-fixed, #ff5630);
+}
+
+.config-danger-title {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--color-expense-fixed, #ff5630);
+}
+
+.config-danger-hint {
+    flex: 1 1 260px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.config-danger > summary::after {
+    margin-left: auto;
+}
+
+.config-danger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.config-danger-row p {
+    margin: 4px 0 0;
+}
+
+.btn-danger-outline {
+    flex-shrink: 0;
+    background: transparent;
+    color: var(--color-expense-fixed, #ff5630);
+    border: 1px solid color-mix(in srgb, var(--color-expense-fixed, #ff5630) 55%, transparent);
+}
+
+.btn-danger-outline:hover {
+    background: color-mix(in srgb, var(--color-expense-fixed, #ff5630) 14%, transparent);
+}
+
+@media (max-width: 768px) {
+    .theme-config-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .theme-card-desc {
+        display: none;
+    }
+
+    .config-danger-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.config-card p + .config-btn-row {
+    margin-top: 14px;
+}
+
+/* Any toggle label inside a config card: sentence case, not small caps */
+.config-card label:has(> .toggle-switch) {
+    text-transform: none !important;
+    font-size: 13.5px !important;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--text-main) !important;
+}
