@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./app ./app
 COPY ./static ./static
-COPY CHANGELOG.md .
+COPY CHANGELOG.md CHANGELOG.fr.md ./
 
 EXPOSE 8434
 

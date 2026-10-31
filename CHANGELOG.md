@@ -5,10 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
-- **Simulator Mode Toggle (Conseillé vs Avancé) & Strict Parity 🔮🎯⚙️**: Added a segmented control in the Simulator page (`[ 🎯 Conseillé ] [ ⚙️ Avancé ]`) allowing seamless switching between recommended baseline parameters (100% contractual guarantee, auto income baseline, 0% inflation, smoothed seasonality) and customizable advanced projection settings. In "Conseillé" mode, all complex manual sliders are now cleanly hidden to present an uncluttered, focus-oriented forecast that strictly matches the Overview Cockpit figures cent-for-cent. Switching to "Avancé" reveals the full suite of granular sliders with automatic memory and restore capabilities. Removed redundant status badges from the collapsible header.
+- **Mobile Redesign 📱**: Bottom tab bar, compact two-line operation cards, a full-screen operation form (amount first, dropdown pickers, advanced fields folded) and a "⋯" menu for secondary actions. Journal and Historique get a compact header with a period button and a floating "+" for new operations.
+- **Cockpit & Journal Navigation 🎛️**: The Cockpit is now the landing page and the former Dashboard is renamed "Journal". The full "Tableau de bord" is retired (saved views and old links open the Cockpit). The Cockpit gains a net worth card, and Trends now shows averages & pace and the top 6 expenses.
+- **Navigation "Plus" Menu ⋯**: The top navigation no longer scrolls sideways on narrower windows: tabs that do not fit move into a "Plus" dropdown, and the active tab always stays visible.
+- **Real Progress on "Relever en ligne" ⚡**: The button fill now follows the actual progress of the bank refresh instead of stalling halfway, and the 2-second pause after the last bank is gone.
+- **Simulator Modes 🔮**: "Conseillé" (recommended defaults, matches the Cockpit forecast to the cent) and "Avancé" (all sliders).
+- **Profile PIN & Backups 🔐**: A profile PIN is now enforced by the server (rate-limited, with a recovery code and a `python -m app.reset_pin` command). Global backups of PIN-protected profiles are encrypted. The Docker port is bound to localhost by default.
 
 ### Fixed & Ergonomics
-- **Cockpit Forecast Anchoring & Terminology Alignment 🔮🎯**: Grounded next-month Cockpit forecast projections in verifiable contractual baselines (regular salary and active recurring revenues) to prevent past one-off windfalls, bonuses, or reimbursements from overestimating upcoming income. Fixed simulator settings profile lookup in the forecast engine, added support for instantiated outgoing transfers on selected accounts, restored the interactive detail info sheet modal on forecast tile clicks, and clarified Cockpit KPI labeling from "Estimated Net Remaining" to "Estimated Net Margin" with transparent disposable margin breakdowns.
+- **Cockpit Forecast Anchoring 🎯**: Next-month income is based on regular salary and active recurring revenues, so one-off windfalls no longer inflate the forecast; the KPI is now labelled "Estimated Net Margin" with a clear breakdown.
+- **Description Suggestions on Firefox Android ✍️**: The description field now offers suggestions (and pre-fills the category) on Firefox for Android.
+- **Operation Form Lists 📋**: Account and category lists keep their direct-pick layout after switching from a narrow to a wide window, and the selected row stays readable (white text) while the list has focus.
+- **Auto-Pilot Review Cards**: The Validate / Edit buttons stay right-aligned on narrow screens.
+- **Vault Message**: The "vault unlocked" notice now shows the remaining days instead of a raw placeholder.
+- **Mobile Polish**: Budget suggestion buttons no longer overlap, the demo banner no longer covers content, and toasts appear above the tab bar.
 
 ## [1.2.11] - 2026-10-27
 

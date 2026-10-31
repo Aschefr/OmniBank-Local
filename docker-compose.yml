@@ -15,6 +15,7 @@ services:
       - ./tests:/app/tests
       - ./package.json:/app/package.json
       - ./CHANGELOG.md:/app/CHANGELOG.md
+      - ./CHANGELOG.fr.md:/app/CHANGELOG.fr.md
     environment:
       - TZ=Europe/Paris
       - HOST_DATA_DIR=${PWD}/data

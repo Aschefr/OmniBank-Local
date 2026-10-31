@@ -713,28 +713,30 @@ def system_discovery():
     }
 
 
-# In-memory changelog cache with mtime check to avoid repeated file reads while remaining dynamic
-_changelog_cache = None
-_changelog_mtime = 0
+# In-memory changelog cache (per file) with mtime check to avoid repeated file reads while remaining dynamic
+_changelog_cache = {}
 
-def parse_changelog():
-    global _changelog_cache, _changelog_mtime
+def _find_changelog(filename):
+    candidates = [
+        resource_path(filename),
+        os.path.join(os.path.abspath('.'), filename),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", filename),
+    ]
+    return next((p for p in candidates if os.path.exists(p)), None)
 
+def parse_changelog(filename="CHANGELOG.md"):
     import re
-    changelog_path = resource_path("CHANGELOG.md")
-    if not os.path.exists(changelog_path):
-        changelog_path = os.path.join(os.path.abspath('.'), "CHANGELOG.md")
-    if not os.path.exists(changelog_path):
-        changelog_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "CHANGELOG.md")
-
-    if not os.path.exists(changelog_path):
-        logger.warning(f"[changelog] CHANGELOG.md not found at any known path.")
+    changelog_path = _find_changelog(filename)
+    if not changelog_path:
+        if filename == "CHANGELOG.md":
+            logger.warning("[changelog] CHANGELOG.md not found at any known path.")
         return []
 
     try:
         mtime = os.path.getmtime(changelog_path)
-        if _changelog_cache is not None and mtime == _changelog_mtime:
-            return _changelog_cache
+        cached = _changelog_cache.get(filename)
+        if cached and cached[0] == mtime:
+            return cached[1]
 
         releases = []
         current_release = None
@@ -764,17 +766,27 @@ def parse_changelog():
             r["notes"] = "".join(r["content"]).strip()
             del r["content"]
 
-        _changelog_cache = releases
-        _changelog_mtime = mtime
+        _changelog_cache[filename] = (mtime, releases)
         return releases
     except Exception as e:
-        logger.error(f"[changelog] Error parsing CHANGELOG.md: {e}")
+        logger.error(f"[changelog] Error parsing {filename}: {e}")
         return []
 
-@app.get("/api/changelog", tags=["system"], summary="Historique des versions et notes de publication")
-def get_changelog(version: str = None):
-    """Return parsed release notes from local CHANGELOG.md with full history."""
+def _localized_changelog(lang=None):
+    """English changelog is the reference; releases translated in CHANGELOG.<lang>.md replace their notes."""
     releases = parse_changelog()
+    code = (lang or "").lower()[:2]
+    if not releases or code in ("", "en") or not code.isalpha():
+        return releases
+    translated = {r["version"]: r["notes"] for r in parse_changelog(f"CHANGELOG.{code}.md")}
+    if not translated:
+        return releases
+    return [{**r, "notes": translated.get(r["version"], r["notes"])} for r in releases]
+
+@app.get("/api/changelog", tags=["system"], summary="Historique des versions et notes de publication")
+def get_changelog(version: str = None, lang: str = None):
+    """Return parsed release notes from local CHANGELOG.md with full history (translated notes when CHANGELOG.<lang>.md has them)."""
+    releases = _localized_changelog(lang)
     if not releases:
         return {"version": version or "?", "notes": "", "pub_date": "", "name": "OmniBank", "history": []}
 
