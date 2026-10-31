@@ -810,13 +810,64 @@ window.FormView = {
             const dataList = document.getElementById('descList');
             // descriptions is now a dictionary: { "Desc": {category, from_account_id, to_account_id}, ... }
             dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${d}">`).join('');
+            this._initCustomDescSuggest();
         } catch (e) {
             console.error('Failed to load descriptions', e);
         }
     },
 
+    // Firefox Android ne sait pas afficher <datalist> : on le remplace par une liste de suggestions maison.
+    _useCustomDescSuggest: /Android/i.test(navigator.userAgent) && /Firefox/i.test(navigator.userAgent),
+
+    _initCustomDescSuggest() {
+        if (!this._useCustomDescSuggest) return;
+        const input = document.getElementById('op_desc');
+        if (!input || input._descSuggestReady) return;
+        input._descSuggestReady = true;
+        input.removeAttribute('list');
+        const wrap = input.parentElement;
+        if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+        const box = document.createElement('div');
+        box.id = 'descSuggestBox';
+        box.style.cssText = 'display:none; position:absolute; left:0; right:0; z-index:50; max-height:220px; overflow-y:auto; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; box-shadow:var(--shadow-sm); margin-top:2px;';
+        input.insertAdjacentElement('afterend', box);
+        input.addEventListener('blur', () => { box.style.display = 'none'; });
+        input.addEventListener('keydown', (e) => { if (e.key === 'Escape') box.style.display = 'none'; });
+    },
+
+    _renderDescSuggestions() {
+        const input = document.getElementById('op_desc');
+        const box = document.getElementById('descSuggestBox');
+        if (!input || !box) return;
+        const q = input.value.trim().toLowerCase();
+        const matches = q ? Object.keys(this.descriptions || {})
+            .filter(d => d.toLowerCase().includes(q) && d.toLowerCase() !== q)
+            .sort((x, y) => (y.toLowerCase().startsWith(q) - x.toLowerCase().startsWith(q)) || x.localeCompare(y))
+            .slice(0, 8) : [];
+        box.replaceChildren();
+        if (!matches.length) { box.style.display = 'none'; return; }
+        matches.forEach(d => {
+            const item = document.createElement('div');
+            item.textContent = d;
+            item.style.cssText = 'padding:10px 12px; font-size:14px; color:var(--text-main); cursor:pointer; border-bottom:1px solid var(--border-color);';
+            // pointerdown (et non click) : se déclenche avant le blur de l'input, qui masquerait la liste
+            item.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                input.value = d;
+                this._pickedDesc = d;
+                box.style.display = 'none';
+                this.onDescriptionInput();
+            });
+            box.appendChild(item);
+        });
+        box.style.display = 'block';
+    },
+
     onDescriptionInput() {
         const desc = document.getElementById('op_desc').value;
+        // Pas de nouvelle liste tant que le texte est celui qu'on vient de choisir (évite la réouverture
+        // par d'autres entrées contenant ce texte, ou par un évènement de saisie tardif du clavier).
+        if (this._useCustomDescSuggest && desc !== this._pickedDesc) this._renderDescSuggestions();
         if (this.descriptions && this.descriptions[desc]) {
             const data = this.descriptions[desc];
             
