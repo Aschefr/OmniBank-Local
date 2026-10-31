@@ -93,7 +93,7 @@ window.AnalyticsView = {
 
         // Restore saved category column width
         const savedColWidth = ProfileStorage.get('analytics_cat_col_width');
-        this._catColWidth = savedColWidth ? parseInt(savedColWidth) : 160;
+        this._catColWidth = savedColWidth ? parseInt(savedColWidth) : null;
 
         // Restore selected years
         let savedSelectedYears;
@@ -383,7 +383,42 @@ window.AnalyticsView = {
         }
     },
 
-    renderTypeTable(txType, typeData, months, years, showInactive = false, forPrint = false) {
+    // Text width in px (canvas, no layout needed) — used to size columns so amounts never overlap or get cut
+    _measureText(text, px, weight = 400, family = getComputedStyle(document.body).fontFamily) {
+        const ctx = (this._measureCtx = this._measureCtx || document.createElement('canvas').getContext('2d'));
+        ctx.font = `${weight} ${px}px ${family}`;
+        return ctx.measureText(text).width;
+    },
+
+    // Print: size month/year columns from their real content; shrink the font only if A4 portrait cannot hold them
+    _fitPrintColumns(categories, months, displayYears, totals_per_month, annual_by_cat, annual_totals_per_year, fontPx) {
+        const money = v => (v > 0 ? formatCurrency(v) : '—');
+        const catNames = Object.keys(categories);
+        const cols = [
+            ...months.map(mk => ({
+                strings: [this.formatMonthHeader(mk, true), ...catNames.map(c => money(categories[c][mk] || 0)), money(totals_per_month[mk] || 0)],
+                extra: 0
+            })),
+            ...displayYears.map(yr => ({
+                strings: ['TOT.', String(yr), ...catNames.map(c => money(((annual_by_cat || {})[c] || {})[yr] || 0)), money((annual_totals_per_year || {})[yr] || 0)],
+                extra: 3 // left separator
+            }))
+        ];
+        const AVAIL = 700;   // A4 portrait minus 10 mm margins is ~718 px
+        const CAT_MIN = 78;
+        const PRINT_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+        const widthsAt = fs => cols.map(c => Math.ceil(Math.max(...c.strings.map(s => this._measureText(s, fs, 700, PRINT_FONT))) * 1.06) + 6 + c.extra);
+        let fs = fontPx;
+        let widths = widthsAt(fs);
+        const sum = w => w.reduce((a, b) => a + b, 0);
+        while (fs > 6 && sum(widths) + CAT_MIN > AVAIL) {
+            fs -= 0.25;
+            widths = widthsAt(fs);
+        }
+        return { fontPx: fs, widths, catW: Math.max(CAT_MIN, Math.floor(AVAIL - sum(widths))) };
+    },
+
+    renderTypeTable(txType, typeData, months, years, showInactive = false, forPrint = false, printFontPx = 8.5) {
         const cfg = { ...(this.TYPE_CONFIG[txType] || { emoji: '•', color: 'var(--text-muted)', sign: '' }) };
         const savedColor = ProfileStorage.get('analytics_color_' + txType);
         if (savedColor) cfg.color = savedColor;
@@ -428,23 +463,27 @@ window.AnalyticsView = {
             const mLabel = forPrint ? this.formatMonthHeader(mk, true) : this.formatShortMonth(mk);
             const mStyle = forPrint
                 ? `text-align:right;white-space:nowrap;border-bottom:1px solid ${hbd};background:var(--bg-surface);`
-                : `text-align:right;min-width:96px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;`;
+                : `text-align:right;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;`;
             return `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="${mStyle}">${mLabel}</th>`;
         }).join('');
 
         const yearHeaders = displayYears.map(yr => {
             const yrStyle = forPrint
                 ? `text-align:right;white-space:normal;line-height:1.2;padding-top:4px;padding-bottom:4px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};`
-                : `text-align:right;min-width:104px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);`;
+                : `text-align:right;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);`;
             return `<th data-year="${yr}" data-col-type="year" style="${yrStyle}">TOT.<span class="year-br"></span>${yr}</th>`;
         }).join('');
 
-        const catW = forPrint ? 125 : (this._catColWidth || 160);
+        const fit = forPrint ? this._fitPrintColumns(categories, months, displayYears, totals_per_month, annual_by_cat, annual_totals_per_year, printFontPx) : null;
+        // Screen: unless the user resized it, the category column fits the longest name
+        const longestCat = Object.keys(categories).concat(inactiveCatEntries.map(([c]) => c))
+            .reduce((m, c) => Math.max(m, this._measureText(c, 13, 500)), 0);
+        const catW = forPrint ? fit.catW : (this._catColWidth || Math.min(320, Math.max(140, Math.ceil(longestCat) + 40)));
         const catStyle = `text-align:left;width:${catW}px;min-width:${forPrint ? '70px' : '60px'};max-width:${forPrint ? '135px' : '500px'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;background:var(--bg-surface);z-index:15;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
         const catHeaderStyle = `text-align:left;width:${catW}px;min-width:${forPrint ? '70px' : '60px'};max-width:${forPrint ? '135px' : '500px'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid ${hbd};position:${forPrint ? 'static' : 'sticky'};left:0;top:0;background:var(--bg-surface);z-index:30;box-shadow:${forPrint ? 'none' : '3px 0 6px rgba(0,0,0,0.2)'};box-sizing:border-box;`;
 
         let html = `
-        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;${forPrint ? 'display:block;page-break-inside:auto;break-inside:auto;margin-bottom:20px;' : 'display:flex;flex-direction:column;max-height:75vh;'}">
+        <div data-type="${txType}" style="border:1px solid ${hbd};border-radius:12px;${forPrint ? `display:block;page-break-inside:auto;break-inside:auto;margin-bottom:20px;--print-table-size:${fit.fontPx}px;` : 'display:flex;flex-direction:column;'}">
             <div class="analytics-card-header" style="background:${hb};border-bottom:1px solid ${hbd};">
                 <div class="analytics-card-header-top">
                     <span class="analytics-card-title">${cfg.emoji} ${translatedType}</span>
@@ -473,8 +512,9 @@ window.AnalyticsView = {
                     </div>
                 </div>
             </div>
-            <div class="analytics-table-scroll-container" style="${forPrint ? 'overflow:visible;' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
-            <table class="data-table" style="${forPrint ? 'width:100%;table-layout:fixed;' : `min-width:${220 + months.length * 96 + displayYears.length * 104}px;`}border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
+            <div class="analytics-table-scroll-container" style="${forPrint ? 'overflow:visible;' : 'overflow-x:auto;overflow-y:hidden;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+            <table class="data-table" style="${forPrint ? 'width:100%;table-layout:fixed;' : 'width:100%;table-layout:auto;'}border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
+            ${forPrint ? `<colgroup><col style="width:${fit.catW}px">${fit.widths.map(w => `<col style="width:${w}px">`).join('')}</colgroup>` : ''}
             <thead><tr style="background:var(--bg-surface);">
                 <th data-col-type="cat" style="${catHeaderStyle}" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
                 ${monthHeaders}
@@ -1763,12 +1803,12 @@ window.AnalyticsView = {
                     color: #0f172a !important;
                     box-shadow: none !important;
                     padding: 3px 4px !important;
-                    width: 125px !important;
-                    min-width: 70px !important;
-                    max-width: 135px !important;
-                    overflow: hidden !important;
-                    text-overflow: ellipsis !important;
-                    white-space: nowrap !important;
+                    min-width: 0 !important;
+                    max-width: none !important;
+                    overflow: visible !important;
+                    text-overflow: clip !important;
+                    white-space: normal !important;
+                    overflow-wrap: anywhere !important;
                 }
                 #printContainer [data-type] > div > span, .export-paper-sheet [data-type] > div > span { 
                     font-size: calc(var(--print-table-size) + 3px) !important; 
@@ -2017,7 +2057,7 @@ window.AnalyticsView = {
                 const extraSpacing = (!hasTypeBreakBefore && !isLast) ? '<br><br>' : '';
                 typeTableItems.push({
                     hasBreakBefore: hasTypeBreakBefore && !isFirst,
-                    html: `<div class="${hasTypeBreakBefore && !isFirst ? 'print-page-break-before-forced' : 'print-page-break-auto'}">` + this.renderTypeTable(txType, typeData, months, revYears, includeInactive, true) + '</div>' + extraSpacing
+                    html: `<div class="${hasTypeBreakBefore && !isFirst ? 'print-page-break-before-forced' : 'print-page-break-auto'}">` + this.renderTypeTable(txType, typeData, months, revYears, includeInactive, true, parseFloat(tableSizeVal)) + '</div>' + extraSpacing
                 });
             });
         }
@@ -2025,7 +2065,7 @@ window.AnalyticsView = {
             Object.entries(printData.inactive_types).forEach(([txType, typeData]) => {
                 typeTableItems.push({
                     hasBreakBefore: false,
-                    html: '<br><br><div class="print-page-break-auto">' + this.renderTypeTable(txType, typeData, months, revYears, true, true) + '</div>'
+                    html: '<br><br><div class="print-page-break-auto">' + this.renderTypeTable(txType, typeData, months, revYears, true, true, parseFloat(tableSizeVal)) + '</div>'
                 });
             });
         }
