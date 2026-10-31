@@ -806,18 +806,13 @@ class App {
         if (viewName === 'simulator' && this.config.enable_simulator === 'false') {
             viewName = 'dashboard';
         }
-        // Cockpit ('overview') and Tableau de bord ('overview_full') are two nav entries
-        // for the two display modes of the same overview view.
+        // The former full dashboard ('overview_full') is retired: saved views and old links open the Cockpit.
+        if (viewName === 'overview_full') viewName = 'overview';
         const navView = viewName;
-        if (viewName === 'overview' || viewName === 'overview_full') {
-            const mode = viewName === 'overview_full' ? 'full' : 'cockpit';
-            if (this.currentView === 'overview' && window.OverviewView && window.OverviewView._displayMode !== mode && window.OverviewView.destroy) {
-                window.OverviewView.destroy();
-            }
-            ProfileStorage.set('overview_display_mode', mode);
-            if (this.config) this.config.overview_display_mode = mode;
-            if (window.OverviewView) window.OverviewView._displayMode = mode;
-            viewName = 'overview';
+        if (viewName === 'overview') {
+            ProfileStorage.set('overview_display_mode', 'cockpit');
+            if (this.config) this.config.overview_display_mode = 'cockpit';
+            if (window.OverviewView) window.OverviewView._displayMode = 'cockpit';
         }
         this.currentView = viewName;
 

@@ -40,7 +40,7 @@ Dès le premier lancement, un **Assistant d'Initialisation** vous guide pour con
 ![Setup Wizard](screenshots/01_wizard_acceuil.png)
 
 ### 📈 Analytique & Gestion Quotidienne
-*   **Cockpit, Tableau de bord & Journal** : Le Cockpit résume votre cycle en un coup d'œil (reste à vivre, rythme de dépense), le Tableau de bord détaille soldes et moyennes, le Journal liste les opérations à saisir et rapprocher.
+*   **Cockpit & Journal** : Le Cockpit résume votre cycle en un coup d'œil (reste à vivre, rythme de dépense, patrimoine net), le Journal liste les opérations à saisir et rapprocher ; moyennes et top des dépenses sont dans Tendances.
 *   **Historique Virtualisé** : Gérez des milliers de transactions avec une fluidité parfaite grâce au rendu ultra-rapide.
 *   **Rapprochement Intelligent** : Un système visuel pour pointer vos opérations. Comparez d'un coup d'œil vos relevés bancaires (avant) et votre comptabilité propre (après).
 
