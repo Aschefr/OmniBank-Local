@@ -454,7 +454,9 @@ class BankSyncService:
                     continue
 
         try:
+            _t_start = time.time()
             raw_accounts = _get_accounts_with_2fa()
+            logger.info(f"[BankSync] '{connection.label}' : connexion + liste des comptes en {time.time() - _t_start:.1f}s")
             cutoff_date = date.today() - timedelta(days=since_days)
 
             matched_ids_global = set()
@@ -489,6 +491,7 @@ class BankSyncService:
                         "message": f"Récupération des opérations de [{acc_label}]..."
                     })
 
+                _t_acc = time.time()
                 history_raw = []
                 prev_date = None
                 is_descending = True
@@ -550,6 +553,7 @@ class BankSyncService:
                 except Exception as hist_err:
                     logger.warning(f"[BankSync] Erreur lecture historique de {acc_label}: {hist_err}")
 
+                _t_hist = time.time() - _t_acc
                 coming_raw = []
                 # Récupération des opérations à venir (cartes à débit immédiat en attente, prélèvements programmés)
                 try:
@@ -591,6 +595,8 @@ class BankSyncService:
                 except Exception as coming_err:
                     logger.debug(f"[BankSync] iter_coming non supporté ou ignoré pour {acc_label}: {coming_err}")
 
+                _t_coming = time.time() - _t_acc - _t_hist
+                _t_match = time.time()
                 parsed_txs = []
 
                 # Tri chronologique strict (du plus ancien au plus récent) pour ingestion ordonnée
@@ -785,6 +791,10 @@ class BankSyncService:
                         tx["needs_review"] = True
                         tx["_blocked_by_guard"] = True
 
+                logger.info(
+                    f"[BankSync] [{acc_label}] historique {_t_hist:.1f}s ({len(history_raw)} ops), "
+                    f"à venir {_t_coming:.1f}s ({len(coming_raw)} ops), rapprochement {time.time() - _t_match:.1f}s"
+                )
                 accounts_preview.append({
                     "remote_id": remote_id,
                     "account_id": local_acc.id,
