@@ -30,13 +30,13 @@ Lors du premier lancement d'OmniBank Local (ou en cliquant sur *"Relancer l'assi
 6. **🤖 Étape 5 : Assistant IA Ollama**
    - Détection de l'instance locale Ollama (`http://127.0.0.1:11434`), vérification du serveur et sélection du modèle IA initial (**`gemma4:e4b`** recommandé).
 7. **🚀 Étape 6 : Finalisation**
-   - Résumé des paramètres et démarrage vers le Tableau de Bord.
+   - Résumé des paramètres et démarrage sur le Cockpit.
 
 ---
 
 ## 📥 2. Assistant d'Importation & Rapprochement (Import Wizard)
 
-Accessible depuis le Tableau de Bord ou l'Historique via le bouton **"📥 Importer un relevé"**, cet assistant déroule un workflow complet d'analyse, d'auto-catégorisation et de vérification d'équilibre bancaire (`static/js/views/import_wizard.js`) :
+Accessible depuis le Journal ou l'Historique via le bouton **"📥 Importer un relevé"**, cet assistant déroule un workflow complet d'analyse, d'auto-catégorisation et de vérification d'équilibre bancaire (`static/js/views/import_wizard.js`) :
 
 ### 📄 Étape 1 : Sélection du Fichier & Détection de Structure
 - **Sélecteur de Compte Destinataire (`importAccountSelect`)** : Choisissez le compte bancaire sur lequel importer les données (ou *"Aucun compte"* pour un import libre).

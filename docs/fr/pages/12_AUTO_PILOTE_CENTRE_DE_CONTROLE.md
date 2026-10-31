@@ -24,9 +24,9 @@ L'Auto-Pilote repose sur quatre piliers :
 
 ---
 
-## 🎛️ 3. Le Widget Cockpit (Tableau de Bord & Vue d'Ensemble)
+## 🎛️ 3. Le Widget Auto-Pilote (Cockpit)
 
-Sur le **Tableau de Bord** et la **Vue d'ensemble**, un panneau escamotable **Cockpit Auto-Pilote** offre une visibilité synthétique immédiate :
+Sur le **Cockpit**, un panneau escamotable **Auto-Pilote** offre une visibilité synthétique immédiate :
 
 - **Indicateur d'État** : Badge lumineux vert (Actif) ou gris (Veille).
 - **Règles Actives** : Nombre de règles marchands et de correspondances apprises (`bank_label_mappings`).

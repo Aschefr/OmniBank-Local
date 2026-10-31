@@ -29,9 +29,8 @@ On OmniBank Local's first launch (or when clicking *"Re-launch Setup Wizard"* in
 4. **👥 / 💰 Step 3: Organization Users (Org Mode) OR Salary & Cold-Start Income (Standard Mode)**
    - *Organization Mode*: Set up team member names (e.g., *President*, *Treasurer*) for audit trails.
    - *Standard Mode*: Pay day of the month (1-31), bi-monthly option, and **estimated monthly net income** to instantly initialize the Rest to Live ("Reste à Vivre") and cashflow projections without waiting for historical records.
-5. **📝 Step 4: Operations Guide & Preferred Home Screen**
+5. **📝 Step 4: Operations Guide**
    - Educational visual primer on transaction directions (Expense, Income, Transfer, Neutral) and key reconciliation badges.
-   - Choice of default home screen: **Modern Bento Overview** (hero metrics, financial rhythm, forecasts) or **Classic Operations Journal** (full table and filters).
 6. **🤖 Step 5: Ollama AI Assistant**
    - Auto-detects local Ollama instance (`http://127.0.0.1:11434`), lists installed models, provides install commands if offline, and offers optional periodic proactive financial checkups.
 7. **🚀 Step 6: Confirmation, Launch & Demo Data**
@@ -43,7 +42,7 @@ On OmniBank Local's first launch (or when clicking *"Re-launch Setup Wizard"* in
 
 ## 📥 2. Statement Import & Reconciliation Wizard
 
-Accessible from the Dashboard or History via the **"📥 Import Statement"** button, this wizard runs a complete statement parsing, auto-categorization, and balance reconciliation workflow (`static/js/views/import_wizard.js`):
+Accessible from the Ledger or History via the **"📥 Import Statement"** button, this wizard runs a complete statement parsing, auto-categorization, and balance reconciliation workflow (`static/js/views/import_wizard.js`):
 
 ### 📄 Step 1: File Selection & Structure Detection
 - **Target Account Selector (`importAccountSelect`)**: Choose target bank account (or *"No Account"* for neutral import).
