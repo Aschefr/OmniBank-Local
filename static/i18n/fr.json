@@ -1430,6 +1430,7 @@
   "changelog_close": "Fermer",
   "changelog_no_notes": "Aucune note de version disponible.",
   "changelog_title": "Nouveautés",
+  "changelog_unreleased": "Prochaine version",
   "chart_current_period": "Période actuelle",
   "chart_label_balance": "Solde (€)",
   "chart_months_ago": "Il y a {offset} mois",

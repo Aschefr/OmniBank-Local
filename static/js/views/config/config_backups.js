@@ -351,11 +351,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border-color);">
                         <table style="width:100%;border-collapse:collapse;">
                             <thead><tr style="background:var(--bg-surface);">
-                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_date_op') || 'Date'}</th>
-                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_description') || 'Description'}</th>
-                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_category') || 'Category'}</th>
-                                <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text-muted);">${window.i18n.t('col_amount') || 'Amount'}</th>
-                                <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text-muted);">${window.i18n.t('maintenance_correction') || 'Correction'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:12px;color:var(--text-muted);">${window.i18n.t('col_date_op') || 'Date'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:12px;color:var(--text-muted);">${window.i18n.t('col_description') || 'Description'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:12px;color:var(--text-muted);">${window.i18n.t('col_category') || 'Category'}</th>
+                                <th style="padding:6px 8px;text-align:right;font-size:12px;color:var(--text-muted);">${window.i18n.t('col_amount') || 'Amount'}</th>
+                                <th style="padding:6px 8px;text-align:left;font-size:12px;color:var(--text-muted);">${window.i18n.t('maintenance_correction') || 'Correction'}</th>
                             </tr></thead>
                             <tbody>${rows}</tbody>
                         </table>
@@ -394,7 +394,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 autoMovedHtml = `
                 <div style="padding:10px;background:rgba(16,185,129,0.06);border-radius:8px;border:1px solid rgba(16,185,129,0.25);">
                     <div style="font-size:12px;color:#10b981;margin-bottom:4px;font-weight:600;">✅ ${window.i18n.t('maintenance_auto_move') || 'Categories moved automatically'}</div>
-                    <p style="font-size:11px;color:var(--text-muted);margin:0;">
+                    <p style="font-size:12px;color:var(--text-muted);margin:0;">
                         ${nonSharedCats.map(c => '<span style="background:var(--bg-surface);padding:2px 8px;border-radius:4px;margin-right:4px;font-weight:500;">' + c.name + '</span>').join('')}
                     </p>
                 </div>`;
@@ -483,7 +483,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     const sugLabel = typeLabels[c.suggested_type] || c.suggested_type;
 
                     const sampleRows = (c.sample || []).map(tx => `
-                        <tr style="font-size:11px;color:var(--text-muted);">
+                        <tr style="font-size:12px;color:var(--text-muted);">
                             <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.date}</td>
                             <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.description}</td>
                             <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);text-align:right;font-weight:600;">${formatCurrency(tx.amount)}</td>
@@ -495,9 +495,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <strong style="font-size:15px;color:var(--text-main);">🏷️ ${c.name}</strong>
-                                <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${curStyle}">${curLabel}</span>
+                                <span style="font-size:12px;padding:2px 8px;border-radius:12px;font-weight:600;${curStyle}">${curLabel}</span>
                                 <span style="font-size:13px;color:var(--text-muted);">➔</span>
-                                <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${sugStyle}">${sugLabel}</span>
+                                <span style="font-size:12px;padding:2px 8px;border-radius:12px;font-weight:600;${sugStyle}">${sugLabel}</span>
                             </div>
                             <span style="font-size:12px;color:var(--text-muted);font-weight:500;">${c.total_txs} op. • ${c.templates_count} récurrence(s)</span>
                         </div>
@@ -510,7 +510,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         <div style="margin-bottom:10px;border-radius:6px;overflow:hidden;border:1px solid var(--border-color);">
                             <table style="width:100%;border-collapse:collapse;background:var(--bg-main);">
                                 <thead>
-                                    <tr style="background:var(--bg-surface);font-size:10.5px;color:var(--text-muted);text-transform:uppercase;">
+                                    <tr style="background:var(--bg-surface);font-size:12px;color:var(--text-muted);text-transform:uppercase;">
                                         <th style="padding:4px 6px;text-align:left;">Date</th>
                                         <th style="padding:4px 6px;text-align:left;">Description</th>
                                         <th style="padding:4px 6px;text-align:right;">Montant</th>
@@ -630,7 +630,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
             preview.groups.forEach(group => {
                 const closedBadge = group.is_closed
-                    ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-left:8px;">${window.i18n.t('badge_closed') || 'Closed'}</span>`
+                    ? `<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-left:8px;">${window.i18n.t('badge_closed') || 'Closed'}</span>`
                     : '';
 
                 contentHtml += `
@@ -639,7 +639,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <span style="font-size:14px;">🔄</span>
                             <strong style="font-size:13px;">${group.template_description}</strong>
                             ${closedBadge}
-                            <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${group.transactions.length} op.</span>
+                            <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${group.transactions.length} op.</span>
                         </div>
                         <div style="padding:0;">`;
 
@@ -651,7 +651,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                                     <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
                                     <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
-                                    <span style="color:var(--text-muted);font-size:11px;">${tx.category || ''}</span>
+                                    <span style="color:var(--text-muted);font-size:12px;">${tx.category || ''}</span>
                                     <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
                                 </span>
                             </label>`;
@@ -748,7 +748,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
             preview.groups.forEach(group => {
                 const fallbackHtml = group.fallback_amount != null
-                    ? `<span style="margin-left:8px;font-size:11px;color:var(--success-color);font-weight:500;">→ ${formatCurrency(group.fallback_amount)}</span>`
+                    ? `<span style="margin-left:8px;font-size:12px;color:var(--success-color);font-weight:500;">→ ${formatCurrency(group.fallback_amount)}</span>`
                     : '';
                 contentHtml += `
                     <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;" id="wizard-group-${group.template_id}">
@@ -756,8 +756,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <span style="font-size:14px;">🔄</span>
                             <strong style="font-size:13px;">${group.template_description}</strong>
                             ${fallbackHtml}
-                            <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${group.transactions.length} ${opsSuffix}</span>
-                            <button type="button" class="wizard-close-tpl-btn" data-tpl-id="${group.template_id}" data-tpl-name="${group.template_description}" title="${window.i18n.t('maintenance_close_recurrence_tooltip') || 'Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.'}" style="margin-left:8px;background:none;border:1px solid var(--danger-color);color:var(--danger-color);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;" onmouseover="this.style.background='var(--danger-color)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--danger-color)'"
+                            <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${group.transactions.length} ${opsSuffix}</span>
+                            <button type="button" class="wizard-close-tpl-btn" data-tpl-id="${group.template_id}" data-tpl-name="${group.template_description}" title="${window.i18n.t('maintenance_close_recurrence_tooltip') || 'Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.'}" style="margin-left:8px;background:none;border:1px solid var(--danger-color);color:var(--danger-color);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;" onmouseover="this.style.background='var(--danger-color)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--danger-color)'"
                             >🚫 ${window.i18n.t('maintenance_close_recurrence') || 'Fermer'}</button>
                         </div>
                         <div style="padding:0;">`;
@@ -770,7 +770,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                                     <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
                                     <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
-                                    <span style="color:var(--text-muted);font-size:11px;">${tx.category || ''}</span>
+                                    <span style="color:var(--text-muted);font-size:12px;">${tx.category || ''}</span>
                                     <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
                                 </span>
                             </label>`;
@@ -887,14 +887,14 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         <div>📅 <strong>${window.i18n.t('config_auto_backup_last')} :</strong> ${dateStr} — ${sizeStr}</div>
                         <div>${statusIcon} ${statusLabel}</div>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
                         📂 <strong>${window.i18n.t('config_auto_backup_path')} :</strong>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-                        <input type="text" readonly value="${dir}" id="autoBackupPathInput" style="flex: 1; font-size: 11px; font-family: monospace; padding: 4px 8px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-main); cursor: text; min-width: 0;" onclick="this.select()">
-                        <button class="btn btn-secondary btn-xs" style="padding: 4px 10px; font-size: 11.5px; white-space: nowrap;" onclick="navigator.clipboard.writeText(document.getElementById('autoBackupPathInput').value).then(()=>showToast(window.i18n.t('config_auto_backup_copied'),'success',2000))" title="${window.i18n.t('config_auto_backup_copy_path')}">📋 ${window.i18n.t('config_auto_backup_copy_path')}</button>
+                        <input type="text" readonly value="${dir}" id="autoBackupPathInput" style="flex: 1; font-size: 12px; font-family: monospace; padding: 4px 8px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-main); cursor: text; min-width: 0;" onclick="this.select()">
+                        <button class="btn btn-secondary btn-xs" style="padding: 4px 10px; font-size: 12px; white-space: nowrap;" onclick="navigator.clipboard.writeText(document.getElementById('autoBackupPathInput').value).then(()=>showToast(window.i18n.t('config_auto_backup_copied'),'success',2000))" title="${window.i18n.t('config_auto_backup_copy_path')}">📋 ${window.i18n.t('config_auto_backup_copy_path')}</button>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; font-style: italic;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 5px; font-style: italic;">
                         🔒 ${window.i18n.t('config_auto_backup_path_hint')}
                     </div>
                 </div>`;
@@ -902,7 +902,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
             // List available backups
             if (files.length > 0) {
-                html += `<div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;" data-i18n="config_auto_backup_available">${window.i18n.t('config_auto_backup_available')}</div>`;
+                html += `<div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;" data-i18n="config_auto_backup_available">${window.i18n.t('config_auto_backup_available')}</div>`;
                 html += '<div style="display: flex; flex-direction: column; gap: 4px;">';
                 for (const f of files) {
                     const fDate = new Date(f.created).toLocaleString();
@@ -910,7 +910,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     html += `
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
                         <span>📦 ${f.filename} <span style="color: var(--text-muted);">(${fDate} — ${fSize})</span></span>
-                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="window.ConfigView.downloadAutoBackup('${f.filename}')">💾</button>
+                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="window.ConfigView.downloadAutoBackup('${f.filename}')">💾</button>
                     </div>`;
                 }
                 html += '</div>';

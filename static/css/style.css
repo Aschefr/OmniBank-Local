@@ -11,11 +11,11 @@
 /* 2. Reusable UI Components */
 @import url('./components/buttons.css?v=82');
 @import url('./components/forms.css?v=84');
-@import url('./components/modals.css?v=92');
+@import url('./components/modals.css?v=96');
 @import url('./components/tables.css?v=82');
 @import url('./components/badges.css?v=82');
 @import url('./components/category_picker.css?v=82');
-@import url('./components/notifications.css?v=82');
+@import url('./components/notifications.css?v=95');
 
 /* 3. View-Specific Layouts */
 @import url('./views/dashboard.css?v=82');
@@ -34,5 +34,5 @@
 @import url('./themes/executive_overrides.css?v=82');
 
 /* 5. Responsive & Media Queries */
-@import url('./responsive/mobile.css?v=94');
+@import url('./responsive/mobile.css?v=95');
 @import url('./responsive/print.css?v=82');

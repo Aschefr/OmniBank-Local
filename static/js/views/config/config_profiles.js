@@ -373,16 +373,16 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
             if (hasPin) {
                 inlinePinGroup.innerHTML = `
-                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
+                    <button type="button" class="btn btn-secondary" style="font-size:12px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
                         ${btnChangePin}
                     </button>
-                    <button type="button" class="btn btn-danger" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
+                    <button type="button" class="btn btn-danger" style="font-size:12px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', true)">
                         ${btnRemovePin}
                     </button>
                 `;
             } else {
                 inlinePinGroup.innerHTML = `
-                    <button type="button" class="btn btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', false)">
+                    <button type="button" class="btn btn-secondary" style="font-size:12px; padding:4px 8px;" onclick="window.ConfigView.closeMasterProfileModal(); window.ConfigView._showManagePinModal('${profileId}', false)">
                         ${btnSetPin}
                     </button>
                 `;

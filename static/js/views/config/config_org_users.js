@@ -20,10 +20,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 <span style="font-size:18px;">👤</span>
                 <span class="org-user-name" id="orgUserName_${u.id}">${u.name}</span>
                 <span class="org-user-status ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? window.i18n.t('label_active') : window.i18n.t('label_inactive')}</span>
-                <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._renameOrgUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Renommer">✏️</button>
+                <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.ConfigView._renameOrgUser(${u.id},'${u.name.replace(/'/g, "\\'")}')" title="Renommer">✏️</button>
                 ${u.is_active
-                    ? `<button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._toggleOrgUser(${u.id},false)">${window.i18n.t('btn_deactivate')}</button>`
-                    : `<button class="btn btn-primary" style="padding:3px 8px;font-size:11px;" onclick="window.ConfigView._toggleOrgUser(${u.id},true)">${window.i18n.t('btn_reactivate')}</button>`
+                    ? `<button class="btn btn-danger" style="padding:3px 8px;font-size:12px;" onclick="window.ConfigView._toggleOrgUser(${u.id},false)">${window.i18n.t('btn_deactivate')}</button>`
+                    : `<button class="btn btn-primary" style="padding:3px 8px;font-size:12px;" onclick="window.ConfigView._toggleOrgUser(${u.id},true)">${window.i18n.t('btn_reactivate')}</button>`
                 }
             </div>
         `).join('');

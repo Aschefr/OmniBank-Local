@@ -337,8 +337,8 @@ window.DataCleanupModal = {
             const amtStr = formatCurrency(tpl.amount);
             const phantomCount = tpl.unpointed_count || 0;
             const phantomBadge = phantomCount > 0
-                ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:3px 9px; border-radius:6px; font-size:11px; font-weight:700;">🗑️ ${phantomCount} prévision(s) fantômes à purger</span>`
-                : `<span style="background:rgba(16,185,129,0.12); color:#10b981; padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600;">0 prévision en attente</span>`;
+                ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:3px 9px; border-radius:6px; font-size:12px; font-weight:700;">🗑️ ${phantomCount} prévision(s) fantômes à purger</span>`
+                : `<span style="background:rgba(16,185,129,0.12); color:#10b981; padding:3px 9px; border-radius:6px; font-size:12px; font-weight:600;">0 prévision en attente</span>`;
 
             const suspiciousOps = tpl.suspicious_ops || [];
             const phantomOps = tpl.phantom_ops || [];
@@ -350,15 +350,15 @@ window.DataCleanupModal = {
             const suspiciousRowsHtml = suspiciousOps.map(op => `
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:8px 12px; background:var(--bg-surface); border-radius:8px; border:1px solid rgba(245,158,11,0.35); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <span style="color:var(--text-muted); font-family:monospace; font-size:11px;">${op.date_operation}</span>
+                        <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${op.date_operation}</span>
                         <strong style="color:var(--text-main); font-size:12.5px;">${op.description}</strong>
-                        <span style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:10.5px;">
+                        <span style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:12px;">
                             ⚠️ Rattachée par erreur
                         </span>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <strong style="color:var(--text-main); font-size:13px;">${formatCurrency(op.amount)}</strong>
-                        <span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.35); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;">
+                        <span style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.35); padding:3px 8px; border-radius:6px; font-size:12px; font-weight:700;">
                             🛡️ Réelle • CONSERVÉE en compte
                         </span>
                     </div>
@@ -369,12 +369,12 @@ window.DataCleanupModal = {
             const confirmedRowsHtml = confirmedOps.map(op => `
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:7px 10px; background:var(--bg-surface); border-radius:6px; border:1px solid var(--border-color); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="color:var(--text-muted); font-family:monospace; font-size:11px;">${op.date_operation}</span>
+                        <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${op.date_operation}</span>
                         <span style="color:var(--text-main); font-weight:500;">${op.description}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <strong style="color:var(--text-main); font-size:12.5px;">${formatCurrency(op.amount)}</strong>
-                        <span style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:600;">
+                        <span style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); padding:2px 7px; border-radius:4px; font-size:12px; font-weight:600;">
                             🛡️ Réelle • CONSERVÉE
                         </span>
                     </div>
@@ -385,12 +385,12 @@ window.DataCleanupModal = {
             const phantomRowsHtml = phantomOps.map(p => `
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:6px 10px; background:var(--bg-surface); border-radius:6px; border:1px solid var(--border-color); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="color:var(--text-muted); font-family:monospace; font-size:11px;">${p.date_operation}</span>
+                        <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${p.date_operation}</span>
                         <span style="color:var(--text-main); font-weight:500;">${p.description}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <strong style="color:#ef4444; font-size:12px;">${formatCurrency(p.amount)}</strong>
-                        <span style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.25); padding:2px 6px; border-radius:4px; font-size:10.5px; font-weight:600;">
+                        <span style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.25); padding:2px 6px; border-radius:4px; font-size:12px; font-weight:600;">
                             🗑️ Prévision non pointée (sera supprimée)
                         </span>
                     </div>
@@ -403,7 +403,7 @@ window.DataCleanupModal = {
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; font-size:14px; color:var(--text-main);">
                             <input type="checkbox" class="cleanup-abandoned-cb" value="${tpl.id}" checked style="width:17px; height:17px; accent-color:var(--accent); cursor:pointer;">
                             <span>${tpl.description}</span>
-                            <span style="font-size:11.5px; font-weight:500; color:var(--text-muted); padding:2px 8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px;">
+                            <span style="font-size:12px; font-weight:500; color:var(--text-muted); padding:2px 8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px;">
                                 ${freqLabel} • ${amtStr}
                             </span>
                         </label>
@@ -435,9 +435,9 @@ window.DataCleanupModal = {
                                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#f59e0b; font-size:12px;">
                                     <span>⚠️</span> <span>Opération(s) suspecte(s) rattachée(s) par erreur lors d'un import</span>
                                 </div>
-                                <span style="font-size:11px; color:#10b981; font-weight:700;">NE SERONT PAS SUPPRIMÉES</span>
+                                <span style="font-size:12px; color:#10b981; font-weight:700;">NE SERONT PAS SUPPRIMÉES</span>
                             </div>
-                            <p style="margin:0 0 6px 0; font-size:11.5px; color:var(--text-muted); line-height:1.4;">
+                            <p style="margin:0 0 6px 0; font-size:12px; color:var(--text-muted); line-height:1.4;">
                                 Cette opération bancaire bien réelle (ex. <em>Retrait liquide</em>) a été associée par erreur à ce modèle après une longue interruption. <strong>Elle reste intacte sur votre compte</strong> : seul le lien avec le modèle est retiré pour vous permettre de clôturer la récurrence en toute sécurité.
                             </p>
                             <div style="display:flex; flex-direction:column; gap:5px;">
@@ -452,9 +452,9 @@ window.DataCleanupModal = {
                                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#10b981; font-size:12px;">
                                     <span>🛡️</span> <span>Historique des opérations réelles confirmées (${confirmedOps.length})</span>
                                 </div>
-                                <span style="font-size:11px; color:#10b981; font-weight:700;">NE SERONT PAS SUPPRIMÉES</span>
+                                <span style="font-size:12px; color:#10b981; font-weight:700;">NE SERONT PAS SUPPRIMÉES</span>
                             </div>
-                            <p style="margin:0 0 4px 0; font-size:11.5px; color:var(--text-muted); line-height:1.4;">
+                            <p style="margin:0 0 4px 0; font-size:12px; color:var(--text-muted); line-height:1.4;">
                                 Ces opérations correspondent aux paiements passés réguliers. Elles sont conservées pour votre comptabilité.
                             </p>
                             <div style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto; padding-right:4px;">
@@ -469,9 +469,9 @@ window.DataCleanupModal = {
                                 <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#ef4444; font-size:12px;">
                                     <span>🗑️</span> <span>Opérations prévisionnelles fantômes (${phantomOps.length} non pointées à supprimer)</span>
                                 </div>
-                                <span style="font-size:11px; color:var(--text-muted);">Générées pour les mois futurs</span>
+                                <span style="font-size:12px; color:var(--text-muted);">Générées pour les mois futurs</span>
                             </div>
-                            <p style="margin:0 0 6px 0; font-size:11.5px; color:var(--text-muted); line-height:1.4;">
+                            <p style="margin:0 0 6px 0; font-size:12px; color:var(--text-muted); line-height:1.4;">
                                 Ces échéances n'ont jamais été rapprochées sur vos relevés. Ce sont de simples prévisions créées automatiquement qui encombrent inutilement votre calendrier futur.
                             </p>
                             <div style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; padding-right:4px;">
@@ -620,7 +620,7 @@ window.DataCleanupModal = {
 
         let groupsHtml = preview.groups.map(group => {
             const closedBadge = group.is_closed
-                ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; margin-left:8px;">Clôturé</span>`
+                ? `<span style="background:rgba(239,68,68,0.15); color:#ef4444; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-left:8px;">Clôturé</span>`
                 : '';
 
             const txRows = group.transactions.map(tx => {
@@ -642,7 +642,7 @@ window.DataCleanupModal = {
                         <span>🔄</span>
                         <strong style="font-size:13px; color:var(--text-main);">${group.template_description}</strong>
                         ${closedBadge}
-                        <span style="margin-left:auto; font-size:11px; color:var(--text-muted);">${group.transactions.length} op.</span>
+                        <span style="margin-left:auto; font-size:12px; color:var(--text-muted);">${group.transactions.length} op.</span>
                     </div>
                     <div>${txRows}</div>
                 </div>
@@ -793,16 +793,16 @@ window.DataCleanupModal = {
 
             return `
                 <tr style="border-bottom:1px solid var(--border-color);">
-                    <td style="padding:6px 10px; color:var(--text-muted); font-size:11.5px; white-space:nowrap;">${m.date}</td>
+                    <td style="padding:6px 10px; color:var(--text-muted); font-size:12px; white-space:nowrap;">${m.date}</td>
                     <td style="padding:6px 10px; font-weight:600; color:var(--text-main); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${m.description}">${m.description}</td>
                     <td style="padding:6px 10px; text-align:right; font-weight:700; white-space:nowrap;">${amountStr}</td>
                     <td style="padding:6px 10px; color:var(--text-muted); white-space:nowrap;">${curTypeLabel}</td>
                     <td style="padding:6px 10px; white-space:nowrap;">
                         <span style="font-weight:600;">${m.category}</span>
-                        <span style="font-size:10.5px; color:var(--text-muted);">(${catTypeLabel})</span>
+                        <span style="font-size:12px; color:var(--text-muted);">(${catTypeLabel})</span>
                     </td>
                     <td style="padding:6px 10px; white-space:nowrap;">
-                        <span style="font-size:11px; padding:2px 8px; border-radius:4px; ${badgeStyle}">
+                        <span style="font-size:12px; padding:2px 8px; border-radius:4px; ${badgeStyle}">
                             ${m.action_label}
                         </span>
                     </td>
@@ -819,19 +819,19 @@ window.DataCleanupModal = {
                             ${preview.total_tx_mismatches} opération(s) isolées désynchronisées
                         </strong>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" id="btnToggleMismatchesDetails" onclick="window.DataCleanupModal.toggleMismatchesList()" style="font-size:11.5px; padding:3px 9px; border-radius:6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnToggleMismatchesDetails" onclick="window.DataCleanupModal.toggleMismatchesList()" style="font-size:12px; padding:3px 9px; border-radius:6px;">
                         👁️ Afficher les détails
                     </button>
                 </div>
 
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(99,102,241,0.12); color:#6366f1; border:1px solid rgba(99,102,241,0.25); font-weight:600;">
+                    <span style="font-size:12px; padding:3px 8px; border-radius:6px; background:rgba(99,102,241,0.12); color:#6366f1; border:1px solid rgba(99,102,241,0.25); font-weight:600;">
                         ${transferCount} virements internes
                     </span>
-                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25); font-weight:600;">
+                    <span style="font-size:12px; padding:3px 8px; border-radius:6px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25); font-weight:600;">
                         ${subtypeCount} sous-types (fixes vs variables)
                     </span>
-                    <span style="font-size:11.5px; padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-weight:600;">
+                    <span style="font-size:12px; padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-weight:600;">
                         🛡️ ${conflictCount} conflits de sens protégés
                     </span>
                 </div>
@@ -1050,7 +1050,7 @@ window.DataCleanupModal = {
                 <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
                     <div style="padding:10px 14px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
                         <strong style="font-size:13px; color:var(--text-main);">🔄 ${g.template_description}</strong>
-                        <span style="font-size:11.5px; color:#10b981; font-weight:700;">${fallbackStr}</span>
+                        <span style="font-size:12px; color:#10b981; font-weight:700;">${fallbackStr}</span>
                     </div>
                     <div>${txItems}</div>
                 </div>
