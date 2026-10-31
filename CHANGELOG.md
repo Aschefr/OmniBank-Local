@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - **Operation Form Lists 📋**: Account and category lists keep their direct-pick layout after switching from a narrow to a wide window, and the selected row stays readable (white text) while the list has focus.
 - **Auto-Pilot Review Cards**: The Validate / Edit buttons stay right-aligned on narrow screens.
 - **Vault Message**: The "vault unlocked" notice now shows the remaining days instead of a raw placeholder.
+- **Readability & Touch Targets 👆**: Text in the Auto-Pilot and badges is no longer smaller than 12 px, Auto-Pilot buttons are easier to tap on phones, and the Categories list on mobile uses larger edit/close/delete buttons (the redundant status column is hidden).
 - **Analytics Tables Without Scrolling 📊**: The Analytics tables now show in full (no vertical scrollbar, and no horizontal one unless the columns would overlap), and the PDF export sizes its columns from the actual amounts so nothing is cut off; category names wrap instead of being shortened.
 - **Layout Fixes 🧱**: Bank names in the Accounts connection cards no longer wrap letter by letter, amounts in the Analytics tables are never cut off with "…", and the category type names are shown in the interface language.
 - **Mobile Polish**: Budget suggestion buttons no longer overlap, the demo banner no longer covers content, and toasts appear above the tab bar.
