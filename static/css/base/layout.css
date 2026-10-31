@@ -1037,10 +1037,11 @@ h3 {
     top: 0;
     left: 0;
     height: 100%;
-    width: 0%;
+    width: var(--sync-progress, 4%);
+    transition: width 1.2s linear;
     background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.55), rgba(99, 102, 241, 0.4));
     background-size: 200% 100%;
-    animation: bankSyncProgressAnim 45s cubic-bezier(0.08, 0.5, 0.1, 1) forwards, bankSyncShimmer 1.8s linear infinite;
+    animation: bankSyncShimmer 1.8s linear infinite;
     z-index: 0;
 }
 
@@ -1087,16 +1088,6 @@ h3 {
     color: #ef4444 !important;
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
     transition: all 0.3s ease;
-}
-
-@keyframes bankSyncProgressAnim {
-    0% { width: 0%; }
-    8% { width: 26%; }
-    22% { width: 52%; }
-    40% { width: 70%; }
-    65% { width: 82%; }
-    85% { width: 88%; }
-    100% { width: 92%; }
 }
 
 @keyframes bankSyncCompleteSnap {

@@ -7,7 +7,25 @@ Object.assign(window.BankSyncView, {
     _syncStateHtml: null,
     _syncPollingTimer: null,
 
+    _syncProgressPct: 4,
+
+    // Calcule le remplissage du bouton à partir de l'avancement réel renvoyé par /status :
+    // connexions terminées + estimation douce (asymptotique) pour la connexion en cours.
+    _updateSyncProgress(progress) {
+        if (!progress || !progress.total) return;
+        const within = 0.9 * (1 - Math.exp(-(progress.current_elapsed || 0) / 20));
+        const pct = ((progress.done + within) / progress.total) * 100;
+        this._syncProgressPct = Math.max(this._syncProgressPct, Math.min(97, Math.max(4, pct)));
+        this._paintSyncProgress();
+    },
+
+    _paintSyncProgress() {
+        document.querySelectorAll('.overview-bank-sync-btn.is-syncing, #btnTriggerAutoSync.is-syncing, #btnTimelineBgSync.is-syncing, #btnHeaderBgSync.is-syncing, #btnHistoryBgSync.is-syncing')
+            .forEach(btn => btn.style.setProperty('--sync-progress', this._syncProgressPct + '%'));
+    },
+
     setButtonsState(state, customHtml = null) {
+        if (state === 'syncing' && this._syncState !== 'syncing') this._syncProgressPct = 4;
         this._syncState = state;
         this._syncStateHtml = customHtml;
         this.applySyncButtonsState();
@@ -22,6 +40,7 @@ Object.assign(window.BankSyncView, {
             if (state === 'syncing') {
                 btn.classList.add('is-syncing');
                 btn.disabled = true;
+                btn.style.setProperty('--sync-progress', this._syncProgressPct + '%');
                 btn.innerHTML = `<span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_progress_loading') || 'Relevé en cours...' : 'Relevé en cours...'}</span>`;
             } else if (state === 'success') {
                 btn.classList.add('is-success');
@@ -76,6 +95,7 @@ Object.assign(window.BankSyncView, {
             const isRunning = Boolean(statusRes && statusRes.is_running);
             
             if (isRunning) {
+                this._updateSyncProgress(statusRes.progress);
                 if (this._syncState !== 'syncing') {
                     this.setButtonsState('syncing');
                     this._startSyncPollingTracker();
@@ -120,6 +140,7 @@ Object.assign(window.BankSyncView, {
             try {
                 const statusRes = await API.get('/api/bank-sync/status', { silent: true });
                 const isRunning = Boolean(statusRes && statusRes.is_running);
+                if (isRunning) this._updateSyncProgress(statusRes.progress);
                 if (!isRunning) {
                     this._stopSyncPollingTracker();
                     let hasError = false;
