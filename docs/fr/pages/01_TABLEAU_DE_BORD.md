@@ -5,8 +5,8 @@ OmniBank Local propose trois vues complémentaires pour suivre le cycle en cours
 | Vue | Rôle | Accès |
 |---|---|---|
 | **🎛️ Cockpit** | L'essentiel en un coup d'œil : reste à vivre, dépenses pointées, rythme de dépense. **Écran d'accueil** de l'application. | Menu principal, clic sur le logo, onglet mobile |
-| **📊 Tableau de bord** | La version détaillée : soldes, moyennes, opérations à rapprocher, tendances. | Menu principal, onglet mobile |
-| **📒 Journal** | La liste des opérations du cycle, pour saisir, rapprocher et filtrer. | Menu principal, menu « Plus » sur mobile |
+| **📊 Tableau de bord** | La version détaillée : soldes, moyennes, opérations à rapprocher, tendances. | Menu principal, menu « Plus » sur mobile |
+| **📒 Journal** | La liste des opérations du cycle, pour saisir, rapprocher et filtrer. | Menu principal, onglet mobile |
 
 Le Cockpit et le Tableau de bord sont toujours disponibles : ils ne se désactivent pas dans la Configuration.
 
@@ -73,7 +73,7 @@ Le Cockpit et le Tableau de bord affichent l'état de l'Auto-Pilote :
 ## 🧭 6. Navigation et contrôles d'en-tête
 
 - **Sur ordinateur** : menu horizontal en haut de l'écran.
-- **Sur mobile** : barre d'onglets en bas de l'écran (Cockpit, Tableau de bord, Auto-Pilote, Chat IA s'il est activé, et **Plus** pour toutes les autres vues).
+- **Sur mobile** : barre d'onglets en bas de l'écran (Cockpit, Journal, Auto-Pilote, Chat IA s'il est activé, et **Plus** pour toutes les autres vues).
 - **Annuler / Rétablir** : flèches ↩️ / ↪️ (ou `Ctrl+Z` / `Ctrl+Y`) pour annuler ou rétablir une action comptable.
 - **Centre de notifications (🔔)** : alertes de budget, bilans IA et rappels d'échéances.
 - **Sélecteur de profil** : bascule entre vos profils (ex. *Finances personnelles*, *Association*).
