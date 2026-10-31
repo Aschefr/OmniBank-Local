@@ -80,6 +80,12 @@ select[size]:not([size="1"]) {
     padding-right: 6px !important;
 }
 
+/* Chromium paints the selected row of a focused list with its own foreground colour (dark grey),
+   which `color` cannot override; the text fill can. */
+select[size]:not([size="1"]):focus option:checked {
+    -webkit-text-fill-color: #ffffff;
+}
+
 
 /* ─── Section: Excel-like inputs, toggle switch compact (36x20) (Lines 1004-1133) ─── */
 /* Excel-like inputs */
