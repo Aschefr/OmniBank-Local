@@ -34,7 +34,7 @@ window.ConfigSmartLabels = {
                         <span style="font-weight: 700; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
                             <span>${window.i18n?.t('smart_label_sandbox_title') || 'Banc d\'Essai & Simulation Smart Label'}</span>
                         </span>
-                        <span class="badge" style="font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">Pipeline Temps Réel</span>
+                        <span class="badge" style="font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">${window.i18n?.t('smart_label_sandbox_live') || 'Résultat en direct'}</span>
                     </div>
                     <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.35;">
                         ${window.i18n?.t('smart_label_sandbox_desc') || 'Testez en direct la normalisation, l\'application de vos règles, la détection d\'habitudes et le fallback IA sur un libellé brut.'}
@@ -358,7 +358,7 @@ window.ConfigSmartLabels = {
                                     🏷️ <span style="font-size: 11px;">${window.i18n?.t('smart_label_btn_map') || 'Associer'}</span>
                                 </button>
                                 <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
-                                    ✕
+                                    ✕<span class="sl-act-label">${window.i18n?.t('btn_delete') || 'Supprimer'}</span>
                                 </button>
                             </div>
                         </td>
@@ -381,19 +381,19 @@ window.ConfigSmartLabels = {
 
             const promoteBtn = (!m.is_ignored)
                 ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${m.is_manual ? (window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)') : (window.i18n?.t('smart_label_btn_promote_tip') || 'Sanctuariser cette règle')}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: ${m.is_manual ? '#10b981' : 'var(--text-muted)'}; border-color: ${m.is_manual ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)'}; background: ${m.is_manual ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
-                    🛡️
+                    🛡️<span class="sl-act-label">${m.is_manual ? (window.i18n?.t('smart_label_act_protected') || 'Protégée') : (window.i18n?.t('smart_label_act_protect') || 'Protéger')}</span>
                 </button>`
                 : '';
 
             const toggleMultiBtn = (!m.is_ignored)
                 ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMultiMapping(${m.id})" title="${m.is_multi_category ? (window.i18n?.t('smart_label_btn_unmulti_tip') || 'Mode multi-catégories actif (cliquer pour rétablir une catégorie)') : (window.i18n?.t('smart_label_btn_multi_tip') || 'Bascule Multi-catégories')}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: ${m.is_multi_category ? '#f59e0b' : 'var(--text-muted)'}; border-color: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}; background: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
-                    🔀
+                    🔀<span class="sl-act-label">${window.i18n?.t('smart_label_act_multi') || 'Multi-catégories'}</span>
                 </button>`
                 : '';
 
             const editBtn = (!m.is_ignored)
                 ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" title="${window.i18n?.t('smart_label_btn_edit_tip') || 'Modifier cette règle'}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: var(--accent); border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                    ✏️
+                    ✏️<span class="sl-act-label">${window.i18n?.t('smart_label_act_edit') || 'Modifier'}</span>
                 </button>`
                 : '';
 
@@ -419,10 +419,10 @@ window.ConfigSmartLabels = {
                             ${toggleMultiBtn}
                             ${editBtn}
                             <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_ignore') || 'Passer en statut Ignoré'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                                🚫
+                                🚫<span class="sl-act-label">${window.i18n?.t('smart_label_act_ignore') || 'Ignorer'}</span>
                             </button>
                             <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
-                                ✕
+                                ✕<span class="sl-act-label">${window.i18n?.t('btn_delete') || 'Supprimer'}</span>
                             </button>
                         </div>
                     </td>

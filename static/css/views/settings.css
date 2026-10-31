@@ -1420,3 +1420,21 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
         max-width: none;
     }
 }
+
+/* Short action labels next to the rule icons: phones only (desktop keeps tooltips) */
+.sl-act-label {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    #configSmartLabelsCard .sl-act-label {
+        display: inline;
+        margin-left: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    #configSmartLabelsCard table.data-table td.col-actions .btn {
+        padding: 0 12px !important;
+    }
+}
