@@ -1192,7 +1192,7 @@ window.TimelineView = {
             // Apply highlight via inline styles (beats any CSS specificity)
             const highlightColor = 'rgba(99, 102, 241, 0.35)';
             row.style.setProperty('background-color', highlightColor, 'important');
-            row.querySelectorAll('td').forEach(td => {
+            (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                 td.style.setProperty('background-color', highlightColor, 'important');
             });
 
@@ -1200,7 +1200,7 @@ window.TimelineView = {
             setTimeout(() => {
                 row.style.transition = 'background-color 1s ease-out';
                 row.style.setProperty('background-color', 'transparent', 'important');
-                row.querySelectorAll('td').forEach(td => {
+                (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                     td.style.transition = 'background-color 1s ease-out';
                     td.style.setProperty('background-color', 'transparent', 'important');
                 });
@@ -1209,7 +1209,7 @@ window.TimelineView = {
                 setTimeout(() => {
                     row.style.removeProperty('background-color');
                     row.style.removeProperty('transition');
-                    row.querySelectorAll('td').forEach(td => {
+                    (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                         td.style.removeProperty('background-color');
                         td.style.removeProperty('transition');
                     });
