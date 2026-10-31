@@ -428,14 +428,14 @@ window.AnalyticsView = {
             const mLabel = forPrint ? this.formatMonthHeader(mk, true) : this.formatShortMonth(mk);
             const mStyle = forPrint
                 ? `text-align:right;white-space:nowrap;border-bottom:1px solid ${hbd};background:var(--bg-surface);`
-                : `text-align:right;min-width:80px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;`;
+                : `text-align:right;min-width:96px;white-space:nowrap;border-bottom:1px solid ${hbd};position:sticky;top:0;background:var(--bg-surface);z-index:20;`;
             return `<th data-year="${mk.split('-')[0]}" data-col-type="month" style="${mStyle}">${mLabel}</th>`;
         }).join('');
 
         const yearHeaders = displayYears.map(yr => {
             const yrStyle = forPrint
                 ? `text-align:right;white-space:normal;line-height:1.2;padding-top:4px;padding-bottom:4px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};`
-                : `text-align:right;min-width:90px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);`;
+                : `text-align:right;min-width:104px;white-space:normal;line-height:1.2;padding-top:8px;padding-bottom:8px;border-left:${annualSep};border-bottom:1px solid ${hbd};color:var(--text-main);background:${hb};position:sticky;top:0;z-index:20;backdrop-filter:blur(5px);`;
             return `<th data-year="${yr}" data-col-type="year" style="${yrStyle}">TOT.<span class="year-br"></span>${yr}</th>`;
         }).join('');
 
@@ -474,7 +474,7 @@ window.AnalyticsView = {
                 </div>
             </div>
             <div class="analytics-table-scroll-container" style="${forPrint ? 'overflow:visible;' : 'overflow:auto;'}flex-grow:1;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
-            <table class="data-table" style="${forPrint ? 'width:100%;table-layout:fixed;' : `min-width:${220 + months.length * 80 + displayYears.length * 90}px;`}border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
+            <table class="data-table" style="${forPrint ? 'width:100%;table-layout:fixed;' : `min-width:${220 + months.length * 96 + displayYears.length * 104}px;`}border-radius:0;border:none;margin:0;border-collapse:separate;border-spacing:0;">
             <thead><tr style="background:var(--bg-surface);">
                 <th data-col-type="cat" style="${catHeaderStyle}" data-i18n="analytics_th_category">${window.i18n.t('analytics_th_category')}<span class="col-resize-handle" onmousedown="window.AnalyticsView._startResize(event)"></span></th>
                 ${monthHeaders}
