@@ -636,4 +636,11 @@
     }
 }
 
-
+/* Amounts must never be cut with an ellipsis: tighter cell padding, columns sized in analytics.js */
+.analytics-table-scroll-container .data-table td[data-col-type="month"],
+.analytics-table-scroll-container .data-table td[data-col-type="year"],
+.analytics-table-scroll-container .data-table th[data-col-type="month"],
+.analytics-table-scroll-container .data-table th[data-col-type="year"] {
+    padding-left: 8px;
+    padding-right: 8px;
+}
