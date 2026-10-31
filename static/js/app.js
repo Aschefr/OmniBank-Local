@@ -365,7 +365,7 @@ class App {
             const closeBtn = document.getElementById('sidebarCloseBtn');
             if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
             // Close sidebar when clicking a nav button on mobile
-            document.querySelectorAll('.nav-btn').forEach(btn => {
+            document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
                 btn.addEventListener('click', closeSidebar);
             });
         }
@@ -374,7 +374,7 @@ class App {
         this.updateNavToggles();
 
         // Navigation
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        document.querySelectorAll('.nav-btn[data-view]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.loadView(e.currentTarget.getAttribute('data-view'));
             });

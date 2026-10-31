@@ -178,6 +178,54 @@
     display: none;
 }
 
+/* Onglets rangés dans le menu « Plus » (voir js/app/nav_overflow.js) */
+.main-nav .nav-btn.nav-overflowed {
+    display: none !important;
+}
+
+.main-nav .nav-more-btn[hidden] {
+    display: none;
+}
+
+.nav-more-menu {
+    position: fixed;
+    z-index: 1100;
+    min-width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));
+}
+
+.nav-more-menu[hidden] {
+    display: none;
+}
+
+.nav-more-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.nav-more-item:hover {
+    background: var(--accent-subtle);
+    color: var(--accent);
+}
+
 .nav-btn {
     background: transparent;
     border: none;
