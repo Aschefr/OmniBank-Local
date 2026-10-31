@@ -1,64 +1,83 @@
-# 📊 Documentation Page : Tableau de Bord (Dashboard)
+# 📊 Documentation Page : Cockpit et Journal
 
-Le **Tableau de Bord** est l'écran d'accueil central d'OmniBank Local. Il offre un aperçu immédiat de la santé financière globale, des soldes des comptes, des dernières opérations et des raccourcis d'action rapide.
+OmniBank Local propose deux vues complémentaires pour suivre le cycle en cours (d'une paie à la suivante) :
+
+| Vue | Rôle | Accès |
+|---|---|---|
+| **🎛️ Cockpit** | L'essentiel en un coup d'œil : reste à vivre, dépenses pointées, rythme de dépense, patrimoine net. **Écran d'accueil** de l'application. | Menu principal, clic sur le logo, onglet mobile |
+| **📒 Journal** | La liste des opérations du cycle, pour saisir, rapprocher et filtrer. | Menu principal, onglet mobile |
+
+Le Cockpit est toujours disponible : il ne se désactive pas dans la Configuration.
+
+> [!NOTE]
+> L'ancien **Tableau de bord** a été retiré. Ses informations se trouvent désormais ailleurs : patrimoine net sur le Cockpit, opérations à rapprocher dans le Journal, moyennes & rythme et Top 6 des dépenses dans **Tendances**, budgets et épargne dans **Budgets**.
 
 ---
 
 ## 📸 Illustrations
 
-![Tableau de Bord principal](../../../screenshots/02_dashboard.png)
-*Vue générale du Tableau de bord avec soldes, graphiques et opérations récentes.*
+![Journal des opérations](../../../screenshots/02_dashboard.png)
+*Le Journal : opérations du cycle, soldes et rapprochement.*
 
 ![Saisie d'une opération](../../../screenshots/02_dashboard_saisie_operation.png)
 *Modale de saisie rapide d'une nouvelle opération.*
 
 ---
 
-## 🛠️ Composants & Fonctionnalités
+## 🎛️ 1. Le Cockpit
 
-### 1. Cartes de Synthese des Soldes
-En haut de page, les cartes de solde affichent :
-- **Solde Total Pointé (Réel)** : La somme des soldes validés sur vos relevés bancaires.
-- **Solde Total En Cours (Prévu)** : Le solde incluant les opérations saisies mais pas encore pointées.
-- **Variation du Mois** : Le total des entrées moins les sorties sur le mois en cours.
+Vue simplifiée, pensée pour un contrôle quotidien rapide :
+- **Reste à vivre** : jauge circulaire du pourcentage restant et montant restant sur le reste à vivre initial du cycle.
+- **Dépenses pointées** : part des dépenses prévues déjà rapprochées, avec le reste à venir.
+- **Rythme de dépense (€/jour)** : jauge à aiguille comparant votre dépense quotidienne à votre moyenne, avec un verdict (ex. « Dans les clous »).
+- **Patrimoine net** : total de vos comptes et livrets (ou solde du compte choisi) ; un clic ouvre la page Comptes.
+- **Projection fin de cycle** : solde prévisionnel à la prochaine paie.
+- **Auto-Pilote** et **À rapprocher** : état de l'Auto-Pilote, opérations à vérifier et nombre d'opérations en attente de rapprochement (un clic ouvre le Journal).
+- **Cap sur le mois prochain** : recettes prévues, charges fixes, dépenses variables estimées et marge nette estimée, avec un lien vers le Simulateur.
 
-### 2. Graphique d'Évolution du Solde
-Le graphique interactif (propulsé par **Chart.js**) trace la courbe du solde au fil des jours du mois sélectionné. Il permet de repérer visuellement les pics de dépenses ou les rentrées d'argent.
+Dans l'en-tête du Cockpit : choix du compte affiché, état de l'Auto-Pilote et bouton **Nouvelle opération**.
 
-### 3. Liste des Dernières Opérations
-Un aperçu des $N$ plus récentes transactions. Chaque ligne permet de :
-- Consulter la date, le libellé, le tiers (payeur/bénéficiaire) et le montant.
-- Voir la catégorie associée avec sa couleur.
-- Basculer rapidement le statut de pointage/rapprochement dans la colonne dédiée.
-- **Statut de Rapprochement** : Indiquer la date de rapprochement ou marquer l'opération comme pointée.
+## 📒 2. Le Journal
 
-### 4. Saisie Rapide (+ Nouvelle Opération)
-Le bouton **"+ Nouvelle Opération"** ouvre la modale de création :
-- **Compte** : Sélection du compte concerné.
-- **Type** : Dépense (Débit) ou Revenu (Crédit).
-- **Montant** : Valeur exacte.
-- **Date** : Date de la transaction.
-- **Libellé & Tiers** : Description et nom du commerçant/organisme.
-- **Catégorie** : Choix de la catégorie et sous-catégorie.
-- **Statut de Pointage** : Coché ou non.
+La liste des opérations du cycle en cours, l'outil de travail quotidien :
+- **Colonnes** : date, libellé, catégorie, montant, rapprochement et actions ; d'autres colonnes (comptes, enveloppe, récurrence, pièces jointes…) s'activent via le bouton **Colonnes**.
+- **Filtres** : recherche, période, type, catégorie et « Non-rapproché avant paie ».
+- **Actions** : **Importer un relevé**, **Relever en ligne** (si une banque est connectée), **Automatismes** et **Nouvelle opération**. Sur mobile, les trois premières sont dans le menu **⋯**, les filtres derrière le bouton **Filtres** (avec le nombre de filtres actifs) et **Nouvelle opération** est le bouton rond **＋** en bas à droite. L'Historique suit le même principe.
+- **Rapprochement** : bouton **Rapprocher** sur chaque opération ; les opérations rapprochées s'affichent en retrait avec leur date de rapprochement. Sur mobile, chaque opération tient sur deux lignes : un bouton rond **✓** rapproche, un appui sur la carte ouvre la modification (avec **Dupliquer**, **Ignorer** et **Supprimer**), le compte est indiqué par sa pastille de couleur et les icônes 🔁 📎 🗂️ signalent récurrence, pièce jointe et enveloppe.
+- **Barre « Période »** : navigation entre les cycles (◀ 📅 ▶) et bouton **Clôturer le mois en cours**. Sur ordinateur, elle reste en bas de la liste ; sur mobile, elle s'affiche dans l'en-tête via le bouton **📅 Période**.
 
-### 5. Widget Cockpit Auto-Pilote
-Le Tableau de Bord intègre le panneau escamotable **Cockpit Auto-Pilote** :
-- **Statut en Direct** : Badge lumineux vert (*Actif*) ou gris (*Veille*).
-- **Compteur de Règles & File en Attente** : Visualisez d'un coup d'œil le nombre d'opérations nécessitant une revue.
-- **Bouton "⚡ Exécuter l'Auto-Pilote"** : Lance manuellement le cycle de rapprochement et de catégorisation sur l'ensemble de vos comptes.
-- **Accès Rapide au Centre de Contrôle** : Raccourci direct vers la vue complète d'arbitrage.
+Pour consulter toutes les opérations, toutes périodes confondues, utilisez l'**Historique**.
 
-### 6. Contrôles Globaux d'En-Tête
-- **Annuler / Rétablir (Undo / Redo)** : Flèches ↩️ / ↪️ (ou raccourcis clavier `Ctrl+Z` / `Ctrl+Y`) pour annuler ou rétablir n'importe quelle action comptable.
-- **Centre de Notifications (🔔)** : Cloche interactive regroupant les alertes de budget, les bilans financiers IA et les rappels d'échéances avec gestion des archives et recherche.
-- **Sélecteur de Profil Maître** : Basculez instantanément entre vos profils (ex: *Finances Personnelles*, *Activité Professionnelle*, *Association*).
-- **Mode Discrétion (👁️)** : Masque instantanément l'affichage des soldes et montants par des pastilles chiffrées (`••• €`) en cas d'utilisation dans un lieu public.
-- **Mode Compact & Thèmes** : Optimise la densité des tableaux et permet d'alterner entre les thèmes Sombre et Clair.
+## ➕ 3. Saisie rapide (Nouvelle opération)
+
+Le bouton **Nouvelle opération** ouvre la modale de création :
+- **Compte(s)** : « Depuis » et/ou « Vers » selon le sens (dépense, recette ou virement).
+- **Montant** et **date**.
+- **Libellé** et **catégorie**.
+- **Statut de rapprochement** : coché ou non.
+
+Sur mobile, la saisie s'ouvre dans une fenêtre adaptée au téléphone : montant, libellé, comptes « Depuis » et « Vers » côte à côte (choix « — » pour aucun compte), date et catégorie, puis **Plus d'options** pour la récurrence, l'enveloppe, la date de rapprochement, le bordereau et les pièces jointes (ouvert d'office si l'opération les utilise). Le menu **⋯** de l'en-tête regroupe Mode Auto-Pilote, Dupliquer, Ignorer et Supprimer.
+
+## 🤖 4. Widget Auto-Pilote
+
+Le Cockpit affiche l'état de l'Auto-Pilote :
+- **Statut en direct** : actif ou en veille.
+- **Opérations à vérifier** : nombre de décisions en attente de votre revue.
+- **Accès rapide au Centre de contrôle** de l'Auto-Pilote.
+
+## 🧭 5. Navigation et contrôles d'en-tête
+
+- **Sur ordinateur** : menu horizontal en haut de l'écran.
+- **Sur mobile** : barre d'onglets en bas de l'écran (Cockpit, Journal, Auto-Pilote, Chat IA s'il est activé, et **Plus** pour toutes les autres vues).
+- **Annuler / Rétablir** : flèches ↩️ / ↪️ (ou `Ctrl+Z` / `Ctrl+Y`) pour annuler ou rétablir une action comptable.
+- **Centre de notifications (🔔)** : alertes de budget, bilans IA et rappels d'échéances.
+- **Sélecteur de profil** : bascule entre vos profils (ex. *Finances personnelles*, *Association*).
+- **Mode discrétion (👁️)** : masque les montants (`••• €`) dans un lieu public.
+- **Thèmes** : Classique sombre et clair, Titanium sombre et Albâtre clair.
 
 ---
 
 ## 💡 Astuces & Bonnes Pratiques
 
 > [!TIP]
-> Utilisez la touche d'accès rapide sur le Tableau de Bord pour vérifier chaque matin si des opérations prévues ou récurrentes doivent être enregistrées, et gardez un œil sur le badge Cockpit de l'Auto-Pilote.
+> Commencez la journée sur le Cockpit : le reste à vivre et le rythme de dépense vous disent en un coup d'œil où vous en êtes. Passez ensuite au Journal pour rapprocher les nouvelles opérations.

@@ -32,7 +32,7 @@ Directly access the reference guide corresponding to the screen you are currentl
 
 | Page / Feature | Reference Document | Description |
 | :--- | :--- | :--- |
-| **Dashboard** | 📊 [01_DASHBOARD.md](pages/01_DASHBOARD.md) | Visual summary of accounts, balance charts, and quick operation entry. |
+| **Cockpit & Ledger** | 📊 [01_DASHBOARD.md](pages/01_DASHBOARD.md) | Home screen (Cockpit), the cycle's operations list (Ledger) and navigation. |
 | **History & Operations** | 📜 [02_HISTORY_AND_OPERATIONS.md](pages/02_HISTORY_AND_OPERATIONS.md) | Complete transaction log, multi-criteria filters, and bank reconciliation. |
 | **Analytics Synthesis** | 📈 [03_ANALYTICS_SYNTHESIS.md](pages/03_ANALYTICS_SYNTHESIS.md) | Consolidated Category x Month income/expense matrix and PDF report export. |
 | **Budgets & AI** | 🎯 [04_BUDGETS_AND_AI_SUGGESTIONS.md](pages/04_BUDGETS_AND_AI_SUGGESTIONS.md) | Budget envelope management, cap tracking, and Ollama AI advice generator. |

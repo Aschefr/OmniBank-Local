@@ -10,7 +10,7 @@ window.SetupWizard = {
     _orgUsers: [],
     _orgMode: false,
     entryMode: 'manual',      // 'manual' | 'import' | 'sync'
-    preferredHome: 'dashboard',// 'dashboard' | 'overview'
+    preferredHome: 'overview', // the app opens on the Cockpit
     _selectedTheme: 'dark',
     _activeProfileId: 'default',
     _activeProfileName: '',
@@ -110,7 +110,7 @@ window.SetupWizard = {
     async show() {
         this.currentStep = 0;
         this.entryMode = 'manual';
-        this.preferredHome = 'dashboard';
+        this.preferredHome = 'overview';
 
         // 1. Charger les comptes existants pour ne pas écraser si re-lancement
         try {
@@ -123,7 +123,7 @@ window.SetupWizard = {
         // 2. Récupérer le mode organisation et la config
         const cfg = window.app?.config || {};
         this._orgMode = cfg.enable_org_mode === 'true';
-        this.preferredHome = cfg.enable_overview === 'true' ? 'overview' : 'dashboard';
+        this.preferredHome = 'overview';
 
         // 3. Récupérer le compte principal
         try {
@@ -976,32 +976,10 @@ window.SetupWizard = {
 
     // ── Étape 4 : Guide Opérations & Choix de l'Accueil ────────────
     _stepGuide(body) {
-        const isOverview = this.preferredHome === 'overview';
-        const isDashboard = this.preferredHome === 'dashboard';
-
         body.innerHTML = `
             <div class="wizard-step-content">
                 <h2 class="wizard-step-title">📝 ${window.i18n.t('wizard_guide_title')}</h2>
                 <p class="wizard-step-desc">${window.i18n.t('wizard_guide_desc')}</p>
-
-                <!-- Choix de l'écran d'accueil préféré -->
-                <div style="margin: 14px 0 20px 0;">
-                    <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                        ${window.i18n.t('wizard_home_view_title') || 'Écran d\'accueil préféré'}
-                    </label>
-                    <div class="wizard-home-grid">
-                        <div class="wizard-home-card ${isDashboard ? 'active' : ''}" onclick="window.SetupWizard._setHomeView('dashboard')">
-                            <div class="wizard-home-icon">🏠</div>
-                            <div class="wizard-home-name">${window.i18n.t('wizard_home_dashboard') || 'Journal des opérations classique'}</div>
-                            <div class="wizard-home-desc">${window.i18n.t('wizard_home_dashboard_desc') || 'Tableau complet avec filtres par colonnes, rapprochement et calendrier.'}</div>
-                        </div>
-                        <div class="wizard-home-card ${isOverview ? 'active' : ''}" onclick="window.SetupWizard._setHomeView('overview')">
-                            <div class="wizard-home-icon">📊</div>
-                            <div class="wizard-home-name">${window.i18n.t('wizard_home_overview') || 'Vue d\'ensemble moderne (Bento)'}</div>
-                            <div class="wizard-home-desc">${window.i18n.t('wizard_home_overview_desc') || 'Cartes synthétiques, rythme financier, Reste à Vivre et projection.'}</div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Guide des 4 directions de flux -->
                 <div class="wizard-guide-cards">
@@ -1081,7 +1059,7 @@ window.SetupWizard = {
 
                 <div class="wizard-nav">
                     <button class="wizard-btn-ghost" onclick="window.SetupWizard._nav(-1)">← ${window.i18n.t('wizard_btn_back')}</button>
-                    <button class="wizard-btn-primary" onclick="window.SetupWizard._saveHomeViewAndNav()">
+                    <button class="wizard-btn-primary" onclick="window.SetupWizard._nav(1)">
                         ${window.i18n.t('wizard_btn_understood')} →
                     </button>
                 </div>
@@ -1089,25 +1067,6 @@ window.SetupWizard = {
         `;
     },
 
-    _setHomeView(view) {
-        this.preferredHome = view;
-        document.querySelectorAll('.wizard-home-card').forEach(c => c.classList.remove('active'));
-        event.currentTarget?.classList.add('active');
-    },
-
-    async _saveHomeViewAndNav() {
-        try {
-            await API.post('/api/config/', {
-                enable_overview: this.preferredHome === 'overview' ? 'true' : 'false'
-            });
-            if (window.app && window.app.config) {
-                window.app.config.enable_overview = this.preferredHome === 'overview' ? 'true' : 'false';
-            }
-        } catch (e) {
-            console.warn('[SetupWizard] Erreur enregistrement vue d\'accueil', e);
-        }
-        this._nav(1);
-    },
 
     // ── Étape 5 : Assistant IA & Auto-Pilote ─────────────────────
     _stepAI(body) {
@@ -1509,9 +1468,7 @@ window.SetupWizard = {
             'titanium-light': 'Albâtre Lumineux'
         };
 
-        const homeName = this.preferredHome === 'overview'
-            ? 'Vue d\'ensemble (Bento)'
-            : 'Journal des opérations classique';
+        const homeName = window.i18n.t('nav_cockpit') || 'Cockpit';
 
         const activeCount = Object.values(this._autopilotSubtoggles).filter(Boolean).length;
         const presetNames = {
@@ -1628,14 +1585,21 @@ window.SetupWizard = {
             .wiz-scene-desc { font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.45; }
             .wiz-scene-tag { display:inline-block; margin-top:6px; font-size:10.5px; font-weight:700; padding:2px 8px;
                 border-radius:999px; background:rgba(99,102,241,.14); color:var(--accent); }
-            .demo-banner { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9000; display:flex;
-                gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; max-width:calc(100vw - 24px);
-                padding:10px 16px; border-radius:14px; background:var(--bg-card, #1e2530); color:var(--text-main);
-                border:1px solid var(--accent); box-shadow:0 8px 30px rgba(0,0,0,.35); font-size:12.5px; }
-            .demo-banner-btn { border:1px solid var(--border-color); background:transparent; color:var(--text-main);
-                border-radius:8px; padding:5px 12px; cursor:pointer; font-size:12px; font-weight:600; }
+            /* In-flow strip under the header: pushes content down instead of covering it. */
+            .demo-banner { flex-shrink:0; display:flex; gap:8px 12px; align-items:center; flex-wrap:wrap;
+                justify-content:center; padding:6px 16px; background:var(--accent-subtle, rgba(99,102,241,.14));
+                border-bottom:1px solid var(--accent-border, rgba(99,102,241,.35)); color:var(--text-main); font-size:13px; }
+            .demo-banner-text { line-height:1.3; }
+            .demo-banner-actions { display:flex; gap:8px; }
+            .demo-banner-btn { border:1px solid var(--border-color); background:var(--bg-surface, transparent); color:var(--text-main);
+                border-radius:8px; padding:4px 12px; min-height:30px; cursor:pointer; font-size:12px; font-weight:600; }
             .demo-banner-btn:hover { border-color:var(--accent); }
-            .demo-banner-btn.danger { background:var(--danger, #ff5630); border-color:transparent; color:#fff; }
+            .demo-banner-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+            .demo-banner-btn.danger { color:var(--danger, #ff5630); border-color:var(--danger, #ff5630); }
+            @media (max-width: 768px) {
+                .demo-banner { justify-content:space-between; padding:8px 12px; }
+                .demo-banner-btn { min-height:40px; font-size:13px; }
+            }
         `;
         document.head.appendChild(st);
     },
@@ -1715,10 +1679,13 @@ window.SetupWizard = {
         el.id = 'demoModeBanner';
         el.className = 'demo-banner';
         el.innerHTML = `
-            <span>🧪 <strong>${this._t('demo_banner_title', 'Mode démo')}</strong> — ${this._t('demo_banner_desc', 'vous explorez des données fictives.')}</span>
-            <button id="demoBannerReset" class="demo-banner-btn danger" onclick="window.SetupWizard.resetDemo()">↺ ${this._t('demo_banner_reset', 'Repartir à neuf')}</button>
-            <button id="demoBannerKeep" class="demo-banner-btn" onclick="window.SetupWizard.hideDemoBanner()">${this._t('demo_banner_keep', 'Garder et continuer')}</button>`;
-        document.body.appendChild(el);
+            <span class="demo-banner-text"><strong>${this._t('demo_banner_title', 'Mode démo')}</strong> — ${this._t('demo_banner_desc', 'vous explorez des données fictives.')}</span>
+            <span class="demo-banner-actions">
+                <button id="demoBannerReset" class="demo-banner-btn danger" onclick="window.SetupWizard.resetDemo()">↺ ${this._t('demo_banner_reset', 'Repartir à neuf')}</button>
+                <button id="demoBannerKeep" class="demo-banner-btn" onclick="window.SetupWizard.hideDemoBanner()">${this._t('demo_banner_keep', 'Garder et continuer')}</button>
+            </span>`;
+        const header = document.querySelector('.app-header');
+        if (header) header.after(el); else document.body.appendChild(el);
     },
 
     hideDemoBanner() {

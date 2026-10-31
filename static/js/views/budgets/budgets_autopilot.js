@@ -377,14 +377,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </div>
                     </div>
                 </div>
-                <div class="budget-strip-right">
-                    <button type="button" class="btn btn-secondary budget-strip-btn-history" 
-                            onclick="window.BudgetsView.openDismissedSuggestionsModal()" 
+                <div class="budget-strip-right budget-strip-actions">
+                    <button type="button" class="btn btn-secondary budget-strip-btn-history"
+                            onclick="window.BudgetsView.openDismissedSuggestionsModal()"
                             title="${historyLabel}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/><path d="M3.05 11a9 9 0 0 1 .5-2m1.8-3.4A9 9 0 0 1 11 3.05"/></svg>
                         <span class="btn-text">${historyLabel}</span>
                     </button>
-                    <button type="button" class="btn btn-secondary budget-strip-btn-dismiss" 
+                    <button type="button" class="btn btn-secondary budget-strip-btn-dismiss"
                             onclick="window.BudgetsView.dismissAllAutopilotSuggestionsWithConfirm()" 
                             title="${dismissAllLabel}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>

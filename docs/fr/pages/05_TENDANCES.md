@@ -24,3 +24,9 @@ La page **Tendances** permet de suivre l'évolution financière à moyen et long
 
 ### 3. Analyse de Tendances & Saisonnalité
 Les métriques calculées indiquent la moyenne mensuelle des dépenses, les pics d'activité et la variation en pourcentage d'une période à l'autre.
+
+### 4. Moyennes & Rythme
+Revenus, dépenses fixes, dépenses variables et solde net moyens du compte choisi, sur une période réglable (1 semaine à tout l'historique) et affichés par mois, semaine, jour ou heure.
+
+### 5. Top 6 des dépenses du mois
+Les six catégories les plus coûteuses du mois en cours (toutes, fixes ou variables). Un clic sur une catégorie ouvre ses opérations dans l'Historique.

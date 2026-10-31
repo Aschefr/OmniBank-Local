@@ -146,13 +146,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         </label>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
                             <span class="toggle-switch">
-                                <input type="checkbox" id="conf_enable_overview" onchange="window.ConfigView.save()">
-                                <span class="slider"></span>
-                            </span>
-                            <span data-i18n="config_opt_overview">Activer la vue d'ensemble (page d'accueil simplifiée)</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_simulator" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
                             </span>
@@ -653,7 +646,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             if (this.configData.enable_attachments === 'true') document.getElementById('conf_enable_attachments').checked = true;
             if (this.configData.enable_check_slips === 'true') document.getElementById('conf_enable_check_slips').checked = true;
             if (this.configData.enable_org_mode === 'true') document.getElementById('conf_enable_org_mode').checked = true;
-            if (this.configData.enable_overview === 'true') document.getElementById('conf_enable_overview').checked = true;
             if (document.getElementById('conf_enable_simulator')) {
                 document.getElementById('conf_enable_simulator').checked = (this.configData.enable_simulator !== 'false');
             }
@@ -732,7 +724,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 enable_attachments: document.getElementById('conf_enable_attachments').checked ? 'true' : 'false',
                 enable_check_slips: document.getElementById('conf_enable_check_slips').checked ? 'true' : 'false',
                 enable_org_mode: document.getElementById('conf_enable_org_mode').checked ? 'true' : 'false',
-                enable_overview: document.getElementById('conf_enable_overview').checked ? 'true' : 'false',
                 enable_simulator: document.getElementById('conf_enable_simulator') ? (document.getElementById('conf_enable_simulator').checked ? 'true' : 'false') : 'true',
                 auto_backup_enabled: document.getElementById('conf_auto_backup_enabled').checked ? 'true' : 'false',
                 auto_backup_frequency: document.getElementById('conf_auto_backup_frequency').value,
@@ -752,11 +743,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
                         btn.style.display = isAiEnabled ? '' : 'none';
                         btn.classList.toggle('is-hidden', !isAiEnabled);
-                    });
-                    const isOverviewEnabled = (data.enable_overview === 'true' || data.enable_overview === true);
-                    document.querySelectorAll('.nav-btn[data-view="overview"]').forEach(btn => {
-                        btn.style.display = isOverviewEnabled ? '' : 'none';
-                        btn.classList.toggle('is-hidden', !isOverviewEnabled);
                     });
                     const isSimEnabled = (data.enable_simulator !== 'false' && data.enable_simulator !== false);
                     document.querySelectorAll('.nav-btn[data-view="simulator"]').forEach(btn => {

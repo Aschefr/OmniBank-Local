@@ -63,7 +63,7 @@ test.describe('Module C : Configuration, Thème, i18n & Export de Sauvegarde', (
 
     // Vérifier la traduction d'éléments clés en anglais
     const sidebar = page.locator('#sidebar');
-    await expect(sidebar).toContainText('Dashboard');
+    await expect(sidebar).toContainText('Ledger');
 
     // Rebasculer en Français
     await langToggleBtn.click();
