@@ -65,13 +65,24 @@ window.MobileOpForm = {
     // Footer buttons mirrored in the "⋯" menu; their own logic and labels stay the source of truth
     _menuSources: ['op_autopilot_toggle_btn', 'op_dup_btn', 'op_skip_btn', 'op_undo_last_btn'],
 
+    // Visible rows of the direct-pick lists on desktop (same values as index.html)
+    _desktopListSizes: { op_from_account: 4, op_to_account: 4, op_category: 5 },
+
     isMobile() {
         return window.matchMedia('(max-width: 768px)').matches;
     },
 
     apply() {
         const modal = document.getElementById('operationModal');
-        if (!modal || !this.isMobile()) return;
+        if (!modal) return;
+        if (!this.isMobile()) {
+            // Back on a wide screen (window resized, device emulation off): restore the direct-pick lists
+            Object.entries(this._desktopListSizes).forEach(([id, size]) => {
+                const sel = document.getElementById(id);
+                if (sel && !sel.hasAttribute('size')) sel.setAttribute('size', size);
+            });
+            return;
+        }
         // Account and category lists become native dropdowns
         // (the "no account" option is added by FormView.renderAccountsDropdowns)
         ['op_from_account', 'op_to_account', 'op_category'].forEach(id => {
