@@ -214,7 +214,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <div class="budget-ai-progress-bar-wrap" style="width: 130px; height: 7px; background: var(--border-color); border-radius: 4px; overflow: hidden; position: relative;">
                             <div id="budgetAiBannerProgressBar" style="width: ${this._aiAnalyzingPct || 40}%; height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s ease;"></div>
                         </div>
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 32px;">${this._aiAnalyzingPct || 40}%</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); min-width: 32px;">${this._aiAnalyzingPct || 40}%</span>
                     </div>
                 </div>
             `;
@@ -363,7 +363,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                             <span class="autopilot-tooltip-cat-sum">
                                                 <span class="privacy-blur" style="text-decoration: line-through; opacity: 0.7;">${formatCurrency(recalibOldTotal)}</span>
                                                 → <strong class="privacy-blur">${formatCurrency(recalibNewTotal)}</strong>
-                                                <span class="${recalibDelta >= 0 ? 'net-plus' : 'net-minus'} privacy-blur" style="font-size: 11px; margin-left: 4px;">(${recalibDelta >= 0 ? '+' : ''}${formatCurrency(recalibDelta)})</span>
+                                                <span class="${recalibDelta >= 0 ? 'net-plus' : 'net-minus'} privacy-blur" style="font-size: 12px; margin-left: 4px;">(${recalibDelta >= 0 ? '+' : ''}${formatCurrency(recalibDelta)})</span>
                                             </span>
                                         </div>
                                     ` : ''}
@@ -820,8 +820,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${groupedCats && groupedCats.length > 0 ? `
                             <div class="review-row-categories-chips" style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; margin-bottom: 4px;">
                                 ${isEnrichment
-                                    ? `<span style="font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">+ 🏷️ ${escapeHtml(groupedCats[0])} (Rattachement proposé)</span>`
-                                    : groupedCats.map(c => `<span style="font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: rgba(var(--accent-rgb), 0.08); color: var(--accent); border: 1px solid rgba(var(--accent-rgb), 0.2);">🏷️ ${escapeHtml(c)}</span>`).join('')}
+                                    ? `<span style="font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">+ 🏷️ ${escapeHtml(groupedCats[0])} (Rattachement proposé)</span>`
+                                    : groupedCats.map(c => `<span style="font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: rgba(var(--accent-rgb), 0.08); color: var(--accent); border: 1px solid rgba(var(--accent-rgb), 0.2);">🏷️ ${escapeHtml(c)}</span>`).join('')}
                             </div>
                         ` : ''}
                         <div class="review-row-details">
@@ -837,7 +837,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <span class="review-detail-label">Impact :</span>
                                 <span class="review-detail-val" style="color: #818cf8; font-weight: 600;">+${formatCurrency(s.additional_amount || (s.suggested_amount - s.current_amount) || 0)}/mois</span>
                                 ${s.justification ? `
-                                    <div style="font-size: 11.5px; color: var(--text-muted); font-style: italic; margin-top: 4px; width: 100%;">
+                                    <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px; width: 100%;">
                                         💬 ${escapeHtml(s.justification)}
                                     </div>
                                 ` : ''}
@@ -851,7 +851,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                     <span class="review-inplace-unit">€/m</span>
                                 </div>
                                 ${s.justification ? `
-                                    <div style="font-size: 11.5px; color: var(--text-muted); font-style: italic; margin-top: 4px; width: 100%;">
+                                    <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px; width: 100%;">
                                         💬 ${escapeHtml(s.justification)}
                                     </div>
                                 ` : ''}
@@ -1045,7 +1045,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const isAutoApplyAp = isAutopilotActive && isAutoApply;
 
         const apBadgeHtml = `
-            <span class="badge" title="${window.i18n.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+            <span class="badge" title="${window.i18n.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
                 🤖 ${window.i18n.t('autopilot_badge_driven') || 'Auto-Pilote'}
             </span>
         `;
@@ -1108,7 +1108,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <span style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                                     <span>⏱️</span> <span>${window.i18n.t('budget_auto_schedule_title') || 'Planification & Cadence d\'exécution'}</span>
                                 </span>
-                                <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 5px;">
+                                <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 5px;">
                                     <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
                                     ${lastRunIso ? (window.i18n.t('budget_auto_badge_up_to_date') || 'À jour') : 'En attente d\'analyse'}
                                 </span>
@@ -1126,7 +1126,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 }
                             </div>
 
-                            <div style="font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                            <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
                                 <div style="font-weight: 700; color: var(--text-main); margin-bottom: 2px;">${window.i18n.t('budget_auto_triggers_title') || 'Quand s\'exécutent les automatisations ?'}</div>
                                 <div>${window.i18n.t('budget_auto_trigger_import') || '📥 <strong>À chaque import / sync bancaire</strong> : analyse réactive dès réception de nouvelles opérations.'}</div>
                                 <div>${window.i18n.t('budget_auto_trigger_month') || '📅 <strong>Au 1er de chaque mois</strong> : recalibrage mensuel lissé (EMA) des enveloppes existantes.'}</div>
@@ -1159,7 +1159,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         <span style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                                             <span>🧠</span> <span>${window.i18n.t('budget_auto_engine_title') || 'Moteur de découverte des enveloppes'}</span>
                                         </span>
-                                        <span id="ollama_status_badge" style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: var(--text-muted); white-space: nowrap;">
+                                        <span id="ollama_status_badge" style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: var(--text-muted); white-space: nowrap;">
                                             ${!isAiEnabled 
                                                 ? (window.i18n.t('budget_auto_engine_ai_disabled') || '⚪ IA désactivée') 
                                                 : (cfg.ollama_url ? '⏳ Connexion à l\'IA...' : (window.i18n.t('budget_auto_engine_ai_unconfigured') || 'IA non configurée'))}
@@ -1174,7 +1174,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                             <input type="radio" name="budget_suggestion_engine" value="deterministic" ${currentEngine === 'deterministic' ? 'checked' : ''} onchange="window.BudgetsView._selectEngineInModal('deterministic')" style="margin-top: 2px; accent-color: var(--accent); cursor: pointer;">
                                             <div style="flex: 1; min-width: 0;">
                                                 <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">⚙️ ${window.i18n.t('budget_auto_engine_deterministic') || 'Déterministe (Sans IA)'}</div>
-                                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_deterministic_desc') || '100% hors-ligne, calculé directement sur vos dépenses réelles.'}</div>
+                                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_deterministic_desc') || '100% hors-ligne, calculé directement sur vos dépenses réelles.'}</div>
                                             </div>
                                         </label>
 
@@ -1182,8 +1182,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                             <input type="radio" name="budget_suggestion_engine" value="ai" ${currentEngine === 'ai' ? 'checked' : ''} ${!isAiEnabled ? 'disabled' : ''} onchange="window.BudgetsView._selectEngineInModal('ai')" style="margin-top: 2px; accent-color: var(--accent); cursor: ${isAiEnabled ? 'pointer' : 'not-allowed'};">
                                             <div style="flex: 1; min-width: 0;">
                                                 <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">🤖 ${window.i18n.t('budget_auto_engine_ai') || 'Assisté par IA'}</div>
-                                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_ai_desc') || 'Regroupement sémantique multi-catégories via votre modèle d\'IA local.'}</div>
-                                                ${!isAiEnabled ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 3px; font-style: italic;">⚪ ${window.i18n.t('budget_auto_engine_ai_disabled_hint') || 'Activable dans Configuration > IA'}</div>` : ''}
+                                                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;">${window.i18n.t('budget_auto_engine_ai_desc') || 'Regroupement sémantique multi-catégories via votre modèle d\'IA local.'}</div>
+                                                ${!isAiEnabled ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; font-style: italic;">⚪ ${window.i18n.t('budget_auto_engine_ai_disabled_hint') || 'Activable dans Configuration > IA'}</div>` : ''}
                                             </div>
                                         </label>
                                     </div>
@@ -1204,7 +1204,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                                 <span>${window.i18n.t('budget_auto_create_title') || 'Auto-création sans validation'}</span>
                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                     ${isAutoCreateAp ? apBadgeHtml : ''}
-                                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                    <span style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
                                                 </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
@@ -1241,13 +1241,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                                 <span>${window.i18n.t('budget_auto_apply_title') || 'Auto-application sans validation'}</span>
                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                     ${isAutoApplyAp ? apBadgeHtml : ''}
-                                                    <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
+                                                    <span style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
                                                 </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                                 ${window.i18n.t('budget_auto_apply_desc') || 'Applique automatiquement les ajustements EMA mensuels lissés (bornes de sécurité : ±10%/mois et ±25%/an).'}
                                             </div>
-                                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
+                                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
                                                 ${window.i18n.t('budget_auto_apply_warning') || '💡 Historique et annulation en 1 clic disponibles dans le Centre de Contrôle Auto-Pilote'}
                                             </div>
                                         </div>
@@ -1277,12 +1277,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; gap: 8px;" onclick="window.BudgetsView.toggleRecentAutomationsList()" title="${window.i18n.t('budget_auto_recent_actions_desc') || 'Actions appliquées automatiquement par vos réglages d\'automatismes.'}">
                                 <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px; min-width: 0;">
                                     <span>📜</span> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${window.i18n.t('budget_auto_recent_actions_title') || 'Dernières actions automatiques'}</span>
-                                    <span id="recentAutomationsCountBadge" style="font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; background: rgba(var(--accent-rgb, 59, 130, 246), 0.12); color: var(--accent); display: none;">0</span>
+                                    <span id="recentAutomationsCountBadge" style="font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 10px; background: rgba(var(--accent-rgb, 59, 130, 246), 0.12); color: var(--accent); display: none;">0</span>
                                 </span>
-                                <span id="recentAutomationsToggleIcon" style="font-size: 11px; color: var(--text-muted); transition: transform 0.2s ease; flex-shrink: 0;">►</span>
+                                <span id="recentAutomationsToggleIcon" style="font-size: 12px; color: var(--text-muted); transition: transform 0.2s ease; flex-shrink: 0;">►</span>
                             </div>
                             <div id="recentAutomationsList" style="display: none; flex-direction: column; gap: 6px; margin-top: 4px; max-height: 240px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
-                                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
+                                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px;">
                                     <span>⏳ Chargement...</span>
                                 </div>
                             </div>
@@ -1348,7 +1348,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             if (!history || history.length === 0) {
                 listEl.innerHTML = `
-                    <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 8px;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px;">
                         ${window.i18n.t('budget_auto_no_recent_actions') || 'Aucune action automatique enregistrée récemment.'}
                     </div>
                 `;
@@ -1377,15 +1377,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 }
 
                 const engineBadge = (item.engine === 'ai') 
-                    ? '<span style="font-size: 10px; color: var(--text-muted); opacity: 0.85;">🤖 IA</span>' 
-                    : '<span style="font-size: 10px; color: var(--text-muted); opacity: 0.85;">⚡ Déterministe</span>';
+                    ? '<span style="font-size: 12px; color: var(--text-muted); opacity: 0.85;">🤖 IA</span>' 
+                    : '<span style="font-size: 12px; color: var(--text-muted); opacity: 0.85;">⚡ Déterministe</span>';
 
                 return `
-                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; box-sizing: border-box;">
+                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 12px; box-sizing: border-box;">
                         <!-- Ligne 1 : Badge + Nom de l'enveloppe & Montant -->
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
-                                <span style="${badgeStyle} font-size: 9.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
+                                <span style="${badgeStyle} font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">
                                     ${icon} ${badgeText}
                                 </span>
                                 <strong style="color: var(--text-main); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong>
@@ -1395,11 +1395,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             </span>
                         </div>
                         <!-- Ligne 2 : Moteur & Date -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--text-muted); min-width: 0;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); min-width: 0;">
                             <span style="flex-shrink: 0;">
                                 ${engineBadge}
                             </span>
-                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 10px; margin-left: 6px;" title="${item.created_at}">
+                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 12px; margin-left: 6px;" title="${item.created_at}">
                                 🕒 ${dateStr}
                             </span>
                         </div>
@@ -1410,7 +1410,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (history.length > 7) {
                 listEl.innerHTML += `
                     <div style="text-align: center; margin-top: 2px;">
-                        <button type="button" class="btn btn-secondary btn-xs" style="font-size: 11px; padding: 3px 10px;" onclick="document.getElementById('budgetAutomationsModal')?.remove(); window.BudgetsView.openDismissedSuggestionsModal('executed');">
+                        <button type="button" class="btn btn-secondary btn-xs" style="font-size: 12px; padding: 3px 10px;" onclick="document.getElementById('budgetAutomationsModal')?.remove(); window.BudgetsView.openDismissedSuggestionsModal('executed');">
                             ${t('budget_auto_action_view_all', 'Voir l\'historique complet')} →
                         </button>
                     </div>
@@ -1419,7 +1419,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } catch (e) {
             console.error('[Budgets Automations] Error loading recent automations history:', e);
             listEl.innerHTML = `
-                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 8px;">
+                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px;">
                     ${window.i18n.t('budget_auto_no_recent_actions') || 'Aucune action automatique enregistrée récemment.'}
                 </div>
             `;
@@ -1651,7 +1651,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                         <button type="button" id="btnClearDismissedHistory" class="btn btn-secondary btn-sm" 
                                 onclick="window.BudgetsView.clearDismissedSuggestionsHistory()" 
-                                style="font-size: 11.5px; padding: 5px 10px; display: none; align-items: center; gap: 5px; color: var(--danger-color, #ef4444); border-color: rgba(239, 68, 68, 0.3);"
+                                style="font-size: 12px; padding: 5px 10px; display: none; align-items: center; gap: 5px; color: var(--danger-color, #ef4444); border-color: rgba(239, 68, 68, 0.3);"
                                 title="${window.i18n.t('budget_auto_btn_clear_history') || 'Vider l\'historique'}">
                             <span>🗑️</span> <span>${window.i18n.t('budget_auto_btn_clear_history') || 'Vider l\'historique'}</span>
                         </button>
@@ -1662,10 +1662,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 <!-- Tabs Navigation -->
                 <div style="display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface);">
                     <button type="button" id="tabBtn_executed" class="btn btn-sm" onclick="window.BudgetsView.switchHistoryModalTab('executed')" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px; ${defaultTab === 'executed' ? 'background: var(--accent); color: #fff; border: 1px solid var(--accent);' : 'background: transparent; color: var(--text-muted); border: 1px solid var(--border-color);'}">
-                        ⚡ ${window.i18n.t('budget_auto_history_tab_executed') || 'Actions exécutées'} <span id="tabCount_executed" style="opacity: 0.85; font-size: 11px;"></span>
+                        ⚡ ${window.i18n.t('budget_auto_history_tab_executed') || 'Actions exécutées'} <span id="tabCount_executed" style="opacity: 0.85; font-size: 12px;"></span>
                     </button>
                     <button type="button" id="tabBtn_dismissed" class="btn btn-sm" onclick="window.BudgetsView.switchHistoryModalTab('dismissed')" style="font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px; ${defaultTab === 'dismissed' ? 'background: var(--accent); color: #fff; border: 1px solid var(--accent);' : 'background: transparent; color: var(--text-muted); border: 1px solid var(--border-color);'}">
-                        🗑️ ${window.i18n.t('budget_auto_history_tab_dismissed') || 'Suggestions écartées'} <span id="tabCount_dismissed" style="opacity: 0.85; font-size: 11px;"></span>
+                        🗑️ ${window.i18n.t('budget_auto_history_tab_dismissed') || 'Suggestions écartées'} <span id="tabCount_dismissed" style="opacity: 0.85; font-size: 12px;"></span>
                     </button>
                 </div>
 
@@ -1774,19 +1774,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 }
 
                 const engineBadge = (item.engine === 'ai') 
-                    ? '<span style="font-size: 10.5px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">🤖 IA</span>' 
-                    : '<span style="font-size: 10.5px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">⚡ Déterministe</span>';
+                    ? '<span style="font-size: 12px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">🤖 IA</span>' 
+                    : '<span style="font-size: 12px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">⚡ Déterministe</span>';
 
                 return `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-base); gap: 14px; flex-wrap: wrap;">
                         <div style="flex: 1; min-width: 240px;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <strong style="font-size: 14px; color: var(--text-main);">${escapeHtml(item.name)}</strong>
-                                <span style="${badgeStyle} font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px;">
+                                <span style="${badgeStyle} font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px;">
                                     ${icon} ${badgeText}
                                 </span>
                                 ${engineBadge}
-                                <span style="font-size: 11px; color: var(--text-muted); margin-left: auto;">
+                                <span style="font-size: 12px; color: var(--text-muted); margin-left: auto;">
                                     ${dateStr}
                                 </span>
                             </div>
@@ -1796,7 +1796,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 ${item.categories && item.categories.length > 1 ? `<span style="opacity: 0.7;">(${item.categories.length} catégories)</span>` : ''}
                             </div>
                             ${item.justification ? `
-                                <div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px;">
+                                <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px;">
                                     💬 ${escapeHtml(item.justification)}
                                 </div>
                             ` : ''}
@@ -1846,8 +1846,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             container.innerHTML = items.map(item => {
                 const isCreation = item.type === 'creation';
                 const typeBadge = isCreation 
-                    ? `<span class="autopilot-badge badge-creation" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">✨ ${window.i18n.t('budget_auto_history_type_creation') || 'Nouvelle enveloppe'}</span>`
-                    : `<span class="autopilot-badge badge-recalib" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">📊 ${window.i18n.t('budget_auto_history_type_recalibration') || 'Recalibrage'}</span>`;
+                    ? `<span class="autopilot-badge badge-creation" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">✨ ${window.i18n.t('budget_auto_history_type_creation') || 'Nouvelle enveloppe'}</span>`
+                    : `<span class="autopilot-badge badge-recalib" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">📊 ${window.i18n.t('budget_auto_history_type_recalibration') || 'Recalibrage'}</span>`;
                 
                 const dateStr = item.dismissed_at ? new Date(item.dismissed_at).toLocaleDateString() : '';
 
@@ -1857,7 +1857,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <strong style="font-size: 14px; color: var(--text-main);">${escapeHtml(item.name)}</strong>
                                 ${typeBadge}
-                                <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px;">
+                                <span style="font-size: 12px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 6px; border-radius: 4px;">
                                     ${window.i18n.t('budget_auto_dismissed_badge') || 'Écartée'}${dateStr ? ` le ${dateStr}` : ''}
                                 </span>
                             </div>
@@ -1872,7 +1872,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 `}
                             </div>
                             ${item.justification ? `
-                                <div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 4px;">
+                                <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 4px;">
                                     💬 ${escapeHtml(item.justification)}
                                 </div>
                             ` : ''}

@@ -285,7 +285,7 @@ window.BankSyncView = {
                     <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
                         <span>⚡</span> <span data-i18n="bank_sync_title">${window.i18n.t('bank_sync_title')}</span>
                     </h3>
-                    <span class="bank-sync-secure-badge" style="font-size: 11.5px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
+                    <span class="bank-sync-secure-badge" style="font-size: 12px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.25); height: 26px; padding: 0 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; cursor: help; box-sizing: border-box; line-height: 1;" title="${window.i18n.t('bank_sync_security_notice')}">
                         <span>🛡️</span> <span data-i18n="bank_sync_badge_secure">${window.i18n.t('bank_sync_badge_secure')}</span>
                     </span>
                     <span id="bankSyncVaultPill" class="bank-sync-vault-wrapper" style="display: inline-flex; align-items: center;"></span>
@@ -424,7 +424,7 @@ window.BankSyncView = {
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                                         <span style="font-size: 28px;">⚡</span>
-                                        <span style="font-size: 11px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_online_badge">
+                                        <span style="font-size: 12px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_online_badge">
                                             ${window.i18n.t('bank_link_method_online_badge') || 'Automatique & Quotidien'}
                                         </span>
                                     </div>
@@ -445,7 +445,7 @@ window.BankSyncView = {
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                                         <span style="font-size: 28px;">📄</span>
-                                        <span style="font-size: 11px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_file_badge">
+                                        <span style="font-size: 12px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 20px; padding: 2px 8px;" data-i18n="bank_link_method_file_badge">
                                             ${window.i18n.t('bank_link_method_file_badge') || '100% Privé & Manuel'}
                                         </span>
                                     </div>
@@ -651,11 +651,11 @@ window.BankSyncView = {
                 <div id="reviewModeBar" class="review-mode-bar">
                     <button type="button" id="btnReviewModePending" class="review-mode-tab active" onclick="window.BankSyncView.switchReviewMode('pending')">
                         <span>⚡</span> <span id="lblReviewModePending" data-i18n="bank_sync_mode_pending">${window.i18n ? window.i18n.t('bank_sync_mode_pending') || 'Opérations à traiter' : 'Opérations à traiter'}</span>
-                        <span id="badgeReviewModePendingCount" class="badge" style="background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px;">0</span>
+                        <span id="badgeReviewModePendingCount" class="badge" style="background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 12px;">0</span>
                     </button>
                     <button type="button" id="btnReviewModeStatement" class="review-mode-tab" onclick="window.BankSyncView.switchReviewMode('statement')">
                         <span>📋</span> <span id="lblReviewModeStatement" data-i18n="bank_sync_mode_statement">${window.i18n ? window.i18n.t('bank_sync_mode_statement') || 'Dernier relevé synchronisé' : 'Dernier relevé synchronisé'}</span>
-                        <span id="badgeReviewModeStatementCount" class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-main); padding: 1px 7px; border-radius: 10px; font-size: 11px;">0</span>
+                        <span id="badgeReviewModeStatementCount" class="badge" style="background: rgba(255,255,255,0.1); color: var(--text-main); padding: 1px 7px; border-radius: 10px; font-size: 12px;">0</span>
                     </button>
                     <div id="statementDateBadge" style="display: none; margin-left: auto; font-size: 12px; color: var(--text-muted); align-items: center; gap: 5px;">
                         <span>🕒</span> <span id="statementDateText">--</span>
@@ -709,10 +709,10 @@ window.BankSyncView = {
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-shrink: 0;">
-                        <button type="button" class="btn btn-sm btn-primary" onclick="window.BankSyncView.retryAccountSync()" style="font-size: 11px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="window.BankSyncView.retryAccountSync()" style="font-size: 12px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;">
                             <span>🔄</span> <span data-i18n="bank_sync_guard_retry">${window.i18n ? window.i18n.t('bank_sync_guard_retry') || 'Relancer le relevé' : 'Relancer le relevé'}</span>
                         </button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="window.BankSyncView.dismissSuspiciousAlert()" style="font-size: 11px; padding: 5px 12px;">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="window.BankSyncView.dismissSuspiciousAlert()" style="font-size: 12px; padding: 5px 12px;">
                             <span data-i18n="bank_sync_guard_dismiss">${window.i18n ? window.i18n.t('bank_sync_guard_dismiss') || 'Ignorer' : 'Ignorer'}</span>
                         </button>
                     </div>
@@ -829,7 +829,7 @@ window.BankSyncView = {
                         <input type="checkbox" id="masterPwRememberCheck" checked />
                         <span data-i18n="bank_vault_remember_label">${window.i18n ? window.i18n.t('bank_vault_remember_label') : 'Mémoriser sur cet appareil pendant :'}</span>
                     </label>
-                    <select id="masterPwRememberDays" class="input-styled" style="padding: 2px 6px; font-size: 11px; border-radius: 6px;">
+                    <select id="masterPwRememberDays" class="input-styled" style="padding: 2px 6px; font-size: 12px; border-radius: 6px;">
                         <option value="3" data-i18n="bank_vault_remember_days_3">${window.i18n ? window.i18n.t('bank_vault_remember_days_3') : '3 jours'}</option>
                         <option value="7" selected data-i18n="bank_vault_remember_days_7">${window.i18n ? window.i18n.t('bank_vault_remember_days_7') : '7 jours'}</option>
                         <option value="14" data-i18n="bank_vault_remember_days_14">${window.i18n ? window.i18n.t('bank_vault_remember_days_14') : '14 jours'}</option>
@@ -843,7 +843,7 @@ window.BankSyncView = {
                         <input type="checkbox" id="masterPwSyncOnUnlockCheck" checked />
                         <span data-i18n="bank_sync_on_unlock_label">${window.i18n ? window.i18n.t('bank_sync_on_unlock_label') : 'Synchro au déverrouillage'}</span>
                     </label>
-                    <span style="font-size: 11px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé immédiat'}</span>
+                    <span style="font-size: 12px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé immédiat'}</span>
                 </div>
 
                 <div id="masterPwModalError" style="display: none; color: #ef4444; font-size: 12px; margin-bottom: 14px; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 8px;"></div>
@@ -856,7 +856,7 @@ window.BankSyncView = {
                     </button>
                 </div>
                 <div style="margin-top: 14px; text-align: center; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                    <a href="javascript:void(0)" onclick="window.BankSyncView._cancelMasterPw(); window.BankSyncView.resetVault();" style="font-size: 11.5px; color: var(--text-muted); text-decoration: underline; cursor: pointer;">
+                    <a href="javascript:void(0)" onclick="window.BankSyncView._cancelMasterPw(); window.BankSyncView.resetVault();" style="font-size: 12px; color: var(--text-muted); text-decoration: underline; cursor: pointer;">
                         🔑 <span data-i18n="bank_sync_reset_vault_link">${window.i18n.t('bank_sync_reset_vault_link')}</span>
                     </a>
                 </div>
@@ -890,7 +890,7 @@ window.BankSyncView = {
                                 <div style="font-weight: 700; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                                     <span>🎯</span> <span data-i18n="modal_adjust_opt_initial_title">${window.i18n ? window.i18n.t('modal_adjust_opt_initial_title', 'Ajuster le solde initial (Recommandé)') : 'Ajuster le solde initial (Recommandé)'}</span>
                                 </div>
-                                <span class="badge" data-i18n="modal_adjust_badge_no_entry" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_no_entry', 'Sans écriture') : 'Sans écriture'}</span>
+                                <span class="badge" data-i18n="modal_adjust_badge_no_entry" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 12px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_no_entry', 'Sans écriture') : 'Sans écriture'}</span>
                             </div>
                             <p data-i18n="modal_adjust_opt_initial_desc" style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
                                 ${window.i18n ? window.i18n.t('modal_adjust_opt_initial_desc', 'Ajuste le solde de départ du compte sans créer d\'opération fictive ni fausser vos graphiques de dépenses et budgets.') : 'Ajuste le solde de départ du compte sans créer d\'opération fictive ni fausser vos graphiques de dépenses et budgets.'}
@@ -906,7 +906,7 @@ window.BankSyncView = {
                                 <div style="font-weight: 700; font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                                     <span>📝</span> <span data-i18n="modal_adjust_opt_tx_title">${window.i18n ? window.i18n.t('modal_adjust_opt_tx_title', 'Créer une écriture d\'intérêts ou régularisation') : 'Créer une écriture d\'intérêts ou régularisation'}</span>
                                 </div>
-                                <span class="badge" data-i18n="modal_adjust_badge_recorded" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_recorded', 'Comptabilisé') : 'Comptabilisé'}</span>
+                                <span class="badge" data-i18n="modal_adjust_badge_recorded" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; font-size: 12px; padding: 2px 6px; border-radius: 4px;">${window.i18n ? window.i18n.t('modal_adjust_badge_recorded', 'Comptabilisé') : 'Comptabilisé'}</span>
                             </div>
                             <p data-i18n="modal_adjust_opt_tx_desc" style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
                                 ${window.i18n ? window.i18n.t('modal_adjust_opt_tx_desc', 'Enregistre une opération rapprochée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).') : 'Enregistre une opération rapprochée du montant exact (idéal pour les intérêts annuels de livrets d\'épargne ou frais bancaires).'}
@@ -914,13 +914,13 @@ window.BankSyncView = {
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px;">
                                 <div>
-                                    <label data-i18n="modal_adjust_tx_label" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
+                                    <label data-i18n="modal_adjust_tx_label" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
                                         ${window.i18n ? window.i18n.t('modal_adjust_tx_label', 'Libellé de l\'opération') : 'Libellé de l\'opération'}
                                     </label>
                                     <input type="text" id="balanceAdjustTxDesc" class="input-styled" style="width: 100%; font-size: 12px; padding: 5px 8px; border-radius: 6px;" />
                                 </div>
                                 <div>
-                                    <label data-i18n="modal_adjust_tx_cat" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
+                                    <label data-i18n="modal_adjust_tx_cat" style="display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">
                                         ${window.i18n ? window.i18n.t('modal_adjust_tx_cat', 'Catégorie') : 'Catégorie'}
                                     </label>
                                     <select id="balanceAdjustTxCategory" class="input-styled" style="width: 100%; font-size: 12px; padding: 5px 8px; border-radius: 6px;">
@@ -968,7 +968,7 @@ window.BankSyncView = {
                             <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_search_label">
                                 ${window.i18n ? window.i18n.t('ghost_link_search_label', 'Rechercher une opération existante') : 'Rechercher une opération existante'}
                             </label>
-                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); cursor: pointer;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
                                 <input type="checkbox" id="linkGhostUnrecOnly" checked onchange="window.BankSyncView.onLinkGhostSearchInput()" />
                                 <span data-i18n="ghost_link_search_unrec_only">${window.i18n ? window.i18n.t('ghost_link_search_unrec_only', 'Non rapprochées uniquement') : 'Non rapprochées uniquement'}</span>
                             </label>
@@ -981,7 +981,7 @@ window.BankSyncView = {
 
                     <!-- Liste des résultats de recherche -->
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="ghost_link_select_hint">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="ghost_link_select_hint">
                             ${window.i18n ? window.i18n.t('ghost_link_select_hint', 'Sélectionnez une opération ci-dessous pour la lier :') : 'Sélectionnez une opération ci-dessous pour la lier :'}
                         </span>
                         <div id="linkGhostResultsList" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-base); padding: 6px; display: flex; flex-direction: column; gap: 4px;">
@@ -994,7 +994,7 @@ window.BankSyncView = {
                             <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                                 <span>⚖️</span> <span data-i18n="ghost_link_resolution_title">${window.i18n ? window.i18n.t('ghost_link_resolution_title', 'Résolution des champs avant liaison') : 'Résolution des champs avant liaison'}</span>
                             </div>
-                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;" data-i18n="ghost_link_resolution_subtitle">
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" data-i18n="ghost_link_resolution_subtitle">
                                 ${window.i18n ? window.i18n.t('ghost_link_resolution_subtitle', 'Choisissez quelle valeur conserver pour chaque champ ou modifiez-la manuellement :') : 'Choisissez quelle valeur conserver pour chaque champ ou modifiez-la manuellement :'}
                             </div>
                         </div>
@@ -1002,20 +1002,20 @@ window.BankSyncView = {
                         <!-- Ligne Libellé -->
                         <div style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_desc">${window.i18n ? window.i18n.t('ghost_link_field_desc', 'Libellé') : 'Libellé'}</label>
+                                <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_desc">${window.i18n ? window.i18n.t('ghost_link_field_desc', 'Libellé') : 'Libellé'}</label>
                                 <div style="display: flex; gap: 4px;">
                                     <button type="button" class="btn btn-xs" id="linkPillDescDb" onclick="window.BankSyncView.setLinkFieldSource('desc', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
                                     <button type="button" class="btn btn-xs" id="linkPillDescOnline" onclick="window.BankSyncView.setLinkFieldSource('desc', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
                                 </div>
                             </div>
                             <input type="text" id="linkFinalDesc" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
-                            <div id="linkDescOriginalHint" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;"></div>
+                            <div id="linkDescOriginalHint" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;"></div>
                         </div>
 
                         <!-- Ligne Montant -->
                         <div style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_amount">${window.i18n ? window.i18n.t('ghost_link_field_amount', 'Montant') : 'Montant'}</label>
+                                <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_amount">${window.i18n ? window.i18n.t('ghost_link_field_amount', 'Montant') : 'Montant'}</label>
                                 <div style="display: flex; gap: 4px;">
                                     <button type="button" class="btn btn-xs" id="linkPillAmountDb" onclick="window.BankSyncView.setLinkFieldSource('amount', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
                                     <button type="button" class="btn btn-xs" id="linkPillAmountOnline" onclick="window.BankSyncView.setLinkFieldSource('amount', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
@@ -1030,7 +1030,7 @@ window.BankSyncView = {
                         <!-- Ligne Catégorie -->
                         <div style="display: flex; flex-direction: column; gap: 4px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_category">${window.i18n ? window.i18n.t('ghost_link_field_category', 'Catégorie') : 'Catégorie'}</label>
+                                <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_category">${window.i18n ? window.i18n.t('ghost_link_field_category', 'Catégorie') : 'Catégorie'}</label>
                                 <div style="display: flex; gap: 4px;">
                                     <button type="button" class="btn btn-xs" id="linkPillCatDb" onclick="window.BankSyncView.setLinkFieldSource('cat', 'db')">${window.i18n ? window.i18n.t('ghost_link_source_db', 'OmniBank') : 'OmniBank'}</button>
                                     <button type="button" class="btn btn-xs" id="linkPillCatOnline" onclick="window.BankSyncView.setLinkFieldSource('cat', 'online')">${window.i18n ? window.i18n.t('ghost_link_source_online', 'En ligne') : 'En ligne'}</button>
@@ -1042,7 +1042,7 @@ window.BankSyncView = {
 
                         <!-- Ligne Date de Pointage -->
                         <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <label style="font-size: 11.5px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_recon_date">${window.i18n ? window.i18n.t('ghost_link_field_recon_date', 'Date de pointage') : 'Date de pointage'}</label>
+                            <label style="font-size: 12px; font-weight: 700; color: var(--text-main);" data-i18n="ghost_link_field_recon_date">${window.i18n ? window.i18n.t('ghost_link_field_recon_date', 'Date de pointage') : 'Date de pointage'}</label>
                             <input type="date" id="linkFinalReconDate" class="input-styled" style="width: 100%; font-size: 12px; padding: 6px 10px; border-radius: 6px;" />
                         </div>
                     </div>

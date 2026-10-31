@@ -29,7 +29,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     border: 1px solid var(--border-color);
                     padding: 5px 12px;
                     border-radius: 20px;
-                    font-size: 11px;
+                    font-size: 12px;
                     font-weight: 600;
                     cursor: pointer;
                     transition: all 0.2s ease;
@@ -151,7 +151,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    font-size: 10px;
+                    font-size: 12px;
                     line-height: 1.15;
                     font-weight: 700;
                     color: #fff;
@@ -185,7 +185,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 }
                 .gantt-header-months > div {
                     text-align: center;
-                    font-size: 11px;
+                    font-size: 12px;
                     font-weight: 600;
                     color: var(--text-muted);
                     padding: 10px 0;
@@ -285,7 +285,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 @media (max-width: 768px) {
                     .gantt-mobile-swipe-hint {
                         display: flex !important;
-                        font-size: 11px;
+                        font-size: 12px;
                         color: var(--text-muted);
                         margin-top: 8px;
                         margin-bottom: 4px;

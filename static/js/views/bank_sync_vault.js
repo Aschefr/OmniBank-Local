@@ -165,7 +165,7 @@ Object.assign(window.BankSyncView, {
                     const lockNowTooltip = window.i18n ? window.i18n.t('bank_sync_vault_lock_now_tooltip') : 'Verrouiller immédiatement';
                     pill.innerHTML = `
                         <span class="bank-sync-vault-pill" style="font-size: 12px; font-weight: 600; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); height: 36px; padding: 0 12px; border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.lockVault()" title="${tooltipTpl.replace('{time}', timeStr)}">
-                            <span>🔓</span> <span class="bank-sync-vault-pill-text">${unlockedLabel} (${timeStr})</span> <span style="font-size: 11px; opacity: 0.75;" title="${lockNowTooltip}">🔒</span>
+                            <span>🔓</span> <span class="bank-sync-vault-pill-text">${unlockedLabel} (${timeStr})</span> <span style="font-size: 12px; opacity: 0.75;" title="${lockNowTooltip}">🔒</span>
                         </span>
                     `;
                 } else if (isServerUnlocked && !isClientUnlocked) {
@@ -176,7 +176,7 @@ Object.assign(window.BankSyncView, {
                     const remoteTooltip = window.i18n ? window.i18n.t('bank_sync_vault_unlocked_remote_tooltip') || 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.' : 'Le coffre-fort est déverrouillé sur le serveur (relevés automatiques opérationnels). Cliquez pour autoriser ce navigateur avec votre mot de passe maître.';
                     pill.innerHTML = `
                         <span class="bank-sync-vault-pill" style="font-size: 12px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); height: 36px; padding: 0 12px; border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${remoteTooltip}">
-                            <span>🌐 🔓</span> <span class="bank-sync-vault-pill-text">${remoteLabel} (${timeStr})</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${remoteAction}</span>
+                            <span>🌐 🔓</span> <span class="bank-sync-vault-pill-text">${remoteLabel} (${timeStr})</span> <span style="font-size: 12px; text-decoration: underline; font-weight: 700;">${remoteAction}</span>
                         </span>
                     `;
                 } else {
@@ -185,7 +185,7 @@ Object.assign(window.BankSyncView, {
                     const lockedTooltip = window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Coffre verrouillé. Cliquez pour déverrouiller avec votre mot de passe maître.';
                     pill.innerHTML = `
                         <span class="bank-sync-vault-pill" style="font-size: 12px; font-weight: 600; background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); height: 36px; padding: 0 12px; border-radius: 9px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease; box-sizing: border-box; line-height: 1;" onclick="window.BankSyncView.unlockVaultManually()" title="${lockedTooltip}">
-                            <span>🔒</span> <span>${lockedLabel}</span> <span style="font-size: 11px; text-decoration: underline; font-weight: 700;">${unlockAction}</span>
+                            <span>🔒</span> <span>${lockedLabel}</span> <span style="font-size: 12px; text-decoration: underline; font-weight: 700;">${unlockAction}</span>
                         </span>
                     `;
                 }
@@ -262,10 +262,10 @@ Object.assign(window.BankSyncView, {
                             <span>⚠️</span> <strong style="color: #f59e0b;">${autoSyncLabel} :</strong>
                         </span>
                     </label>
-                    <select class="input-styled" style="height: 26px; font-size: 11.5px; padding: 0 8px; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; background: rgba(0,0,0,0.25); color: #f59e0b; font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                    <select class="input-styled" style="height: 26px; font-size: 12px; padding: 0 8px; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; background: rgba(0,0,0,0.25); color: #f59e0b; font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
                         ${optionsHtml}
                     </select>
-                    <button type="button" class="btn" onclick="window.BankSyncView.unlockVaultManually()" style="height: 26px; padding: 0 10px; font-size: 11.5px; font-weight: 700; background: #f59e0b; color: #1e1e2d; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Déverrouiller le coffre pour autoriser les relevés automatiques'}">
+                    <button type="button" class="btn" onclick="window.BankSyncView.unlockVaultManually()" style="height: 26px; padding: 0 10px; font-size: 12px; font-weight: 700; background: #f59e0b; color: #1e1e2d; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${window.i18n ? window.i18n.t('bank_sync_vault_locked_tooltip') : 'Déverrouiller le coffre pour autoriser les relevés automatiques'}">
                         <span>🔓</span> <span>${unlockBtnText}</span>
                     </button>
                 `;
@@ -296,10 +296,10 @@ Object.assign(window.BankSyncView, {
                         <input type="checkbox" checked onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: #10b981; width: 15px; height: 15px;">
                         <span>⏰ <strong style="color: #10b981;">${autoSyncLabel}</strong></span>
                     </label>
-                    <select class="input-styled" style="height: 26px; font-size: 11.5px; padding: 0 8px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; background: rgba(0,0,0,0.15); color: var(--text-main); font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                    <select class="input-styled" style="height: 26px; font-size: 12px; padding: 0 8px; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; background: rgba(0,0,0,0.15); color: var(--text-main); font-weight: 700; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
                         ${optionsHtml}
                     </select>
-                    <span style="font-size: 11px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.16); padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; height: 24px; box-sizing: border-box;" title="${pillTooltipTpl.replace('{interval}', interval)}">
+                    <span style="font-size: 12px; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.16); padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; height: 24px; box-sizing: border-box;" title="${pillTooltipTpl.replace('{interval}', interval)}">
                         <span style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block;"></span> ${autoSyncActive}
                     </span>
                 `;
@@ -328,7 +328,7 @@ Object.assign(window.BankSyncView, {
                         <input type="checkbox" onchange="window.BankSyncView.toggleAutoSync(this.checked)" style="margin: 0; cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px;">
                         <span>⏰ <span>${autoSyncLabel}</span></span>
                     </label>
-                    <select class="input-styled" style="height: 26px; font-size: 11.5px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
+                    <select class="input-styled" style="height: 26px; font-size: 12px; padding: 0 8px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-muted); font-weight: 600; cursor: pointer;" onchange="window.BankSyncView.changeAutoSyncInterval(this.value)">
                         ${optionsHtml}
                     </select>
                 `;

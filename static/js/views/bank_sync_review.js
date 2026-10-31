@@ -384,11 +384,11 @@ Object.assign(window.BankSyncView, {
                 const autoCom = this.statementData.auto_committed_count ?? 0;
                 const pending = this.statementData.pending_count ?? 0;
                 statsContainer.innerHTML = `
-                    <span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-main); font-size: 11px; padding: 2px 7px; border-radius: 6px;">Total : <strong>${total}</strong></span>
-                    ${autoRec > 0 ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-rapprochées : <strong>${autoRec}</strong></span>` : ''}
-                    ${autoCom > 0 ? `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-enregistrées : <strong>${autoCom}</strong></span>` : ''}
-                    ${pending > 0 ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 11px; padding: 2px 7px; border-radius: 6px;">⚡ À traiter : <strong>${pending}</strong></span>` : ''}
-                    ${dateStr ? `<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 10.5px; padding: 2px 6px; border-radius: 6px;">🕒 ${dateStr}</span>` : ''}
+                    <span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-main); font-size: 12px; padding: 2px 7px; border-radius: 6px;">Total : <strong>${total}</strong></span>
+                    ${autoRec > 0 ? `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 12px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-rapprochées : <strong>${autoRec}</strong></span>` : ''}
+                    ${autoCom > 0 ? `<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.35); font-size: 12px; padding: 2px 7px; border-radius: 6px;">🤖 Auto-enregistrées : <strong>${autoCom}</strong></span>` : ''}
+                    ${pending > 0 ? `<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 12px; padding: 2px 7px; border-radius: 6px;">⚡ À traiter : <strong>${pending}</strong></span>` : ''}
+                    ${dateStr ? `<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 12px; padding: 2px 6px; border-radius: 6px;">🕒 ${dateStr}</span>` : ''}
                 `;
             }
 
@@ -802,7 +802,7 @@ Object.assign(window.BankSyncView, {
             }).length;
 
             const badgeHtml = pendingCount > 0 
-                ? `<span style="background: ${idx === this.currentAccountIndex ? 'rgba(255,255,255,0.25)' : 'rgba(217,119,6,0.2)'}; color: ${idx === this.currentAccountIndex ? '#fff' : '#d97706'}; padding: 1px 6px; border-radius: 10px; font-size: 11px; margin-left: 6px; font-weight: 700;">${pendingCount}</span>`
+                ? `<span style="background: ${idx === this.currentAccountIndex ? 'rgba(255,255,255,0.25)' : 'rgba(217,119,6,0.2)'}; color: ${idx === this.currentAccountIndex ? '#fff' : '#d97706'}; padding: 1px 6px; border-radius: 10px; font-size: 12px; margin-left: 6px; font-weight: 700;">${pendingCount}</span>`
                 : '';
 
             const isSusp = Boolean(acc.is_suspicious_statement && !acc._suspicious_dismissed);
@@ -1080,7 +1080,7 @@ Object.assign(window.BankSyncView, {
             let actionColor = '';
 
             const resolvesBadge = tx._resolves_diff
-                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}"><span>🎯</span> <span>${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span></span>`
+                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}"><span>🎯</span> <span>${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span></span>`
                 : '';
 
             if (isStatementMode && tx.audit_needs_review) {
@@ -1126,7 +1126,7 @@ Object.assign(window.BankSyncView, {
                 if (tx.is_mirror_transfer) {
                     const badgeLabel = window.i18n.t('bank_sync_mirror_transfer_badge') || 'Virement miroir';
                     const badgeTip = (window.i18n.t('bank_sync_mirror_transfer_tooltip') || 'Écriture miroir d\'un virement interne déjà enregistré.').replace(/"/g, '&quot;');
-                    statusBadge = `<span class="badge" style="background:rgba(99,102,241,0.12); color:var(--accent); border:1px solid rgba(99,102,241,0.3); cursor:help; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>🔗 ${badgeLabel}</span> <span style="font-size:11px; opacity:0.8;">ℹ️</span></span>`;
+                    statusBadge = `<span class="badge" style="background:rgba(99,102,241,0.12); color:var(--accent); border:1px solid rgba(99,102,241,0.3); cursor:help; white-space: nowrap; display:inline-flex; align-items:center; gap:4px;" title="${badgeTip}"><span>🔗 ${badgeLabel}</span> <span style="font-size:12px; opacity:0.8;">ℹ️</span></span>`;
                     actionText = window.i18n.t('bank_sync_mirror_transfer_action') || 'Ignorée (miroir de virement)';
                     actionColor = `color: var(--text-muted);`;
                 } else if (tx.is_coming) {
@@ -1173,7 +1173,7 @@ Object.assign(window.BankSyncView, {
                 const rawLabelEscaped = window.escapeHtml ? window.escapeHtml(tx.raw_description) : (tx.raw_description || '');
                 const rawTip = (window.i18n ? window.i18n.t('bank_raw_label_tooltip') || 'Libellé brut d\'origine transmis par votre banque' : 'Libellé brut d\'origine transmis par votre banque').replace(/"/g, '&quot;');
                 descSublineHtml = `
-                    <div class="review-desc-subline" style="font-size: 11px; margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                    <div class="review-desc-subline" style="font-size: 12px; margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                         ${showRaw ? `
                             <div class="review-raw-desc" style="color: var(--text-muted); font-style: italic; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${rawTip} : ${(tx.raw_description || '').replace(/"/g, '&quot;')}">
                                 <span>🏛️</span> <span>${rawLabelEscaped}</span>
@@ -1185,7 +1185,7 @@ Object.assign(window.BankSyncView, {
             }
 
             const dbDesc = (tx.db_description && tx.db_description !== tx.description) 
-                ? `<div class="review-db-desc" style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
+                ? `<div class="review-db-desc" style="font-size: 12px; color: var(--text-muted); margin-bottom: 3px;">${lblInDb} ${window.escapeHtml ? window.escapeHtml(tx.db_description) : tx.db_description}</div>` 
                 : '';
 
             const descInput = isRec 
@@ -1211,7 +1211,7 @@ Object.assign(window.BankSyncView, {
                 : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
 
             const aiButtonHtml = (!isRec) ? `
-                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 11px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${aiBtnTitle.replace(/"/g, '&quot;')}">✨</button>
+                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 12px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${aiBtnTitle.replace(/"/g, '&quot;')}">✨</button>
             ` : '';
 
             const catSelect = isRec 
@@ -1232,7 +1232,7 @@ Object.assign(window.BankSyncView, {
                 : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${amtVal.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
             const directionPillHtml = `
-                <span class="direction-pill ${isDebit ? 'direction-debit' : 'direction-credit'}" style="font-size: 9.5px; padding: 1px 6px; margin-top: 3px;">
+                <span class="direction-pill ${isDebit ? 'direction-debit' : 'direction-credit'}" style="font-size: 12px; padding: 1px 6px; margin-top: 3px;">
                     ${isDebit ? '🔴 Sortie' : '🟢 Entrée'}
                 </span>
             `;
@@ -1279,13 +1279,13 @@ Object.assign(window.BankSyncView, {
                     sIcon = '🟡';
                 }
                 const scoreTip = (window.i18n && window.i18n.tp) ? window.i18n.tp('bank_sync_score_tooltip', { score: s }) : `Score de confiance : ${s}/100`;
-                scoreBadge = `<span class="badge" style="background:${sBg}; color:${sColor}; border:1px solid ${sColor}40; font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:2px; margin-left:4px; padding:2px 5px; border-radius:4px;" title="${scoreTip}"><span>${sIcon}</span> <span>${s}</span></span>`;
+                scoreBadge = `<span class="badge" style="background:${sBg}; color:${sColor}; border:1px solid ${sColor}40; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:2px; margin-left:4px; padding:2px 5px; border-radius:4px;" title="${scoreTip}"><span>${sIcon}</span> <span>${s}</span></span>`;
             }
 
             let deleteOrRestoreBtn = '';
             if (tx.is_dismissed || tx.is_auto_dismissed || isExcluded) {
                 const lblRestore = (window.i18n && window.i18n.t('bank_sync_btn_restore')) || 'Rétablir';
-                deleteOrRestoreBtn = `<button class="btn btn-secondary review-restore-btn" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; height: 24px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent);" onclick="window.BankSyncView.restoreReviewRow('${tx.csv_id}')" title="${lblRestore}"><span>↩️</span> <span>${lblRestore}</span></button>`;
+                deleteOrRestoreBtn = `<button class="btn btn-secondary review-restore-btn" style="font-size: 12px; padding: 2px 8px; border-radius: 6px; height: 24px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent);" onclick="window.BankSyncView.restoreReviewRow('${tx.csv_id}')" title="${lblRestore}"><span>↩️</span> <span>${lblRestore}</span></button>`;
             } else {
                 deleteOrRestoreBtn = `<button class="btn-action-del" onclick="window.BankSyncView.removeTxRow('${tx.csv_id}')" title="${lblIgnoreRow}">✕</button>`;
             }
@@ -1303,7 +1303,7 @@ Object.assign(window.BankSyncView, {
                 dateCellHtml = `<div class="review-date-wrap" style="font-weight: 500; color: var(--text-main);">${comingDateIcon}${tx.date_operation || ''}</div>`;
                 descCellHtml = `${dbDesc}<span class="sync-desc" style="display: block; font-weight: 500; color: var(--text-main); padding: 4px 0;">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${descSublineHtml}`;
                 const displayCategory = tx.category || tx.audit_category || tx.db_category || '--';
-                catCellHtml = `<span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-main); font-size: 11.5px; padding: 3px 8px; border-radius: 6px;">${window.escapeHtml ? window.escapeHtml(displayCategory) : displayCategory}</span>`;
+                catCellHtml = `<span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-main); font-size: 12px; padding: 3px 8px; border-radius: 6px;">${window.escapeHtml ? window.escapeHtml(displayCategory) : displayCategory}</span>`;
                 amountCellHtml = `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${amtVal.toFixed(2)} €</span>`;
                 const inspectId = tx.audit_matched_id || tx.audit_created_id || tx.matched_db_id;
                 if (inspectId) {
@@ -1561,12 +1561,12 @@ Object.assign(window.BankSyncView, {
             summaryEl.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="badge ghost-badge" style="background: rgba(99, 102, 241, 0.2); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 11px;">📋 ${window.i18n ? window.i18n.t('bank_sync_status_to_add') || 'Revue' : 'Revue'}</span>
+                        <span class="badge ghost-badge" style="background: rgba(99, 102, 241, 0.2); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px;">📋 ${window.i18n ? window.i18n.t('bank_sync_status_to_add') || 'Revue' : 'Revue'}</span>
                         <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(ghostLike.description) : ghostLike.description}</span>
                     </div>
                     <span style="font-weight: 800; font-size: 14px; color: ${amtColor};">${amtFmt}</span>
                 </div>
-                <div style="display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap;">
+                <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap;">
                     <span>📅 ${dateStr}</span>
                     <span>•</span>
                     <span>💳 ${window.escapeHtml ? window.escapeHtml(ghostLike.account_name || '') : (ghostLike.account_name || '')}</span>
@@ -1987,12 +1987,12 @@ Object.assign(window.BankSyncView, {
             // Mode Import CSV — badge solde fichier
             const fileBalance = this.previewData?._fileBalance;
             if (fileBalance != null) {
-                balanceBadgeHtml = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('import_file_balance_tooltip') || 'Solde détecté dans le fichier importé' : 'Solde détecté dans le fichier importé').replace(/"/g, '&quot;')}">📊 ${window.i18n ? window.i18n.t('import_file_balance') || 'Solde fichier' : 'Solde fichier'} : ${parseFloat(fileBalance).toFixed(2)} €</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('import_file_balance_tooltip') || 'Solde détecté dans le fichier importé' : 'Solde détecté dans le fichier importé').replace(/"/g, '&quot;')}">📊 ${window.i18n ? window.i18n.t('import_file_balance') || 'Solde fichier' : 'Solde fichier'} : ${parseFloat(fileBalance).toFixed(2)} €</span>`;
             }
         } else if (currentAcc && typeof currentAcc.bank_balance === 'number' && typeof currentAcc.local_reconciled_balance === 'number') {
             const delta = Math.round((currentAcc.bank_balance - currentAcc.local_reconciled_balance) * 100) / 100;
             if (Math.abs(delta) < 0.005) {
-                balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${currentAcc.bank_balance.toFixed(2)} €)</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${currentAcc.bank_balance.toFixed(2)} €)</span>`;
             } else {
                 const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
 
@@ -2031,7 +2031,7 @@ Object.assign(window.BankSyncView, {
                 const shouldShowAdjustBtn = !isResolvedBySync && !isExplainedByComing;
 
                 const escapedAccName = (window.escapeHtml ? window.escapeHtml(currentAcc.account_name || 'Compte') : (currentAcc.account_name || 'Compte')).replace(/'/g, "\\'");
-                const adjustBtnHtml = `<span onclick="window.BankSyncView.openBalanceAdjustModal(${currentAcc.account_id}, '${escapedAccName}', ${currentAcc.bank_balance}, ${currentAcc.local_reconciled_balance}, ${delta})" style="cursor: pointer; background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 3px; font-size: 10px; margin-left: 6px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde').replace(/"/g, '&quot;')}">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>`;
+                const adjustBtnHtml = `<span onclick="window.BankSyncView.openBalanceAdjustModal(${currentAcc.account_id}, '${escapedAccName}', ${currentAcc.bank_balance}, ${currentAcc.local_reconciled_balance}, ${delta})" style="cursor: pointer; background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 3px; font-size: 12px; margin-left: 6px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde').replace(/"/g, '&quot;')}">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>`;
 
                 const badgeBg = isResolvedBySync ? 'rgba(16, 185, 129, 0.12)' : (isExplainedByComing ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
                 const badgeColor = isResolvedBySync ? '#10b981' : (isExplainedByComing ? '#d97706' : '#ef4444');
@@ -2039,7 +2039,7 @@ Object.assign(window.BankSyncView, {
 
                 const rawReconciled = window.i18n ? window.i18n.t('bank_sync_reconciled_word') : '';
                 const lblReconciled = (rawReconciled && rawReconciled !== 'bank_sync_reconciled_word') ? rawReconciled : 'Rapproché';
-                balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • ${lblReconciled}: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • ${lblReconciled}: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
             }
         }
 

@@ -74,7 +74,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                     <!-- SECTION 1 : Moteur de calcul -->
                     <div style="margin-bottom:8px;">
-                        <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_engine_section_title">
+                        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_engine_section_title">
                             ${window.i18n.t('budget_modal_engine_section_title') || "Moteur de calcul"}
                         </div>
                         <div class="bv-engine-options">
@@ -108,7 +108,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                     <!-- SECTION 2 : Période d'historique -->
                     <div style="margin-bottom:8px;">
-                        <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_period_section_title">
+                        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" data-i18n="budget_modal_period_section_title">
                             ${window.i18n.t('budget_modal_period_section_title') || "Période d'historique"}
                         </div>
                         <div class="bv-modal-options">
@@ -187,7 +187,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             <div id="budgetBulkDeletePanel" style="display:none;margin-bottom:24px;background:var(--bg-surface);border:1px solid #ef4444;border-radius:12px;padding:20px;box-shadow:0 4px 12px rgba(239,68,68,0.15);">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                     <strong style="color:#ef4444;font-size:15px;" data-i18n="budget_bulk_delete_title">${window.i18n.t('budget_bulk_delete_title') || 'Suppression groupée d\'enveloppes'}</strong>
-                    <button class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="window.BudgetsView.closeBulkDeleteModal()">✕</button>
+                    <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;" onclick="window.BudgetsView.closeBulkDeleteModal()">✕</button>
                 </div>
                 <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;" data-i18n="budget_bulk_delete_prompt">${window.i18n.t('budget_bulk_delete_prompt') || 'Choisissez la catégorie d\'enveloppes à supprimer :'}</p>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
@@ -370,7 +370,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;" data-i18n="budget_is_locked_label">
                                             🔒 ${window.i18n.t('budget_is_locked_label') || 'Verrouiller cette enveloppe'}
                                         </span>
-                                        <small style="color:var(--text-muted);display:block;font-size:11px;margin-top:2px;" data-i18n="budget_is_locked_sublabel">
+                                        <small style="color:var(--text-muted);display:block;font-size:12px;margin-top:2px;" data-i18n="budget_is_locked_sublabel">
                                             ${window.i18n.t('budget_is_locked_sublabel') || 'Exclut cette enveloppe du recalcul et des ajustements automatiques.'}
                                         </small>
                                     </div>
@@ -607,7 +607,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepMonthly(1)">▶</button>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
-                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;">
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;">
                             <div style="position:relative;width:32px;height:18px;">
                                 <input type="checkbox" id="budgetCustomPeriodToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" ${customEnabled ? 'checked' : ''} onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
                                 <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
@@ -616,19 +616,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <span>${window.i18n.t('budget_custom_period') || 'Period'}</span>
                         </label>
                         <div id="budgetCustomPeriodInputs" style="${customDisp}align-items:center;gap:4px;">
-                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:130px;font-size:11px;" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
-                            <span style="color:var(--text-muted);font-size:10px;">→</span>
-                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:130px;font-size:11px;" value="${this.customPeriod.end || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
+                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:130px;font-size:12px;" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
+                            <span style="color:var(--text-muted);font-size:12px;">→</span>
+                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:130px;font-size:12px;" value="${this.customPeriod.end || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
                         </div>
                     </div>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="window.BudgetsView.goTodayMonthly()">${window.i18n.t('btn_today')}</button>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.goTodayMonthly()">${window.i18n.t('btn_today')}</button>
                 </div>`;
             } else if (period === 'yearly') {
                 return `<div style="display:flex;align-items:center;gap:0;">
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepYearly(-1)">◀</button>
                     <span class="inline-input" style="min-width:60px;text-align:center;border-radius:0;font-size:12px;padding:4px 10px;display:inline-block;">${this.yearlyYear}</span>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepYearly(1)">▶</button>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-left:8px;" onclick="window.BudgetsView.goTodayYearly()">${window.i18n.t('btn_today')}</button>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;margin-left:8px;" onclick="window.BudgetsView.goTodayYearly()">${window.i18n.t('btn_today')}</button>
                 </div>`;
             }
             return '';
@@ -691,7 +691,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ).join(' ');
 
             const incomeHtml = b.income > 0
-                ? `<div style="font-size:11px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
+                ? `<div style="font-size:12px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
                 : '';
 
             const safeName = b.name.replace(/'/g, "\\'");
@@ -776,7 +776,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div class="bv-card-footer">
                         <div class="bv-card-footer-left" onclick="event.stopPropagation()">
                             <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_expenses || 0)} ${window.i18n.t('budget_reconciled')}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);font-size:11px;align-self:flex-end;${showSyncBtn ? 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;' : ''}" ${showSyncBtn ? `onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" title="${syncTitle}"` : ''}>(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
+                            <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;${showSyncBtn ? 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;' : ''}" ${showSyncBtn ? `onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" title="${syncTitle}"` : ''}>(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
                             ${incomeHtml}
                         </div>
                         <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
@@ -821,7 +821,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
 
             const withdrawnHtml = withdrawn > 0
-                ? `<span class="privacy-blur" style="color:#ff5630;font-size:11px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
+                ? `<span class="privacy-blur" style="color:#ff5630;font-size:12px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
                 : '';
 
             const tempWithdrawnBadge = tempWithdrawn > 0
@@ -1100,33 +1100,33 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         return `
                 <div class="budget-ai-panel-header">
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <span id="aiPanelEngineBadge" class="${badgeClass}" style="font-size:11px;font-weight:700;">${badgeText}</span>
+                        <span id="aiPanelEngineBadge" class="${badgeClass}" style="font-size:12px;font-weight:700;">${badgeText}</span>
                         <span style="font-weight:700;font-size:13px;color:var(--text-main);" data-i18n="ai_budget_window">${window.i18n.t('ai_budget_window') || 'Historique d\'analyse :'}</span>
-                        <span title="${window.i18n.t('ai_sim_tt_history_help') || 'La fenêtre détermine la profondeur de l\'historique analysée par l\'IA pour lisser vos moyennes mensuelles/annuelles, détecter les récurrences et couvrir l\'ensemble de vos catégories de dépenses.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
-                        <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(3, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_3m">3 mois</button>
-                        <button id="aiWinBtn6" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(6, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_6m">6 mois</button>
-                        <button id="aiWinBtn12" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.requestAiSuggestions(12, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_12m">12 mois</button>
+                        <span title="${window.i18n.t('ai_sim_tt_history_help') || 'La fenêtre détermine la profondeur de l\'historique analysée par l\'IA pour lisser vos moyennes mensuelles/annuelles, détecter les récurrences et couvrir l\'ensemble de vos catégories de dépenses.'}" style="cursor:help;margin-right:4px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:12px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
+                        <button id="aiWinBtn3" class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.BudgetsView.requestAiSuggestions(3, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_3m">3 mois</button>
+                        <button id="aiWinBtn6" class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.BudgetsView.requestAiSuggestions(6, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_6m">6 mois</button>
+                        <button id="aiWinBtn12" class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.BudgetsView.requestAiSuggestions(12, null, window.BudgetsView.getCurrentEngine())" data-i18n="ai_budget_window_12m">12 mois</button>
 
                         <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
 
                         <div class="budget-ai-outlier-box" title="${window.i18n ? window.i18n.t('ai_outlier_slider_tooltip') : 'Sensibilité aux dépenses exceptionnelles et imprévus historiques'}">
-                            <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="ai_outlier_slider_label">Filtre d'écrêtage :</span>
+                            <span style="font-size:12px;color:var(--text-muted);font-weight:600;" data-i18n="ai_outlier_slider_label">Filtre d'écrêtage :</span>
                             <input id="aiOutlierSensitivitySlider" class="omni-smooth-slider" type="range" min="1" max="5" value="${window.BudgetsView?.currentOutlierSensitivity || 2}" step="0.01" style="width:80px;cursor:pointer;background:linear-gradient(to right, var(--accent) 0%, var(--accent) ${((((window.BudgetsView?.currentOutlierSensitivity || 2) - 1) / 4) * 100).toFixed(1)}%, rgba(255,255,255,0.12) ${((((window.BudgetsView?.currentOutlierSensitivity || 2) - 1) / 4) * 100).toFixed(1)}%, rgba(255,255,255,0.12) 100%);" oninput="window.BudgetsView.updateOutlierSensitivity(this.value, false)" onchange="window.BudgetsView.updateOutlierSensitivity(this.value, true)">
-                            <span id="aiOutlierSensitivityLabel" style="font-size:11px;font-weight:700;color:var(--accent);min-width:110px;">${window.BudgetsView?.getOutlierSensitivityLabel ? window.BudgetsView.getOutlierSensitivityLabel(window.BudgetsView?.currentOutlierSensitivity || 2) : (window.i18n ? window.i18n.t('ai_outlier_level_2') : 'Prudent (Équilibre)')}</span>
+                            <span id="aiOutlierSensitivityLabel" style="font-size:12px;font-weight:700;color:var(--accent);min-width:110px;">${window.BudgetsView?.getOutlierSensitivityLabel ? window.BudgetsView.getOutlierSensitivityLabel(window.BudgetsView?.currentOutlierSensitivity || 2) : (window.i18n ? window.i18n.t('ai_outlier_level_2') : 'Prudent (Équilibre)')}</span>
                         </div>
                     </div>
 
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:var(--accent);border-color:var(--accent);background:rgba(var(--accent-rgb),0.08);" onclick="window.BudgetsView.startAiWizard()" data-i18n="ai_budget_btn_open_wizard">${window.i18n.t('ai_budget_btn_open_wizard') || '🪄 Assistant Wizard'}</button>
+                        <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent);background:rgba(var(--accent-rgb),0.08);" onclick="window.BudgetsView.startAiWizard()" data-i18n="ai_budget_btn_open_wizard">${window.i18n.t('ai_budget_btn_open_wizard') || '🪄 Assistant Wizard'}</button>
                         <div style="height:16px;width:1px;background:var(--border-color);margin:0 2px;"></div>
-                        <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="ai_budget_select_label">${window.i18n.t('ai_budget_select_label') || 'Sélection :'}</span>
-                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(true)" data-i18n="ai_budget_select_all">${window.i18n.t('ai_budget_select_all') || 'Tout cocher'}</button>
-                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="window.BudgetsView.toggleAllAiProposals(false)" data-i18n="ai_budget_deselect_all">${window.i18n.t('ai_budget_deselect_all') || 'Tout décocher'}</button>
+                        <span style="font-size:12px;color:var(--text-muted);font-weight:600;" data-i18n="ai_budget_select_label">${window.i18n.t('ai_budget_select_label') || 'Sélection :'}</span>
+                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.BudgetsView.toggleAllAiProposals(true)" data-i18n="ai_budget_select_all">${window.i18n.t('ai_budget_select_all') || 'Tout cocher'}</button>
+                        <button class="btn btn-secondary" style="padding:3px 8px;font-size:12px;" onclick="window.BudgetsView.toggleAllAiProposals(false)" data-i18n="ai_budget_deselect_all">${window.i18n.t('ai_budget_deselect_all') || 'Tout décocher'}</button>
                         <div style="height:16px;width:1px;background:var(--border-color);margin:0 4px;"></div>
-                        <button type="button" class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;display:inline-flex;align-items:center;gap:4px;" onclick="window.BudgetsView.hideAiPanel()" title="Masquer temporairement sans perdre vos réglages">
+                        <button type="button" class="btn btn-secondary" style="padding:4px 9px;font-size:12px;display:inline-flex;align-items:center;gap:4px;" onclick="window.BudgetsView.hideAiPanel()" title="Masquer temporairement sans perdre vos réglages">
                             <span>👁️</span> <span class="btn-text" data-i18n="budget_ai_btn_hide">${window.i18n.t('budget_ai_btn_hide') || 'Masquer'}</span>
                         </button>
-                        <button type="button" class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;color:#ef4444;border-color:rgba(239,68,68,0.3);display:inline-flex;align-items:center;gap:4px;" onclick="window.BudgetsView.purgeAiSuggestions()" title="Purger et réinitialiser les suggestions">
+                        <button type="button" class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:#ef4444;border-color:rgba(239,68,68,0.3);display:inline-flex;align-items:center;gap:4px;" onclick="window.BudgetsView.purgeAiSuggestions()" title="Purger et réinitialiser les suggestions">
                             <span>🗑️</span> <span class="btn-text" data-i18n="budget_ai_btn_purge">${window.i18n.t('budget_ai_btn_purge') || 'Purger'}</span>
                         </button>
                     </div>
@@ -1140,7 +1140,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         </strong>
                         
                         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                            <span id="aiSimSalaryBadge" style="font-size:11px;background:var(--bg-surface);padding:3px 10px;border-radius:6px;border:1px solid var(--border-color);color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+                            <span id="aiSimSalaryBadge" style="font-size:12px;background:var(--bg-surface);padding:3px 10px;border-radius:6px;border:1px solid var(--border-color);color:var(--text-muted);display:flex;align-items:center;gap:6px;">
                                 <span data-i18n="ai_sim_salary_input_label">${window.i18n.t('ai_sim_salary_input_label') || '💼 Revenus repère :'}</span> 
                                 <input id="aiSimSalaryInput" type="number" step="10" style="width:80px;text-align:right;font-size:12px;font-weight:700;padding:2px 4px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-base);color:var(--accent);" oninput="window.BudgetsView.updateCustomSalary(this.value)"> €
                             </span>
@@ -1196,15 +1196,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div class="budget-sim-adjust-bar">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="font-size:12px;font-weight:700;color:var(--text-main);" data-i18n="ai_sim_lbl_adjust_proposals_title">${window.i18n.t('ai_sim_lbl_adjust_proposals_title') || '⚡ Modifier le montant des enveloppes pour les :'}</span>
-                            <span title="${window.i18n.t('ai_sim_tt_adjust_help') || 'Permet d\'ajuster en un clic l\'ensemble des propositions d\'enveloppes'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:9px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
+                            <span title="${window.i18n.t('ai_sim_tt_adjust_help') || 'Permet d\'ajuster en un clic l\'ensemble des propositions d\'enveloppes'}" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid var(--text-muted);color:var(--text-muted);font-size:12px;font-weight:bold;font-family:sans-serif;user-select:none;">i</span>
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(0.90)" data-i18n="ai_budget_strategy_frugal_clean">✂️ Réduire de 10%</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(1.10)" data-i18n="ai_budget_strategy_prudent_clean">🛡️ Augmenter de 10%</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;" onclick="window.BudgetsView.alignAiProposalsToIncome()" data-i18n="ai_budget_strategy_income_clean">⚖️ Aligner sur les revenus</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#60a5fa;border-color:rgba(96,165,250,0.4);" onclick="window.BudgetsView.alignAiProposalsToCurrentMonth()" data-i18n="ai_budget_strategy_month_clean">📅 Aligner sur le mois</button>
-                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:#36b37e;border-color:rgba(54,179,126,0.4);" onclick="window.BudgetsView.alignAiProposalsToRealSpending()" data-i18n="ai_budget_strategy_avg_clean">📊 Aligner sur la moyenne</button>
-                            <button id="btnResetProposals" class="btn btn-secondary" style="padding:4px 10px;font-size:11px;font-weight:600;color:var(--accent);border-color:var(--accent-border);" onclick="window.BudgetsView.resetAiProposalsToOriginal()" data-i18n="${resetBtnI18nKey}">${resetBtnLabel}</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(0.90)" data-i18n="ai_budget_strategy_frugal_clean">✂️ Réduire de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;" onclick="window.BudgetsView.adjustAiProposals(1.10)" data-i18n="ai_budget_strategy_prudent_clean">🛡️ Augmenter de 10%</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;" onclick="window.BudgetsView.alignAiProposalsToIncome()" data-i18n="ai_budget_strategy_income_clean">⚖️ Aligner sur les revenus</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;color:#60a5fa;border-color:rgba(96,165,250,0.4);" onclick="window.BudgetsView.alignAiProposalsToCurrentMonth()" data-i18n="ai_budget_strategy_month_clean">📅 Aligner sur le mois</button>
+                            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;color:#36b37e;border-color:rgba(54,179,126,0.4);" onclick="window.BudgetsView.alignAiProposalsToRealSpending()" data-i18n="ai_budget_strategy_avg_clean">📊 Aligner sur la moyenne</button>
+                            <button id="btnResetProposals" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent-border);" onclick="window.BudgetsView.resetAiProposalsToOriginal()" data-i18n="${resetBtnI18nKey}">${resetBtnLabel}</button>
                         </div>
                     </div>
                 </div>
@@ -1227,7 +1227,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             0s / 300s max
                         </div>
 
-                        <div id="aiStepperContainer" style="display:flex;gap:8px;font-size:11px;color:var(--text-muted);margin-top:6px;flex-wrap:wrap;justify-content:center;">
+                        <div id="aiStepperContainer" style="display:flex;gap:8px;font-size:12px;color:var(--text-muted);margin-top:6px;flex-wrap:wrap;justify-content:center;">
                             <span id="aiStep_PREPARING" data-i18n="ai_step_preparing" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_preparing') || '1. Données'}</span>
                             <span id="aiStep_SENDING" data-i18n="ai_step_sending" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_sending') || '2. Envoi IA'}</span>
                             <span id="aiStep_THINKING" data-i18n="ai_step_thinking" style="padding:4px 10px;border-radius:6px;background:var(--bg-surface);border:1px solid var(--border-color);transition:all 0.3s ease;">${window.i18n.t('ai_step_thinking') || '3. Réflexion'}</span>
