@@ -73,15 +73,10 @@ window.MobileOpForm = {
         const modal = document.getElementById('operationModal');
         if (!modal || !this.isMobile()) return;
         // Account and category lists become native dropdowns
+        // (the "no account" option is added by FormView.renderAccountsDropdowns)
         ['op_from_account', 'op_to_account', 'op_category'].forEach(id => {
             const sel = document.getElementById(id);
-            if (!sel) return;
-            sel.removeAttribute('size');
-            if (id !== 'op_category' && !sel.querySelector('option[value=""]')) {
-                const keep = sel.value;
-                sel.insertAdjacentHTML('afterbegin', '<option value="">—</option>');
-                sel.value = keep;
-            }
+            if (sel) sel.removeAttribute('size');
         });
         // Advanced block opens by itself when the operation already uses one of its fields
         const val = id => (document.getElementById(id) || {}).value;

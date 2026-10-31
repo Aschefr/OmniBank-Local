@@ -793,7 +793,9 @@ window.FormView = {
         const renderAcc = (selectId, currentVal) => {
             const select = document.getElementById(selectId);
             if (!select) return;
-            select.innerHTML = this.accounts
+            // Mobile shows a dropdown, which needs an explicit "no account" choice
+            const blank = window.MobileOpForm && window.MobileOpForm.isMobile() ? '<option value="">—</option>' : '';
+            select.innerHTML = blank + this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
                 .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? (window.i18n.t('acc_closed_suffix') || ' (Fermé)') : ''}</option>`).join('');
             select.value = currentVal || '';
