@@ -2869,7 +2869,7 @@
   "profiles_pin_enabled": "Activé",
   "profiles_pin_enter": "Entrez le code PIN",
   "profiles_pin_none": "Aucun",
-  "profiles_pin_recovery_hint": "En cas de perte du code PIN, ouvrez le fichier profiles.json situé dans votre dossier de données et supprimez les champs pin_hash et pin_salt du profil concerné.",
+  "profiles_pin_recovery_hint": "Code PIN oublié ? Utilisez le code de récupération remis à la création du PIN. Si vous l'avez aussi perdu, exécutez sur la machine qui héberge OmniBank : python -m app.reset_pin (dans Docker : docker exec -it <conteneur> python -m app.reset_pin).",
   "profiles_pin_section_label": "Protection par code PIN",
   "profiles_pin_status_none": "Aucun code PIN défini pour ce profil",
   "profiles_pin_status_protected": "🔒 Profil protégé par PIN",

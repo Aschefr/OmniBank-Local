@@ -253,7 +253,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         </select>
                     </div>
                     <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; font-style: italic; background: rgba(99,102,241,0.05); padding: 8px 12px; border-radius: 8px; border: 1px dashed rgba(99,102,241,0.3);" data-i18n="profiles_pin_recovery_hint">
-                        💡 En cas de perte du code PIN, ouvrez le fichier <code>profiles.json</code> situé dans votre dossier de données et supprimez les champs <code>pin_hash</code> et <code>pin_salt</code> du profil concerné.
+                        💡 Code PIN oublié ? Utilisez le code de récupération remis à la création du PIN. Si vous l'avez aussi perdu, exécutez <code>python -m app.reset_pin</code> sur la machine qui héberge OmniBank (Docker : <code>docker exec -it &lt;conteneur&gt; python -m app.reset_pin</code>).
                     </p>
                 </div>
 
