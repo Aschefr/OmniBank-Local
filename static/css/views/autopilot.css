@@ -3222,3 +3222,88 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         min-height: 40px;
     }
 }
+
+/* ── Journal d'audit (desktop) ──
+   Étroit : ligne 1 = type … montant & actions, ligne 2 = libellé + méta sur toute la largeur.
+   Large (>= 940px de liste) : 4 colonnes alignées d'une ligne à l'autre (type | libellé | montant | actions). */
+@media (min-width: 769px) {
+    .ap-batch-body {
+        container-type: inline-size;
+    }
+
+    .ap-decision-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "head foot" "body body";
+        align-items: center;
+        gap: 8px 20px;
+        padding: 12px 12px;
+    }
+
+    .ap-decision-header-mobile {
+        grid-area: head;
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+    }
+
+    .ap-decision-body {
+        grid-area: body;
+    }
+
+    .ap-decision-footer {
+        grid-area: foot;
+        gap: 20px;
+    }
+
+    .ap-decision-badge-wrap .ov-ap-decision-badge {
+        padding: 4px 10px;
+    }
+
+    .ap-decision-meta {
+        gap: 6px 10px;
+        margin-top: 6px;
+        line-height: 1.5;
+    }
+
+    .ap-decision-meta > * {
+        flex-shrink: 0;
+    }
+
+    .ap-reason-badge {
+        padding: 2px 8px;
+    }
+
+    .ap-decision-amount-desktop {
+        min-width: 140px;
+        justify-content: flex-end;
+    }
+
+    .ap-decision-actions {
+        min-width: 170px;
+        justify-content: flex-end;
+    }
+
+    /* Long labels wrap (raw bank label on its own muted line) instead of being cut */
+    .ap-decision-title {
+        white-space: normal;
+        overflow: visible;
+        flex-wrap: wrap;
+        row-gap: 2px;
+    }
+
+    .ap-reason-chain {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+}
+
+@container (min-width: 940px) {
+    .ap-decision-row {
+        grid-template-columns: 195px minmax(0, 1fr) auto;
+        grid-template-areas: "head body foot";
+        column-gap: 20px;
+    }
+}
