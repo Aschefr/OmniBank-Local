@@ -2538,6 +2538,8 @@
   "nav_overview_full": "Dashboard",
   "nav_cockpit": "Cockpit",
   "nav_more": "More",
+  "label_filters": "Filters",
+  "label_more_actions": "More actions",
   "nav_config": "Configuration",
   "nav_configuration": "Configuration",
   "nav_dashboard": "Ledger",

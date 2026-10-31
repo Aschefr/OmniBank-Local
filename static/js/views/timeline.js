@@ -60,6 +60,7 @@ window.TimelineView = {
                         <button id="btnMobilePeriodToggle" type="button" class="btn btn-secondary btn-sm mobile-period-toggle${ProfileStorage.get('timeline_mobile_period_open') === '1' ? ' is-open' : ''}" onclick="window.TimelineView.toggleMobilePeriod()" aria-controls="timelinePaycheckWidget" aria-expanded="${ProfileStorage.get('timeline_mobile_period_open') === '1'}">
                             <span>📅</span> <span data-i18n="label_period">${window.i18n.t('label_period') || 'Période'}</span>
                         </button>
+                        <button type="button" class="btn btn-secondary btn-sm mobile-actions-toggle" onclick="window.MobileHeader.toggleActions(this)" aria-expanded="false" aria-label="${window.i18n.t('label_more_actions') || 'Plus d’actions'}" title="${window.i18n.t('label_more_actions') || 'Plus d’actions'}">⋯</button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -72,14 +73,17 @@ window.TimelineView = {
                         <button id="btnTimelineAutomations" class="btn btn-secondary toolbar-btn" onclick="window.TimelineView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes d\'opérations'}">
                             <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
                         </button>
-                        <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
+                        <button class="btn btn-primary toolbar-btn mobile-fab" onclick="window.TimelineView.showAddRow()" aria-label="${window.i18n.t('btn_add_operation')}" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
 
                 <!-- Dedicated Structured Filter Bar -->
-                <div class="view-filter-bar" style="margin-bottom: 0;">
+                <div id="timelineFilterBar" class="view-filter-bar" style="margin-bottom: 0;">
                     <div class="view-filter-group">
                         <input type="text" id="timelineSearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="🔍 Rechercher..." style="min-width:140px; max-width:200px; height:36px; font-size:12.5px; padding: 0 10px; border-radius:10px;" oninput="window.TimelineView.applyFilters()">
+                        <button type="button" class="btn btn-secondary mobile-filters-toggle" onclick="window.MobileHeader.toggleFilters(this)" aria-expanded="false">
+                            <span data-i18n="label_filters">${window.i18n.t('label_filters') || 'Filtres'}</span> <span class="mobile-filters-count" hidden>0</span>
+                        </button>
                         
                         <div class="filter-pill">
                             <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
@@ -202,6 +206,7 @@ window.TimelineView = {
 
     async init() {
         this.applyColSettings();
+        if (window.MobileHeader) window.MobileHeader.bindFilterCount('timelineFilterBar');
         
         const cfg = window.app && window.app.config ? window.app.config : {};
         const isOrgMode = cfg.enable_org_mode === 'true' || cfg.enable_org_mode === true;

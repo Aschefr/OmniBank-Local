@@ -59,6 +59,7 @@ window.AllOperationsView = {
                         <button id="btnHistoryBackToAnalytics" class="btn btn-secondary toolbar-btn${this.isDrillDown ? ' visible' : ''}" style="${this.isDrillDown ? 'display:inline-flex;' : 'display:none;'} align-items:center; gap:6px; font-size:12.5px; height:34px; border-radius:8px; padding:0 12px; font-weight:600; cursor:pointer;" onclick="const v = window.AllOperationsView.backToView || 'analytics'; window.AllOperationsView.backToView = null; window.app.loadView(v)" title="${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}">
                             <span>⬅️</span> <span data-i18n="btn_back">${window.i18n ? (window.i18n.t('btn_back') || 'Retour') : 'Retour'}</span>
                         </button>
+                        <button type="button" class="btn btn-secondary btn-sm mobile-actions-toggle" onclick="window.MobileHeader.toggleActions(this)" aria-expanded="false" aria-label="${window.i18n.t('label_more_actions') || 'Plus d’actions'}" title="${window.i18n.t('label_more_actions') || 'Plus d’actions'}">⋯</button>
                     </div>
                     <div class="view-header-toolbar">
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('historyColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
@@ -71,14 +72,17 @@ window.AllOperationsView = {
                         <button id="btnOperationsAutomations" class="btn btn-secondary toolbar-btn" onclick="window.AllOperationsView.openAutomationsModal()" title="${window.i18n.t('op_automations_title') || 'Paramètres des automatismes des opérations'}">
                             <span>⚙️</span> <span data-i18n="op_automations_btn">${window.i18n.t('op_automations_btn') || 'Automatismes'}</span>
                         </button>
-                        <button class="btn btn-primary toolbar-btn" onclick="window.TimelineView.showAddRow()" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
+                        <button class="btn btn-primary toolbar-btn mobile-fab" onclick="window.TimelineView.showAddRow()" aria-label="${window.i18n.t('btn_add_operation')}" data-i18n="btn_add_operation">${window.i18n.t('btn_add_operation')}</button>
                     </div>
                 </div>
 
                 <!-- Dedicated Structured Filter Bar -->
-                <div class="view-filter-bar" style="margin-bottom: 0;">
+                <div id="historyFilterBar" class="view-filter-bar" style="margin-bottom: 0;">
                     <div class="view-filter-group">
                         <input type="text" id="historySearch" class="inline-input" data-i18n-placeholder="ph_search" placeholder="🔍 Rechercher..." style="min-width: 140px; max-width: 180px; height:36px; font-size:12.5px; padding: 0 10px; border-radius:10px;" oninput="window.AllOperationsView.applyFilters()">
+                        <button type="button" class="btn btn-secondary mobile-filters-toggle" onclick="window.MobileHeader.toggleFilters(this)" aria-expanded="false">
+                            <span data-i18n="label_filters">${window.i18n.t('label_filters') || 'Filtres'}</span> <span class="mobile-filters-count" hidden>0</span>
+                        </button>
 
                         <div class="filter-pill" style="padding: 0 6px 0 10px;">
                             <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
@@ -171,6 +175,7 @@ window.AllOperationsView = {
 
     async init() {
         this.applyColSettings();
+        if (window.MobileHeader) window.MobileHeader.bindFilterCount('historyFilterBar');
         // Lazily create VirtualTable
         if (!this._vt) {
             this._vt = new VirtualTable({

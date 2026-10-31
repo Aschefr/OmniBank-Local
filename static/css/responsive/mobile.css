@@ -4799,7 +4799,7 @@ button, .btn, .nav-btn, [role="button"] {
         overflow: visible !important;
     }
     .view-filter-bar .view-filter-group > .inline-input {
-        flex: 1 1 100% !important;
+        flex: 1 1 calc(100% - 130px) !important;
         min-width: 0 !important;
         max-width: none !important;
     }
@@ -4832,7 +4832,7 @@ button, .btn, .nav-btn, [role="button"] {
     .view-filter-bar .view-filter-group > #historyCategoryFilter .multi-select-trigger {
         width: 100% !important;
     }
-    .view-filter-bar .view-filter-group > button.btn {
+    .view-filter-bar .view-filter-group > button.btn:not(.mobile-filters-toggle) {
         flex: 0 0 44px !important;
         min-width: 44px !important;
     }
@@ -4846,5 +4846,164 @@ button, .btn, .nav-btn, [role="button"] {
 @media (max-width: 480px) {
     .view-filter-bar .view-filter-group > .filter-pill .filter-pill-label > span {
         display: none !important;
+    }
+}
+
+/* ── Journal / Historique mobile header: secondary actions behind "⋯", filters behind "Filtres",
+   "Nouvelle opération" as a floating + button (mobile_header.js) ── */
+.mobile-actions-toggle,
+.mobile-filters-toggle {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    #timelineHeader,
+    #historyHeader {
+        position: relative;
+    }
+
+    #timelineHeader .mobile-actions-toggle,
+    #historyHeader .mobile-actions-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 36px !important;
+        padding: 0 !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+    }
+
+    #historyHeader .mobile-actions-toggle,
+    #timelineHeader .mobile-period-toggle[hidden] + .mobile-actions-toggle {
+        margin-left: auto;
+    }
+
+    #timelineHeader .view-header-title-group,
+    #historyHeader .view-header-title-group {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+    }
+
+    #timelineHeader .view-header-toolbar .toolbar-btn.btn-secondary,
+    #historyHeader .view-header-toolbar .toolbar-btn.btn-secondary {
+        display: none !important;
+    }
+
+    #timelineHeader.mobile-actions-open .view-header-toolbar,
+    #historyHeader.mobile-actions-open .view-header-toolbar {
+        position: absolute !important;
+        top: 48px;
+        right: 0;
+        z-index: 50;
+        width: min(260px, 100%);
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        padding: 6px !important;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    #timelineHeader.mobile-actions-open .view-header-toolbar .toolbar-btn.btn-secondary[id],
+    #historyHeader.mobile-actions-open .view-header-toolbar .toolbar-btn.btn-secondary[id] {
+        display: flex !important;
+        flex: 0 0 auto !important;
+        flex-direction: row !important;
+        justify-content: flex-start !important;
+        gap: 10px !important;
+        width: 100%;
+        min-height: 44px !important;
+        padding: 0 12px !important;
+        font-size: 14px !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    #timelineHeader.mobile-actions-open .view-header-toolbar .toolbar-btn.btn-secondary[id][style*="display: none"],
+    #historyHeader.mobile-actions-open .view-header-toolbar .toolbar-btn.btn-secondary[id][style*="display: none"] {
+        display: none !important;
+    }
+
+    #timelineHeader .view-header-toolbar .btn.toolbar-btn.btn-primary.mobile-fab,
+    #historyHeader .view-header-toolbar .btn.toolbar-btn.btn-primary.mobile-fab {
+        position: fixed !important;
+        right: 16px;
+        bottom: calc(var(--tabbar-h) + 16px);
+        z-index: 870;
+        flex: none !important;
+        width: 56px !important;
+        height: 56px !important;
+        min-height: 56px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        font-size: 0 !important;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    #timelineHeader .mobile-fab::before,
+    #historyHeader .mobile-fab::before {
+        content: "+";
+        font-size: 32px;
+        font-weight: 400;
+        line-height: 1;
+    }
+
+    body:has(#historyTotalsFooter) #historyHeader .mobile-fab {
+        bottom: calc(var(--tabbar-h) + 120px) !important;
+    }
+
+    .view-filter-bar .mobile-filters-toggle {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 12px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
+    }
+
+    .view-filter-bar.mobile-filters-open .mobile-filters-toggle {
+        border-color: var(--accent) !important;
+        color: var(--accent) !important;
+    }
+
+    .mobile-filters-count {
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 12px;
+        line-height: 20px;
+        text-align: center;
+    }
+
+    .mobile-filters-count[hidden] {
+        display: none;
+    }
+
+    .view-filter-bar:not(.mobile-filters-open) .view-filter-group > :not(.inline-input):not(.mobile-filters-toggle),
+    .view-filter-bar:not(.mobile-filters-open) .view-filter-toggles {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* "En attente": icon + count only, the header row stays on one line */
+    #timelineHeader #btnMobilePendingSyncLabel {
+        display: none;
+    }
+
+    #timelineHeader .mobile-pending-sync-btn.active {
+        height: 36px;
+        padding: 0 10px;
+        white-space: nowrap;
     }
 }
