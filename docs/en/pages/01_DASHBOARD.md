@@ -61,7 +61,7 @@ The **New transaction** button opens the creation modal:
 - **Description** and **category**.
 - **Reconciliation status**: checked or not.
 
-On mobile the form opens full screen: large amount, description, accounts, date and category, then **More options** for recurrence, envelope, reconciliation date, slip and attachments (opened automatically when the operation uses them). The header **⋯** menu holds Auto-Pilot mode, Duplicate, Skip and Delete.
+On mobile the form opens in a phone-sized window: amount, description, "From" and "To" accounts side by side ("—" for no account), date and category, then **More options** for recurrence, envelope, reconciliation date, slip and attachments (opened automatically when the operation uses them). The header **⋯** menu holds Auto-Pilot mode, Duplicate, Skip and Delete.
 
 ## 🤖 5. Auto-Pilot Widget
 

@@ -5763,3 +5763,86 @@ button, .btn, .nav-btn, [role="button"] {
         flex-shrink: 0;
     }
 }
+
+/* Operation form on mobile: a floating sheet again (not full screen), Depuis | Vers side by side */
+@media (max-width: 768px) {
+    body #operationModal.modal-overlay {
+        padding: 8px !important;
+        padding-top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+        align-items: center !important;
+    }
+
+    body #operationModal.modal-overlay > .modal.modal {
+        width: calc(100vw - 16px) !important;
+        max-width: calc(100vw - 16px) !important;
+        height: auto !important;
+        max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+        border-radius: 14px !important;
+        border: 1px solid var(--border-color) !important;
+    }
+
+    #operationModal.modal-overlay > .modal > div:first-child {
+        padding-top: 8px !important;
+    }
+
+    #operationModal .op-modal-footer {
+        padding-bottom: 8px !important;
+    }
+
+    /* Accounts: two columns; the "—" choice replaces "Désélectionner" */
+    #operationModal .op-form-grid-2.op-m-accounts {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    #operationModal .op-m-accounts .btn[data-i18n="btn_deselect"] {
+        display: none !important;
+    }
+
+    #operationModal .op-m-accounts > div > div:first-child {
+        min-height: 20px;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    #operationModal .op-m-accounts select.inline-input {
+        font-size: 15px !important;
+        padding-right: 24px !important;
+        text-overflow: ellipsis;
+    }
+
+    /* Auto-Pilot "Lier à une opération existante": button goes under the text, on one line */
+    #operationModal #op_link_container > div:first-child {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    #operationModal #op_link_toggle_btn {
+        flex: 1 1 100%;
+        justify-content: center;
+        white-space: nowrap;
+        min-height: 36px;
+        font-size: 13px !important;
+    }
+
+    #operationModal #op_link_panel > div:first-child {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    /* "+ Nouvelle" becomes a compact "+" (label kept for screen readers) */
+    #operationModal .op-m-cat .btn[data-i18n="btn_new_category"] {
+        font-size: 0 !important;
+        width: 32px;
+        padding: 0 !important;
+        justify-content: center;
+    }
+
+    #operationModal .op-m-cat .btn[data-i18n="btn_new_category"]::before {
+        content: "+";
+        font-size: 18px;
+        font-weight: 600;
+    }
+}
