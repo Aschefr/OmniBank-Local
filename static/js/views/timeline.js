@@ -64,7 +64,7 @@ window.TimelineView = {
                     </div>
                     <div class="view-header-toolbar">
                         <button id="btnTimelinePendingMenu" type="button" class="btn btn-secondary toolbar-btn mobile-pending-menu-item" onclick="document.getElementById('btnMobilePendingSync').click()" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
-                            <span>📥</span> <span class="pending-menu-label">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span class="pending-menu-count badge"></span>
+                            <span>📥</span> <span class="pending-menu-label">${window.i18n.t('bank_sync_pending_badge_short') || 'Dernier relevé bancaire importé'}</span> <span class="pending-menu-count badge"></span>
                         </button>
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                         <button id="btnImportStatement" class="btn btn-secondary toolbar-btn" onclick="window.ImportWizard.open()">
@@ -1017,6 +1017,7 @@ window.TimelineView = {
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${attachHtml}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
+                <td class="col-mflags">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? `<span title="${window.i18n.t('col_recurrence')}">🔁</span>` : ''}${tx.attachments ? `<span title="${window.i18n.t('col_attachments')}">📎</span>` : ''}${tx.budget_id ? `<span title="${window.i18n.t('col_envelope')}">🗂️</span>` : ''}</td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {

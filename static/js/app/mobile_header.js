@@ -49,3 +49,12 @@ window.MobileHeader = {
         update();
     }
 };
+
+// Mobile operation cards: tapping the card opens the edit form (row actions are hidden)
+document.addEventListener('click', (e) => {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    const row = e.target.closest('.timeline-table.mobile-card-table tbody tr[data-id]');
+    if (!row || e.target.closest('button, a, input, select, label, [onclick]')) return;
+    const editBtn = row.querySelector('.btn-action-edit');
+    if (editBtn) editBtn.click();
+});

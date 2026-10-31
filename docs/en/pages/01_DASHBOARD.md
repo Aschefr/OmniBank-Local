@@ -48,7 +48,7 @@ The current cycle's list of operations, the everyday working tool:
 - **Columns**: date, description, category, amount, reconciliation and actions; more columns (accounts, envelope, recurrence, attachments…) can be enabled with the **Columns** button.
 - **Filters**: search, period, type, category and "Unreconciled before pay".
 - **Actions**: **Import statement**, **Fetch online** (when a bank is connected), **Automations** and **New transaction**. On mobile, the first three are in the **⋯** menu, the filters sit behind the **Filters** button (showing how many are active) and **New transaction** is the round **＋** button at the bottom right. History works the same way.
-- **Reconciliation**: a **Reconcile** button on each operation; reconciled operations are dimmed and show their reconciliation date.
+- **Reconciliation**: a **Reconcile** button on each operation; reconciled operations are dimmed and show their reconciliation date. On mobile each operation fits on two lines: a round **✓** button reconciles, tapping the card opens the edit form (with **Duplicate**, **Skip** and **Delete**), the account appears as its colour dot and the 🔁 📎 🗂️ icons flag recurrence, attachment and envelope.
 - **Period bar**: navigate between cycles (◀ 📅 ▶) and **Close current month**. On desktop it sits at the bottom of the list; on mobile it opens in the header from the **📅 Period** button.
 
 To browse every operation across all periods, use **History**.
