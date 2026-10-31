@@ -1779,7 +1779,7 @@ window.AutopilotView = {
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </div>
-                                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0; margin-left: auto;">
                                     <button type="button" class="btn btn-secondary btn-sm" style="padding: 7px 12px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${confirmBtnTooltip}">
                                         ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'Valider') : 'Valider'}</span>
                                     </button>
