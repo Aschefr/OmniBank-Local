@@ -13,12 +13,10 @@ window.ConfigSmartLabels = {
         return `
             <div id="configSmartLabelsCard" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;" data-i18n="smart_label_section_title">
-                        🏷️ ${window.i18n?.t('smart_label_section_title') || 'Règles de correspondance bancaire'}
-                    </h3>
+                    <h3 style="margin: 0;"><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span> <span data-i18n="smart_label_section_title">${window.i18n?.t('smart_label_section_title') || 'Règles de correspondance bancaire'}</span></h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <button id="btnSmartLabelsAutomations" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="window.ConfigSmartLabels.openAutomationsModal()" title="${window.i18n?.t('smart_label_automations_title') || 'Paramètres des automatismes de catégorisation'}">
-                            <span>⚙️</span> <span data-i18n="smart_label_automations_btn">${window.i18n?.t('smart_label_automations_btn') || 'Automatismes'}</span>
+                            <span data-i18n="smart_label_automations_btn">${window.i18n?.t('smart_label_automations_btn') || 'Automatismes'}</span>
                         </button>
                         <span id="smartLabelsCountBadge" class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">
                             0 règle
@@ -34,7 +32,7 @@ window.ConfigSmartLabels = {
                 <div id="smartLabelSandbox" class="smart-label-sandbox-box" style="margin-bottom: 18px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 16px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                         <span style="font-weight: 700; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                            <span>🧪</span> <span>${window.i18n?.t('smart_label_sandbox_title') || 'Banc d\'Essai & Simulation Smart Label'}</span>
+                            <span>${window.i18n?.t('smart_label_sandbox_title') || 'Banc d\'Essai & Simulation Smart Label'}</span>
                         </span>
                         <span class="badge" style="font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">Pipeline Temps Réel</span>
                     </div>
