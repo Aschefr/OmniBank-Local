@@ -2359,11 +2359,11 @@ window.AutopilotView = {
         let labelHtml = '';
         if (isOverridden && uo.description_changed && uo.original_description) {
             const origLblTip = window.i18n ? window.i18n.t('autopilot_feed_original_label').replace('{label}', uo.original_description) : `Libellé initial : ${uo.original_description}`;
-            labelHtml = `
+            labelHtml = `<span class="ap-chain">
                 <span style="text-decoration: line-through; opacity: 0.55; font-weight: normal;" title="${escapeHtml(origLblTip)}">${escapeHtml(uo.original_description)}</span>
                 <span class="ap-override-arrow">➔</span>
                 <span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>
-            `;
+            </span>`;
         } else {
             labelHtml = `<span>${escapeHtml(d.label || (window.i18n ? window.i18n.t('autopilot_feed_no_label') : 'Sans libellé'))}</span>`;
         }
@@ -2407,7 +2407,7 @@ window.AutopilotView = {
             reasonBadgeHtml = this.formatReasonBadge(d.reason);
         }
         // Keep "old ➔ new" together when the meta line wraps
-        if (isOverridden) reasonBadgeHtml = `<span class="ap-reason-chain">${reasonBadgeHtml}</span>`;
+        if (isOverridden) reasonBadgeHtml = `<span class="ap-chain">${reasonBadgeHtml}</span>`;
 
         return `
             <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}">

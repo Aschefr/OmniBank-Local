@@ -3292,12 +3292,6 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         row-gap: 2px;
     }
 
-    .ap-reason-chain {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-    }
 }
 
 @container (min-width: 940px) {
@@ -3306,4 +3300,26 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         grid-template-areas: "head body foot";
         column-gap: 20px;
     }
+}
+
+/* "old ➔ new" pairs always stay on one line; when the line is too narrow the (struck-through) old value shortens with "…" */
+.ap-chain {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.ap-chain > :first-child {
+    flex: 0 1 auto;
+    min-width: 3.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block !important;
+}
+
+.ap-chain > :not(:first-child) {
+    flex-shrink: 0;
 }
