@@ -63,6 +63,9 @@ window.TimelineView = {
                         <button type="button" class="btn btn-secondary btn-sm mobile-actions-toggle" onclick="window.MobileHeader.toggleActions(this)" aria-expanded="false" aria-label="${window.i18n.t('label_more_actions') || 'Plus d’actions'}" title="${window.i18n.t('label_more_actions') || 'Plus d’actions'}">⋯</button>
                     </div>
                     <div class="view-header-toolbar">
+                        <button id="btnTimelinePendingMenu" type="button" class="btn btn-secondary toolbar-btn mobile-pending-menu-item" onclick="document.getElementById('btnMobilePendingSync').click()" title="${window.i18n.t('bank_sync_pending_review_tooltip') || 'Ouvrir la vue détaillée de revue et rapprochement'}">
+                            <span>📥</span> <span class="pending-menu-label">${window.i18n.t('bank_sync_pending_badge_short') || 'En attente'}</span> <span class="pending-menu-count badge"></span>
+                        </button>
                         <button class="btn btn-secondary toolbar-btn" onclick="document.getElementById('timelineColsModal').style.display='flex'" data-i18n="btn_columns">${window.i18n.t('btn_columns')}</button>
                         <button id="btnImportStatement" class="btn btn-secondary toolbar-btn" onclick="window.ImportWizard.open()">
                             <span>📥</span> <span data-i18n="btn_import_statement">${window.i18n.t('btn_import_statement') || 'Importer un relevé'}</span>
