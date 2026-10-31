@@ -464,7 +464,7 @@ Object.assign(window.BankSyncView, {
                     <div style="padding: 12px 14px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 22px;">🔓</span>
                         <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
-                            <strong style="color: #10b981;" data-i18n="bank_vault_unlocked_status">${window.i18n.t('bank_vault_unlocked_status') || 'Coffre-fort déverrouillé'}</strong><br/>
+                            <strong style="color: #10b981;">${window.i18n.tp('bank_vault_unlocked_status', { days: this.vaultStatus?.remaining_days ?? 0 })}</strong><br/>
                             <span style="color: var(--text-muted);" data-i18n="bank_sync_security_unlocked_desc">${window.i18n.t('bank_sync_security_unlocked_desc') || 'Vos identifiants seront automatiquement chiffrés avec votre mot de passe maître de coffre-fort.'}</span>
                         </div>
                     </div>

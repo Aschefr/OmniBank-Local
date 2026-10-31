@@ -1038,7 +1038,7 @@
   "bank_vault_remember_days_7": "7 jours",
   "bank_vault_remember_label": "Mémoriser sur cet appareil pendant :",
   "bank_vault_unlock_btn": "Déverrouiller",
-  "bank_vault_unlocked_status": "🔓 Coffre déverrouillé ({days} j restants)",
+  "bank_vault_unlocked_status": "Coffre déverrouillé ({days} j restants)",
   "btn_add": "Ajouter",
   "btn_add_account": "Ajouter le compte",
   "btn_add_file": "📎 Ajouter fichier...",

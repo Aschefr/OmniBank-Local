@@ -1038,7 +1038,7 @@
   "bank_vault_remember_days_7": "7 days",
   "bank_vault_remember_label": "Remember on this device for:",
   "bank_vault_unlock_btn": "Unlock",
-  "bank_vault_unlocked_status": "🔓 Vault unlocked ({days} d left)",
+  "bank_vault_unlocked_status": "Vault unlocked ({days} d left)",
   "btn_add": "Add",
   "btn_add_account": "Add account",
   "btn_add_file": "📎 Add file...",
