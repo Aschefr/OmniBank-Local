@@ -29,6 +29,7 @@ if (-not $SkipBuild) {
         --add-data "app;app" `
         --add-data "package.json;." `
         --add-data "CHANGELOG.md;." `
+        --add-data "CHANGELOG.fr.md;." `
         --hidden-import "uvicorn" `
         --hidden-import "uvicorn.config" `
         --hidden-import "uvicorn.main" `
@@ -127,6 +128,7 @@ if (-not $SkipBuild) {
         --add-data "app;app" `
         --add-data "package.json;." `
         --add-data "CHANGELOG.md;." `
+        --add-data "CHANGELOG.fr.md;." `
         --hidden-import "uvicorn" `
         --hidden-import "uvicorn.config" `
         --hidden-import "uvicorn.main" `

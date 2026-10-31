@@ -11,6 +11,7 @@ lxml_datas, lxml_binaries, lxml_hiddenimports = collect_all('lxml')
 datas = [
     ('../../static', 'static'),
     ('../../CHANGELOG.md', '.'),
+    ('../../CHANGELOG.fr.md', '.'),
     ('../../package.json', '.'),
     ('../../app/services/simulator_presets.json', 'app/services'),
 ] + woob_datas + pycountry_datas + html2text_datas + yaml_datas + unidecode_datas + lxml_datas

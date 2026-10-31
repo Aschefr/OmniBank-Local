@@ -16,7 +16,8 @@ window.AppModules.changelog = {
 
         try {
             const version = this._appVersion || null;
-            const url = version ? `/api/changelog?version=${version}` : '/api/changelog';
+            const lang = encodeURIComponent(window.i18n?.currentLang || 'en');
+            const url = version ? `/api/changelog?version=${version}&lang=${lang}` : `/api/changelog?lang=${lang}`;
             const data = await API.get(url);
 
             versionEl.textContent = `v${this._appVersion || data.version || '?'}`;
