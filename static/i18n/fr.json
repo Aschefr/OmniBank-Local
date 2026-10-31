@@ -2541,6 +2541,8 @@
   "label_filters": "Filtres",
   "label_more_actions": "Plus d'actions",
   "label_more_options": "Plus d'options",
+  "cockpit_networth_sub": "Tous comptes et livrets",
+  "cockpit_networth_sub_account": "Solde actuel du compte",
   "nav_config": "Configuration",
   "nav_configuration": "Configuration",
   "nav_dashboard": "Journal",

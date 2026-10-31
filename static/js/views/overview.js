@@ -4081,7 +4081,25 @@ window.OverviewView = {
                 </div>
             `;
         } else {
+            // Net worth (or the selected account's balance), moved here from the former full dashboard
+            const selAcc = this._selectedAccountId ? this._accountsMap[this._selectedAccountId] : null;
+            const netWorthLabel = selAcc
+                ? `${t('overview_balance', 'Solde')} (${escapeHtml(selAcc.name)})`
+                : t('overview_net_worth', 'Patrimoine net');
+            const netWorthValue = selAcc ? selAcc.balance : stats.net_worth;
+            cardsContainer.classList.add('cockpit-cards-row--4');
             cardsContainer.innerHTML = `
+                <div class="cockpit-compact-card clickable" onclick="window.app.loadView('accounts')">
+                    <div class="cockpit-card-header">
+                        <div class="cockpit-card-title">
+                            <span class="cockpit-card-icon">🏦</span>
+                            <span>${netWorthLabel}</span>
+                        </div>
+                    </div>
+                    <div class="cockpit-card-value privacy-blur">${formatCurrency(netWorthValue || 0)}</div>
+                    <div class="cockpit-card-sub">${selAcc ? t('cockpit_networth_sub_account', 'Solde actuel du compte') : t('cockpit_networth_sub', 'Tous comptes et livrets')}</div>
+                    <span class="cockpit-card-arrow">→</span>
+                </div>
                 <div class="cockpit-compact-card clickable" title="${proj.tooltipText}" onclick="window.OverviewView.showCockpitTileInfo('projection')">
                     <div class="cockpit-card-header">
                         <div class="cockpit-card-title">
