@@ -643,7 +643,7 @@ h3 {
 }
 
 .filter-pill-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;

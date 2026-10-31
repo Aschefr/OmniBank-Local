@@ -381,7 +381,7 @@ Object.assign(window.BankSyncView, {
                     <span>📋</span> <span>${window.i18n.t('bank_sync_pending_review_btn') || 'Ouvrir la revue'}</span>
                 </button>
                 ` : ''}
-                <button class="btn btn-secondary" onclick="window.BankSyncView.promptPurgeAllCaches()" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; height: 28px; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; color: var(--text-muted);" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
+                <button class="btn btn-secondary" onclick="window.BankSyncView.promptPurgeAllCaches()" style="font-size: 12px; padding: 4px 8px; border-radius: 6px; height: 28px; display: inline-flex; align-items: center; gap: 4px; opacity: 0.6; color: var(--text-muted);" title="${window.i18n ? window.i18n.t('bank_sync_purge_tooltip') || 'Vider le sas et supprimer toutes les suggestions en attente' : 'Vider le sas et supprimer toutes les suggestions en attente'}">
                     <span>🗑️</span> <span>${window.i18n ? window.i18n.t('bank_sync_purge_btn') || 'Vider le sas' : 'Vider le sas'}</span>
                 </button>
             </div>
@@ -561,7 +561,7 @@ Object.assign(window.BankSyncView, {
         }
 
         const safeTip = (tip || '').replace(/"/g, '&quot;');
-        return `<span class="smart-origin-icon" title="${safeTip}" style="cursor:help; font-size: 11px; margin-left: 2px;">${icon}</span>`;
+        return `<span class="smart-origin-icon" title="${safeTip}" style="cursor:help; font-size: 12px; margin-left: 2px;">${icon}</span>`;
     },
 
     renderGhostBox(container, accountFilter = null) {
@@ -641,20 +641,20 @@ Object.assign(window.BankSyncView, {
 
             let statusBadge = '';
             if (status.isSynced) {
-                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Le solde de votre banque correspond au centime près à votre solde rapproché dans OmniBank.').replace(/"/g, '&quot;')}">✓ ${window.i18n ? window.i18n.t('bank_sync_balance_synced') : 'Soldes conformes'}</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Le solde de votre banque correspond au centime près à votre solde rapproché dans OmniBank.').replace(/"/g, '&quot;')}">✓ ${window.i18n ? window.i18n.t('bank_sync_balance_synced') : 'Soldes conformes'}</span>`;
             } else if (status.isResolvedBySync) {
                 const deltaTip = (window.i18n ? window.i18n.t('bank_sync_delta_resolved_by_sync_tip') || "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées." : "L'écart sera automatiquement comblé lors de l'enregistrement de vos opérations sélectionnées.").replace(/"/g, '&quot;');
-                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; cursor: pointer;" onclick="window.BankSyncView.openPendingReviewModal ? window.BankSyncView.openPendingReviewModal(this, ${acc.account_id}) : null" title="${deltaTip}">💡 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') || 'Conforme après validation' : 'Conforme après validation'}</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box; cursor: pointer;" onclick="window.BankSyncView.openPendingReviewModal ? window.BankSyncView.openPendingReviewModal(this, ${acc.account_id}) : null" title="${deltaTip}">💡 ${window.i18n ? window.i18n.t('bank_sync_balance_will_sync') || 'Conforme après validation' : 'Conforme après validation'}</span>`;
             } else if (status.isExplainedByComing) {
                 const comingTip = (window.i18n && typeof window.i18n.tp === 'function' ? window.i18n.tp('bank_sync_delta_explained_by_coming', { count: status.accComingCount }) : `L'écart de ${(delta > 0 ? '+' : '') + delta.toFixed(2)} € correspond aux ${status.accComingCount} opération(s) en attente.`).replace(/"/g, '&quot;');
-                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box;" title="${comingTip}">⏳ ${window.i18n ? window.i18n.t('bank_sync_balance_explained_coming') || 'Expliqué par opérations en attente' : 'Expliqué par opérations en attente'}</span>`;
+                statusBadge = `<span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-weight: 600; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; box-sizing: border-box;" title="${comingTip}">⏳ ${window.i18n ? window.i18n.t('bank_sync_balance_explained_coming') || 'Expliqué par opérations en attente' : 'Expliqué par opérations en attente'}</span>`;
             } else {
                 const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
                 const escapedAccName = (window.escapeHtml ? window.escapeHtml(accName) : accName).replace(/'/g, "\\'");
                 statusBadge = `
-                    <button type="button" class="badge" onclick="window.BankSyncView.openBalanceAdjustModal(${acc.account_id}, '${escapedAccName}', ${bankBal}, ${localBal}, ${delta})" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 700; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde et combler l\'écart').replace(/"/g, '&quot;')}">
+                    <button type="button" class="badge" onclick="window.BankSyncView.openBalanceAdjustModal(${acc.account_id}, '${escapedAccName}', ${bankBal}, ${localBal}, ${delta})" style="background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); font-weight: 700; padding: 0 10px; height: 26px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde et combler l\'écart').replace(/"/g, '&quot;')}">
                         <span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') : 'Écart'} : ${diffFormatted}</span>
-                        <span style="background: rgba(239, 68, 68, 0.2); padding: 2px 6px; border-radius: 4px; font-size: 10.5px;">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>
+                        <span style="background: rgba(239, 68, 68, 0.2); padding: 2px 6px; border-radius: 4px; font-size: 12px;">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>
                     </button>
                 `;
             }
@@ -687,11 +687,11 @@ Object.assign(window.BankSyncView, {
             const suggestedTip = (window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique').replace(/"/g, '&quot;');
 
             const comingBadge = g.is_coming
-                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
+                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
                 : '';
 
             const resolvesBadge = g._resolves_diff
-                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
+                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
                 : '';
 
             const rowStyle = g._resolves_diff
@@ -699,7 +699,7 @@ Object.assign(window.BankSyncView, {
                 : 'background: rgba(245, 158, 11, 0.04); border-left: 3px dashed #f59e0b; transition: background 0.15s ease;'
 
             const showRaw = g.raw_description && g.raw_description !== g.description;
-            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
+            const rawSubHtml = showRaw ? `<div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             const gAccObj = (window.app?.accounts || []).find(x => x.id === g.account_id || x.name === g.account_name);
             const gAccColor = gAccObj?.color || '#3366ff';
@@ -707,9 +707,9 @@ Object.assign(window.BankSyncView, {
 
             return `
             <tr id="ghostRow_${g.csv_id}" class="ghost-row" style="${rowStyle}">
-                <td class="ghost-col-status" style="padding: 8px 10px; font-size: 11px;">
+                <td class="ghost-col-status" style="padding: 8px 10px; font-size: 12px;">
                     <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; white-space: nowrap;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
                         ${comingBadge}
                         ${resolvesBadge}
                     </div>
@@ -724,14 +724,14 @@ Object.assign(window.BankSyncView, {
                     </div>
                     ${rawSubHtml}
                 </td>
-                <td class="ghost-col-account" style="padding: 8px 10px; font-size: 11px; overflow: hidden;">${gAccBadge}</td>
-                <td class="ghost-col-category" style="padding: 8px 10px; font-size: 11px; overflow: hidden;">
-                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; max-width: 100%; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${window.escapeHtml ? window.escapeHtml(g.category) : g.category}">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
+                <td class="ghost-col-account" style="padding: 8px 10px; font-size: 12px; overflow: hidden;">${gAccBadge}</td>
+                <td class="ghost-col-category" style="padding: 8px 10px; font-size: 12px; overflow: hidden;">
+                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; max-width: 100%; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${window.escapeHtml ? window.escapeHtml(g.category) : g.category}">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">Sans catégorie</span>`}
                 </td>
                 <td class="ghost-col-amount" style="padding: 8px 10px; font-size: 12px; font-weight: 700; text-align: right; color: ${amtColor}; white-space: nowrap;">${amtFormatted}</td>
                 <td class="ghost-col-actions" style="padding: 8px 10px; text-align: right; white-space: nowrap;">
                     <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end;">
-                        <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 11px; padding: 0 8px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap;">
+                        <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}" style="font-size: 12px; padding: 0 8px; border-radius: 6px; height: 26px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap;">
                             ✔ ${window.i18n ? window.i18n.t('ghost_validate_single') || 'Valider' : 'Valider'}
                         </button>
                         <button class="btn-action-icon" onclick="window.BankSyncView.openLinkGhostModal('${g.csv_id}')" title="${window.i18n ? window.i18n.t('ghost_link_single') || 'Lier à une opération existante' : 'Lier à une opération existante'}">
@@ -760,11 +760,11 @@ Object.assign(window.BankSyncView, {
             const suggestedTip = (window.i18n ? window.i18n.t('smart_label_suggested') || 'Suggéré d’après votre historique' : 'Suggéré d’après votre historique').replace(/"/g, '&quot;');
 
             const comingBadge = g.is_coming
-                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
+                ? `<span class="badge coming-badge" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_coming_tooltip') : 'Opération non encore imputée par la banque').replace(/"/g, '&quot;')}">⏳ ${window.i18n ? window.i18n.t('bank_sync_coming_badge') : 'À venir'}</span>`
                 : '';
 
             const resolvesBadge = g._resolves_diff
-                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
+                ? `<span class="badge resolves-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-left: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_resolves_diff_tooltip') : 'La validation de cette opération permettra d\'aligner le solde OmniBank sur celui de la banque.').replace(/"/g, '&quot;')}">🎯 ${window.i18n ? window.i18n.t('bank_sync_resolves_diff') : 'Résout l\'écart'}</span>`
                 : '';
 
             const cardBorder = g._resolves_diff
@@ -772,7 +772,7 @@ Object.assign(window.BankSyncView, {
                 : 'border-left: 3px dashed #f59e0b;';
 
             const showRaw = g.raw_description && g.raw_description !== g.description;
-            const rawSubHtml = showRaw ? `<div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
+            const rawSubHtml = showRaw ? `<div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 2px; font-weight: normal; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(g.raw_description) : g.raw_description}</div>` : '';
 
             const gAccObj = (window.app?.accounts || []).find(x => x.id === g.account_id || x.name === g.account_name);
             const gAccColor = gAccObj?.color || '#3366ff';
@@ -782,8 +782,8 @@ Object.assign(window.BankSyncView, {
             <div id="ghostCard_${g.csv_id}" class="ghost-mobile-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); ${cardBorder} border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 10px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>${comingBadge}${resolvesBadge}
-                        <span style="font-size: 11px; color: var(--text-muted);">${dateStr}</span>
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>${comingBadge}${resolvesBadge}
+                        <span style="font-size: 12px; color: var(--text-muted);">${dateStr}</span>
                     </div>
                     <span style="font-size: 13px; font-weight: 800; color: ${amtColor};">${amtFormatted}</span>
                 </div>
@@ -794,9 +794,9 @@ Object.assign(window.BankSyncView, {
                     </div>
                     ${rawSubHtml}
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px;">
                     ${gAccBadge}
-                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Sans catégorie</span>`}
+                    ${g.category ? `<span style="background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); padding: 1px 6px; border-radius: 4px; font-size: 12px; font-weight: 600;">🏷️ ${window.escapeHtml ? window.escapeHtml(g.category) : g.category}</span>` : `<span style="color: var(--text-muted); font-size: 12px; font-style: italic;">Sans catégorie</span>`}
                 </div>
                 <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--border-color);">
                     <button class="btn btn-primary" onclick="window.BankSyncView.validateGhostRow('${g.csv_id}')" style="flex: 1; font-size: 12px; padding: 6px 8px; border-radius: 6px; font-weight: 700; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
@@ -866,7 +866,7 @@ Object.assign(window.BankSyncView, {
                         ${headerTitle}
                     </span>
                     ${hasGhosts ? `
-                    <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px;">
+                    <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 10px;">
                         ${totalCount}
                     </span>` : ''}
                     ${isCollapsed && summaryText ? `
@@ -909,7 +909,7 @@ Object.assign(window.BankSyncView, {
             <div class="ghost-desktop-table-wrapper">
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                     <thead>
-                        <tr style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); text-align: left; color: var(--text-muted); font-size: 11px;">
+                        <tr style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); text-align: left; color: var(--text-muted); font-size: 12px;">
                             <th class="ghost-col-status" style="padding: 6px 10px; width: 140px;">${(window.i18n && window.i18n.t('th_status')) || 'Statut'}</th>
                             <th class="ghost-col-date" style="padding: 6px 10px; width: 95px;">${(window.i18n && window.i18n.t('th_date')) || 'Date'}</th>
                             <th class="ghost-col-desc" style="padding: 6px 10px;">${(window.i18n && window.i18n.t('col_description')) || 'Description'}</th>
@@ -1400,12 +1400,12 @@ Object.assign(window.BankSyncView, {
             summaryEl.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 11px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
+                        <span class="badge ghost-badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-weight: 700; padding: 2px 6px; border-radius: 4px; font-size: 12px;">👻 ${window.i18n ? window.i18n.t('ghost_badge') || 'En ligne' : 'En ligne'}</span>
                         <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${window.escapeHtml ? window.escapeHtml(ghost.description) : ghost.description}</span>
                     </div>
                     <span style="font-weight: 800; font-size: 14px; color: ${amtColor};">${amtFmt}</span>
                 </div>
-                <div style="display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap;">
+                <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap;">
                     <span>📅 ${dateStr}</span>
                     <span>•</span>
                     <span>💳 ${window.escapeHtml ? window.escapeHtml(ghost.account_name || '') : (ghost.account_name || '')}</span>
@@ -1498,19 +1498,19 @@ Object.assign(window.BankSyncView, {
                 : 'background: var(--bg-surface, var(--bg-base)); border: 1px solid var(--border-color);';
 
             const recBadge = isRec
-                ? `<span style="font-size: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 5px; border-radius: 4px; font-weight: 700;">🟢 ${window.i18n ? window.i18n.t('ghost_link_status_reconciled') || 'Rapprochée' : 'Rapprochée'}</span>`
-                : `<span style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 5px; border-radius: 4px; font-weight: 700;">⚪ ${window.i18n ? window.i18n.t('ghost_link_status_unreconciled') || 'Non rapprochée' : 'Non rapprochée'}</span>`;
+                ? `<span style="font-size: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 1px 5px; border-radius: 4px; font-weight: 700;">🟢 ${window.i18n ? window.i18n.t('ghost_link_status_reconciled') || 'Rapprochée' : 'Rapprochée'}</span>`
+                : `<span style="font-size: 12px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 5px; border-radius: 4px; font-weight: 700;">⚪ ${window.i18n ? window.i18n.t('ghost_link_status_unreconciled') || 'Non rapprochée' : 'Non rapprochée'}</span>`;
 
             // Compte associé à la transaction en base
             const txAccId = tx.from_account_id || tx.to_account_id;
             const txAccObj = (window.app?.accounts || []).find(a => a.id === txAccId);
             const txAccColor = txAccObj?.color || '#3366ff';
-            const txAccBadge = txAccObj ? `<span class="account-badge" style="border-color:${txAccColor}40; background:${txAccColor}18; color:${txAccColor}; font-size:10.5px; padding:1px 6px; height:20px;"><span class="acc-badge-dot" style="background:${txAccColor}; width:5px; height:5px;"></span>${window.escapeHtml ? window.escapeHtml(txAccObj.name) : txAccObj.name}</span>` : '';
+            const txAccBadge = txAccObj ? `<span class="account-badge" style="border-color:${txAccColor}40; background:${txAccColor}18; color:${txAccColor}; font-size:12px; padding:1px 6px; height:20px;"><span class="acc-badge-dot" style="background:${txAccColor}; width:5px; height:5px;"></span>${window.escapeHtml ? window.escapeHtml(txAccObj.name) : txAccObj.name}</span>` : '';
 
             // Libellé original / brut si présent
             const showRaw = tx.raw_description && tx.raw_description !== tx.description;
             const rawSubHtml = showRaw
-                ? `<div style="font-size: 10.5px; color: var(--text-muted); font-style: italic; margin-top: 2px; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</div>`
+                ? `<div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 2px; opacity: 0.85;">🏦 ${window.escapeHtml ? window.escapeHtml(tx.raw_description) : tx.raw_description}</div>`
                 : '';
 
             return `
@@ -1522,7 +1522,7 @@ Object.assign(window.BankSyncView, {
                             ${txAccBadge}
                         </div>
                         ${rawSubHtml}
-                        <div style="font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                             <span>📅 ${dateStr}</span>
                             ${tx.category ? `<span>• 🏷️ ${window.escapeHtml ? window.escapeHtml(tx.category) : tx.category}</span>` : ''}
                         </div>
@@ -1634,8 +1634,8 @@ Object.assign(window.BankSyncView, {
     },
 
     updateLinkPillStyles(field, source) {
-        const activeStyle = 'background: var(--accent, #6366f1); color: #ffffff; border: 1px solid var(--accent, #6366f1); font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;';
-        const inactiveStyle = 'background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border-color); font-weight: 500; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;';
+        const activeStyle = 'background: var(--accent, #6366f1); color: #ffffff; border: 1px solid var(--accent, #6366f1); font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;';
+        const inactiveStyle = 'background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border-color); font-weight: 500; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;';
 
         const capField = field.charAt(0).toUpperCase() + field.slice(1);
         const pillDb = document.getElementById(`linkPill${capField}Db`);

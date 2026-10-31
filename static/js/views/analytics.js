@@ -538,7 +538,7 @@ window.AnalyticsView = {
                 return `<td data-year="${mk.split('-')[0]}" data-col-type="month" data-val="${v}" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g, "\\'")}','${mk}')"
                     title="🔍 ${cat} — ${this.formatShortMonth(mk)} — Voir les opérations">
-                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
+                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
 
@@ -547,7 +547,7 @@ window.AnalyticsView = {
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
                     title="🔍 ${cat} — ${yr}">
-                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
+                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
 
@@ -564,7 +564,7 @@ window.AnalyticsView = {
         for (const [cat, annData] of inactiveCatEntries) {
             const monthCells = months.map(mk =>
                 `<td data-year="${mk.split('-')[0]}" data-col-type="month" style="text-align:right;">
-                    <span style="color:var(--text-muted);font-size:11px;">—</span>
+                    <span style="color:var(--text-muted);">—</span>
                 </td>`
             ).join('');
             const yearCells = displayYears.map(yr => {
@@ -572,7 +572,7 @@ window.AnalyticsView = {
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
                     onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
                     title="🔍 ${cat} — ${yr}">
-                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);font-size:11px;">—</span>'}</span>
+                    <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
             html += `<tr data-inactive="${txType}" data-category="${cat.replace(/"/g, '&quot;')}" style="display:${showInactive ? '' : 'none'};opacity:0.6;font-style:italic;">

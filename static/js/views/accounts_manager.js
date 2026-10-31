@@ -64,7 +64,7 @@ window.AccountsView = {
                     </select>
                     <input type="number" id="acc_balance" class="inline-input" data-i18n-placeholder="ph_initial_balance" placeholder="${window.i18n.t('ph_initial_balance') || 'Solde Initial'}" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
                     <div style="display:flex; flex-direction:column; gap:4px;">
-                        <label style="font-size:11px; font-weight:600; color:var(--text-muted);" data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</label>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);" data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</label>
                         <div id="accNewColorPicker" class="acc-color-picker">
                             ${this._renderColorDots('accNewColor', this._nextColor())}
                         </div>
@@ -308,10 +308,10 @@ window.AccountsView = {
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
                             <span>${group.icon}</span> <span>${group.title}</span>
-                            <span style="font-size: 11px; color: var(--text-muted); font-weight: 500;">(${group.accounts.length})</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(${group.accounts.length})</span>
                         </span>
                         <div style="display: flex; align-items: center; gap: 12px; font-size: 12px;">
-                            <span style="color: var(--text-muted); font-size: 11px;">(Initial : <strong class="privacy-blur" style="font-family: monospace;">${formatCurrency(group.total_initial)}</strong>)</span>
+                            <span style="color: var(--text-muted); font-size: 12px;">(Initial : <strong class="privacy-blur" style="font-family: monospace;">${formatCurrency(group.total_initial)}</strong>)</span>
                             <span style="font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
                                 <span>${totalPrefix}</span>
                                 <strong style="color: ${totalColor}; font-family: monospace; font-size: 13px;" class="privacy-blur">${formatCurrency(group.total_current)}</strong>
@@ -337,11 +337,11 @@ window.AccountsView = {
                     const bal = Math.max(0, curBal);
                     const estimated = Math.round(bal * (acc.interest_rate / 100) * (monthsLeft / 12) * 100) / 100;
                     subInfoHtml = `
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                         <span>${window.i18n.t('acc_rate_label')} <strong style="color: var(--accent);">${acc.interest_rate}%</strong></span>
                         <span>•</span>
                         <span>${window.i18n.t('acc_estimated_interest') || 'Intérêts estimés au 31/12'} : <strong class="privacy-blur" style="color: #10b981;">+${formatCurrency(estimated, curr)}</strong></span>
-                        <button class="btn btn-secondary btn-sm" onclick="window.AccountsView.openInterestModal(${acc.id}, ${estimated})" style="padding: 1px 7px; font-size: 10px; border-radius: 6px; height: 22px;" title="${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser les intérêts'}">
+                        <button class="btn btn-secondary btn-sm" onclick="window.AccountsView.openInterestModal(${acc.id}, ${estimated})" style="padding: 1px 7px; font-size: 12px; border-radius: 6px; height: 22px;" title="${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser les intérêts'}">
                             🎁 ${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser'}
                         </button>
                     </div>
@@ -360,7 +360,7 @@ window.AccountsView = {
                     }
                     if (parts.length > 0) {
                         subInfoHtml = `
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             ${parts.join(' • ')}
                         </div>
                         `;
@@ -375,8 +375,8 @@ window.AccountsView = {
                     const rawTemplate = window.i18n.t('acc_source_online') || 'En ligne : {bank}';
                     const text = rawTemplate.replace('{bank}', feedSource.label);
                     sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-online" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 11px; font-weight: 600;">
-                            <span style="font-size: 8px;">🟢</span>
+                        <span class="acc-feed-badge feed-online" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 12px; font-weight: 600;">
+                            <span style="font-size: 12px;">🟢</span>
                             <span>${text}</span>
                         </span>`;
                     feedActionBtn = `
@@ -387,16 +387,16 @@ window.AccountsView = {
                     const rawTemplate = window.i18n.t('acc_source_file') || 'Relevé : "{section}"';
                     const text = rawTemplate.replace('{section}', feedSource.section);
                     sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-file" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(99,102,241,0.1); color: var(--accent); border: 1px solid rgba(99,102,241,0.25); font-size: 11px; font-weight: 600;">
-                            <span style="font-size: 10px;">📄</span>
+                        <span class="acc-feed-badge feed-file" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(99,102,241,0.1); color: var(--accent); border: 1px solid rgba(99,102,241,0.25); font-size: 12px; font-weight: 600;">
+                            <span style="font-size: 12px;">📄</span>
                             <span>${text}</span>
                         </span>`;
                     feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--accent);">📥</button>`;
                 } else {
                     const text = window.i18n.t('acc_source_manual') || 'Saisie manuelle';
                     sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: var(--bg-hover, rgba(255,255,255,0.03)); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 11px; font-weight: 500;">
-                            <span style="font-size: 10px;">✏️</span>
+                        <span class="acc-feed-badge feed-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: var(--bg-hover, rgba(255,255,255,0.03)); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 12px; font-weight: 500;">
+                            <span style="font-size: 12px;">✏️</span>
                             <span>${text}</span>
                         </span>`;
                     feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--text-muted);">📥</button>`;
@@ -409,13 +409,13 @@ window.AccountsView = {
                             ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '" style="cursor:pointer;" onclick="window.AccountsView.setMainAccount(' + acc.id + ')">⭐</span>' : ''}
                             <strong style="color: var(--text-main); font-size: 13.5px;">${acc.name}</strong>
                             <span class="acc-color-dot" style="background:${color}; cursor:pointer; width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border-color);" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
-                            ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
+                            ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:1px 5px; border-radius:4px; font-size:12px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
                         </div>
                         ${subInfoHtml}
                     </td>
                     <td class="acc-col-type" data-label="${window.i18n.t('acc_th_type') || 'Type'}" style="white-space: nowrap;">
-                        <span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span>
-                        <span class="badge" style="background: rgba(99,102,241,0.08); color: var(--primary); font-weight: 700; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-left: 3px;">${curr}</span>
+                        <span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 12px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span>
+                        <span class="badge" style="background: rgba(99,102,241,0.08); color: var(--primary); font-weight: 700; padding: 2px 5px; border-radius: 4px; font-size: 12px; margin-left: 3px;">${curr}</span>
                     </td>
                     <td class="acc-col-feed" data-label="${window.i18n.t('acc_th_feed') || 'Alimentation'}" style="white-space: nowrap;">
                         ${sourceBadgeHtml}
@@ -665,15 +665,15 @@ window.AccountsView = {
                     <!-- Encart Recalage / Ajustement Intelligent de Solde -->
                     <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
-                            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
-                            <span style="font-size: 11px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong class="privacy-blur" style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong class="privacy-blur" style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
                         </div>
-                        <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
                             ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', `<span class="privacy-blur">${flowStr}</span>`)}
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <input type="number" step="0.01" id="accEditTargetBal" class="inline-input" placeholder="${window.i18n.t('ph_initial_balance') || 'Ex: 1119.68'}" style="flex: 1; height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
-                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 11px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 600;" onclick="window.AccountsView._realignInitialBalance(${acc.id})">
+                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 12px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 600;" onclick="window.AccountsView._realignInitialBalance(${acc.id})">
                                 ${window.i18n.t('acc_realign_btn')}
                             </button>
                         </div>
@@ -681,24 +681,24 @@ window.AccountsView = {
 
                     <!-- Encart Taux & Paramètres Financiers Dynamiques -->
                     <div id="accEditFinancialBox" style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
-                        <div id="accEditFinancialTitle" style="font-size: 11px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; text-transform: uppercase;">
+                        <div id="accEditFinancialTitle" style="font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; text-transform: uppercase;">
                             📊 ${window.i18n.t('acc_section_savings_rate') || 'Rendement & Taux annuel'}
                         </div>
                         <div id="accEditFinancialGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div id="accEditRateCol">
-                                <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_interest_rate') || 'Taux annuel (%)'}</label>
+                                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_interest_rate') || 'Taux annuel (%)'}</label>
                                 <input type="number" step="0.01" id="accEditRate" class="inline-input" value="${acc.interest_rate !== null && acc.interest_rate !== undefined ? acc.interest_rate : ''}" placeholder="Ex: 3.0" style="width:100%;border:1px solid var(--border-color);padding:6px;border-radius:6px;font-size:12px;">
                             </div>
                             <div id="accEditMonthlyCol">
-                                <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_monthly_payment') || 'Mensualité (€)'}</label>
+                                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_monthly_payment') || 'Mensualité (€)'}</label>
                                 <input type="number" step="0.01" id="accEditMonthly" class="inline-input" value="${acc.monthly_payment !== null && acc.monthly_payment !== undefined ? acc.monthly_payment : ''}" placeholder="Ex: 650.0" style="width:100%;border:1px solid var(--border-color);padding:6px;border-radius:6px;font-size:12px;">
                             </div>
                             <div id="accEditBorrowedCol">
-                                <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_borrowed_amount') || 'Montant initial emprunté'}</label>
+                                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_borrowed_amount') || 'Montant initial emprunté'}</label>
                                 <input type="number" step="0.01" id="accEditBorrowed" class="inline-input" value="${acc.borrowed_amount !== null && acc.borrowed_amount !== undefined ? acc.borrowed_amount : ''}" placeholder="Ex: 120000" style="width:100%;border:1px solid var(--border-color);padding:6px;border-radius:6px;font-size:12px;">
                             </div>
                             <div id="accEditInsuranceCol">
-                                <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_loan_insurance') || 'Assurance (€/mois)'}</label>
+                                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 2px;">${window.i18n.t('acc_loan_insurance') || 'Assurance (€/mois)'}</label>
                                 <input type="number" step="0.01" id="accEditInsurance" class="inline-input" value="${acc.loan_insurance !== null && acc.loan_insurance !== undefined ? acc.loan_insurance : ''}" placeholder="Ex: 25.0" style="width:100%;border:1px solid var(--border-color);padding:6px;border-radius:6px;font-size:12px;">
                             </div>
                         </div>
@@ -878,19 +878,19 @@ window.AccountsView = {
                         ${window.i18n.t('acc_modal_interest_desc') || "Ajustez le montant exact versé par votre banque pour l'année :"}
                     </p>
                     <div>
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_account')}</label>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_account')}</label>
                         <input type="text" class="inline-input" value="${acc.name} (${acc.currency || 'EUR'})" disabled style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;opacity:0.75;">
                     </div>
                     <div>
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_amount')}</label>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_amount')}</label>
                         <input type="number" step="0.01" id="accInterestAmount" class="inline-input" value="${defaultAmount.toFixed(2)}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;font-size:14px;font-weight:700;color:#10b981;">
                     </div>
                     <div>
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_date')}</label>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_date')}</label>
                         <input type="date" id="accInterestDate" class="inline-input" value="${defaultDate}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
                     </div>
                     <div>
-                        <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_desc_label')}</label>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_desc_label')}</label>
                         <input type="text" id="accInterestDesc" class="inline-input" value="${window.i18n.tp('acc_interest_default_desc', { year: today.getFullYear() })}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
                     </div>
                 </div>

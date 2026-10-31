@@ -47,7 +47,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                                 <tr style="background: rgba(0,0,0,0.05); text-align: left;">
                                     <th style="padding: 15px; width: 100px; text-align: center; vertical-align: middle;">
                                         <input type="checkbox" id="wizardSelectAll" checked style="width: 20px; height: 20px; cursor: pointer; margin-bottom: 4px;" onclick="window.RecurrenceView.toggleSelectAll(this.checked)" title="${window.i18n.t('wizard_tooltip_select_all')}">
-                                        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_renew')}</div>
+                                        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_renew')}</div>
                                     </th>
                                     <th style="padding: 15px;">${window.i18n.t('col_description')}</th>
                                     <th style="padding: 15px;">${window.i18n.t('wizard_th_frequency')}</th>

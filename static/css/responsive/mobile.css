@@ -566,7 +566,7 @@
     }
 
     .filter-pill-label {
-        font-size: 10.5px !important;
+        font-size: 12px !important;
         font-weight: 700 !important;
         letter-spacing: 0.4px !important;
         gap: 3px !important;
@@ -4100,6 +4100,15 @@ body.theme-titanium-light .notif-card.unread {
 
     .bank-connection-body {
         width: 100% !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* The "Relever en ligne" button gets its own full-width line instead of being cut off */
+    #btnHeaderBgSync,
+    #btnTriggerAutoSync {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        justify-content: center !important;
     }
 
     .bank-connection-actions {

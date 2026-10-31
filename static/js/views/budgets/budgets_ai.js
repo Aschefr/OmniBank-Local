@@ -394,7 +394,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 return `
                     <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
                         <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
-                        <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                        <span style="font-size:12px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
                     </div>
                 `;
             }).join('');
@@ -844,7 +844,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             btn.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><svg class="animate-spin" style="width:14px;height:14px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg> ${stepText} (${elapsed}s) <span role="button" tabindex="0" onclick="event.stopPropagation(); event.preventDefault(); window.BudgetsView.cancelAiSuggestions()" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:bold;cursor:pointer;margin-left:4px;display:inline-flex;align-items:center;user-select:none;" title="Arrêter l'analyse IA">⛔ ${window.i18n.t('btn_stop') || 'Arrêter'}</span></span>`;
+            </svg> ${stepText} (${elapsed}s) <span role="button" tabindex="0" onclick="event.stopPropagation(); event.preventDefault(); window.BudgetsView.cancelAiSuggestions()" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:bold;cursor:pointer;margin-left:4px;display:inline-flex;align-items:center;user-select:none;" title="Arrêter l'analyse IA">⛔ ${window.i18n.t('btn_stop') || 'Arrêter'}</span></span>`;
         }
 
         if (loadingText && status.step_key) {
@@ -1637,7 +1637,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 return `
                     <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
                         <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
-                        <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                        <span style="font-size:12px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
                     </div>
                 `;
             }).join('');
@@ -1652,7 +1652,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Repère Jaune (Montant des dépenses estimées) -->
                         ${estimatedPct !== null ? `
                             <div style="position:absolute;top:-4px;bottom:-4px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 6px #eab308;z-index:3;" title="Dépenses estimées: ${formatCurrency(estimatedAmount)}${unit}">
-                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:12px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     🟨 Est. lissée ${formatCurrency(estimatedAmount)}
                                 </div>
                             </div>
@@ -1661,7 +1661,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Repère Violet (Salaire repère / Capacité résiduelle) -->
                         ${salaryPct !== null ? `
                             <div style="position:absolute;top:-6px;bottom:-6px;left:${salaryPct}%;width:3px;background:#c084fc;box-shadow:0 0 6px #c084fc;z-index:4;" title="${customSalaryTitle || `Revenus repère: ${formatCurrency(salaryRef)}${unit}`}">
-                                <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#c084fc;color:#ffffff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#c084fc;color:#ffffff;font-size:12px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     💼 ${customSalaryLabel || `Salaire: ${formatCurrency(salaryRef)}`}
                                 </div>
                             </div>
@@ -1669,7 +1669,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
 
                     <!-- Échelle fixe graduée avec positionnement précis -->
-                    <div style="position:relative;height:16px;margin-top:2px;font-size:9.5px;color:var(--text-muted);font-weight:600;">
+                    <div style="position:relative;height:16px;margin-top:2px;font-size:12px;color:var(--text-muted);font-weight:600;">
                         ${ticksHtml}
                     </div>
                 </div>
@@ -1686,7 +1686,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const card3Badge = document.getElementById('aiSimCard3Badge');
         if (card3Badge) {
             const smoothedMonthly = impactYearlyStrict / 12.0;
-            card3Badge.innerHTML = `${formatCurrency(impactYearlyStrict)}/an <span style="font-size:10px;font-weight:600;color:var(--text-muted);margin-left:4px;">(${formatCurrency(smoothedMonthly)}/m)</span>`;
+            card3Badge.innerHTML = `${formatCurrency(impactYearlyStrict)}/an <span style="font-size:12px;font-weight:600;color:var(--text-muted);margin-left:4px;">(${formatCurrency(smoothedMonthly)}/m)</span>`;
         }
 
         // Option B : Capacité annuelle résiduelle disponible après couverture des enveloppes mensuelles
@@ -2136,8 +2136,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             const bgTint = isYearly ? 'background:rgba(139, 92, 246, 0.04);border:1px solid rgba(139, 92, 246, 0.25);' : 'background:var(--bg-body);border:1px solid var(--border-color);';
             const periodBadge = isYearly 
-                ? `<span style="font-size:10px;background:rgba(139, 92, 246, 0.15);color:#c084fc;padding:1px 6px;border-radius:4px;border:1px solid rgba(139, 92, 246, 0.4);font-weight:600;">📅 Annuelle</span>`
-                : `<span style="font-size:10px;background:rgba(59, 130, 246, 0.15);color:#60a5fa;padding:1px 6px;border-radius:4px;border:1px solid rgba(59, 130, 246, 0.4);font-weight:600;">⚡ Mensuelle</span>`;
+                ? `<span style="font-size:12px;background:rgba(139, 92, 246, 0.15);color:#c084fc;padding:1px 6px;border-radius:4px;border:1px solid rgba(139, 92, 246, 0.4);font-weight:600;">📅 Annuelle</span>`
+                : `<span style="font-size:12px;background:rgba(59, 130, 246, 0.15);color:#60a5fa;padding:1px 6px;border-radius:4px;border:1px solid rgba(59, 130, 246, 0.4);font-weight:600;">⚡ Mensuelle</span>`;
 
             const palette = ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#6366f1', '#a855f7', '#84cc16', '#f97316'];
             const catList = (p.categories || []).map(c => {
@@ -2179,13 +2179,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                           data-proposal-idx="${proposalRealIndex}" 
                           data-cat-idx="${catIndex}"
                           title="${tooltipText.replace(/"/g, '&quot;')}" 
-                          style="background:var(--bg-surface);border:1px solid var(--border-color);padding:3px 9px;border-radius:12px;font-size:11px;color:var(--text-main);display:inline-flex;align-items:center;gap:6px;cursor:help;transition:all 0.25s ease;"
+                          style="background:var(--bg-surface);border:1px solid var(--border-color);padding:3px 9px;border-radius:12px;font-size:12px;color:var(--text-main);display:inline-flex;align-items:center;gap:6px;cursor:help;transition:all 0.25s ease;"
                           onmouseenter="window.BudgetsView.highlightAiCategory(${proposalRealIndex}, ${catIndex}, '${activeColor}')"
                           onmouseleave="window.BudgetsView.unhighlightAiCategory(${proposalRealIndex}, ${catIndex})">
                         <span class="ai-cat-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(145,158,171,0.5);display:inline-block;flex-shrink:0;transition:all 0.25s ease;"></span>
                         <span>${c}</span>
-                        <strong style="color:var(--text-muted);font-size:10.5px;font-weight:600;">${catAmtStr}</strong>
-                        <button onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${proposalRealIndex}, '${c.replace(/'/g, "\\'")}')" aria-label="Retirer la catégorie ${c.replace(/"/g, '')}" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:11px;background:none;border:none;padding:0;line-height:1;">✕</button>
+                        <strong style="color:var(--text-muted);font-size:12px;font-weight:600;">${catAmtStr}</strong>
+                        <button onclick="event.stopPropagation(); window.BudgetsView.removeCategoryFromAiProposal(${proposalRealIndex}, '${c.replace(/'/g, "\\'")}')" aria-label="Retirer la catégorie ${c.replace(/"/g, '')}" style="cursor:pointer;color:#ef4444;font-weight:bold;margin-left:2px;font-size:12px;background:none;border:none;padding:0;line-height:1;">✕</button>
                     </span>
                 `;
             }).join('');
@@ -2204,7 +2204,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 const addCatLabel = window.i18n.t('ai_budget_add_category') || '➕ Catégorie';
                 addCatSelectHtml = `
                     <select onchange="if(this.value){ window.BudgetsView.addCategoryToAiProposal(${proposalRealIndex}, this.value); }" 
-                            style="background:var(--bg-surface);border:1px dashed var(--accent);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;outline:none;max-width:160px;text-overflow:ellipsis;"
+                            style="background:var(--bg-surface);border:1px dashed var(--accent);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;outline:none;max-width:160px;text-overflow:ellipsis;"
                             title="${window.i18n.t('ai_budget_add_category') || 'Ajouter une catégorie inutilisée'}">
                         <option value="" disabled selected>${addCatLabel}</option>
                         ${availableCats.map(c => {
@@ -2232,9 +2232,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                            onchange="window.BudgetsView.updateAiProposalName(${proposalRealIndex}, this.value)"
                                            title="Cliquer pour modifier le nom de l'enveloppe">
                                     ${periodBadge}
-                                    ${p.is_fixed ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || 'Fixe'}</span>` : ''}
-                                    ${p.has_fixed_mix ? `<span style="font-size:10px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
-                                    ${p.is_exceptional ? `<span style="font-size:10px;background:#312e81;color:#a5b4fc;padding:1px 6px;border-radius:4px;border:1px solid #4338ca;" title="Dépense ponctuelle / projet">${window.i18n.t('ai_budget_project_badge') || 'Projet'}</span>` : ''}
+                                    ${p.is_fixed ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || 'Fixe'}</span>` : ''}
+                                    ${p.has_fixed_mix ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
+                                    ${p.is_exceptional ? `<span style="font-size:12px;background:#312e81;color:#a5b4fc;padding:1px 6px;border-radius:4px;border:1px solid #4338ca;" title="Dépense ponctuelle / projet">${window.i18n.t('ai_budget_project_badge') || 'Projet'}</span>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -2289,13 +2289,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 const applyTitlePace = (window.i18n.t('ai_budget_badge_click_apply') || 'Cliquer pour utiliser le montant {amount} pour cette enveloppe').replace('{amount}', formatCurrency(valPace));
 
                                 const badgeCurrentHtml = `
-                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${proposalRealIndex}, ${valCur})" style="cursor:pointer;font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isCurrentExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isCurrentExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitleCur}">
+                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${proposalRealIndex}, ${valCur})" style="cursor:pointer;font-size:12px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isCurrentExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isCurrentExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitleCur}">
                                         ${labelCur} <strong style="text-decoration:underline;text-decoration-style:dotted;">${formatCurrency(valCur)}</strong>
                                     </span>
                                 `;
 
                                 const badgePaceHtml = `
-                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${proposalRealIndex}, ${valPace})" style="cursor:pointer;font-size:11px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isPaceExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isPaceExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitlePace}">
+                                    <span onclick="window.BudgetsView.applyBadgeAmountToAiProposal(${proposalRealIndex}, ${valPace})" style="cursor:pointer;font-size:12px;background:var(--bg-base);padding:3px 8px;border-radius:6px;border:1px solid ${isPaceExceeded ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-color)'};color:${isPaceExceeded ? '#f87171' : 'var(--text-muted)'};transition:all 0.15s ease;" title="${applyTitlePace}">
                                         ${labelPace} <strong style="text-decoration:underline;text-decoration-style:dotted;">${formatCurrency(valPace)}</strong>
                                     </span>
                                 `;
@@ -2305,22 +2305,22 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <div style="display:flex;flex-direction:column;align-items:flex-end;">
                                 <input id="aiProposalAmount_${proposalRealIndex}" type="number" step="0.01" value="${p.suggested_amount.toFixed(2)}" ${(p.is_fixed && !p.unlocked) ? `disabled title="${window.i18n.t('ai_budget_unlock_fixed_help') || 'Charge fixe contractuelle. Cliquez sur le crayon ✏️ pour autoriser la modification manuelle.'}"` : ''} style="width:95px;text-align:right;font-size:13px;font-weight:700;padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:${(p.is_fixed && !p.unlocked) ? 'var(--bg-base)' : 'var(--bg-surface)'};color:${isYearly ? '#c084fc' : 'var(--accent)'}; ${(p.is_fixed && !p.unlocked) ? 'opacity:0.65;cursor:not-allowed;' : ''}" oninput="window.BudgetsView.updateAiProposalAmount(${proposalRealIndex}, this.value)">
                                 ${isYearly ? `
-                                    <span id="aiProposalSmoothed_${proposalRealIndex}" style="font-size:10px;color:var(--text-muted);font-weight:600;margin-top:1px;">
+                                    <span id="aiProposalSmoothed_${proposalRealIndex}" style="font-size:12px;color:var(--text-muted);font-weight:600;margin-top:1px;">
                                         (${formatCurrency(p.suggested_amount / 12.0)} €/m)
                                     </span>
                                 ` : ''}
                             </div>
                             ${p.is_fixed ? `
-                                <button type="button" class="btn btn-secondary" onclick="window.BudgetsView.toggleUnlockFixedProposal(${proposalRealIndex})" style="padding:3px 6px;font-size:11px;background:transparent;border:1px solid ${p.unlocked ? 'rgba(54,179,126,0.4)' : 'rgba(56,189,248,0.4)'};color:${p.unlocked ? '#36b37e' : '#38bdf8'};cursor:pointer;margin-left:2px;" title="${p.unlocked ? 'Verrouiller le montant fixe' : (window.i18n.t('ai_budget_unlock_fixed_help') || 'Charge fixe contractuelle. Cliquez sur le crayon pour autoriser la modification manuelle.')}">
+                                <button type="button" class="btn btn-secondary" onclick="window.BudgetsView.toggleUnlockFixedProposal(${proposalRealIndex})" style="padding:3px 6px;font-size:12px;background:transparent;border:1px solid ${p.unlocked ? 'rgba(54,179,126,0.4)' : 'rgba(56,189,248,0.4)'};color:${p.unlocked ? '#36b37e' : '#38bdf8'};cursor:pointer;margin-left:2px;" title="${p.unlocked ? 'Verrouiller le montant fixe' : (window.i18n.t('ai_budget_unlock_fixed_help') || 'Charge fixe contractuelle. Cliquez sur le crayon pour autoriser la modification manuelle.')}">
                                     ${p.unlocked ? '🔓' : '✏️'}
                                 </button>
                             ` : ''}
                             <span id="aiProposalUnit_${proposalRealIndex}" style="font-size:12px;color:${isYearly ? '#c084fc' : 'var(--text-muted)'};font-weight:600;">${isYearly ? (window.i18n.t('budget_unit_yearly') || '€/an') : (window.i18n.t('budget_unit_monthly') || '€/mois')}</span>
-                            <button class="btn btn-secondary" onclick="window.BudgetsView.removeAiProposal(${proposalRealIndex})" style="padding:3px 7px;font-size:11px;color:#ef4444;border-color:rgba(239,68,68,0.3);background:transparent;margin-left:4px;" title="${window.i18n.t('ai_budget_delete_proposal') || 'Supprimer la suggestion'}">✕</button>
+                            <button class="btn btn-secondary" onclick="window.BudgetsView.removeAiProposal(${proposalRealIndex})" style="padding:3px 7px;font-size:12px;color:#ef4444;border-color:rgba(239,68,68,0.3);background:transparent;margin-left:4px;" title="${window.i18n.t('ai_budget_delete_proposal') || 'Supprimer la suggestion'}">✕</button>
                         </div>
                     </div>
 
-                    <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-muted);padding-top:4px;border-top:1px dashed var(--border-color);">
+                    <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-muted);padding-top:4px;border-top:1px dashed var(--border-color);">
                         ${(p.justification || p.reason) ? `
                             <div style="display:flex;align-items:flex-start;gap:4px;">
                                 <span style="flex-shrink:0;margin-top:1px;">ℹ️</span> <span>${p.justification || p.reason}</span>
@@ -2371,7 +2371,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                                 ? (item.amount > 0 ? `${item.amount.toFixed(2)}€` : '0€') 
                                                 : (item.amount < 10 ? `${item.amount.toFixed(1)}€` : `${item.amount.toFixed(0)}€`);
                                             const fitsInside = pct >= 5;
-                                            const labelHtml = fitsInside ? `<span style="font-size:9.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;text-shadow:0 1px 2px rgba(0,0,0,0.7);">${item.name} (${amtFormatted})</span>` : '';
+                                            const labelHtml = fitsInside ? `<span style="font-size:12px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;text-shadow:0 1px 2px rgba(0,0,0,0.7);">${item.name} (${amtFormatted})</span>` : '';
 
                                             return `
                                                 <div id="aiSeg_${proposalRealIndex}_${idx}"
@@ -2502,7 +2502,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${window.i18n.t('ai_budget_btn_refine') || '🪄 Affiner les omises avec l\'IA'}
                     </button>
                 </div>
-                <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px 0;">
+                <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px 0;">
                     ${window.i18n.t('ai_budget_unclassified_subtitle') || 'Ces catégories contiennent des dépenses réelles mais n\'ont pas été incluses dans les enveloppes proposées par l\'IA.'}
                 </p>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -3156,7 +3156,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             return `
                 <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
                     <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
-                    <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                    <span style="font-size:12px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
                 </div>
             `;
         }).join('');
@@ -3242,7 +3242,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Repère Jaune (Montant des dépenses estimées) -->
                         ${estimatedPct !== null ? `
                             <div id="wizardEstimatedMarker" style="position:absolute;top:-2px;bottom:-2px;left:${estimatedPct}%;width:3px;background:#eab308;box-shadow:0 0 8px #eab308;z-index:3;" title="Dépenses estimées: ${totalEstimatedMonthly.toFixed(2)} €/m">
-                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:4px;background:#eab308;color:#000000;font-size:12px;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     🟨 Est. lissée ${totalEstimatedMonthly.toFixed(0)}€
                                 </div>
                             </div>
@@ -3251,7 +3251,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <!-- Repère Violet (Salaire repère) -->
                         ${salaryPct !== null ? `
                             <div id="wizardSalaryMarker" style="position:absolute;top:-4px;bottom:-4px;left:${salaryPct}%;width:3px;background:#c084fc;box-shadow:0 0 8px #c084fc;z-index:4;" title="Revenus repère: ${refSalary.toFixed(2)} €/m">
-                                <div id="wizardSalaryMarkerBadge" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#c084fc;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
+                                <div id="wizardSalaryMarkerBadge" style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#c084fc;color:white;font-size:12px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.3);">
                                     💼 Salaire: ${refSalary.toFixed(0)}€
                                 </div>
                             </div>
@@ -3259,7 +3259,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
 
                     <!-- Échelle de prix graduée -->
-                    <div id="wizScaleTicksContainer" style="position:relative;height:16px;margin-top:2px;font-size:10px;color:var(--text-muted);font-weight:600;">
+                    <div id="wizScaleTicksContainer" style="position:relative;height:16px;margin-top:2px;font-size:12px;color:var(--text-muted);font-weight:600;">
                         ${ticksHtml}
                     </div>
                 </div>
@@ -3284,19 +3284,19 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <span style="font-size:12px;font-weight:600;color:var(--text-muted);">⚡ Modifier le montant des enveloppes pour les :</span>
                     <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('frugal')" style="font-size:11px;padding:4px 8px;border-radius:8px;">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('frugal')" style="font-size:12px;padding:4px 8px;border-radius:8px;">
                             ✂️ Réduire de 10%
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('prudent')" style="font-size:11px;padding:4px 8px;border-radius:8px;">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('prudent')" style="font-size:12px;padding:4px 8px;border-radius:8px;">
                             🛡️ Augmenter de 10%
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('income')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#36b37e;">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('income')" style="font-size:12px;padding:4px 8px;border-radius:8px;color:#36b37e;">
                             ⚖️ Aligner sur les revenus
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('month')" style="font-size:11px;padding:4px 8px;border-radius:8px;">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('month')" style="font-size:12px;padding:4px 8px;border-radius:8px;">
                             📅 Aligner sur le mois
                         </button>
-                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('real')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#60a5fa;">
+                        <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('real')" style="font-size:12px;padding:4px 8px;border-radius:8px;color:#60a5fa;">
                             📊 Aligner sur la moyenne
                         </button>
                         ${(() => {
@@ -3306,7 +3306,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 : t('ai_wizard_btn_reset', '🤖 Aligner avec suggestions IA');
                             const resetI18n = isDet ? 'budget_strategy_reset_det' : 'ai_wizard_btn_reset';
                             return `
-                                <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('reset')" style="font-size:11px;padding:4px 8px;border-radius:8px;color:#c084fc;" data-i18n="${resetI18n}">
+                                <button class="btn btn-secondary" onclick="window.BudgetsView.wizardApplyStrategy('reset')" style="font-size:12px;padding:4px 8px;border-radius:8px;color:#c084fc;" data-i18n="${resetI18n}">
                                     ${resetLabel}
                                 </button>
                             `;
@@ -3426,7 +3426,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     return `
                         <div style="position:absolute;${alignStyle}display:flex;flex-direction:column;align-items:center;pointer-events:none;">
                             <div style="width:1px;height:3px;background:var(--border-color);opacity:0.8;margin-bottom:2px;"></div>
-                            <span style="font-size:9.5px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
+                            <span style="font-size:12px;color:var(--text-muted);font-weight:600;white-space:nowrap;">${label}</span>
                         </div>
                     `;
                 }).join('');
@@ -3522,12 +3522,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                        onblur="this.style.background='transparent'; this.style.borderColor='transparent';"
                                        onchange="window.BudgetsView.updateAiProposalName(${idx}, this.value)"
                                        title="Cliquer pour modifier le nom de cette enveloppe">
-                                 ${p.is_fixed ? `<span style="font-size:10.5px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;" title="${t('ai_budget_fixed_badge', 'Charge fixe contractuelle non modifiable')}">🔒 100% Fixe</span>` : ''}
-                                 ${p.has_fixed_mix && !p.is_fixed ? `<span style="font-size:10.5px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
-                                 ${p.is_exceptional ? `<span style="font-size:10.5px;background:#312e81;color:#a5b4fc;padding:2px 8px;border-radius:6px;border:1px solid #4338ca;font-weight:700;">🚀 ${t('ai_budget_project_badge', 'Projet')}</span>` : ''}
+                                 ${p.is_fixed ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;" title="${t('ai_budget_fixed_badge', 'Charge fixe contractuelle non modifiable')}">🔒 100% Fixe</span>` : ''}
+                                 ${p.has_fixed_mix && !p.is_fixed ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:6px;border:1px solid #0284c7;font-weight:700;">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
+                                 ${p.is_exceptional ? `<span style="font-size:12px;background:#312e81;color:#a5b4fc;padding:2px 8px;border-radius:6px;border:1px solid #4338ca;font-weight:700;">🚀 ${t('ai_budget_project_badge', 'Projet')}</span>` : ''}
                              </div>
                              ${p.is_fixed ? `
-                                 <span style="font-size:11.5px;color:#38bdf8;font-weight:500;display:flex;align-items:center;gap:4px;margin-left:6px;">
+                                 <span style="font-size:12px;color:#38bdf8;font-weight:500;display:flex;align-items:center;gap:4px;margin-left:6px;">
                                      ${t('ai_wizard_step3_fixed_note', '📌 Cette enveloppe ne contient que des dépenses récurrentes identiques chaque mois.')}
                                  </span>
                              ` : ''}
@@ -3545,7 +3545,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 ${p.suggested_amount.toFixed(2)} € ${isYearly ? '/an' : '/mois'}
                             </span>
                             ${isYearly ? `
-                                <span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px;">
+                                <span style="font-size:12px;color:var(--text-muted);font-weight:600;margin-top:2px;">
                                     (${formatCurrency(p.suggested_amount / 12.0)} €/m)
                                 </span>
                             ` : ''}
@@ -3601,7 +3601,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         ? (item.amount > 0 ? `${item.amount.toFixed(2)}€` : '0€') 
                                         : (item.amount < 10 ? `${item.amount.toFixed(1)}€` : `${item.amount.toFixed(0)}€`);
                                     const fitsInside = pct >= 4;
-                                    const labelHtml = fitsInside ? `<span style="font-size:11px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.name} (${amtFormatted})</span>` : '';
+                                    const labelHtml = fitsInside ? `<span style="font-size:12px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;text-shadow:0 1px 3px rgba(0,0,0,0.8);">${item.name} (${amtFormatted})</span>` : '';
 
                                     return `
                                         <div id="wizSeg_${idx}_${catIdx}"
@@ -3665,7 +3665,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                           onmouseleave="window.BudgetsView.unhighlightAiCategory(${idx}, ${catIdx}, true)">
                                         <span class="ai-cat-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(145,158,171,0.5);display:inline-block;flex-shrink:0;transition:all 0.25s ease;"></span>
                                         <span>${catName}</span>
-                                        <strong style="color:var(--text-muted);font-size:10.5px;font-weight:600;">${catAmtStr}</strong>
+                                        <strong style="color:var(--text-muted);font-size:12px;font-weight:600;">${catAmtStr}</strong>
                                         ${p.categories.length > 1 ? `
                                             <button onclick="window.BudgetsView.wizardRemoveCategoryFromProposal(${idx}, ${originalIdx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-weight:bold;padding:0 2px;margin-left:2px;" title="${t('ai_wizard_step3_remove_cat', 'Retirer de l\'enveloppe')}">✕</button>
                                         ` : ''}

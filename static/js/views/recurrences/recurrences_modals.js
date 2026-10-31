@@ -262,7 +262,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_amount')}</label>
                             <input type="number" id="edit_amount" class="inline-input" value="${tpl.amount || 0}" step="0.01" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
-                            <span style="font-size: 11px; color: var(--text-muted); font-style: italic;">${window.i18n.t('edit_amount_hint') || 'Le nouveau montant sera appliqué pour toutes les futures occurrences.'}</span>
+                            <span style="font-size: 12px; color: var(--text-muted); font-style: italic;">${window.i18n.t('edit_amount_hint') || 'Le nouveau montant sera appliqué pour toutes les futures occurrences.'}</span>
                         </div>
                     </div>
 
@@ -293,12 +293,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                             <select id="edit_freq" class="inline-input" onchange="window.RecurrenceView.onEditFreqChange()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit; cursor: pointer;">
                                 ${freqOptions}
                             </select>
-                            <span style="font-size: 11px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_freq_hint') || "Changer la fréquence régénérera toutes les occurrences futures non rapprochées de l'année."}</span>
+                            <span style="font-size: 12px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_freq_hint') || "Changer la fréquence régénérera toutes les occurrences futures non rapprochées de l'année."}</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('wizard_th_day') || 'Jour du mois'}</label>
                             <input type="number" id="edit_day" class="inline-input" value="${tpl.day_of_month || 1}" min="1" max="31" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
-                            <span style="font-size: 11px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_day_hint') || "Changer le jour régénérera également les dates des futures occurrences."}</span>
+                            <span style="font-size: 12px; color: #ff5630; font-weight: 500;">${window.i18n.t('edit_day_hint') || "Changer le jour régénérera également les dates des futures occurrences."}</span>
                         </div>
                     </div>
 
@@ -337,7 +337,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <label style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 5px; cursor: pointer; user-select: none; gap: 12px;">
                         <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0;">
                             <span style="font-size: 14px; font-weight: 600; color: var(--text-main);">${window.i18n.t('edit_close_recurrence_label') || "Clôturer l'abonnement / récurrence"}</span>
-                            <span style="font-size: 11px; color: var(--text-muted); line-height: 1.3;">${window.i18n.t('edit_close_recurrence_hint') || 'Activer cette option désactive définitivement la génération future de cette récurrence. Les transactions existantes seront conservées.'}</span>
+                            <span style="font-size: 12px; color: var(--text-muted); line-height: 1.3;">${window.i18n.t('edit_close_recurrence_hint') || 'Activer cette option désactive définitivement la génération future de cette récurrence. Les transactions existantes seront conservées.'}</span>
                         </div>
                         <input type="checkbox" id="edit_is_closed" ${initialIsClosed ? 'checked' : ''} style="width: 22px; height: 22px; flex-shrink: 0; cursor: pointer;">
                     </label>
@@ -628,7 +628,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const isCloseAp = isAutopilotActive && isClose;
 
         const apBadgeHtml = `
-            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
                 🤖 ${window.i18n?.t('autopilot_badge_driven') || 'Auto-Pilote'}
             </span>
         `;
@@ -692,11 +692,11 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                                         ${window.i18n.t('rec_auto_promote_desc', 'Détecte et officialise automatiquement en modèle actif les abonnements observés sur au moins 3 échéances consécutives.')}
                                     </div>
                                     <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                        <label for="cfg_auto_promote_recurrences_since" style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin: 0;">
+                                        <label for="cfg_auto_promote_recurrences_since" style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin: 0;">
                                             📅 ${window.i18n.t('rec_auto_promote_since_label', 'Analyser à partir du :')}
                                         </label>
                                         <input type="date" id="cfg_auto_promote_recurrences_since" value="${promoteSince}" style="padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-main); transition: all 0.2s ease;">
-                                        <span id="cfg_auto_promote_since_hint" style="font-size: 11px; color: var(--text-muted); font-style: italic;"></span>
+                                        <span id="cfg_auto_promote_since_hint" style="font-size: 12px; color: var(--text-muted); font-style: italic;"></span>
                                     </div>
                                 </div>
                             </label>
@@ -711,7 +711,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                                         <span style="display: flex; align-items: center; gap: 6px;"><span>⚡</span> <span>${window.i18n.t('rec_auto_link_deviant_title', 'Auto-liaison des déviations et hors-forfait')}</span></span>
                                         <div style="display: flex; align-items: center; gap: 6px;">
                                             ${isDeviantAp ? apBadgeHtml : ''}
-                                            <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
+                                            <span style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(99, 102, 241, 0.15); color: #6366f1; white-space: nowrap;">${window.i18n.t('rec_auto_master_badge', 'Option principale')}</span>
                                         </div>
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
@@ -764,7 +764,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                                                 <span style="display: flex; align-items: center; gap: 6px;"><span>🛑</span> <span>${window.i18n.t('rec_auto_close_title', 'Auto-clôture après 3 échéances consécutives sautées')}</span></span>
                                                 ${isCloseAp ? apBadgeHtml : ''}
                                             </div>
-                                            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
+                                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.35;">
                                                 ${window.i18n.t('rec_auto_close_desc', 'Clôture définitivement le modèle récurrent si 3 échéances successives n\'ont pas été prélevées (contrats résiliés ou abandonnés).')}
                                             </div>
                                         </div>

@@ -522,7 +522,7 @@ Object.assign(window.BankSyncView, {
 
         container.innerHTML = fields.map(f => {
             const reqMark = f.required ? '*' : '';
-            const descHtml = f.description ? `<p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 6px 0;">${f.description}</p>` : '';
+            const descHtml = f.description ? `<p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 6px 0;">${f.description}</p>` : '';
             let inputHtml = '';
 
             if (f.type === 'select' && f.choices) {
@@ -626,16 +626,16 @@ Object.assign(window.BankSyncView, {
             errDiv.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
                     <span style="font-weight: 700; color: #ef4444;">⚠️ Erreur :</span>
-                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 11px; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;">
+                    <button class="btn btn-secondary" onclick="window.BankSyncView.closeAddModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 12px; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;">
                         ⚙️ Configuration & Diagnostics
                     </button>
                 </div>
                 <div style="margin-bottom: 8px; line-height: 1.4; color: var(--text-main); font-size: 12.5px;">${rawMsg}</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 6px; border-top: 1px dashed rgba(239,68,68,0.2);">
-                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur création connexion: ${this.selectedBackend?.name || ''} - ${rawMsg.replace(/'/g, "\\'")}');" style="font-size: 11px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur création connexion: ${this.selectedBackend?.name || ''} - ${rawMsg.replace(/'/g, "\\'")}');" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
                         📋 Copier le rapport
                     </button>
-                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur création connexion: ${this.selectedBackend?.name || ''}');" style="font-size: 11px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur création connexion: ${this.selectedBackend?.name || ''}');" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
                         🐙 Créer une Issue GitHub
                     </button>
                 </div>
@@ -672,7 +672,7 @@ Object.assign(window.BankSyncView, {
                 <div id="mappingModalLoadingText" style="font-size: 13px; font-weight: 600; color: var(--text-main);">
                     Connexion sécurisée à votre banque...
                 </div>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">
                     Récupération de la liste de vos comptes distants
                 </div>
             </div>
@@ -776,7 +776,7 @@ Object.assign(window.BankSyncView, {
                         <div style="font-weight: 700; color: #ef4444; display: flex; align-items: center; gap: 6px;">
                             <span>⚠️</span> <span>${window.i18n.t('bank_sync_cannot_fetch_remote')}</span>
                         </div>
-                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" title="${window.i18n.t('bank_sync_btn_config_diag')}">
+                        <button class="btn btn-secondary" onclick="window.BankSyncView.closeMappingModal(); if(window.app && window.app.navigateToDiagnostics) { window.app.navigateToDiagnostics(); } else if(window.app && window.app.loadView) { window.app.loadView('config'); }" style="font-size: 12px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main); border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" title="${window.i18n.t('bank_sync_btn_config_diag')}">
                             ⚙️ ${window.i18n.t('bank_sync_btn_config_diag')}
                         </button>
                     </div>
@@ -882,7 +882,7 @@ Object.assign(window.BankSyncView, {
                         <select class="input-styled mapping-select" data-remote-id="${r.id}" style="min-width: 200px; padding: 6px 10px;">
                             ${localAccOptions}
                         </select>
-                        <button class="btn btn-secondary mapping-create-btn" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 11px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${btnCreateTitle}">
+                        <button class="btn btn-secondary mapping-create-btn" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="font-size: 12px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;" title="${btnCreateTitle}">
                             <span>➕</span> <span>${btnCreateText}</span>
                         </button>
                     </div>
@@ -890,16 +890,16 @@ Object.assign(window.BankSyncView, {
 
                 <!-- Mini-formulaire in-line de création personnalisée -->
                 <div id="qcBox_${r.id}" class="mapping-quick-create-box" style="display: none; padding: 12px 14px; background: var(--bg-card); border: 1px dashed var(--accent-border, var(--border-color)); border-radius: 10px; margin-top: 4px;">
-                    <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                         <span>✨</span> <span data-i18n="bank_sync_custom_create_title">${window.i18n.t('bank_sync_custom_create_title')}</span>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 2; min-width: 150px;">
-                            <label style="font-size: 10px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_name">${window.i18n.t('bank_sync_custom_create_name')}</label>
+                            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_name">${window.i18n.t('bank_sync_custom_create_name')}</label>
                             <input type="text" id="qcName_${r.id}" class="input-styled" value="${r.label.replace(/"/g, '&quot;')}" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
                         </div>
                         <div style="flex: 1.5; min-width: 130px;">
-                            <label style="font-size: 10px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_type">${window.i18n.t('bank_sync_custom_create_type')}</label>
+                            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_type">${window.i18n.t('bank_sync_custom_create_type')}</label>
                             <select id="qcType_${r.id}" class="input-styled" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
                                 <option value="Compte courant" ${detectedType === 'Compte courant' ? 'selected' : ''}>${window.i18n.t('wizard_type_checking')}</option>
                                 <option value="Livret" ${detectedType === 'Livret' ? 'selected' : ''}>${window.i18n.t('wizard_type_savings')}</option>
@@ -910,19 +910,19 @@ Object.assign(window.BankSyncView, {
                             </select>
                         </div>
                         <div style="flex: 1; min-width: 100px;">
-                            <label style="font-size: 10px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_balance">${window.i18n.t('bank_sync_custom_create_balance')}</label>
+                            <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_balance">${window.i18n.t('bank_sync_custom_create_balance')}</label>
                             <input type="number" step="0.01" id="qcBal_${r.id}" class="input-styled" value="${r.balance || 0}" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
                         </div>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            <button class="btn btn-primary" onclick="window.BankSyncView.submitQuickCreate('${r.id}', '${r.currency || 'EUR'}')" style="height: 32px; padding: 0 12px; font-size: 11px; font-weight: 700; white-space: nowrap; border-radius: 6px;">
+                            <button class="btn btn-primary" onclick="window.BankSyncView.submitQuickCreate('${r.id}', '${r.currency || 'EUR'}')" style="height: 32px; padding: 0 12px; font-size: 12px; font-weight: 700; white-space: nowrap; border-radius: 6px;">
                                 <span data-i18n="bank_sync_custom_create_submit">${window.i18n.t('bank_sync_custom_create_submit')}</span>
                             </button>
-                            <button class="btn btn-secondary" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="height: 32px; padding: 0 10px; font-size: 11px; white-space: nowrap; border-radius: 6px;">
+                            <button class="btn btn-secondary" onclick="window.BankSyncView.toggleQuickCreateForm('${r.id}')" style="height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap; border-radius: 6px;">
                                 <span data-i18n="bank_sync_custom_create_cancel">${window.i18n.t('bank_sync_custom_create_cancel')}</span>
                             </button>
                         </div>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: 6px; line-height: 1.3;" data-i18n="bank_sync_custom_create_bal_hint">
+                    <div style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 6px; line-height: 1.3;" data-i18n="bank_sync_custom_create_bal_hint">
                         💡 ${window.i18n.t('bank_sync_custom_create_bal_hint')}
                     </div>
                 </div>

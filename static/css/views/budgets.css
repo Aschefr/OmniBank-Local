@@ -242,7 +242,7 @@
     font-size: 13px; color: var(--text-main);
 }
 .bv-modal-option-info span {
-    font-size: 11px; color: var(--text-muted);
+    font-size: 12px; color: var(--text-muted);
 }
 
 /* ── Engine Options Grid (Déterministe vs IA) ── */
@@ -293,7 +293,7 @@
     white-space: nowrap;
 }
 .bv-engine-tag {
-    font-size: 10.5px;
+    font-size: 12px;
     padding: 2px 7px;
     border-radius: 6px;
     font-weight: 700;
@@ -309,7 +309,7 @@
     color: #a855f7;
 }
 .bv-engine-card-desc {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     line-height: 1.35;
 }
@@ -327,7 +327,7 @@
     font-size: 13px; color: var(--text-main);
 }
 .bv-toggle-row-info span {
-    font-size: 11px; color: var(--text-muted);
+    font-size: 12px; color: var(--text-muted);
 }
 
 /* ── Wizard Modal ─────────────────────────────────────────────────────────── */
@@ -385,7 +385,7 @@
     font-weight: 600; margin-bottom: 6px;
 }
 .bv-capacity-meter-footer {
-    display: flex; justify-content: space-between; font-size: 11px;
+    display: flex; justify-content: space-between; font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -394,7 +394,7 @@
     margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;
 }
 .bv-accounts-section-label {
-    font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 8px;
+    font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 8px;
     text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
 }
 .bv-accounts-grid {
@@ -409,7 +409,7 @@
     display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px;
 }
 .bv-account-card-row {
-    display: flex; justify-content: space-between; font-size: 11px; margin-top: 2px;
+    display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px;
 }
 .bv-account-card-total {
     display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;
@@ -421,11 +421,11 @@
     cursor: help; display: inline-flex; align-items: center; justify-content: center;
     width: 13px; height: 13px; border-radius: 50%;
     border: 1px solid var(--text-muted); color: var(--text-muted);
-    font-size: 9px; font-weight: bold; font-family: sans-serif;
+    font-size: 12px; font-weight: bold; font-family: sans-serif;
     vertical-align: middle; line-height: 1; user-select: none; margin-left: 4px;
 }
 .bv-info-icon--lg {
-    width: 14px; height: 14px; font-size: 10px;
+    width: 14px; height: 14px; font-size: 12px;
 }
 
 /* ── Filter Bar ───────────────────────────────────────────────────────────── */
@@ -530,11 +530,11 @@
     display: flex; gap: 4px; flex-shrink: 0;
 }
 .bv-card-actions .btn {
-    padding: 4px 8px; font-size: 11px;
+    padding: 4px 8px; font-size: 12px;
 }
 .bv-card-amount-row {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px; font-size: 11px; color: var(--text-muted);
+    margin-bottom: 8px; font-size: 12px; color: var(--text-muted);
 }
 .bv-card-footer {
     display: flex; justify-content: space-between; font-size: 12px;
@@ -545,18 +545,18 @@
 }
 
 /* ── Tag Badges ───────────────────────────────────────────────────────────── */
-.bv-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.bv-tag { padding: 2px 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
 .bv-tag--project { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
 .bv-tag--savings { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .bv-tag--closed  { background: rgba(239, 68, 68, 0.15); color: #ff5630; margin-left: 6px; }
 .bv-tag--cat { background: var(--bg-base); color: var(--text-muted); font-weight: normal; }
 .bv-tag--account {
-    padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600;
+    padding: 1px 5px; border-radius: 4px; font-size: 12px; font-weight: 600;
 }
 
 /* ── Sync Button ──────────────────────────────────────────────────────────── */
 .bv-sync-btn {
-    padding: 2px 7px; font-size: 10px; font-weight: 700;
+    padding: 2px 7px; font-size: 12px; font-weight: 700;
     color: var(--accent); border-color: rgba(59, 130, 246, 0.35);
     background: rgba(59, 130, 246, 0.1); cursor: pointer;
     display: inline-flex; align-items: center; gap: 3px;
@@ -589,7 +589,7 @@
     display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
 }
 .bv-temp-withdrawn-badge {
-    font-size: 11px; font-weight: 600;
+    font-size: 12px; font-weight: 600;
     background: rgba(239, 68, 68, 0.1); padding: 2px 6px; border-radius: 4px;
 }
 .bv-overflow-badge {
@@ -666,7 +666,7 @@
 }
 
 .budget-minimized-strip-desc {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -806,7 +806,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     flex-wrap: wrap;
 }
@@ -968,7 +968,7 @@
     gap: 5px;
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     user-select: none;
@@ -1236,7 +1236,7 @@
 .budget-review-modal-badge {
     background: var(--accent);
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 12px;
@@ -1410,7 +1410,7 @@
     gap: 4px;
     padding: 2px 8px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
 }
 
@@ -1482,7 +1482,7 @@
 
 .review-arrow {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .review-detail-sep {
@@ -1499,7 +1499,7 @@
 
 .review-action-btn {
     padding: 5px 10px !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     font-weight: 600 !important;
     border-radius: 6px !important;
 }
@@ -1536,7 +1536,7 @@
     background: rgba(var(--accent-rgb), 0.12);
     border: 1px solid rgba(var(--accent-rgb), 0.3);
     color: var(--text-main);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1554,7 +1554,7 @@
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .net-plus {
@@ -1585,7 +1585,7 @@
     border-radius: 14px;
     background: rgba(var(--accent-rgb), 0.05);
     border: 1px solid var(--border-color);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;
@@ -1607,7 +1607,7 @@
 }
 
 .autopilot-info-icon {
-    font-size: 10px;
+    font-size: 12px;
     opacity: 0.65;
     transition: opacity 0.15s;
 }
@@ -1694,7 +1694,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    font-size: 11px;
+    font-size: 12px;
     padding: 3px 0;
     border-bottom: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.07));
 }
@@ -1719,14 +1719,14 @@
 }
 
 .autopilot-tooltip-cat-sub {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-muted);
     display: block;
     font-weight: normal;
 }
 
 .autopilot-tooltip-history-title {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-muted);
     margin-top: 4px;
     font-style: italic;
@@ -1740,7 +1740,7 @@
 }
 
 .autopilot-history-chip {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 4px;
@@ -1774,7 +1774,7 @@
     color: var(--text-main);
     padding: 3px 8px;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     cursor: pointer;
     margin: 4px 0 6px 0;
@@ -1806,7 +1806,7 @@
 
 .bv-card-sugg-text small {
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 12px;
     margin-left: 2px;
 }
 
@@ -1842,7 +1842,7 @@
 
 .review-inplace-unit {
     font-weight: 700;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -1866,7 +1866,7 @@
 
 .budget-strip-btn-toggle {
     padding: 3px 8px !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     line-height: 1 !important;
     display: inline-flex;
     align-items: center;
@@ -2011,7 +2011,7 @@
 }
 
 .slider-grad-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     line-height: 1.1;
     color: var(--text-muted);
@@ -2031,3 +2031,11 @@
     text-shadow: 0 0 8px rgba(99, 102, 241, 0.35);
 }
 
+/* Touch targets: budget card actions */
+@media (pointer: coarse), (max-width: 768px) {
+    .bv-card-actions .btn {
+        height: 40px !important;
+        min-height: 40px !important;
+        min-width: 40px !important;
+    }
+}

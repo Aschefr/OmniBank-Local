@@ -23,7 +23,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         
         displayTemplates.forEach(t => {
             const isExpanded = this.expandedTemplateIds.has(t.id);
-            const chevronStyle = `display: inline-block; transition: transform 0.2s ease; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; font-size: 11px; color: var(--text-muted); cursor: pointer;`;
+            const chevronStyle = `display: inline-block; transition: transform 0.2s ease; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; font-size: 12px; color: var(--text-muted); cursor: pointer;`;
             const displayStyle = isExpanded ? 'table-row' : 'none';
             
             const typeColors = this.getTypeColors(t);
@@ -44,13 +44,13 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             } else {
                 badgeStyle = 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
             }
-            const badgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; ${badgeStyle}">${freqLabel}</span>`;
+            const badgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; ${badgeStyle}">${freqLabel}</span>`;
             
             const statusLabel = t.is_closed ? window.i18n.t('rec_status_closed') : window.i18n.t('rec_status_active');
             const statusBadgeStyle = t.is_closed 
                 ? 'background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2);' 
                 : 'background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);';
-            const statusBadgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; ${statusBadgeStyle}">${statusLabel}</span>`;
+            const statusBadgeHtml = `<span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; ${statusBadgeStyle}">${statusLabel}</span>`;
             
             const catOptionsHtml = (this.categories || [])
                 .filter(c => (!c.is_closed || c.name === t.category) && (!t.type || c.type === t.type))
@@ -81,7 +81,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                             <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; border: 1px solid var(--border-color);">
                                 <div style="width: ${t.progressPct}%; height: 100%; background: ${t.progressPct === 100 ? 'linear-gradient(90deg, #2ecc71, #27ae60)' : 'linear-gradient(90deg, var(--accent, #6c5ce7), #a29bfe)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
                             </div>
-                            <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 10px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 12px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
                         </div>
                     </td>
                     <td data-label="${window.i18n.t('col_amount') || 'Montant'}" style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
@@ -132,7 +132,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         
         displayTemplates.forEach(t => {
             const isExpanded = this.expandedTemplateIds.has(t.id);
-            const chevronStyle = `display: inline-block; transition: transform 0.2s ease; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; font-size: 11px; color: var(--text-muted); cursor: pointer;`;
+            const chevronStyle = `display: inline-block; transition: transform 0.2s ease; transform: ${isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'}; font-size: 12px; color: var(--text-muted); cursor: pointer;`;
             const typeColors = this.getTypeColors(t);
             const freqLabel = window.i18n.t('rec_' + t.frequency.toLowerCase()) || t.frequency;
             
@@ -214,7 +214,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         labelDayStr = `Le ${labelBase}`;
                     }
                     const skipStyle = isSkipped ? 'text-decoration: line-through;' : '';
-                    const label = `<span style="${skipStyle}">${labelDayStr}</span><span style="font-size: 8.5px; opacity: 0.95; font-weight: 600; ${skipStyle}">${formatCurrency(tx.amount)}</span>`;
+                    const label = `<span style="${skipStyle}">${labelDayStr}</span><span style="font-size: 12px; opacity: 0.95; font-weight: 600; ${skipStyle}">${formatCurrency(tx.amount)}</span>`;
                     
                     segmentsHtml += `<div class="gantt-segment ${segmentClass}" style="${borderRadius}" title="${tooltip}" data-tx-id="${tx.id}" data-template-id="${t.id}" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${t.id}, this)"><span class="gantt-segment-label">${label}</span></div>`;
                 } else {
@@ -231,7 +231,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <div class="gantt-desc">
                         <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
                         <span style="margin-left: 5px;">${t.description}</span>
-                        <div style="font-size: 11px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">${t.category || '--'} • ${freqLabel} • <span class="privacy-blur" style="color: ${typeColors.text};">${formatCurrency(t.displayAmount)}</span></div>
+                        <div style="font-size: 12px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">${t.category || '--'} • ${freqLabel} • <span class="privacy-blur" style="color: ${typeColors.text};">${formatCurrency(t.displayAmount)}</span></div>
                     </div>
                     <div class="gantt-bar-container">${segmentsHtml}</div>
                 </div>
@@ -350,16 +350,16 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         
         let autoBadgeHtml = '';
         if (isAutoAdjusted) {
-            autoBadgeHtml = `<span style="display: inline-block; font-size: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⚡ Auto-ajusté</span>`;
+            autoBadgeHtml = `<span style="display: inline-block; font-size: 12px; background: rgba(99, 102, 241, 0.15); color: #6366f1; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⚡ Auto-ajusté</span>`;
         } else if (isSkipped && tx.comment && (tx.comment.includes('Auto-sauté') || tx.comment.includes('Auto-skipped'))) {
-            autoBadgeHtml = `<span style="display: inline-block; font-size: 10px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⏭️ Auto-sauté</span>`;
+            autoBadgeHtml = `<span style="display: inline-block; font-size: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">⏭️ Auto-sauté</span>`;
         }
 
         const autoSkipInfo = (!isSkipped && !isReconciled && this.getAutoSkipStatus) ? this.getAutoSkipStatus(tx, tpl) : null;
         let autoBannerHtml = '';
         if (autoSkipInfo) {
             autoBannerHtml = `
-                <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 11px; line-height: 1.35; color: var(--text-main);">
+                <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 12px; line-height: 1.35; color: var(--text-main);">
                     <div style="font-weight: 700; color: #8b5cf6; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
                         <span>⚙️</span>
                         <span>${window.i18n.t('rec_popover_automation_title') || 'Automatisme actif'}</span>
@@ -374,7 +374,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         if (isReconciled && tx.needs_review) {
             const conf = Math.round(tx.confidence_score || 0);
             reviewBannerHtml = `
-                <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 11px; line-height: 1.35; color: #b45309;">
+                <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 12px; line-height: 1.35; color: #b45309;">
                     <div style="font-weight: 700; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
                         <span>⚠️</span>
                         <span>Rapprochement incertain (${conf}%)</span>
@@ -387,12 +387,12 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
         popover.innerHTML = `
             <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px;">
-                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;">
                     <span>${window.i18n.t('rec_popover_title') || 'Options de l\'échéance'}</span>
                     ${autoBadgeHtml}
                 </div>
                 <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tx.description}</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
                 ${reviewBannerHtml}
                 ${autoBannerHtml}
             </div>
@@ -587,9 +587,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
     getSortArrow(columnName) {
         if (this.sortBy === columnName) {
-            return this.sortOrder === 'asc' ? ' <span style="font-size: 10px; color: var(--accent);">▲</span>' : ' <span style="font-size: 10px; color: var(--accent);">▼</span>';
+            return this.sortOrder === 'asc' ? ' <span style="font-size: 12px; color: var(--accent);">▲</span>' : ' <span style="font-size: 12px; color: var(--accent);">▼</span>';
         }
-        return ' <span style="font-size: 10px; color: var(--text-muted); opacity: 0.3;">▲</span>';
+        return ' <span style="font-size: 12px; color: var(--text-muted); opacity: 0.3;">▲</span>';
     },
 
     async confirmReconciliation(txId, templateId) {

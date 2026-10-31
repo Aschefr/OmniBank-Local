@@ -96,34 +96,34 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             let actionBtn = '';
             if (justPropagated) {
                 const oldAmtStr = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(this.lastPropagate.oldAmount);
-                actionBtn = `<button class="btn btn-danger" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.undoPropagate(${templateId})">Annuler (Retour à ${oldAmtStr})</button>`;
+                actionBtn = `<button class="btn btn-danger" style="padding: 5px; font-size: 12px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.undoPropagate(${templateId})">Annuler (Retour à ${oldAmtStr})</button>`;
             } else if (isModified && !isReconciled) {
-                actionBtn = `<button class="btn btn-primary" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.propagate(${tx.id})" data-i18n="btn_propagate_down">Propager vers le bas ⬇️</button>`;
+                actionBtn = `<button class="btn btn-primary" style="padding: 5px; font-size: 12px; width: 100%; white-space: normal;" onclick="window.RecurrenceView.propagate(${tx.id})" data-i18n="btn_propagate_down">Propager vers le bas ⬇️</button>`;
             } else if (isAutoAdjusted) {
-                actionBtn = `<button class="btn btn-secondary" style="padding: 5px; font-size: 11px; width: 100%; white-space: normal; color: #6366f1; font-weight: 600;" onclick="window.RecurrenceView.restoreForecastAmount(${tx.id})">↩️ ${window.i18n.t('rec_action_restore_short') || 'Rétablir prévu'}</button>`;
+                actionBtn = `<button class="btn btn-secondary" style="padding: 5px; font-size: 12px; width: 100%; white-space: normal; color: #6366f1; font-weight: 600;" onclick="window.RecurrenceView.restoreForecastAmount(${tx.id})">↩️ ${window.i18n.t('rec_action_restore_short') || 'Rétablir prévu'}</button>`;
             }
 
             let statusHTML = '';
             if (isAutoAdjusted) {
-                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(99, 102, 241, 0.18); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚡ ${window.i18n.t('rec_status_auto_adjusted') || 'Ajusté auto'}</span>`;
+                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(99, 102, 241, 0.18); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚡ ${window.i18n.t('rec_status_auto_adjusted') || 'Ajusté auto'}</span>`;
             } else if (isAutoSkipped) {
-                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_status_auto_skipped') || 'Sauté auto'}</span>`;
+                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_status_auto_skipped') || 'Sauté auto'}</span>`;
             } else if (isReconciled) {
                 if (tx.needs_review) {
                     const conf = Math.round(tx.confidence_score || 0);
                     const tip = (window.i18n ? window.i18n.t('autopilot_review_reconciled_tip') : 'Rapprochement incertain (confiance : {conf}%). Cliquer pour vérifier.').replace('{conf}', conf);
-                    statusHTML = `<span class="badge" title="${tip}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚠️ ${window.i18n.t('rec_gantt_status_needs_review') || 'À vérifier'} (${conf}%)</span>`;
+                    statusHTML = `<span class="badge" title="${tip}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚠️ ${window.i18n.t('rec_gantt_status_needs_review') || 'À vérifier'} (${conf}%)</span>`;
                 } else {
-                    statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Rapprochée'}</span>`;
+                    statusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">✅ ${window.i18n.t('rec_gantt_status_reconciled') || 'Rapprochée'}</span>`;
                 }
             } else if (isSkipped) {
-                statusHTML = `<span class="badge" style="background: rgba(145, 158, 171, 0.15); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_gantt_status_skipped') || 'Ignoré'}</span>`;
+                statusHTML = `<span class="badge" style="background: rgba(145, 158, 171, 0.15); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_gantt_status_skipped') || 'Ignoré'}</span>`;
             } else {
                 const autoSkipInfo = this.getAutoSkipStatus ? this.getAutoSkipStatus(tx, tpl) : null;
                 if (autoSkipInfo) {
-                    statusHTML = `<span class="badge" title="${autoSkipInfo.detailedTip}" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚙️ ${autoSkipInfo.shortBadgeText}</span>`;
+                    statusHTML = `<span class="badge" title="${autoSkipInfo.detailedTip}" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.35); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚙️ ${autoSkipInfo.shortBadgeText}</span>`;
                 } else {
-                    statusHTML = `<span class="badge" style="background: rgba(51, 102, 255, 0.12); color: var(--accent); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏳ ${window.i18n.t('rec_gantt_status_pending') || 'En attente'}</span>`;
+                    statusHTML = `<span class="badge" style="background: rgba(51, 102, 255, 0.12); color: var(--accent); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏳ ${window.i18n.t('rec_gantt_status_pending') || 'En attente'}</span>`;
                 }
             }
  

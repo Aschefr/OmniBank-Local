@@ -11,7 +11,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const accColor = a.color || 'var(--accent)';
             const borderColor = isSelected ? accColor : 'var(--border-color)';
             return `
-                <label style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${borderColor};transition:all 0.2s;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${borderColor};transition:all 0.2s;">
                     <input type="checkbox" name="budgetAccount" value="${a.id}" data-color="${accColor}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.onAccountChange(this)">
                     <span style="width:10px;height:10px;border-radius:50%;background:${accColor};flex-shrink:0;"></span>
                     <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
@@ -64,7 +64,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (visibleCats.length === 0) continue;
 
             html += `<div style="margin-bottom:12px;">
-                <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;">
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;">
                     ${groups[key].title}
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;">`;
@@ -87,8 +87,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     }
                 }
 
-                const avgText = avgValue > 0 ? `<span style="font-size:10px;color:var(--text-muted);background:rgba(128,128,128,0.1);padding:1px 4px;border-radius:4px;">~${formatCurrency(avgValue)} ${avgLabel}</span>` : '';
-                const overlapText = overlap ? `<span style="font-size:10px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.i18n.t('budget_cat_used_in')}: ${overlap}">⚠️ ${overlap}</span>` : '';
+                const avgText = avgValue > 0 ? `<span style="font-size:12px;color:var(--text-muted);background:rgba(128,128,128,0.1);padding:1px 4px;border-radius:4px;">~${formatCurrency(avgValue)} ${avgLabel}</span>` : '';
+                const overlapText = overlap ? `<span style="font-size:12px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.i18n.t('budget_cat_used_in')}: ${overlap}">⚠️ ${overlap}</span>` : '';
 
                 html += `
                     <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
@@ -209,7 +209,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 const accountSelectDetail = this._buildAccountSelect('detailAllocAccountId', hostedPerAccount);
 
                 graph.innerHTML = `<div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;">
                         <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(goal)}</span> ${window.i18n.t('budget_savings_goal')}</span>
                         <span class="privacy-blur">
                             <span style="color:#10b981;font-weight:600;">↑ ${formatCurrency(funded)}</span> ${window.i18n.t('budget_savings_funded')}
@@ -246,7 +246,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 }
                 for (const a of allocs) {
                     const acc = this.accounts?.find(ac => ac.id === a.account_id);
-                    const accLabel = acc ? ` <span style="font-size:10px;color:var(--accent);background:var(--bg-base);padding:1px 4px;border-radius:4px;margin-left:4px;">🏦 ${acc.name}</span>` : '';
+                    const accLabel = acc ? ` <span style="font-size:12px;color:var(--accent);background:var(--bg-base);padding:1px 4px;border-radius:4px;margin-left:4px;">🏦 ${acc.name}</span>` : '';
                     items.push({
                         type: 'alloc', id: a.id, date: a.date, description: (a.note || (a.amount > 0 ? window.i18n.t('budget_savings_deposit') : window.i18n.t('budget_savings_withdrawal'))) + accLabel,
                         amount: Math.abs(a.amount), isIncome: a.amount > 0
@@ -260,16 +260,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: items.length})}</h4>` +
                         items.map(it => `
                         <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${it.isReconciled ? 'opacity:0.55;' : ''}">
-                            <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${it.date}</span>
+                            <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${it.date}</span>
                             <span style="flex:1;font-size:12px;min-width:100px;">
                                 ${it.type === 'alloc' ? '💰 ' : ''}${it.description}
-                                ${it.isReconciled ? `<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
+                                ${it.isReconciled ? `<span style="font-size:12px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
                             </span>
-                            ${it.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:10px;color:var(--text-muted);">${it.category}</span>` : ''}
+                            ${it.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--text-muted);">${it.category}</span>` : ''}
                             <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${it.isIncome ? '#10b981' : '#ff5630'};white-space:nowrap;">
                                 ${it.isIncome ? '↑ +' : '↓ -'}${formatCurrency(it.amount)}
                             </span>
-                            ${it.type === 'alloc' ? `<button class="btn btn-secondary" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${it.id},'${budgetName}',${year},${month})">✕</button>` : ''}
+                            ${it.type === 'alloc' ? `<button class="btn btn-secondary" style="padding:2px 6px;font-size:12px;" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${it.id},'${budgetName}',${year},${month})">✕</button>` : ''}
                         </div>`).join('');
                 }
                 return;
@@ -300,7 +300,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const recW = Math.max(0, Math.min(totalRecExp / maxVal * 100, 100));
 
             graph.innerHTML = `<div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;">
                         <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(target)}</span> ${window.i18n.t('budget_objective')}</span><span class="privacy-blur">${expSublabel}</span>
                     </div>
                     <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
@@ -312,12 +312,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: txs.length})}</h4>` +
                 txs.map(tx => `
                 <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${tx.is_reconciled ? 'opacity:0.55;' : ''}">
-                    <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${tx.date}</span>
+                    <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${tx.date}</span>
                     <span style="flex:1;font-size:12px;min-width:100px;">
                         ${tx.description}
-                        ${tx.is_reconciled ? `<span style="font-size:10px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
+                        ${tx.is_reconciled ? `<span style="font-size:12px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
                     </span>
-                    ${tx.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:10px;color:var(--text-muted);">${tx.category}</span>` : ''}
+                    ${tx.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--text-muted);">${tx.category}</span>` : ''}
                     <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${tx.is_income ? '#10b981' : '#ff5630'};white-space:nowrap;">
                         ${tx.is_income ? '+' : ''}${formatCurrency(tx.amount)}
                     </span>
