@@ -18,4 +18,5 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **Listes du formulaire d'opération 📋** : les listes de comptes et de catégories gardent leur sélection directe après un passage d'une fenêtre étroite à une fenêtre large, et la ligne sélectionnée reste lisible (texte blanc) quand la liste a le focus.
 - **Cartes de validation de l'Auto-Pilote** : les boutons Valider / Éditer restent alignés à droite sur écran étroit.
 - **Message du coffre** : l'indication « coffre déverrouillé » affiche le nombre de jours restants au lieu d'un texte brut.
+- **Corrections de mise en page 🧱** : les noms de banque des cartes de connexion (Comptes) ne s'affichent plus lettre par lettre, les montants des tableaux de la Synthèse ne sont plus coupés par « … », et les noms des types de catégories s'affichent dans la langue de l'interface.
 - **Finitions mobile** : les boutons de suggestion de budget ne se chevauchent plus, la bannière de démo ne masque plus le contenu et les notifications s'affichent au-dessus de la barre d'onglets.
