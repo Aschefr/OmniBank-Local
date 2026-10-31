@@ -2406,6 +2406,8 @@ window.AutopilotView = {
         } else {
             reasonBadgeHtml = this.formatReasonBadge(d.reason);
         }
+        // Keep "old ➔ new" together when the meta line wraps
+        if (isOverridden) reasonBadgeHtml = `<span class="ap-reason-chain">${reasonBadgeHtml}</span>`;
 
         return `
             <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}">
