@@ -105,7 +105,7 @@
 }
 
 .ap-kpi-panel-subtitle {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     margin: 2px 0 0 0;
     line-height: 1.3;
@@ -136,7 +136,7 @@
 }
 
 .ap-kpi-label {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -159,7 +159,7 @@
 }
 
 .ap-kpi-sub {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -180,7 +180,7 @@
 }
 
 .ap-sec-kpi-label {
-    font-size: 10.5px;
+    font-size: 12px;
     color: var(--text-muted);
     font-weight: 500;
     margin-bottom: 2px;
@@ -201,7 +201,7 @@
     gap: 8px;
     padding-top: 12px;
     border-top: 1px solid var(--border-color);
-    font-size: 11.5px;
+    font-size: 12px;
 }
 
 .ap-kpi-status-row {
@@ -255,7 +255,7 @@
 }
 
 .ap-decision-badge-wrap .ov-ap-decision-badge {
-    font-size: 11px;
+    font-size: 12px;
     padding: 2.5px 8px;
     border-radius: 6px;
     white-space: nowrap;
@@ -287,13 +287,13 @@
 }
 
 .ap-decision-raw-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     font-weight: normal;
 }
 
 .ap-decision-meta {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     display: flex;
     align-items: center;
@@ -327,7 +327,7 @@
 }
 
 .ap-decision-score-badge {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 6px;
@@ -350,7 +350,7 @@
 }
 
 .ap-badge-undone {
-    font-size: 10px;
+    font-size: 12px;
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
     border: 1px solid #ef4444;
@@ -437,7 +437,7 @@
     display: none;
     align-items: center;
     gap: 6px;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     padding: 4px 12px;
     border-radius: 16px;
@@ -521,7 +521,7 @@
 
 .ap-batch-chevron {
     display: inline-block;
-    font-size: 11px;
+    font-size: 12px;
     transition: transform 0.2s ease;
     color: var(--text-muted);
     margin-right: 4px;
@@ -539,7 +539,7 @@
 
 .ap-batch-code {
     font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--accent);
     background: rgba(99, 102, 241, 0.12);
@@ -556,7 +556,7 @@
     border: 1px solid var(--border-subtle, var(--border-color));
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
     cursor: help;
     display: inline-flex;
     align-items: center;
@@ -594,7 +594,7 @@
     align-items: center;
     color: var(--text-muted);
     opacity: 0.6;
-    font-size: 10px;
+    font-size: 12px;
     margin: 0 1px;
 }
 
@@ -795,7 +795,7 @@ body.theme-classic-light .ap-decision-row:hover {
 
 /* Dynamic Timer Chip inside Button */
 .overview-autopilot-timer-chip {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 6px;
@@ -822,7 +822,7 @@ body.theme-classic-light .ap-decision-row:hover {
 .overview-autopilot-badge {
     background: #f59e0b;
     color: #ffffff;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     padding: 1px 5px;
     border-radius: 10px;
@@ -909,7 +909,7 @@ body.theme-classic-light .ap-decision-row:hover {
 }
 
 .ov-ap-status-pill {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 10px;
@@ -949,7 +949,7 @@ body.theme-classic-light .ap-decision-row:hover {
 }
 
 .ov-ap-timing-label {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -960,7 +960,7 @@ body.theme-classic-light .ap-decision-row:hover {
 }
 
 .ov-ap-timing-value {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-main, #f8fafc);
     white-space: nowrap;
@@ -970,7 +970,7 @@ body.theme-classic-light .ap-decision-row:hover {
 
 .ov-ap-countdown-badge {
     font-family: monospace;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     color: #10b981;
     background: rgba(16, 185, 129, 0.12);
@@ -1031,7 +1031,7 @@ body.theme-classic-light .ap-decision-row:hover {
 }
 
 .ov-ap-popover-sub {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted, #94a3b8);
     display: flex;
     justify-content: space-between;
@@ -1083,7 +1083,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ov-ap-section-title {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -1095,7 +1095,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ov-ap-actions-count {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 8px;
@@ -1133,7 +1133,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
     display: inline-flex;
     align-items: center;
     gap: 3.5px;
-    font-size: 9.5px;
+    font-size: 12px;
     font-weight: 700;
     padding: 1px 5.5px;
     border-radius: 4px;
@@ -1177,7 +1177,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ov-ap-decision-cat {
-    font-size: 10.5px;
+    font-size: 12px;
     color: var(--text-muted, #94a3b8);
     white-space: nowrap;
     overflow: hidden;
@@ -1208,7 +1208,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ov-ap-decision-time {
-    font-size: 9.5px;
+    font-size: 12px;
     color: var(--text-muted, #94a3b8);
 }
 
@@ -1227,7 +1227,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ov-ap-empty-text {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted, #94a3b8);
     line-height: 1.4;
 }
@@ -1394,7 +1394,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ap-override-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1403,7 +1403,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ap-override-label-hint {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 500;
     text-transform: none;
     color: var(--text-muted);
@@ -1508,7 +1508,7 @@ body.theme-light .ov-ap-popover-body::-webkit-scrollbar-thumb:hover {
 }
 
 .ap-override-rule-desc {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     line-height: 1.35;
     display: block;
@@ -1905,7 +1905,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-hero-switch-state {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -1971,7 +1971,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-cylon-label {
-    font-size: 8.5px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.8px;
     color: #34d399;
@@ -1980,7 +1980,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-cylon-time {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 800;
     font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
     color: #ffffff;
@@ -2196,7 +2196,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-hud-status-badge {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.6px;
     text-transform: uppercase;
@@ -2208,7 +2208,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-hud-live-indicator {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     color: #38bdf8;
     display: inline-flex;
@@ -2249,7 +2249,7 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-hud-pill {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 12px;
@@ -2386,7 +2386,7 @@ body.theme-titanium-light .ap-preset-btn {
 }
 
 .ap-preset-active-badge {
-    font-size: 10.5px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 4px;
@@ -2411,7 +2411,7 @@ body.theme-titanium-light .ap-preset-btn {
 }
 
 .ap-preset-btn-desc {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
     margin-top: 6px;
     line-height: 1.4;
@@ -2425,7 +2425,7 @@ body.theme-titanium-light .ap-preset-btn {
     background: rgba(99, 102, 241, 0.08);
     border: 1px dashed rgba(99, 102, 241, 0.3);
     border-radius: 8px;
-    font-size: 11.5px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2446,7 +2446,7 @@ body.theme-titanium-light .ap-preset-btn {
 .ap-threshold-apply-btn,
 body.theme-titanium-dark .ap-threshold-apply-btn,
 body.theme-titanium-light .ap-threshold-apply-btn {
-    font-size: 11px !important;
+    font-size: 12px !important;
     padding: 5px 12px !important;
     white-space: nowrap !important;
     flex-shrink: 0 !important;
@@ -2514,14 +2514,14 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 }
 
 .ap-role-card-subtitle {
-    font-size: 10.5px;
+    font-size: 12px;
     color: var(--text-muted);
     margin: 1px 0 0 0;
     line-height: 1.2;
 }
 
 .ap-role-badge-optional {
-    font-size: 9.5px;
+    font-size: 12px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 6px;
@@ -2538,7 +2538,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     border-left: 3px solid var(--accent);
     border-radius: 0 8px 8px 0;
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.45;
     color: var(--text-main);
     font-style: italic;
@@ -2590,7 +2590,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 }
 
 .ap-role-pillar-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-main);
     margin-bottom: 2px;
@@ -2598,7 +2598,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 }
 
 .ap-role-pillar-desc {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-muted);
     line-height: 1.35;
     margin: 0;
@@ -2611,7 +2611,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     gap: 6px;
     width: 100%;
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--accent);
     background: rgba(99, 102, 241, 0.08);
@@ -2783,7 +2783,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     }
 
     .autopilot-container .ap-hero-switch-state {
-        font-size: 10px !important;
+        font-size: 12px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
@@ -2799,13 +2799,13 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     }
 
     .autopilot-container .ap-cylon-label {
-        font-size: 8px !important;
+        font-size: 12px !important;
         letter-spacing: 0.5px !important;
         white-space: nowrap !important;
     }
 
     .autopilot-container .ap-cylon-time {
-        font-size: 11px !important;
+        font-size: 12px !important;
         white-space: nowrap !important;
     }
 
@@ -2827,20 +2827,20 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     }
 
     .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget label {
-        font-size: 11.5px !important;
+        font-size: 12px !important;
         white-space: nowrap !important;
         gap: 4px !important;
     }
 
     .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget select {
         height: 24px !important;
-        font-size: 11px !important;
+        font-size: 12px !important;
         padding: 0 4px !important;
     }
 
     .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget button {
         height: 24px !important;
-        font-size: 11px !important;
+        font-size: 12px !important;
         padding: 0 6px !important;
         white-space: nowrap !important;
     }
@@ -2848,7 +2848,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     /* Badge d'état externe (Actif / Déverrouillé) */
     .autopilot-container #apBankSyncGroup .bank-sync-auto-sync-widget > span {
         height: 24px !important;
-        font-size: 11px !important;
+        font-size: 12px !important;
         padding: 0 8px !important;
         white-space: nowrap !important;
         display: inline-flex !important;
@@ -2933,7 +2933,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         max-width: 65% !important;
     }
     .ap-decision-badge-wrap .ov-ap-decision-badge {
-        font-size: 10.5px !important;
+        font-size: 12px !important;
         padding: 2.5px 7px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
@@ -2943,7 +2943,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         display: inline-flex !important;
     }
     .ap-decision-score-badge {
-        font-size: 10px !important;
+        font-size: 12px !important;
         padding: 1.5px 5px !important;
     }
     .ap-decision-amount-mobile {
@@ -2979,12 +2979,12 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         gap: 4px 6px !important;
     }
     .ap-decision-raw-label {
-        font-size: 11px !important;
+        font-size: 12px !important;
         color: var(--text-muted) !important;
         word-break: break-all !important;
     }
     .ap-decision-meta {
-        font-size: 11px !important;
+        font-size: 12px !important;
         color: var(--text-muted) !important;
         display: flex !important;
         align-items: center !important;
@@ -2994,7 +2994,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         line-height: 1.3 !important;
     }
     .ap-decision-meta .ap-reason-badge {
-        font-size: 10.5px !important;
+        font-size: 12px !important;
         padding: 1px 6px !important;
     }
 
@@ -3024,11 +3024,12 @@ body.theme-titanium-light .ap-threshold-apply-btn {
         align-items: center !important;
     }
     .ap-decision-actions .btn {
-        font-size: 11px !important;
-        padding: 5px 9px !important;
-        height: 30px !important;
-        min-height: 30px !important;
-        max-height: 30px !important;
+        font-size: 12px !important;
+        padding: 5px 12px !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        min-width: 40px !important;
+        max-height: 40px !important;
         line-height: 1 !important;
         border-radius: 6px !important;
         display: inline-flex !important;
@@ -3099,7 +3100,7 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 
     .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
         padding: 0 8px !important;
-        font-size: 11.5px !important;
+        font-size: 12px !important;
         gap: 5px !important;
     }
 
@@ -3148,12 +3149,12 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 
     .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
         padding: 0 6px !important;
-        font-size: 11.5px !important;
+        font-size: 12px !important;
         gap: 4px !important;
     }
 
     .autopilot-container .ap-briques-badge {
-        font-size: 9.5px !important;
+        font-size: 12px !important;
         padding: 1px 4px !important;
     }
 
@@ -3169,11 +3170,11 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     }
 
     .autopilot-container .ap-cylon-label {
-        font-size: 7.5px !important;
+        font-size: 12px !important;
     }
 
     .autopilot-container .ap-cylon-time {
-        font-size: 10.5px !important;
+        font-size: 12px !important;
     }
 
     /* Tiroir de réglages en plein écran sur smartphone */
@@ -3204,14 +3205,20 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     }
 
     .autopilot-container .ap-cylon-time {
-        font-size: 9.5px !important;
+        font-size: 12px !important;
     }
 
     .autopilot-container .ap-toolbar-actions-group .ap-header-btn {
-        font-size: 10px !important;
+        font-size: 12px !important;
         padding: 0 4px !important;
     }
 }
 
-
-
+/* Touch: the "Annuler le lot" button and the review-card actions get a 40px target */
+@media (pointer: coarse), (max-width: 768px) {
+    .ap-batch-header .btn,
+    .ap-batch-card .btn-danger[data-batch-id],
+    .ap-review-card .btn {
+        min-height: 40px;
+    }
+}

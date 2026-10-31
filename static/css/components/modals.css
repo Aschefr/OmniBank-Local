@@ -2232,13 +2232,13 @@ body.theme-titanium-light .data-table th {
 .coming-badge,
 .ghost-badge,
 .sim-badge {
-    font-size: 11.5px !important;
+    font-size: 12px !important;
     line-height: 1.35 !important;
 }
 
 /* 7. Boutons de navigation et d'actions */
 .btn-xs {
-    font-size: 11.5px !important;
+    font-size: 12px !important;
 }
 
 .btn-sm {
