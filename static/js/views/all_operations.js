@@ -965,7 +965,7 @@ window.AllOperationsView = {
                 row.classList.add(cssClass);
                 row.style.setProperty('background-color', highlightColor, 'important');
                 row.style.setProperty('outline', '2px solid #8b5cf6', 'important');
-                row.querySelectorAll('td').forEach(td => {
+                (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                     td.classList.add(cssClass);
                     td.style.setProperty('background-color', highlightColor, 'important');
                 });
@@ -975,7 +975,7 @@ window.AllOperationsView = {
                     row.style.transition = 'background-color 1s ease-out, outline 1s ease-out';
                     row.style.setProperty('background-color', 'transparent', 'important');
                     row.style.setProperty('outline', '2px solid transparent', 'important');
-                    row.querySelectorAll('td').forEach(td => {
+                    (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                         td.style.transition = 'background-color 1s ease-out';
                         td.style.setProperty('background-color', 'transparent', 'important');
                     });
@@ -986,7 +986,7 @@ window.AllOperationsView = {
                         row.style.removeProperty('background-color');
                         row.style.removeProperty('outline');
                         row.style.removeProperty('transition');
-                        row.querySelectorAll('td').forEach(td => {
+                        (row.closest('.mobile-card-table') ? [] : row.querySelectorAll('td')).forEach(td => {
                             td.classList.remove(cssClass);
                             td.style.removeProperty('background-color');
                             td.style.removeProperty('transition');
