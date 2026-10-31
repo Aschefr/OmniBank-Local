@@ -809,11 +809,6 @@ class App {
         // The former full dashboard ('overview_full') is retired: saved views and old links open the Cockpit.
         if (viewName === 'overview_full') viewName = 'overview';
         const navView = viewName;
-        if (viewName === 'overview') {
-            ProfileStorage.set('overview_display_mode', 'cockpit');
-            if (this.config) this.config.overview_display_mode = 'cockpit';
-            if (window.OverviewView) window.OverviewView._displayMode = 'cockpit';
-        }
         this.currentView = viewName;
 
         if (window.ErrorReporter && typeof window.ErrorReporter.recordBreadcrumb === 'function') {
