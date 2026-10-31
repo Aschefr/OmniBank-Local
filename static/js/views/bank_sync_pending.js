@@ -489,6 +489,7 @@ Object.assign(window.BankSyncView, {
         const totalItems = (ghostCount || 0) + (confirmedCount || 0);
         if (totalItems === 0 && !hasDiscrepancy) {
             btn.classList.remove('active');
+            this._syncPendingMenuItem();
             return;
         }
 
@@ -509,6 +510,24 @@ Object.assign(window.BankSyncView, {
                 cnt.style.display = 'inline-block';
             }
         }
+        this._syncPendingMenuItem();
+    },
+
+    // Mobile "⋯" menu entry mirrors the header pending button (label + count)
+    _syncPendingMenuItem() {
+        const btn = document.getElementById('btnMobilePendingSync');
+        const item = document.getElementById('btnTimelinePendingMenu');
+        if (!btn || !item) return;
+        const lbl = document.getElementById('btnMobilePendingSyncLabel');
+        const cnt = document.getElementById('btnMobilePendingSyncCount');
+        const count = cnt ? cnt.textContent.trim() : '';
+        const hasPending = btn.classList.contains('active') && count !== '' && count !== '0';
+        const badge = item.querySelector('.pending-menu-count');
+        item.querySelector('.pending-menu-label').textContent = lbl ? lbl.textContent : '';
+        badge.textContent = count;
+        badge.hidden = !hasPending;
+        const header = document.getElementById('timelineHeader');
+        if (header) header.classList.toggle('has-pending', hasPending);
     },
 
     _renderSmartOriginIcon(g) {

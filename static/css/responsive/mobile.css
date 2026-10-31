@@ -4875,7 +4875,7 @@ button, .btn, .nav-btn, [role="button"] {
     }
 
     #historyHeader .mobile-actions-toggle,
-    #timelineHeader .mobile-period-toggle[hidden] + .mobile-actions-toggle {
+    #timelineHeader .mobile-period-toggle[hidden] ~ .mobile-actions-toggle {
         margin-left: auto;
     }
 
@@ -4996,14 +4996,43 @@ button, .btn, .nav-btn, [role="button"] {
 }
 
 @media (max-width: 768px) {
-    /* "En attente": icon + count only, the header row stays on one line */
-    #timelineHeader #btnMobilePendingSyncLabel {
+    /* "En attente" lives in the "⋯" menu; a dot on "⋯" signals pending items */
+    #timelineHeader .mobile-pending-sync-btn {
+        display: none !important;
+    }
+
+    #timelineHeader .mobile-pending-menu-item .pending-menu-count[hidden] {
         display: none;
     }
 
-    #timelineHeader .mobile-pending-sync-btn.active {
-        height: 36px;
-        padding: 0 10px;
-        white-space: nowrap;
+    #timelineHeader .mobile-pending-menu-item .pending-menu-count {
+        margin-left: auto;
+        min-width: 22px;
+        padding: 1px 7px;
+        border-radius: 11px;
+        background: #f59e0b;
+        color: #111;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
     }
+
+    #timelineHeader.has-pending .mobile-actions-toggle {
+        position: relative;
+    }
+
+    #timelineHeader.has-pending .mobile-actions-toggle::after {
+        content: "";
+        position: absolute;
+        top: 5px;
+        right: 6px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f59e0b;
+    }
+}
+
+.mobile-pending-menu-item {
+    display: none !important;
 }
