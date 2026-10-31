@@ -3,19 +3,19 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
     renderTableView(tableContainer, displayTemplates) {
         let tableHtml = `
             <div class="table-responsive" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                 <table class="data-table mobile-card-table" style="width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px;">
+                 <table class="data-table mobile-card-table rec-table" style="width: 100%; table-layout: auto; border-collapse: separate; border-spacing: 0; margin-top: 10px;">
                     <thead>
                         <tr style="text-align: left; background: rgba(0, 0, 0, 0.02); border-bottom: 2px solid var(--border-color); user-select: none;">
                             <th style="width: 3px; padding: 0; overflow: visible;"></th>
                             <th style="padding: 12px; width: 45px; text-align: center;"></th>
-                            <th style="padding: 12px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
-                            <th style="padding: 12px; width: 170px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
-                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
-                            <th style="padding: 12px; width: 100px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('status')">${window.i18n.t('col_status')} ${this.getSortArrow('status')}</th>
-                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
-                            <th style="padding: 12px; width: 130px; text-align: center; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
-                            <th style="padding: 12px; width: 120px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
-                            <th style="padding: 12px; width: 140px; text-align: right; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
+                            <th style="padding: 12px; min-width: 150px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('description')">${window.i18n.t('col_description')} ${this.getSortArrow('description')}</th>
+                            <th style="padding: 12px; width: 140px; min-width: 140px; white-space: nowrap; cursor: pointer;" onclick="window.RecurrenceView.setSort('category')">${window.i18n.t('col_category')} ${this.getSortArrow('category')}</th>
+                            <th style="padding: 12px; width: 104px; min-width: 104px; text-align: center; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('frequency')">${window.i18n.t('wizard_th_frequency') || 'Frequency'} ${this.getSortArrow('frequency')}</th>
+                            <th style="padding: 12px; width: 88px; min-width: 88px; text-align: center; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('status')">${window.i18n.t('col_status')} ${this.getSortArrow('status')}</th>
+                            <th style="padding: 12px; width: 100px; min-width: 100px; text-align: center; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('day')">${window.i18n.t('wizard_th_day') || 'Day of month'} ${this.getSortArrow('day')}</th>
+                            <th style="padding: 12px; width: 108px; min-width: 108px; text-align: center; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('progress')">${window.i18n.t('col_progress') || 'Progression'} ${this.getSortArrow('progress')}</th>
+                            <th style="padding: 12px; width: 100px; min-width: 100px; text-align: right; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('amount')">${window.i18n.t('col_amount')} ${this.getSortArrow('amount')}</th>
+                            <th style="padding: 12px; width: 112px; min-width: 112px; text-align: right; white-space: normal; cursor: pointer;" onclick="window.RecurrenceView.setSort('annual_total')">${window.i18n.t('col_total_annual') || 'Annual Total'} ${this.getSortArrow('annual_total')}</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -45,12 +45,37 @@ window.TrendsView = {
                         margin-bottom: 24px;
                         align-items: stretch;
                     }
+                    /* Year overlay: chart on top, comparison table full width below (no crushed side column) */
                     .trends-with-alignment .trends-split-layout {
-                        height: calc(100vh - 400px);
+                        height: auto;
+                        flex-direction: column;
+                        flex-wrap: nowrap;
+                    }
+                    .trends-with-alignment .trends-chart-pane {
+                        flex: none !important;
+                        height: calc(100vh - 430px) !important;
+                        min-height: 380px;
+                    }
+                    .trends-with-alignment .trends-table-pane {
+                        flex: none !important;
+                        height: auto !important;
+                        width: 100%;
+                        box-sizing: border-box;
                     }
                     .trends-chart-pane, .trends-table-pane {
                         height: 100% !important;
                     }
+                }
+            </style>
+
+            <style>
+                @media (max-width: 991px) {
+                    .trends-chart-pane { height: 360px !important; min-height: 360px; flex: none !important; padding: 14px !important; }
+                    .trends-chart-pane > button { top: 6px !important; right: 6px !important; }
+                    .trends-table-pane { padding: 14px !important; min-width: 0 !important; overflow-x: auto; }
+                    #trendsComparisonContainer th, #trendsComparisonContainer td { padding: 8px 4px !important; white-space: nowrap; font-size: 12px !important; letter-spacing: 0 !important; }
+                    .trends-chart-pane > button { display: none !important; }
+                    #trendsComparisonContainer td:last-child .btn, #trendsComparisonContainer td:last-child button { padding: 6px 8px !important; min-height: 36px; }
                 }
             </style>
 
@@ -131,7 +156,7 @@ window.TrendsView = {
                 <!-- Comparative Table (Right pane: 30% or 100% on small screens) -->
                 <div id="trendsComparisonContainer" class="trends-table-pane" style="display:none; flex:1 1 30%; min-width:300px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:12px; padding:20px; overflow-y:auto;">
                     <h3 style="margin-top:0;margin-bottom:15px;font-size:14px;color:var(--text-main);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">📊 Comparatif détaillé</h3>
-                    <table class="data-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+                    <table class="data-table" style="width:100%; table-layout:auto; border-collapse:collapse; font-size:13px;">
                         <thead>
                             <tr style="border-bottom:1px solid var(--border-color);">
                                 <th style="text-align:left; padding:8px 6px;" data-i18n="trends_th_year">${window.i18n.t('trends_th_year')}</th>
