@@ -214,7 +214,7 @@ window.AutopilotView = {
                                     ${this._icons.steeringWheel}
                                 </span>
                                 <span data-i18n="autopilot_control_center_title">${window.i18n.t('autopilot_control_center_title') || 'Centre de Contrôle Auto-Pilote'}</span>
-                                <span id="apStatusBadge" class="badge" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_status_badge_tooltip') : 'Cliquez pour afficher le résumé de mission Auto-Pilote'}" style="font-size: 11px; padding: 3px 10px; border-radius: 12px; vertical-align: middle; cursor: pointer; transition: transform 0.15s ease;"></span>
+                                <span id="apStatusBadge" class="badge" onclick="window.AutopilotView.showEngagementHud()" title="${window.i18n ? window.i18n.t('autopilot_status_badge_tooltip') : 'Cliquez pour afficher le résumé de mission Auto-Pilote'}" style="font-size: 12px; padding: 3px 10px; border-radius: 12px; vertical-align: middle; cursor: pointer; transition: transform 0.15s ease;"></span>
                             </h2>
                             <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px;" data-i18n="autopilot_control_center_desc">
                                 ${window.i18n.t('autopilot_control_center_desc') || 'Supervisez l\'autonomie de vos flux bancaires, ajustez le seuil de tolérance et annulez des décisions en un clic.'}
@@ -236,7 +236,7 @@ window.AutopilotView = {
                                 <span class="ap-btn-icon">${this._icons.settings}</span>
                                 <span class="ap-btn-label ap-btn-label-full" data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span>
                                 <span class="ap-btn-label ap-btn-label-short" data-i18n="autopilot_settings_short" style="display: none;">${window.i18n ? (window.i18n.t('autopilot_settings_short') || 'Réglages') : 'Réglages'}</span>
-                                <span id="apActiveBriquesBadge" class="badge ap-briques-badge" style="font-size: 10.5px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/14</span>
+                                <span id="apActiveBriquesBadge" class="badge ap-briques-badge" style="font-size: 12px; background: rgba(99,102,241,0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 6px;">--/14</span>
                             </button>
                         </div>
 
@@ -395,7 +395,7 @@ window.AutopilotView = {
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
                                         <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
                                     </label>
-                                    <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 11.5px; padding: 4px 10px;" data-i18n="autopilot_feed_collapse_batches">
+                                    <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 12px; padding: 4px 10px;" data-i18n="autopilot_feed_collapse_batches">
                                         ${window.i18n ? window.i18n.t('autopilot_feed_collapse_batches') : 'Replier les lots'}
                                     </button>
                                 </div>
@@ -527,7 +527,7 @@ window.AutopilotView = {
                                     <h4 style="font-size: 13.5px; margin: 0 0 4px 0; font-weight: 700; display: flex; align-items: center; gap: 6px;" data-i18n="autopilot_threshold_title">
                                         <span style="color: var(--accent); display: inline-flex;">${this._icons.target}</span> <span>${window.i18n.t('autopilot_threshold_title') || 'Seuil de Tolérance & Confiance'}</span>
                                     </h4>
-                                    <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_threshold_desc">
+                                    <p style="font-size: 12px; color: var(--text-muted); margin: 0;" data-i18n="autopilot_threshold_desc">
                                         ${window.i18n.t('autopilot_threshold_desc') || 'Score minimal requis pour exécuter un rapprochement ou une écriture en toute autonomie.'}
                                     </p>
                                 </div>
@@ -535,7 +535,7 @@ window.AutopilotView = {
                             </div>
                             <div style="margin: 14px 0 6px;">
                                 <input type="range" id="thresholdSlider" min="70" max="99" step="1" value="85" style="width: 100%; cursor: pointer;" oninput="window.AutopilotView.onThresholdSliderChange(this.value)" onchange="window.AutopilotView.saveThreshold(this.value)">
-                                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 6px;">
                                     <span>70% (${window.i18n.t('autopilot_threshold_permissive') || 'Permissif'})</span>
                                     <span>85% (${window.i18n.t('autopilot_threshold_balanced') || 'Équilibré'})</span>
                                     <span>99% (${window.i18n.t('autopilot_threshold_strict') || 'Strict'})</span>
@@ -558,9 +558,9 @@ window.AutopilotView = {
                                     <span style="color: var(--accent); display: inline-flex;">${this._icons.shield}</span>
                                     <span data-i18n="autopilot_preset_title">${window.i18n ? window.i18n.t('autopilot_preset_title') : 'Profils d\'autonomie'}</span>
                                 </h4>
-                                <span id="apCurrentPresetBadge" class="badge" style="font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); color: var(--accent);">--</span>
+                                <span id="apCurrentPresetBadge" class="badge" style="font-size: 12px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); color: var(--accent);">--</span>
                             </div>
-                            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 12px 0;" data-i18n="autopilot_preset_desc">
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px 0;" data-i18n="autopilot_preset_desc">
                                 ${window.i18n ? window.i18n.t('autopilot_preset_desc') : 'Sélectionnez un mode préconfiguré ou personnalisez vos automatismes :'}
                             </p>
                             <div class="ap-preset-grid">
@@ -606,7 +606,7 @@ window.AutopilotView = {
                                 <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                                     <span style="color: var(--accent); display: inline-flex;">${this._icons.package}</span> <span data-i18n="autopilot_drawer_briques_title">${window.i18n ? window.i18n.t('autopilot_drawer_briques_title') : 'Les 15 Automatismes d\'Auto-Pilote'}</span>
                                 </h4>
-                                <span style="font-size: 11px; color: var(--text-muted);" data-i18n="autopilot_drawer_briques_subtitle">${window.i18n ? window.i18n.t('autopilot_drawer_briques_subtitle') : 'Contrôle fin à la carte'}</span>
+                                <span style="font-size: 12px; color: var(--text-muted);" data-i18n="autopilot_drawer_briques_subtitle">${window.i18n ? window.i18n.t('autopilot_drawer_briques_subtitle') : 'Contrôle fin à la carte'}</span>
                             </div>
                             <div id="apSubtogglesDrawerList">
                                 <!-- Injected dynamically by renderSubtogglesInDrawer() -->
@@ -1057,7 +1057,7 @@ window.AutopilotView = {
 
         if (!isVaultUnlocked) {
             this._stopActiveSyncTracker();
-            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 11px; cursor: pointer; font-weight:700;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">🔒 ${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
+            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 12px; cursor: pointer; font-weight:700;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">🔒 ${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
             return;
         }
 
@@ -1399,7 +1399,7 @@ window.AutopilotView = {
                             <span style="display: inline-flex; align-items: center; color: var(--accent);">${groupIcon}</span>
                             <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${escapeHtml(catTitle)}</span>
                         </div>
-                        <span class="badge" style="font-size: 10.5px; background: rgba(99,102,241,0.12); color: var(--accent);">
+                        <span class="badge" style="font-size: 12px; background: rgba(99,102,241,0.12); color: var(--accent);">
                             ${groupActiveCount}/${group.items.length}
                         </span>
                     </div>
@@ -1415,12 +1415,12 @@ window.AutopilotView = {
                                         <div style="font-size: 12.5px; font-weight: 600; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                             <span>${escapeHtml(itemLabel)}</span>
                                             ${isAutopilotDriven ? `
-                                                <span class="badge" style="font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                                <span class="badge" style="font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
                                                     🤖 ${window.i18n ? window.i18n.t('autopilot_badge_driven') : 'Auto-Pilote'}
                                                 </span>
                                             ` : ''}
                                         </div>
-                                        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.35;">
+                                        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.35;">
                                             ${escapeHtml(itemDesc)}
                                         </div>
                                     </div>
@@ -1629,7 +1629,7 @@ window.AutopilotView = {
                 <!-- Desktop Table View -->
                 <table class="table ap-review-desktop-table" style="width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px; table-layout: fixed;">
                     <thead>
-                        <tr style="text-align: left; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
+                        <tr style="text-align: left; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color);">
                             <th class="ap-col-date" style="padding: 8px 10px; width: 90px;" data-i18n="autopilot_review_th_date">${window.i18n ? window.i18n.t('autopilot_review_th_date') : 'Date'}</th>
                             <th class="ap-col-account" style="padding: 8px 10px; width: 125px;" data-i18n="label_account">${window.i18n ? window.i18n.t('label_account') : 'Compte'}</th>
                             <th class="ap-col-desc" style="padding: 8px 10px; min-width: 0;" data-i18n="autopilot_review_th_desc">${window.i18n ? window.i18n.t('autopilot_review_th_desc') : 'Libellé Brut & Identifié'}</th>
@@ -1667,9 +1667,9 @@ window.AutopilotView = {
                                 </td>
                                 <td class="ap-col-desc" style="padding: 10px; vertical-align: middle; min-width: 0; overflow: hidden;">
                                     <div style="font-weight: 600; font-size: 13px; color: var(--text-main); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.description || item.raw_description || '')}</div>
-                                    ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                    ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.raw_description)}</div>` : ''}
                                     ${bestCandidate ? `
-                                        <div class="candidate-forecast-pill" style="margin-top: 6px; font-size: 11.5px; background: rgba(99,102,241,0.08); padding: 4px 8px 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; max-width: 100%; box-sizing: border-box;">
+                                        <div class="candidate-forecast-pill" style="margin-top: 6px; font-size: 12px; background: rgba(99,102,241,0.08); padding: 4px 8px 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; max-width: 100%; box-sizing: border-box;">
                                             <span class="candidate-forecast-pill-content" style="display: inline-flex; align-items: center; gap: 5px; min-width: 0; flex: 1; overflow: hidden;">
                                                 <span style="color: var(--accent); display: inline-flex; flex-shrink: 0;">${this._icons.link}</span>
                                                 <span class="candidate-forecast-pill-text" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;">
@@ -1679,7 +1679,7 @@ window.AutopilotView = {
                                                 </span>
                                             </span>
                                             <div class="candidate-forecast-action" style="display: inline-flex; align-items: center; flex-shrink: 0; margin-left: auto;">
-                                                <button type="button" class="btn btn-sm" style="background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; font-size: 11px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${linkBtnTitle}">
+                                                <button type="button" class="btn btn-sm" style="background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; font-size: 12px; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;" onclick="window.AutopilotView.promptInlineLinkConfirm(this, ${item.id}, ${bestCandidate.id})" title="${linkBtnTitle}">
                                                     ${this._icons.link} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_link_short') || 'Lier') : 'Lier'}</span>
                                                 </button>
                                             </div>
@@ -1687,22 +1687,22 @@ window.AutopilotView = {
                                     ` : ''}
                                 </td>
                                 <td class="ap-col-category" style="padding: 10px; vertical-align: middle;">
-                                    <span class="badge" style="font-size: 11px; font-weight: 600; max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;" title="${escapeHtml(item.category || '—')}">${escapeHtml(item.category || '—')}</span>
+                                    <span class="badge" style="font-size: 12px; font-weight: 600; max-width: 105px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;" title="${escapeHtml(item.category || '—')}">${escapeHtml(item.category || '—')}</span>
                                 </td>
                                 <td class="ap-col-amount" style="padding: 10px; text-align: right; white-space: nowrap; font-weight: 700; font-size: 13px; color: ${amtColor}; vertical-align: middle;">
                                     <span class="privacy-blur">${amtStr}</span>
                                 </td>
                                 <td class="ap-col-confidence" style="padding: 10px; text-align: center; white-space: nowrap; vertical-align: middle;">
-                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 11px; padding: 3px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 12px; padding: 3px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </td>
                                 <td class="ap-col-actions" style="padding: 10px 12px; text-align: right; white-space: nowrap; vertical-align: middle;">
                                     <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end; min-width: 160px;">
-                                        <button type="button" class="btn btn-secondary btn-sm" style="padding: 5px 9px; font-size: 11.5px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${confirmBtnTooltip}">
+                                        <button type="button" class="btn btn-secondary btn-sm" style="padding: 5px 9px; font-size: 12px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="window.AutopilotView.validateReviewItem(${item.id}, this)" title="${confirmBtnTooltip}">
                                             ${this._icons.check} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_confirm') || 'Valider') : 'Valider'}</span>
                                         </button>
-                                        <button type="button" class="btn btn-primary btn-sm" style="padding: 5px 9px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
+                                        <button type="button" class="btn btn-primary btn-sm" style="padding: 5px 9px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" onclick="window.AutopilotView.openReviewModal(${item.id})" title="${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Corriger libellé / catégorie') : 'Corriger libellé / catégorie'}">
                                             ${this._icons.edit} <span>${window.i18n ? (window.i18n.t('autopilot_review_btn_edit') || 'Éditer') : 'Éditer'}</span>
                                         </button>
                                     </div>
@@ -1733,11 +1733,11 @@ window.AutopilotView = {
                         <div class="ap-review-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                             <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <span class="account-badge" style="background:${item.account_color || '#6366f1'}18; color:${item.account_color || '#6366f1'}; border-color:${item.account_color || '#6366f1'}40; font-size: 12px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                         <span class="acc-badge-dot" style="background:${item.account_color || '#6366f1'};"></span>
                                         ${escapeHtml(item.account_name || 'Compte')}
                                     </span>
-                                    <span style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;">${dateStr}</span>
+                                    <span style="font-size: 12px; color: var(--text-muted); white-space: nowrap;">${dateStr}</span>
                                 </div>
                                 <div class="privacy-blur" style="font-size: 15px; font-weight: 800; color: ${amtColor}; white-space: nowrap;">
                                     ${amtStr}
@@ -1746,14 +1746,14 @@ window.AutopilotView = {
 
                             <div>
                                 <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); word-break: break-word; line-height: 1.35;">${escapeHtml(item.description || item.raw_description || '')}</div>
-                                ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 11px; color: var(--text-muted); font-family: monospace; margin-top: 3px; word-break: break-all;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 3px; word-break: break-all;">${escapeHtml(item.raw_description)}</div>` : ''}
                             </div>
 
                             ${bestCandidate ? `
                                 <div class="candidate-forecast-card" style="background: rgba(99,102,241,0.08); border: 1px dashed rgba(99,102,241,0.3); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                                         <div style="min-width: 0;">
-                                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px;">
+                                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 2px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
                                                 ${this._icons.link} <span data-i18n="autopilot_review_forecast_detected">${window.i18n ? window.i18n.t('autopilot_review_forecast_detected') : 'Prévision suggérée :'}</span>
                                             </div>
                                             <div style="font-weight: 600; color: var(--text-main); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -1774,8 +1774,8 @@ window.AutopilotView = {
 
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border-color); margin-top: 2px; gap: 8px; flex-wrap: wrap;">
                                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <span class="badge" style="font-size: 11px; font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.category || '—')}</span>
-                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span class="badge" style="font-size: 12px; font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.category || '—')}</span>
+                                    <span class="badge" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
                                         ${this._icons.alertCircle} ${conf}%
                                     </span>
                                 </div>
@@ -1829,9 +1829,9 @@ window.AutopilotView = {
         const promptText = window.i18n ? (window.i18n.t('autopilot_review_prompt_link_q') || 'Lier à la prévision ?') : 'Lier à la prévision ?';
         parent.innerHTML = `
             <div style="display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: rgba(16, 185, 129, 0.12); padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); flex-shrink: 0; white-space: nowrap;" onclick="event.stopPropagation();">
-                <span style="font-size: 11px; font-weight: 600; color: #10b981; white-space: nowrap;">${promptText}</span>
-                <button type="button" class="btn btn-success btn-sm" style="font-size: 11px; font-weight: 700; padding: 2px 7px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; line-height: 1.2; white-space: nowrap;" onclick="event.stopPropagation(); window.AutopilotView.linkReviewItem(${txId}, ${forecastId}, this)">✓ Oui</button>
-                <button type="button" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.2; white-space: nowrap;" onclick="event.stopPropagation(); window.AutopilotView.cancelInlineLinkConfirm(this)">✕</button>
+                <span style="font-size: 12px; font-weight: 600; color: #10b981; white-space: nowrap;">${promptText}</span>
+                <button type="button" class="btn btn-success btn-sm" style="font-size: 12px; font-weight: 700; padding: 2px 7px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; line-height: 1.2; white-space: nowrap;" onclick="event.stopPropagation(); window.AutopilotView.linkReviewItem(${txId}, ${forecastId}, this)">✓ Oui</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1.2; white-space: nowrap;" onclick="event.stopPropagation(); window.AutopilotView.cancelInlineLinkConfirm(this)">✕</button>
             </div>
         `;
     },
@@ -2137,15 +2137,15 @@ window.AutopilotView = {
                                 <span style="font-weight: 700; font-size: 12.5px;">${escapeHtml(batchLabel)}</span>
                                 ${!isUnbatched ? `<code class="ap-batch-code">${escapeHtml(batchShortDisplay)}</code>` : ''}
                             </span>
-                            <span style="font-size: 11.5px; color: var(--text-muted);">${batchDate}</span>
-                            <span class="badge" style="font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${escapeHtml(actionsCountLabel)}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${batchDate}</span>
+                            <span class="badge" style="font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${escapeHtml(actionsCountLabel)}</span>
                         </div>
                         <div onclick="event.stopPropagation()">
                             ${!isAllUndone && !isUnbatched ? `
-                                <button class="btn btn-danger btn-sm" style="font-size: 11px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
+                                <button class="btn btn-danger btn-sm" style="font-size: 12px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
                                     ${this._icons.undo} <span data-i18n="autopilot_feed_batch_rollback">${window.i18n ? window.i18n.t('autopilot_feed_batch_rollback') : 'Annuler le lot'}</span>
                                 </button>
-                            ` : (isAllUndone ? `<span style="font-size: 11px; color: #ef4444; font-style: italic;" data-i18n="autopilot_feed_batch_undone">${window.i18n ? window.i18n.t('autopilot_feed_batch_undone') : 'Lot annulé'}</span>` : '')}
+                            ` : (isAllUndone ? `<span style="font-size: 12px; color: #ef4444; font-style: italic;" data-i18n="autopilot_feed_batch_undone">${window.i18n ? window.i18n.t('autopilot_feed_batch_undone') : 'Lot annulé'}</span>` : '')}
                         </div>
                     </div>
                     <div class="ap-batch-body" style="padding: 10px 16px;">
@@ -2323,36 +2323,36 @@ window.AutopilotView = {
             const deltaPct = d.details.delta_pct !== undefined ? d.details.delta_pct : null;
             amtColor = deltaPct !== null && deltaPct > 0 ? '#10b981' : (deltaPct !== null && deltaPct < 0 ? '#f59e0b' : 'var(--text-main)');
             amtDisplay = cur !== null
-                ? `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${cur} € ➔</span> ${sug} €`
+                ? `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${cur} € ➔</span> ${sug} €`
                 : `${sug} €`;
             if (deltaPct !== null) {
-                amtDisplay += ` <span style="font-size: 10px; opacity: 0.85;">(${deltaPct > 0 ? '+' : ''}${deltaPct}%)</span>`;
+                amtDisplay += ` <span style="font-size: 12px; opacity: 0.85;">(${deltaPct > 0 ? '+' : ''}${deltaPct}%)</span>`;
             }
         } else if (d.decision_type === 'recurrence_hike' && d.details && d.details.new_amount !== undefined) {
             const oldAmt = d.details.old_amount !== undefined ? Number(d.details.old_amount).toFixed(2) : null;
             const newAmt = Number(d.details.new_amount).toFixed(2);
             amtDisplay = oldAmt !== null
-                ? `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`
+                ? `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`
                 : `${newAmt} €`;
             amtColor = '#10b981';
         } else if (d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined) {
             const oldAmt = Number(d.details.old_amount).toFixed(2);
             const newAmt = Number(d.details.new_amount).toFixed(2);
-            amtDisplay = `<span style="font-size: 11px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`;
+            amtDisplay = `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`;
             amtColor = 'var(--text-main)';
         } else if (d.decision_type === 'transfer_link') {
             amtDisplay = `${d.amount < 0 ? '-' : '+'}${Math.abs(d.amount).toFixed(2)} €`;
             amtColor = 'var(--text-main)';
         } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 11px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Ignorée</span>`;
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 12px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 12px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Ignorée</span>`;
             amtColor = 'var(--text-muted)';
         } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 11px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 10px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Clôturé</span>`;
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 12px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 12px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Clôturé</span>`;
             amtColor = 'var(--text-muted)';
         } else if (isOverridden && uo.amount_changed && uo.original_amount !== null && uo.original_amount !== undefined) {
             const origAmt = Number(uo.original_amount).toFixed(2);
             const origAmtTip = window.i18n ? window.i18n.t('autopilot_feed_original_amount').replace('{amount}', origAmt) : `Montant initial : ${origAmt} €`;
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.55; font-size: 11px; font-weight: normal; margin-right: 2px;" title="${escapeHtml(origAmtTip)}">${origAmt} €</span> <span class="ap-override-arrow">➔</span> ${amtDisplay}`;
+            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.55; font-size: 12px; font-weight: normal; margin-right: 2px;" title="${escapeHtml(origAmtTip)}">${origAmt} €</span> <span class="ap-override-arrow">➔</span> ${amtDisplay}`;
         }
 
         // Label display (support manual rename override)
@@ -2389,7 +2389,7 @@ window.AutopilotView = {
         if (d.details && (d.details.linked_to_forecast_description || d.details.forecast_description)) {
             const forecastDesc = d.details.linked_to_forecast_description || d.details.forecast_description;
             reasonBadgeHtml = `
-                <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 10px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
+                <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 12px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
                     🔗 Liée à : ${escapeHtml(forecastDesc)}
                 </span>
             `;
@@ -2891,7 +2891,7 @@ window.AutopilotView = {
                 candContainer.style.display = 'block';
                 candContainer.innerHTML = `
                     <div style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
-                        <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                             <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.link}</span> <span data-i18n="autopilot_override_forecast_candidates_title">${window.i18n ? window.i18n.t('autopilot_override_forecast_candidates_title') : 'Prévision(s) récurrente(s) suggérée(s) pour fusion :'}</span>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -2899,12 +2899,12 @@ window.AutopilotView = {
                                 <div class="candidate-forecast-card" data-forecast-id="${cf.id}" data-desc="${escapeHtml(cf.description)}" data-cat="${escapeHtml(cf.category || '')}" data-amount="${cf.amount}" style="padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.15s ease; gap: 14px;" onclick="window.AutopilotView.onCandidateCardClick(this)" title="${window.i18n ? window.i18n.t('autopilot_override_forecast_select_title') : 'Sélectionner pour fusionner avec cette prévision'}">
                                     <div style="flex: 1; min-width: 0;">
                                         <div style="font-weight: 600; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(cf.description)}</div>
-                                        <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">${window.i18n ? window.i18n.t('autopilot_override_forecast_candidate_due').replace('{date}', cf.date_operation || cf.date || '—').replace('{category}', escapeHtml(cf.category || '—')) : `Prévu le ${cf.date_operation || cf.date || '—'} • Catégorie : ${escapeHtml(cf.category || '—')}`}</div>
+                                        <div style="font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">${window.i18n ? window.i18n.t('autopilot_override_forecast_candidate_due').replace('{date}', cf.date_operation || cf.date || '—').replace('{category}', escapeHtml(cf.category || '—')) : `Prévu le ${cf.date_operation || cf.date || '—'} • Catégorie : ${escapeHtml(cf.category || '—')}`}</div>
                                     </div>
                                     <div class="candidate-forecast-action" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
                                         <span class="privacy-blur" style="font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap;">${Number(cf.amount).toFixed(2)} €</span>
                                         <span class="candidate-forecast-btn-wrap" style="display: inline-flex; align-items: center;">
-                                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 11.5px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})">
+                                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 12px; font-weight: 700; padding: 5px 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="event.stopPropagation(); window.AutopilotView.promptInlineLinkConfirm(this, ${txId}, ${cf.id})">
                                                 ${this._icons.link} <span>Lier</span>
                                             </button>
                                         </span>
@@ -3193,7 +3193,7 @@ window.AutopilotView = {
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                             <td style="padding: 6px 8px; font-family: monospace; color: var(--text-muted);">${escapeHtml(r.raw_pattern || '')}</td>
                             <td style="padding: 6px 8px; font-weight: 600;">${escapeHtml(r.clean_label || r.clean_description || '—')}</td>
-                            <td style="padding: 6px 8px;"><span class="badge" style="font-size: 10.5px;">${escapeHtml(r.category || '—')}</span></td>
+                            <td style="padding: 6px 8px;"><span class="badge" style="font-size: 12px;">${escapeHtml(r.category || '—')}</span></td>
                             <td style="padding: 6px 8px; text-align: right; color: var(--text-muted);">${r.is_manual ? 'Manuel' : 'Auto-Appris'}</td>
                         </tr>
                     `).join('')}
