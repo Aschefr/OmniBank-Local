@@ -162,7 +162,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             <tr style="border-bottom: 1px solid var(--border-color);">
                 <td style="padding: 7px 10px; white-space: nowrap;">
                     <span style="font-weight: 700; color: var(--accent); font-size: 12px;">${r.from_currency}</span>
-                    <span style="color: var(--text-muted); font-size: 10px; margin: 0 3px;">➔</span>
+                    <span style="color: var(--text-muted); font-size: 12px; margin: 0 3px;">➔</span>
                     <span style="font-weight: 700; color: var(--text-main); font-size: 12px;">${r.to_currency}</span>
                 </td>
                 <td style="padding: 7px 10px; font-weight: 600; color: var(--text-main); font-family: monospace; font-size: 12px;">

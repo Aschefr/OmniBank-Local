@@ -5884,3 +5884,43 @@ button, .btn, .nav-btn, [role="button"] {
         background: var(--bg-surface);
     }
 }
+
+/* ── Dialogs on phones ── */
+@media (max-width: 768px) {
+    /* Setup wizard: the 8-step progress row must fit the screen */
+    .wizard-progress {
+        padding: 0 8px;
+        flex-wrap: nowrap;
+    }
+
+    .wizard-dot-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 13px;
+    }
+
+    .wizard-dot-line {
+        width: 8px;
+    }
+
+    /* Data cleanup toolbox: header actions wrap under the title instead of running off-screen */
+    .cleanup-modal-header {
+        flex-wrap: wrap;
+        padding: 14px 16px;
+    }
+
+    /* Changelog: less padding, more reading width */
+    #changelogModal .modal > div {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    #changelogBody {
+        padding: 16px !important;
+    }
+
+    /* Profile settings: currency and date format on their own lines */
+    .mpf-grid2 {
+        grid-template-columns: 1fr !important;
+    }
+}

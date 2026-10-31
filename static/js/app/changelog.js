@@ -37,7 +37,7 @@ window.AppModules.changelog = {
                         <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); ${isLatest ? 'background: rgba(99, 102, 241, 0.02); padding: 16px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.15);' : ''}">
                             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                                 <div style="display: flex; align-items: center;">
-                                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main);">Version ${release.version}</h4>
+                                    <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main);">${release.version === 'Unreleased' ? window.i18n.t('changelog_unreleased') : 'Version ' + release.version}</h4>
                                     ${badgeHtml}
                                 </div>
                                 <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">${releaseDate}</span>

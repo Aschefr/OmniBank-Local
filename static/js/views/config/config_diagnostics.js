@@ -11,7 +11,7 @@ window.ConfigDiagnostics = {
             <div id="configDiagSection" class="config-card config-diag-section" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); transition: border-color 0.3s ease;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <h3 style="margin: 0;"><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> <span data-i18n="config_diag_title">${window.i18n?.t('config_diag_title') || 'Diagnostics & Rapport d\'Incident'}</span></h3>
-                    <span style="font-size: 11px; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                    <span style="font-size: 12px; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 6px; font-weight: 600;">
                         Zero-Cloud Privacy
                     </span>
                 </div>
@@ -44,10 +44,10 @@ window.ConfigDiagnostics = {
 
                 <div id="diag_preview_container" style="display: none; margin-top: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_diag_preview_title">${window.i18n?.t('config_diag_preview_title') || 'Aperçu du Markdown Anonymisé'}</span>
-                        <button class="btn btn-sm btn-secondary" onclick="window.ConfigDiagnostics.refreshPreview()" style="font-size: 11px; padding: 2px 8px;">🔄 <span data-i18n="config_diag_refresh_preview">${window.i18n?.t('config_diag_refresh_preview') || 'Rafraîchir'}</span></button>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;" data-i18n="config_diag_preview_title">${window.i18n?.t('config_diag_preview_title') || 'Aperçu du Markdown Anonymisé'}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="window.ConfigDiagnostics.refreshPreview()" style="font-size: 12px; padding: 2px 8px;">🔄 <span data-i18n="config_diag_refresh_preview">${window.i18n?.t('config_diag_refresh_preview') || 'Rafraîchir'}</span></button>
                     </div>
-                    <pre id="diag_preview_content" style="max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.4; color: #e2e8f0; margin: 0; white-space: pre-wrap; word-break: break-all;"></pre>
+                    <pre id="diag_preview_content" style="max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.4; color: #e2e8f0; margin: 0; white-space: pre-wrap; word-break: break-all;"></pre>
                 </div>
             </div>
         `;

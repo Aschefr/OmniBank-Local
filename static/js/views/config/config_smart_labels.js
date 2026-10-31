@@ -15,10 +15,10 @@ window.ConfigSmartLabels = {
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <h3 style="margin: 0;"><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span> <span data-i18n="smart_label_section_title">${window.i18n?.t('smart_label_section_title') || 'Règles de correspondance bancaire'}</span></h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button id="btnSmartLabelsAutomations" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11.5px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="window.ConfigSmartLabels.openAutomationsModal()" title="${window.i18n?.t('smart_label_automations_title') || 'Paramètres des automatismes de catégorisation'}">
+                        <button id="btnSmartLabelsAutomations" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" onclick="window.ConfigSmartLabels.openAutomationsModal()" title="${window.i18n?.t('smart_label_automations_title') || 'Paramètres des automatismes de catégorisation'}">
                             <span data-i18n="smart_label_automations_btn">${window.i18n?.t('smart_label_automations_btn') || 'Automatismes'}</span>
                         </button>
-                        <span id="smartLabelsCountBadge" class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">
+                        <span id="smartLabelsCountBadge" class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">
                             0 règle
                         </span>
                     </div>
@@ -34,9 +34,9 @@ window.ConfigSmartLabels = {
                         <span style="font-weight: 700; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
                             <span>${window.i18n?.t('smart_label_sandbox_title') || 'Banc d\'Essai & Simulation Smart Label'}</span>
                         </span>
-                        <span class="badge" style="font-size: 10px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">${window.i18n?.t('smart_label_sandbox_live') || 'Résultat en direct'}</span>
+                        <span class="badge" style="font-size: 12px; font-weight: 600; background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 6px; border-radius: 6px;">${window.i18n?.t('smart_label_sandbox_live') || 'Résultat en direct'}</span>
                     </div>
-                    <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.35;">
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.35;">
                         ${window.i18n?.t('smart_label_sandbox_desc') || 'Testez en direct la normalisation, l\'application de vos règles, la détection d\'habitudes et le fallback IA sur un libellé brut.'}
                     </p>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -56,25 +56,25 @@ window.ConfigSmartLabels = {
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 12px; margin-bottom: 10px;">
                             <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_raw') || 'Libellé brut analysé'}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_raw') || 'Libellé brut analysé'}</div>
                                 <div id="sandboxResRaw" style="font-family: monospace; font-weight: 600; color: var(--text-main); word-break: break-all; margin-top: 2px;"></div>
                             </div>
                             <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_name') || 'Nom retenu'}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_name') || 'Nom retenu'}</div>
                                 <div id="sandboxResName" style="font-weight: 700; color: var(--accent); margin-top: 2px;"></div>
                             </div>
                             <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_cat') || 'Catégorie déduite'}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_cat') || 'Catégorie déduite'}</div>
                                 <div id="sandboxResCat" style="font-weight: 600; color: var(--text-main); margin-top: 2px;"></div>
                             </div>
                             <div style="background: var(--bg-base); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_source') || 'Source d\'analyse'}</div>
+                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${window.i18n?.t('smart_label_sandbox_res_source') || 'Source d\'analyse'}</div>
                                 <div id="sandboxResSource" style="margin-top: 2px;"></div>
                             </div>
                         </div>
-                        <div id="sandboxResExplanation" style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-bottom: 12px; padding: 4px 8px; background: rgba(99, 102, 241, 0.04); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;"></div>
+                        <div id="sandboxResExplanation" style="font-size: 12px; color: var(--text-muted); font-style: italic; margin-bottom: 12px; padding: 4px 8px; background: rgba(99, 102, 241, 0.04); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;"></div>
                         <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
-                            <button id="btnSaveSandboxRule" class="btn btn-primary" onclick="window.ConfigSmartLabels.saveSandboxAsRule()" style="font-size: 11px; padding: 6px 12px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                            <button id="btnSaveSandboxRule" class="btn btn-primary" onclick="window.ConfigSmartLabels.saveSandboxAsRule()" style="font-size: 12px; padding: 6px 12px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
                                 <span>💾</span> <span>${window.i18n?.t('smart_label_sandbox_save_rule') || 'Enregistrer comme règle permanente'}</span>
                             </button>
                         </div>
@@ -100,7 +100,7 @@ window.ConfigSmartLabels = {
 
                 <!-- Recherche / Filtre -->
                 <div style="margin-bottom: 8px;">
-                    <input type="text" id="smartLabelSearchInput" class="inline-input" placeholder="${window.i18n?.t('smart_label_search_placeholder') || '🔍 Rechercher une règle de correspondance...'}" style="width: 100%; font-size: 11px; padding: 5px 10px; border: 1px solid var(--border-color); border-radius: 6px;" oninput="window.ConfigSmartLabels.filterMappings()" />
+                    <input type="text" id="smartLabelSearchInput" class="inline-input" placeholder="${window.i18n?.t('smart_label_search_placeholder') || '🔍 Rechercher une règle de correspondance...'}" style="width: 100%; font-size: 12px; padding: 5px 10px; border: 1px solid var(--border-color); border-radius: 6px;" oninput="window.ConfigSmartLabels.filterMappings()" />
                 </div>
 
                 <!-- Tableau des règles réagencé -->
@@ -144,12 +144,12 @@ window.ConfigSmartLabels = {
 
                         <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
                             <div>
-                                <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_raw') || 'Motif bancaire d\'origine'}</label>
+                                <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_raw') || 'Motif bancaire d\'origine'}</label>
                                 <div id="smartLabelEditRaw" style="font-family: monospace; font-size: 12px; font-weight: 700; padding: 8px 12px; background: var(--bg-base); border-radius: 6px; border: 1px solid var(--border-color); color: var(--text-main); word-break: break-all;"></div>
                             </div>
 
                             <div>
-                                <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_clean') || 'Nom personnalisé propre'}</label>
+                                <label style="display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">${window.i18n?.t('smart_label_edit_clean') || 'Nom personnalisé propre'}</label>
                                 <input type="text" id="smartLabelEditClean" class="inline-input" style="width: 100%; font-size: 13px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color);" placeholder="Nom propre (ex: Auchan)">
                             </div>
 
@@ -160,8 +160,8 @@ window.ConfigSmartLabels = {
                                 </label>
                                 <div id="smartLabelEditCatWrap" style="transition: opacity 0.2s ease;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${window.i18n?.t('smart_label_edit_cat') || 'Catégorie associée'}</label>
-                                        <span id="smartLabelEditCatBadge" style="font-size: 10px; font-weight: 600; color: var(--text-muted);"></span>
+                                        <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${window.i18n?.t('smart_label_edit_cat') || 'Catégorie associée'}</label>
+                                        <span id="smartLabelEditCatBadge" style="font-size: 12px; font-weight: 600; color: var(--text-muted);"></span>
                                     </div>
 
                                     <!-- Champ de recherche rapide permissif (insensible aux accents et à la casse) -->
@@ -173,7 +173,7 @@ window.ConfigSmartLabels = {
                                                placeholder="${window.i18n?.t('smart_label_edit_cat_search_ph') || 'Filtrer les catégories (ex: alim, rest, elec...)'}" 
                                                oninput="window.ConfigSmartLabels.filterEditCategories(this.value)"
                                                onkeydown="window.ConfigSmartLabels.onCatSearchKeydown(event)">
-                                        <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none;">🔍</span>
+                                        <span style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-muted); pointer-events: none;">🔍</span>
                                         <button type="button" 
                                                 id="smartLabelEditCatSearchClear" 
                                                 onclick="window.ConfigSmartLabels.clearEditCatSearch()" 
@@ -192,10 +192,10 @@ window.ConfigSmartLabels = {
 
                                     <!-- Indicateur de sélection actuelle & bouton de remise à zéro -->
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
-                                        <div id="smartLabelEditCatCurrent" style="font-size: 11px; font-weight: 600;"></div>
+                                        <div id="smartLabelEditCatCurrent" style="font-size: 12px; font-weight: 600;"></div>
                                         <button type="button" 
                                                 onclick="window.ConfigSmartLabels.selectNoCategory()" 
-                                                style="font-size: 10px; color: var(--text-muted); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0;">
+                                                style="font-size: 12px; color: var(--text-muted); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0;">
                                             ${window.i18n?.t('smart_label_edit_cat_clear_btn') || '-- Sans catégorie --'}
                                         </button>
                                     </div>
@@ -331,33 +331,33 @@ window.ConfigSmartLabels = {
         tbody.innerHTML = list.map(m => {
             if (m.is_ignored) {
                 const customDesc = m.clean_description
-                    ? `<span style="color: var(--text-muted); font-style: italic; font-size: 11px; text-decoration: line-through 1px rgba(239, 68, 68, 0.4);">${window.escapeHtml ? window.escapeHtml(m.clean_description) : m.clean_description}</span> <span style="font-size: 10px; color: #ef4444; opacity: 0.8;">(${window.i18n?.t('smart_label_ignored_badge') || '🚫 Ignoré'})</span>`
-                    : `<span style="color: var(--text-muted); font-style: italic; font-size: 11px;">${window.i18n?.t('smart_label_ignored_desc') || 'Ne jamais faire de suggestion automatique'}</span>`;
+                    ? `<span style="color: var(--text-muted); font-style: italic; font-size: 12px; text-decoration: line-through 1px rgba(239, 68, 68, 0.4);">${window.escapeHtml ? window.escapeHtml(m.clean_description) : m.clean_description}</span> <span style="font-size: 12px; color: #ef4444; opacity: 0.8;">(${window.i18n?.t('smart_label_ignored_badge') || '🚫 Ignoré'})</span>`
+                    : `<span style="color: var(--text-muted); font-style: italic; font-size: 12px;">${window.i18n?.t('smart_label_ignored_desc') || 'Ne jamais faire de suggestion automatique'}</span>`;
 
                 return `
                     <tr style="border-bottom: 1px solid var(--border-color); background: rgba(239, 68, 68, 0.025);">
-                        <td style="padding: 8px 12px; font-family: monospace; font-size: 11px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}">
+                        <td style="padding: 8px 12px; font-family: monospace; font-size: 12px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}">
                             ${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}
                         </td>
                         <td style="padding: 8px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             ${customDesc}
                         </td>
                         <td style="padding: 8px 12px;">
-                            <button type="button" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Cliquer pour basculer en statut Associé'}" style="cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; transition: transform 0.1s, background 0.15s; display: inline-flex; align-items: center; gap: 4px;">
+                            <button type="button" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Cliquer pour basculer en statut Associé'}" style="cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; transition: transform 0.1s, background 0.15s; display: inline-flex; align-items: center; gap: 4px;">
                                 ${window.i18n?.t('smart_label_ignored_badge') || '🚫 Ignoré'}
                             </button>
                         </td>
                         <td style="padding: 8px 6px; text-align: center;">
-                            <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-muted); font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px;">
+                            <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--text-muted); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px;">
                                 ${m.match_count || 1}
                             </span>
                         </td>
                         <td class="col-actions" style="padding: 8px 12px; text-align: right; overflow: visible;">
                             <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px;">
-                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Passer en statut Associé'}" style="padding: 2px 8px; font-size: 11px; height: 26px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                                    🏷️ <span style="font-size: 11px;">${window.i18n?.t('smart_label_btn_map') || 'Associer'}</span>
+                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_map') || 'Passer en statut Associé'}" style="padding: 2px 8px; font-size: 12px; height: 26px; color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                    🏷️ <span style="font-size: 12px;">${window.i18n?.t('smart_label_btn_map') || 'Associer'}</span>
                                 </button>
-                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
+                                <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
                                     ✕<span class="sl-act-label">${window.i18n?.t('btn_delete') || 'Supprimer'}</span>
                                 </button>
                             </div>
@@ -367,39 +367,39 @@ window.ConfigSmartLabels = {
             }
 
             const originBadge = m.is_manual
-                ? `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)'}" style="cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 10px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_manual') || '🛡️ Manuelle'}</button>`
-                : `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_promote_tip') || 'Règle auto-apprise (cliquer pour sanctuariser en manuelle)'}" style="cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.12); color: var(--accent); font-weight: 600; font-size: 10px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_auto') || '🤖 Auto'}</button>`;
+                ? `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)'}" style="cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 12px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_manual') || '🛡️ Manuelle'}</button>`
+                : `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_promote_tip') || 'Règle auto-apprise (cliquer pour sanctuariser en manuelle)'}" style="cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.12); color: var(--accent); font-weight: 600; font-size: 12px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_auto') || '🤖 Auto'}</button>`;
 
             let catDisplay = '';
             if (m.is_multi_category) {
-                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; transition: transform 0.1s ease;" title="${window.i18n?.t('smart_label_multi_click_tip') || 'Marchand multi-catégories (cliquer pour modifier ou assigner une catégorie)'}">${window.i18n?.t('smart_label_badge_multi') || '🔀 Multi'}</span></button> ${originBadge}`;
+                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; transition: transform 0.1s ease;" title="${window.i18n?.t('smart_label_multi_click_tip') || 'Marchand multi-catégories (cliquer pour modifier ou assigner une catégorie)'}">${window.i18n?.t('smart_label_badge_multi') || '🔀 Multi'}</span></button> ${originBadge}`;
             } else if (m.category) {
-                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; transition: transform 0.1s ease;" title="${window.i18n?.t('smart_label_cat_click_tip') || 'Cliquer pour modifier la catégorie ou le nom'}">🏷️ ${window.escapeHtml ? window.escapeHtml(m.category) : m.category}</button> ${originBadge}`;
+                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.12); color: var(--accent); padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; transition: transform 0.1s ease;" title="${window.i18n?.t('smart_label_cat_click_tip') || 'Cliquer pour modifier la catégorie ou le nom'}">🏷️ ${window.escapeHtml ? window.escapeHtml(m.category) : m.category}</button> ${originBadge}`;
             } else {
-                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; font-style: italic; font-size: 11px;" title="${window.i18n?.t('smart_label_cat_click_tip') || 'Cliquer pour assigner une catégorie'}">—</button> ${originBadge}`;
+                catDisplay = `<button type="button" class="badge" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" style="cursor: pointer; border: 1px dashed var(--border-color); background: transparent; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; font-style: italic; font-size: 12px;" title="${window.i18n?.t('smart_label_cat_click_tip') || 'Cliquer pour assigner une catégorie'}">—</button> ${originBadge}`;
             }
 
             const promoteBtn = (!m.is_ignored)
-                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${m.is_manual ? (window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)') : (window.i18n?.t('smart_label_btn_promote_tip') || 'Sanctuariser cette règle')}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: ${m.is_manual ? '#10b981' : 'var(--text-muted)'}; border-color: ${m.is_manual ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)'}; background: ${m.is_manual ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${m.is_manual ? (window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)') : (window.i18n?.t('smart_label_btn_promote_tip') || 'Sanctuariser cette règle')}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: ${m.is_manual ? '#10b981' : 'var(--text-muted)'}; border-color: ${m.is_manual ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)'}; background: ${m.is_manual ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
                     🛡️<span class="sl-act-label">${m.is_manual ? (window.i18n?.t('smart_label_act_protected') || 'Protégée') : (window.i18n?.t('smart_label_act_protect') || 'Protéger')}</span>
                 </button>`
                 : '';
 
             const toggleMultiBtn = (!m.is_ignored)
-                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMultiMapping(${m.id})" title="${m.is_multi_category ? (window.i18n?.t('smart_label_btn_unmulti_tip') || 'Mode multi-catégories actif (cliquer pour rétablir une catégorie)') : (window.i18n?.t('smart_label_btn_multi_tip') || 'Bascule Multi-catégories')}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: ${m.is_multi_category ? '#f59e0b' : 'var(--text-muted)'}; border-color: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}; background: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMultiMapping(${m.id})" title="${m.is_multi_category ? (window.i18n?.t('smart_label_btn_unmulti_tip') || 'Mode multi-catégories actif (cliquer pour rétablir une catégorie)') : (window.i18n?.t('smart_label_btn_multi_tip') || 'Bascule Multi-catégories')}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: ${m.is_multi_category ? '#f59e0b' : 'var(--text-muted)'}; border-color: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}; background: ${m.is_multi_category ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.04)'}; display: inline-flex; align-items: center; border-radius: 6px; font-weight: 700; cursor: pointer;">
                     🔀<span class="sl-act-label">${window.i18n?.t('smart_label_act_multi') || 'Multi-catégories'}</span>
                 </button>`
                 : '';
 
             const editBtn = (!m.is_ignored)
-                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" title="${window.i18n?.t('smart_label_btn_edit_tip') || 'Modifier cette règle'}" style="padding: 2px 6px; font-size: 10px; height: 26px; color: var(--accent); border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                ? `<button class="btn btn-secondary" onclick="window.ConfigSmartLabels.openEditModal(${m.id})" title="${window.i18n?.t('smart_label_btn_edit_tip') || 'Modifier cette règle'}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: var(--accent); border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
                     ✏️<span class="sl-act-label">${window.i18n?.t('smart_label_act_edit') || 'Modifier'}</span>
                 </button>`
                 : '';
 
             return `
                 <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td style="padding: 8px 12px; font-family: monospace; font-size: 11px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}">
+                    <td style="padding: 8px 12px; font-family: monospace; font-size: 12px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}">
                         ${window.escapeHtml ? window.escapeHtml(m.raw_pattern) : m.raw_pattern}
                     </td>
                     <td style="padding: 8px 12px; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" title="Double-cliquer pour modifier" ondblclick="window.ConfigSmartLabels.openEditModal(${m.id})">
@@ -409,7 +409,7 @@ window.ConfigSmartLabels = {
                         ${catDisplay}
                     </td>
                     <td style="padding: 8px 6px; text-align: center;">
-                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px;">
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px;">
                             ${m.match_count || 1}
                         </span>
                     </td>
@@ -418,10 +418,10 @@ window.ConfigSmartLabels = {
                             ${promoteBtn}
                             ${toggleMultiBtn}
                             ${editBtn}
-                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_ignore') || 'Passer en statut Ignoré'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${window.i18n?.t('smart_label_toggle_to_ignore') || 'Passer en statut Ignoré'}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); display: inline-flex; align-items: center; border-radius: 6px; font-weight: 600; cursor: pointer;">
                                 🚫<span class="sl-act-label">${window.i18n?.t('smart_label_act_ignore') || 'Ignorer'}</span>
                             </button>
-                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 11px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
+                            <button class="btn btn-secondary" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${window.i18n?.t('btn_delete') || 'Supprimer'}" style="padding: 2px 6px; font-size: 12px; height: 26px; color: var(--text-muted); border-radius: 6px; cursor: pointer;">
                                 ✕<span class="sl-act-label">${window.i18n?.t('btn_delete') || 'Supprimer'}</span>
                             </button>
                         </div>
@@ -1066,7 +1066,7 @@ window.ConfigSmartLabels = {
         const isChameleonAp = isAutopilotActive && isChameleon;
 
         const apBadgeHtml = `
-            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
+            <span class="badge" title="${window.i18n?.t('autopilot_badge_driven_hint') || 'Cet automatisme est actuellement actif sous le contrôle de l\'Auto-Pilote.'}" style="font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; gap: 4px;">
                 🤖 ${window.i18n?.t('autopilot_badge_driven') || 'Auto-Pilote'}
             </span>
         `;
@@ -1129,9 +1129,9 @@ window.ConfigSmartLabels = {
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
                                         ${window.i18n?.t('smart_label_auto_create_cats_desc') || 'Crée automatiquement les catégories issues de vos relevés, des règles marchands ou déduites par l\'IA lorsqu\'elles n\'existent pas encore.'}
                                     </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                                         <span>${window.i18n?.t('smart_label_engine_deterministic_hint') || '⚙️ Mode Déterministe : 100% hors-ligne (colonnes de relevés et règles marchands).'}</span>
-                                        <span style="font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: ${isAiEnabled ? 'rgba(99, 102, 241, 0.15)' : 'rgba(148, 163, 184, 0.15)'}; color: ${isAiEnabled ? 'var(--accent, #6366f1)' : 'var(--text-muted)'};">
+                                        <span style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: ${isAiEnabled ? 'rgba(99, 102, 241, 0.15)' : 'rgba(148, 163, 184, 0.15)'}; color: ${isAiEnabled ? 'var(--accent, #6366f1)' : 'var(--text-muted)'};">
                                             ${isAiEnabled ? (window.i18n?.t('smart_label_engine_ai_active_hint') || '🤖 IA locale active (enrichissement sémantique)') : (window.i18n?.t('smart_label_engine_ai_disabled_hint') || '⚪ IA désactivée (mode 100% déterministe)')}
                                         </span>
                                     </div>
@@ -1164,7 +1164,7 @@ window.ConfigSmartLabels = {
                                 </span>
                             </div>
                             <div id="smartLabelRecentAutomationsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin;">
-                                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px;">
+                                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px;">
                                     <span>⏳ Chargement...</span>
                                 </div>
                             </div>
@@ -1198,7 +1198,7 @@ window.ConfigSmartLabels = {
             const items = await API.get('/api/smart-labels/autopilot/history?limit=5');
             if (!items || !items.length) {
                 listEl.innerHTML = `
-                    <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                    <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
                         ${window.i18n?.t('smart_label_auto_history_empty') || 'Aucun apprentissage automatique récent.'}
                     </div>
                 `;
@@ -1211,14 +1211,14 @@ window.ConfigSmartLabels = {
                 const label = it.clean_label || it.raw_pattern || 'Motif bancaire';
                 const cat = it.category && it.category !== '—' ? it.category : '';
                 const dateStr = it.created_at ? new Date(it.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-                const multiBadge = it.is_multi_category ? '<span style="font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; flex-shrink: 0; white-space: nowrap;">Multi</span>' : '';
+                const multiBadge = it.is_multi_category ? '<span style="font-size: 12px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; flex-shrink: 0; white-space: nowrap;">Multi</span>' : '';
 
                 return `
-                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; box-sizing: border-box;">
+                    <div style="padding: 8px 10px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px; font-size: 12px; box-sizing: border-box;">
                         <!-- Ligne 1 : Badge + Motif & Tag Multi -->
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1;">
-                                <span style="font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px;">
+                                <span style="font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.12); color: var(--accent, #6366f1); white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px;">
                                     <span>🧠</span> <span>${esc(window.i18n?.t('smart_label_learned_rule') || 'Règle apprise')}</span>
                                 </span>
                                 <span style="font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(it.raw_pattern || label)}">
@@ -1228,12 +1228,12 @@ window.ConfigSmartLabels = {
                             ${multiBadge}
                         </div>
                         <!-- Ligne 2 : Catégorie cible & Date -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--text-muted); min-width: 0;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); min-width: 0;">
                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;" title="${esc(cat || 'Sans catégorie')}">
                                 📁 ${esc(cat || (window.i18n?.t('uncategorized') || 'Sans catégorie'))}
                             </span>
                             ${dateStr ? `
-                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 10px; margin-left: 6px;">
+                            <span style="white-space: nowrap; flex-shrink: 0; font-size: 12px; margin-left: 6px;">
                                 🕒 ${esc(dateStr)}
                             </span>` : ''}
                         </div>
@@ -1243,7 +1243,7 @@ window.ConfigSmartLabels = {
         } catch (err) {
             console.error('[SmartLabels] Erreur chargement historique automatismes:', err);
             listEl.innerHTML = `
-                <div style="font-size: 11.5px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
+                <div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 10px; font-style: italic;">
                     ${window.i18n?.t('smart_label_auto_history_empty') || 'Aucun apprentissage automatique récent.'}
                 </div>
             `;

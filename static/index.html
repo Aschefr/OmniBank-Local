@@ -22,7 +22,7 @@
     <script defer src="/static/vendor/katex/katex.min.js"></script>
     <script defer src="/static/vendor/katex/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=94">
+    <link rel="stylesheet" href="/static/css/style.css?v=96">
 
     <!-- Local Vendor: Chart.js & Zoom plugins -->
     <script src="/static/vendor/chartjs/chart.umd.js"></script>
@@ -534,13 +534,13 @@
                     <div id="op_autopilot_icon" style="display: none; width: 28px; height: 28px; border-radius: 8px; background: rgba(99,102,241,0.15); color: var(--accent); align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">⚡</div>
                     <div style="min-width: 0; overflow: hidden;">
                         <h3 id="op_modal_title" style="margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" data-i18n="form_title">Saisie d'opération</h3>
-                        <p id="op_modal_subtitle" style="display: none; margin: 2px 0 0 0; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" data-i18n="autopilot_override_modal_subtitle">Ajustez les éléments retenus par le moteur</p>
+                        <p id="op_modal_subtitle" style="display: none; margin: 2px 0 0 0; font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" data-i18n="autopilot_override_modal_subtitle">Ajustez les éléments retenus par le moteur</p>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap;">
-                    <button type="button" id="op_autopilot_toggle_btn" class="btn btn-secondary btn-sm" onclick="window.FormView.toggleAutopilotMode()" style="display: none; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; gap: 4px; align-items: center;" title="Basculer le mode Auto-Pilote pour lier cette opération ou apprendre une règle">🤖 <span id="op_autopilot_toggle_btn_text">Mode Auto-Pilote</span></button>
-                    <div id="op_autopilot_badge" class="badge" style="display: none; background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid rgba(99,102,241,0.4); font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">🤖 Auto-Pilote</div>
-                    <div id="op_inferred_type_display" class="op-inferred-type-badge" style="background-color: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;">neutral</div>
+                    <button type="button" id="op_autopilot_toggle_btn" class="btn btn-secondary btn-sm" onclick="window.FormView.toggleAutopilotMode()" style="display: none; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; gap: 4px; align-items: center;" title="Basculer le mode Auto-Pilote pour lier cette opération ou apprendre une règle">🤖 <span id="op_autopilot_toggle_btn_text">Mode Auto-Pilote</span></button>
+                    <div id="op_autopilot_badge" class="badge" style="display: none; background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid rgba(99,102,241,0.4); font-size: 12px; font-weight: 700; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">🤖 Auto-Pilote</div>
+                    <div id="op_inferred_type_display" class="op-inferred-type-badge" style="background-color: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;">neutral</div>
                     <button type="button" id="op_m_more" class="btn btn-secondary op-m-only" onclick="window.MobileOpForm.toggleMenu()" aria-expanded="false" data-i18n-title="label_more_actions" title="Plus d'actions">⋯</button>
                     <button type="button" id="op_m_close" class="btn btn-secondary op-m-only" onclick="window.FormView.close()" data-i18n-title="btn_close" title="Fermer">✕</button>
                     <div id="op_m_menu" class="op-m-menu" hidden></div>
@@ -554,25 +554,25 @@
                 <!-- 1. Description + Amount -->
                 <div class="op-form-grid-2 op-m-main" style="display: grid; grid-template-columns: 1fr 140px; gap: 12px;">
                     <div>
-                        <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_description">Description*</label>
+                        <label class="input-label" style="display:block; font-size:12px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_description">Description*</label>
                         <input type="text" id="op_desc" class="inline-input" data-i18n-placeholder="ph_description" placeholder="Ex: Amazon, Salaire..." list="descList" autocomplete="off" style="width: 100%; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input);" oninput="window.FormView.onDescriptionInput()">
                         <datalist id="descList"></datalist>
-                        <div id="op_raw_desc_hint" style="display: none; font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic;"></div>
+                        <div id="op_raw_desc_hint" style="display: none; font-size: 12px; color: var(--text-muted); margin-top: 4px; font-style: italic;"></div>
                     </div>
                     <div>
-                        <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_amount">Montant*</label>
+                        <label class="input-label" style="display:block; font-size:12px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_amount">Montant*</label>
                         <div style="display:flex; align-items:center; gap:6px; background: var(--bg-input); padding: 0 10px 0 0; border-radius: 6px; border: 1px solid var(--border-color);">
                             <input type="number" id="op_amount" class="inline-input" step="0.01" inputmode="decimal" style="flex: 1; font-size: 15px; font-weight: 700; border: none; background: transparent; padding: 8px 10px;" placeholder="0.00">
                             <span id="op_amount_curr_symbol" style="font-size: 14px; font-weight: 600; color: var(--text-muted);">€</span>
                         </div>
                         <div style="margin-top: 4px; text-align: right;">
-                            <a href="#" onclick="window.FormView.toggleForeignCurrency(); return false;" style="font-size: 10px; color: var(--primary); text-decoration: none;" data-i18n="op_link_foreign_currency">🌐 Devise étrangère</a>
+                            <a href="#" onclick="window.FormView.toggleForeignCurrency(); return false;" style="font-size: 12px; color: var(--primary); text-decoration: none;" data-i18n="op_link_foreign_currency">🌐 Devise étrangère</a>
                         </div>
                     </div>
                 </div>
 
                 <div id="op_foreign_currency_box" style="display: none; background: var(--bg-input); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: -6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 10px; color: var(--text-muted);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--text-muted);">
                         <span style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;" data-i18n="op_foreign_currency_title">Saisie en Devise Étrangère</span>
                         <span id="op_rate_info_text"></span>
                     </div>
@@ -587,11 +587,11 @@
                             <option value="JPY">JPY</option>
                         </select>
                         <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-surface); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); white-space: nowrap;">
-                            <span style="font-size: 11px; color: var(--text-muted);" id="op_rate_custom_label">1 USD =</span>
+                            <span style="font-size: 12px; color: var(--text-muted);" id="op_rate_custom_label">1 USD =</span>
                             <input type="number" id="op_custom_rate" class="inline-input" step="0.0001" placeholder="Taux" style="width: 75px; font-size: 12px; font-weight: 600; padding: 3px 4px; text-align: center; border: 1px solid var(--border-color);" oninput="window.FormView.onCustomRateInput()">
-                            <span style="font-size: 11px; color: var(--text-muted);" id="op_rate_target_label">EUR</span>
+                            <span style="font-size: 12px; color: var(--text-muted);" id="op_rate_target_label">EUR</span>
                         </div>
-                        <button type="button" class="btn btn-secondary" id="op_rate_refresh_btn" onclick="window.FormView.fetchRateOnline()" style="padding: 5px 8px; font-size: 11px; border-radius: 6px; flex-shrink: 0;" data-i18n="op_btn_refresh_rate">🔄 Actualiser le taux</button>
+                        <button type="button" class="btn btn-secondary" id="op_rate_refresh_btn" onclick="window.FormView.fetchRateOnline()" style="padding: 5px 8px; font-size: 12px; border-radius: 6px; flex-shrink: 0;" data-i18n="op_btn_refresh_rate">🔄 Actualiser le taux</button>
                     </div>
                 </div>
 
@@ -599,21 +599,21 @@
                 <div class="op-form-grid-2 op-m-accounts" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_from">Depuis</label>
-                            <button class="btn btn-secondary" style="padding: 1px 6px; font-size: 9px; border-radius: 10px; line-height: 1.4;" onclick="document.getElementById('op_from_account').value=''; window.FormView.updateInferredType();" data-i18n="btn_deselect">Désélectionner</button>
+                            <label class="input-label" style="font-size:12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_from">Depuis</label>
+                            <button class="btn btn-secondary" style="padding: 1px 6px; font-size: 12px; border-radius: 10px; line-height: 1.4;" onclick="document.getElementById('op_from_account').value=''; window.FormView.updateInferredType();" data-i18n="btn_deselect">Désélectionner</button>
                         </div>
                         <select id="op_from_account" class="inline-input" size="4" style="width: 100%; height: 110px; border-radius: 6px; padding: 4px; font-size: 12px; border: 1px solid var(--border-color); background-color: var(--bg-input); overflow-y: auto;" onchange="window.FormView.updateInferredType()">
                         </select>
                     </div>
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_to">Vers</label>
+                            <label class="input-label" style="font-size:12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_to">Vers</label>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label id="op_cross_profile_toggle_wrapper" style="display: none; align-items: center; gap: 4px; font-size: 9px; font-weight: 600; cursor: pointer; padding: 1px 8px; border-radius: 10px; line-height: 1.4; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-muted); transition: all 0.2s ease; user-select: none; margin: 0;">
+                                <label id="op_cross_profile_toggle_wrapper" style="display: none; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; cursor: pointer; padding: 1px 8px; border-radius: 10px; line-height: 1.4; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-muted); transition: all 0.2s ease; user-select: none; margin: 0;">
                                     <input type="checkbox" id="op_cross_profile_toggle" onchange="window.FormView.toggleCrossProfile()" style="display: none;">
                                     <span data-i18n="cross_profile_toggle_btn">↔ Autre profil</span>
                                 </label>
-                                <button class="btn btn-secondary" style="padding: 1px 6px; font-size: 9px; border-radius: 10px; line-height: 1.4;" onclick="document.getElementById('op_to_account').value=''; window.FormView.updateInferredType();" data-i18n="btn_deselect">Désélectionner</button>
+                                <button class="btn btn-secondary" style="padding: 1px 6px; font-size: 12px; border-radius: 10px; line-height: 1.4;" onclick="document.getElementById('op_to_account').value=''; window.FormView.updateInferredType();" data-i18n="btn_deselect">Désélectionner</button>
                             </div>
                         </div>
                         <div id="op_standard_to_container">
@@ -622,19 +622,19 @@
                         </div>
                         <div id="op_cross_profile_container" style="display: none; flex-direction: column; gap: 4px;">
                             <div>
-                                <label class="input-label" style="font-size:9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;" data-i18n="cross_profile_target">Profil destinataire</label>
+                                <label class="input-label" style="font-size:12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;" data-i18n="cross_profile_target">Profil destinataire</label>
                                 <select id="op_target_profile" class="inline-input" style="width: 100%; border-radius: 6px; padding: 4px; font-size: 12px; border: 1px solid var(--border-color); background-color: var(--bg-input);" onchange="window.FormView.onTargetProfileChange()">
                                 </select>
                             </div>
                             <div>
-                                <label class="input-label" style="font-size:9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;" data-i18n="cross_profile_account">Compte destinataire</label>
+                                <label class="input-label" style="font-size:12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;" data-i18n="cross_profile_account">Compte destinataire</label>
                                 <select id="op_target_account" class="inline-input" style="width: 100%; border-radius: 6px; padding: 4px; font-size: 12px; border: 1px solid var(--border-color); background-color: var(--bg-input);" onchange="window.FormView.updateInferredType()">
                                 </select>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div id="op_cross_profile_warning" style="display: none; font-size: 11px; color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); padding: 6px 10px; border-radius: 6px; margin-top: 6px;" data-i18n="cross_profile_pending_warning_generic">
+                <div id="op_cross_profile_warning" style="display: none; font-size: 12px; color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); padding: 6px 10px; border-radius: 6px; margin-top: 6px;" data-i18n="cross_profile_pending_warning_generic">
                     Ce virement sera en attente de validation sur le profil destinataire.
                 </div>
 
@@ -651,7 +651,7 @@
                         <span data-i18n="label_recurring_op">Opération récurrente</span>
                     </label>
                     <div id="op_rec_options" style="display: none; align-items: center; gap: 8px;">
-                        <span id="op_rec_limit_badge" style="font-size: 11px; padding: 4px 8px; border-radius: 6px; font-weight: bold; background: rgba(16,185,129,0.15); color: #10b981; min-width: 60px; text-align: center; border: 1px solid rgba(16,185,129,0.25); white-space: nowrap;" data-i18n="rec_limit_unlimited">Illimitée dans le temps</span>
+                        <span id="op_rec_limit_badge" style="font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: bold; background: rgba(16,185,129,0.15); color: #10b981; min-width: 60px; text-align: center; border: 1px solid rgba(16,185,129,0.25); white-space: nowrap;" data-i18n="rec_limit_unlimited">Illimitée dans le temps</span>
                         <input type="number" id="op_rec_limit" class="inline-input" data-i18n-placeholder="ph_rec_limit" placeholder="Nbr max (opt.)" min="1" data-i18n-title="tooltip_rec_limit" title="Nombre limité d'occurrences" style="width: 100px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.updateInferredType()">
                         <select id="op_rec_freq" class="inline-input" style="width: 130px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: var(--bg-input);" onchange="window.FormView.onFreqChange()">
                             <option value="Weekly" data-i18n="opt_freq_weekly">Hebdomadaire</option>
@@ -663,9 +663,9 @@
                     </div>
                 </div>
                 <div id="op_rec_edit_hint" class="op-m-adv" style="display: none; align-items: center; gap: 8px; margin: -8px 0 0 0; padding: 6px 14px;">
-                    <p style="font-size: 10px; color: var(--text-muted); margin: 0; line-height: 1.3; flex: 1;" data-i18n="hint_recurrence_edit">Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.</p>
-                    <button type="button" onclick="window.FormView.close(); window.RecurrenceView.openEditModal(window.FormView._pendingRecId);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--primary-color, #6366f1); background: var(--primary-color, #6366f1); color: white; cursor: pointer; font-weight: 600;" data-i18n="btn_edit_recurrence">✏️ Modifier</button>
-                    <button type="button" onclick="window.FormView.close(); window.app.loadView('recurrences'); setTimeout(() => { if (window.RecurrenceView && window.RecurrenceView.scrollToAndHighlightTemplate) { window.RecurrenceView.scrollToAndHighlightTemplate(window.FormView._pendingRecId); } }, 350);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600;" data-i18n="btn_go_recurrences">🔄 Récurrences</button>
+                    <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.3; flex: 1;" data-i18n="hint_recurrence_edit">Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.</p>
+                    <button type="button" onclick="window.FormView.close(); window.RecurrenceView.openEditModal(window.FormView._pendingRecId);" style="white-space: nowrap; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--primary-color, #6366f1); background: var(--primary-color, #6366f1); color: white; cursor: pointer; font-weight: 600;" data-i18n="btn_edit_recurrence">✏️ Modifier</button>
+                    <button type="button" onclick="window.FormView.close(); window.app.loadView('recurrences'); setTimeout(() => { if (window.RecurrenceView && window.RecurrenceView.scrollToAndHighlightTemplate) { window.RecurrenceView.scrollToAndHighlightTemplate(window.FormView._pendingRecId); } }, 350);" style="white-space: nowrap; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600;" data-i18n="btn_go_recurrences">🔄 Récurrences</button>
                 </div>
                 
                 <!-- Bimonthly Day Inputs -->
@@ -685,11 +685,11 @@
                 <!-- 4. Catégorie -->
                 <div class="op-m-cat">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_category">Catégorie</label>
+                        <label class="input-label" style="font-size:12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_category">Catégorie</label>
                         <div style="display: flex; gap: 5px; align-items: center;">
-                            <input type="text" id="op_category_search" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="padding: 3px 8px; font-size: 10px; border-radius: 10px; width: 90px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.renderCategories()">
-                            <button id="op_autocat_btn" class="btn btn-secondary" style="padding: 2px 7px; font-size: 9px; border-radius: 10px;" onclick="window.FormView.autoCategorizeCurrent()" data-i18n-title="tooltip_ai_autocat" title="Auto-catégorisation par IA">✨ IA</button>
-                            <button class="btn btn-secondary" style="padding: 2px 7px; font-size: 9px; border-radius: 10px;" onclick="window.FormView.showNewCatInput()" data-i18n="btn_new_category">+ Nouvelle</button>
+                            <input type="text" id="op_category_search" class="inline-input" data-i18n-placeholder="ph_search" placeholder="Rechercher..." style="padding: 3px 8px; font-size: 12px; border-radius: 10px; width: 90px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.renderCategories()">
+                            <button id="op_autocat_btn" class="btn btn-secondary" style="padding: 2px 7px; font-size: 12px; border-radius: 10px;" onclick="window.FormView.autoCategorizeCurrent()" data-i18n-title="tooltip_ai_autocat" title="Auto-catégorisation par IA">✨ IA</button>
+                            <button class="btn btn-secondary" style="padding: 2px 7px; font-size: 12px; border-radius: 10px;" onclick="window.FormView.showNewCatInput()" data-i18n="btn_new_category">+ Nouvelle</button>
                         </div>
                     </div>
                     <select id="op_category" class="inline-input" size="5" style="width: 100%; border-radius: 6px; padding: 4px; font-size: 12px; border: 1px solid var(--border-color); background-color: var(--bg-input); overflow-y: auto;">
@@ -711,7 +711,7 @@
                     <select id="op_budget_id" class="inline-input" style="width:100%; border-radius:8px; padding:8px; font-size:13px;">
                         <option value="" data-i18n="opt_no_envelope">-- Aucune enveloppe --</option>
                     </select>
-                    <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;" data-i18n="form_budget_hint">Assigne cette dépense à un budget de type projet pour en suivre le cumul.</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;" data-i18n="form_budget_hint">Assigne cette dépense à un budget de type projet pour en suivre le cumul.</p>
                 </div>
 
                 <!-- Salary Identification Checkbox (visible only for incomes) -->
@@ -728,26 +728,26 @@
                 <!-- 5. Dates & Rapprochement -->
                 <div class="op-form-grid-2 op-m-dates" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
-                        <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_planned_debit_date">Date prélèvement</label>
+                        <label class="input-label" style="display:block; font-size:12px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_planned_debit_date">Date prélèvement</label>
                         <input type="date" id="op_date" class="inline-input" style="width: 100%; border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border-color); background-color: var(--bg-input);">
                         <div style="display: flex; gap: 4px; margin-top: 4px; width: 100%;">
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="window.FormView.adjustDate('op_date', -1); event.preventDefault();" type="button">◀</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="window.FormView.adjustDate('op_date', 1); event.preventDefault();" type="button">▶</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="document.getElementById('op_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" type="button" data-i18n-title="btn_today" title="Aujourd'hui">📅</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="window.FormView.adjustDate('op_date', -1); event.preventDefault();" type="button">◀</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="window.FormView.adjustDate('op_date', 1); event.preventDefault();" type="button">▶</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="document.getElementById('op_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" type="button" data-i18n-title="btn_today" title="Aujourd'hui">📅</button>
                         </div>
                         <input type="hidden" id="op_date_saisie">
                     </div>
                     <div class="op-m-adv">
-                        <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_reconciliation_date">Date rapprochement</label>
+                        <label class="input-label" style="display:block; font-size:12px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_reconciliation_date">Date rapprochement</label>
                         <input type="date" id="op_recon_date" class="inline-input" style="width: 100%; border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border-color); background-color: var(--bg-input);">
                         <div style="display: flex; gap: 4px; margin-top: 4px; width: 100%;">
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="window.FormView.adjustDate('op_recon_date', -1); event.preventDefault();" type="button">◀</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="window.FormView.adjustDate('op_recon_date', 1); event.preventDefault();" type="button">▶</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" type="button" data-i18n-title="btn_today" title="Aujourd'hui">📅</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px; color: var(--color-expense);" onclick="document.getElementById('op_recon_date').value = ''; event.preventDefault();" type="button" title="Effacer la date">✕</button>
-                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 11px;" onclick="document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" data-i18n-title="tooltip_reconcile_today" title="Rapprocher aujourd'hui">✓</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="window.FormView.adjustDate('op_recon_date', -1); event.preventDefault();" type="button">◀</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="window.FormView.adjustDate('op_recon_date', 1); event.preventDefault();" type="button">▶</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" type="button" data-i18n-title="btn_today" title="Aujourd'hui">📅</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px; color: var(--color-expense);" onclick="document.getElementById('op_recon_date').value = ''; event.preventDefault();" type="button" title="Effacer la date">✕</button>
+                            <button class="btn btn-secondary" style="flex: 1; border-radius: 6px; padding: 2px 0; font-weight: 600; font-size: 12px;" onclick="document.getElementById('op_recon_date').value = new Date().toISOString().split('T')[0]; event.preventDefault();" data-i18n-title="tooltip_reconcile_today" title="Rapprocher aujourd'hui">✓</button>
                         </div>
-                        <div id="op_recon_discrepancy_alert" style="display: none; margin-top: 6px; font-size: 11px; color: #d97706; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 6px 8px; line-height: 1.3;"></div>
+                        <div id="op_recon_discrepancy_alert" style="display: none; margin-top: 6px; font-size: 12px; color: #d97706; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 6px 8px; line-height: 1.3;"></div>
                     </div>
                 </div>
 
@@ -764,7 +764,7 @@
                             <button class="btn btn-secondary" style="border-radius: 8px; padding: 10px; width: 100%; text-align: left;" onclick="document.getElementById('op_file_upload').click()" data-i18n="btn_add_file">📎 Ajouter fichier...</button>
                         </div>
                         <input type="hidden" id="op_attachments">
-                        <div id="op_attachments_list" style="margin-top: 8px; font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;"></div>
+                        <div id="op_attachments_list" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;"></div>
                     </div>
                 </div>
 
@@ -780,7 +780,7 @@
                         <input type="checkbox" id="op_autopilot_learn_rule" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 2px;">
                         <div style="flex: 1;">
                             <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_override_learn_rule">Mémoriser cette règle pour les futures opérations similaires</div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;" data-i18n="autopilot_override_learn_rule_desc">Enregistre automatiquement cette correspondance dans l'Atelier pour les prochains relevés bancaires.</div>
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.3;" data-i18n="autopilot_override_learn_rule_desc">Enregistre automatiquement cette correspondance dans l'Atelier pour les prochains relevés bancaires.</div>
                         </div>
                     </label>
                 </div>
@@ -792,10 +792,10 @@
                             <span style="font-size: 14px; color: var(--accent);">🔗</span>
                             <div>
                                 <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);" data-i18n="op_link_forecast_title">Lier à une opération existante</span>
-                                <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;" data-i18n="op_link_forecast_sub">Fusionne cette écriture avec une prévision ou facture déjà créée</p>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;" data-i18n="op_link_forecast_sub">Fusionne cette écriture avec une prévision ou facture déjà créée</p>
                             </div>
                         </div>
-                        <button type="button" id="op_link_toggle_btn" class="btn btn-secondary btn-sm" onclick="window.FormView.toggleLinkPanel()" style="font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+                        <button type="button" id="op_link_toggle_btn" class="btn btn-secondary btn-sm" onclick="window.FormView.toggleLinkPanel()" style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
                             <span id="op_link_toggle_icon">🔍</span> <span id="op_link_toggle_text" data-i18n="op_btn_find_existing">Rechercher en base</span>
                         </button>
                     </div>
@@ -804,7 +804,7 @@
                     <div id="op_link_panel" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
                         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                             <input type="text" id="op_link_search_input" class="inline-input" placeholder="Filtrer par libellé ou montant..." style="flex: 1; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input);" oninput="window.FormView.onLinkSearchInput()">
-                            <button type="button" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 6px 10px; border-radius: 6px;" onclick="window.FormView.searchLinkCandidates()">Actualiser</button>
+                            <button type="button" class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 6px 10px; border-radius: 6px;" onclick="window.FormView.searchLinkCandidates()">Actualiser</button>
                         </div>
                         <div id="op_link_results" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
                             <!-- Injecté dynamiquement par FormView -->
@@ -813,9 +813,9 @@
                         <!-- Confirmation de la liaison -->
                         <div id="op_link_confirm_box" style="display: none; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid var(--accent);">
                             <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px;" data-i18n="op_link_confirm_title">Confirmer la fusion et liaison</div>
-                            <div id="op_link_confirm_desc" style="font-size: 11.5px; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;"></div>
+                            <div id="op_link_confirm_desc" style="font-size: 12px; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;"></div>
                             <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; user-select: none;">
+                                <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; user-select: none;">
                                     <input type="checkbox" id="op_link_adjust_amount" checked style="accent-color: var(--accent);">
                                     <span data-i18n="op_link_adjust_amount_label">Ajuster le montant de la prévision au montant bancaire</span>
                                 </label>
@@ -855,10 +855,10 @@
                             <span style="font-size:12px; color:var(--text-muted);" data-i18n="form_keep_open_toggle">Garder ouvert</span>
                         </label>
                         <!-- Badge-bouton "Vider champs" (visible seulement en mode keepOpen) -->
-                        <button id="op_clear_after_save_container" type="button" onclick="window.FormView.onClearAfterSaveToggle()" style="display:none; height:22px; padding:0 9px; border-radius:20px; border:1px solid var(--border-color); background:transparent; font-size:11px; color:var(--text-muted); cursor:pointer; white-space:nowrap; transition:all 0.2s; font-weight:500;" title="Vider automatiquement les champs après chaque enregistrement" data-i18n="form_clear_after_save">✕ Vider champs</button>
+                        <button id="op_clear_after_save_container" type="button" onclick="window.FormView.onClearAfterSaveToggle()" style="display:none; height:22px; padding:0 9px; border-radius:20px; border:1px solid var(--border-color); background:transparent; font-size:12px; color:var(--text-muted); cursor:pointer; white-space:nowrap; transition:all 0.2s; font-weight:500;" title="Vider automatiquement les champs après chaque enregistrement" data-i18n="form_clear_after_save">✕ Vider champs</button>
                     </div>
                     <!-- Ligne 2 : bouton undo (n'apparaît qu'après un 1er ajout) -->
-                    <button id="op_undo_last_btn" class="btn" style="display:none; height:26px; padding:0 10px; font-size:11px; border-radius:6px; white-space:nowrap; color:#f59e0b; border:1px solid rgba(245,158,11,0.35); background:rgba(245,158,11,0.06); align-self:flex-start;" onclick="window.FormView.handleUndoDeleteBtn()" data-i18n="form_undo_last">↩ Supprimer le dernier ajout</button>
+                    <button id="op_undo_last_btn" class="btn" style="display:none; height:26px; padding:0 10px; font-size:12px; border-radius:6px; white-space:nowrap; color:#f59e0b; border:1px solid rgba(245,158,11,0.35); background:rgba(245,158,11,0.06); align-self:flex-start;" onclick="window.FormView.handleUndoDeleteBtn()" data-i18n="form_undo_last">↩ Supprimer le dernier ajout</button>
                 </div>
                 <!-- Spacer -->
                 <div style="flex:1;"></div>
@@ -1154,7 +1154,7 @@
             </div>
 
             <!-- Currency & Date Format Row -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div class="mpf-grid2" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
                 <div>
                     <label style="display:block; font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;" data-i18n="profiles_currency_label">Devise principale</label>
                     <select id="masterProfileCurrencySelect" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-base); color:var(--text-main); font-size:13px;">
