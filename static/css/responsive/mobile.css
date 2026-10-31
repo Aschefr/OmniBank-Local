@@ -5846,3 +5846,29 @@ button, .btn, .nav-btn, [role="button"] {
         font-weight: 600;
     }
 }
+
+/* Toasts sit above the bottom tab bar and the floating + button (bottom is set inline by common.js) */
+@media (max-width: 768px) {
+    .app-toast {
+        translate: 0 calc(-1 * var(--tabbar-h, 0px));
+        left: 12px;
+        right: 12px !important;
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Solid backing under the tinted toast so list text does not show through */
+    .app-toast {
+        isolation: isolate;
+    }
+
+    .app-toast::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        background: var(--bg-surface);
+    }
+}
