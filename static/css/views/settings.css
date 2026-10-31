@@ -1148,3 +1148,162 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
     letter-spacing: 0;
     color: var(--text-main) !important;
 }
+
+/* ── Configuration: form fields, header with toggle, status, chips, tips ── */
+.config-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 10px;
+}
+
+.config-card-header h3 {
+    margin: 0;
+}
+
+.config-card-header label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.config-field {
+    flex: 1 1 220px;
+    min-width: 0;
+    margin-bottom: 14px;
+}
+
+.config-field .inline-input {
+    width: 100%;
+    margin-top: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+}
+
+.config-card label.config-label {
+    display: block;
+    font-size: 12px !important;
+    font-weight: 600;
+    text-transform: none !important;
+    letter-spacing: 0;
+    color: var(--text-muted) !important;
+}
+
+.config-field-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.config-field-row-top {
+    align-items: flex-start;
+    gap: 20px;
+    margin-top: 12px;
+}
+
+.config-field-action {
+    flex-shrink: 0;
+    margin-bottom: 14px;
+    min-height: 38px;
+}
+
+.config-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.config-slider-row input[type="range"] {
+    flex: 1;
+}
+
+.config-slider-row .inline-input {
+    width: 64px;
+    margin-top: 0;
+    padding: 6px;
+    text-align: center;
+}
+
+.config-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.config-chip {
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 30px;
+}
+
+.config-card p.config-status {
+    margin: -6px 0 14px;
+    min-height: 18px;
+    font-size: 12.5px !important;
+}
+
+.config-status.is-ok { color: #10b981 !important; }
+.config-status.is-none { color: var(--text-muted) !important; }
+.config-status.is-error { color: var(--color-expense-fixed, #ff5630) !important; }
+
+.config-tip {
+    margin-top: 6px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--accent-subtle);
+    border: 1px solid var(--border-color);
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.config-tip strong {
+    color: var(--text-main);
+}
+
+.config-tip ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.5;
+}
+
+.config-tip li + li {
+    margin-top: 4px;
+}
+
+.config-card p + .config-field-row {
+    margin-top: 14px;
+}
+
+@media (max-width: 768px) {
+    .config-field-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+    }
+
+    .config-field {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+
+    .config-field-action {
+        width: 100%;
+        margin-bottom: 14px;
+    }
+
+    .config-field-row-top {
+        gap: 0;
+    }
+}
+
+#aiReportsSubSettings {
+    margin-top: 14px;
+}

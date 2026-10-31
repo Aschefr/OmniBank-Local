@@ -6,6 +6,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         if (settings) {
             settings.style.display = enabled ? 'block' : 'none';
         }
+        // The periodic reports are produced by the AI: hide them with it
+        const reports = document.getElementById('configAiReportsCard');
+        if (reports) {
+            reports.style.display = enabled ? '' : 'none';
+        }
 
         // Toggle Chat Nav Button instantly
         document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
@@ -56,6 +61,16 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
+    _setAiStatus(kind, n) {
+        const el = document.getElementById('aiConnStatus');
+        if (!el) return;
+        const text = kind === 'ok' ? window.i18n.t('config_ai_status_ok').replace('{n}', n)
+            : kind === 'none' ? window.i18n.t('config_ai_status_none')
+            : window.i18n.t('config_ai_status_error');
+        el.className = 'config-status is-' + kind;
+        el.textContent = text;
+    },
+
     async fetchModels(silent = false) {
         const url = document.getElementById('conf_ollama_url').value;
         if (!url) {
@@ -80,12 +95,15 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     this.configData.ollama_model = select.value;
                     await API.post('/api/config/', { ollama_model: select.value });
                 }
+                this._setAiStatus('ok', this.models.length);
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_models_ok'));
             } else {
+                this._setAiStatus('none');
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_no_models'));
             }
         } catch (e) {
             console.error(e);
+            this._setAiStatus('error');
             if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_connect_error'));
         }
     },
