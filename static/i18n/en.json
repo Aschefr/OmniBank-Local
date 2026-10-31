@@ -2541,6 +2541,8 @@
   "label_filters": "Filters",
   "label_more_actions": "More actions",
   "label_more_options": "More options",
+  "cockpit_networth_sub": "All accounts and savings",
+  "cockpit_networth_sub_account": "Current account balance",
   "nav_config": "Configuration",
   "nav_configuration": "Configuration",
   "nav_dashboard": "Ledger",
