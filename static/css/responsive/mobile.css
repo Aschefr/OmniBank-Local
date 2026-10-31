@@ -5036,3 +5036,229 @@ button, .btn, .nav-btn, [role="button"] {
 .mobile-pending-menu-item {
     display: none !important;
 }
+
+/* Mobile-only flags cell (recurrence, attachment, envelope) */
+.col-mflags {
+    display: none !important;
+}
+
+/* ── Compact operation cards, 2 lines, <= 768px ──
+   Line 1: label | amount. Line 2: date · category · accounts · flags | reconcile.
+   Row actions leave the card: tap the card to edit (mobile_header.js); duplicate,
+   skip and delete live in the edit modal. */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id] {
+        gap: 4px 8px;
+        padding: 8px 12px !important;
+        margin-bottom: 6px !important;
+        cursor: pointer;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id]::after {
+        order: 3;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-date { order: 4; }
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-cat { order: 5; }
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers { order: 6; }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-actions {
+        display: none !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags:not(:empty) {
+        display: flex !important;
+        order: 7;
+        gap: 4px;
+        font-size: 13px;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon {
+        order: 8;
+        margin-left: auto !important;
+        justify-content: flex-end;
+    }
+
+    /* Reconcile: a round 44px check */
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-btn-unmatched {
+        width: 44px !important;
+        min-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        font-size: 0 !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-btn-unmatched::before {
+        content: "✓";
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-btn:not(.recon-btn-unmatched) {
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-desc .badge {
+        font-size: 12px !important;
+    }
+}
+
+/* Cards with a reconcile button: the button sits at the right edge, centred on both lines */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-btn) {
+        position: relative;
+        padding-right: 68px !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon:has(.recon-btn) {
+        position: absolute !important;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        margin: 0 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-btn:not(.recon-btn-unmatched) {
+        width: 48px !important;
+        min-width: 48px !important;
+        height: 44px !important;
+        padding: 0 4px !important;
+        white-space: normal !important;
+        font-size: 11px !important;
+        line-height: 1.1 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-btn:not(.recon-btn-unmatched) span {
+        display: none;
+    }
+
+    /* Reconciled rows: the date stays on line 2, small */
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-date-link {
+        font-size: 12px !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis .account-badge,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers .account-badge {
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: inline-block;
+        font-size: 12px;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-date,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-date * {
+        font-size: 12px !important;
+    }
+}
+
+/* Reconciled cards: a green check at the right edge (tap to undo, date in the tooltip) */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-date-link) {
+        position: relative;
+        padding-right: 68px !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon:has(.recon-date-link) {
+        position: absolute !important;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        margin: 0 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-cell-stack > :not(.recon-date-link) {
+        display: none !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-date-link {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid rgba(16, 185, 129, 0.45);
+        font-size: 0 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-date-link::before {
+        content: "✓";
+        font-size: 20px;
+        font-weight: 700;
+        color: #10b981;
+    }
+
+    /* The review state is shown by the 🔍 button on the right */
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-desc .badge {
+        display: none !important;
+    }
+}
+
+/* Line 2 fits one line: account shown by its colour dot (full name in the edit form) */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-recon .recon-date-link > * {
+        display: none !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis .account-badge,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers .account-badge {
+        max-width: none;
+        width: auto;
+        padding: 0 !important;
+        border: none !important;
+        background: none !important;
+        font-size: 0 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis .acc-badge-dot,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers .acc-badge-dot {
+        width: 10px !important;
+        height: 10px !important;
+        margin: 0 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis:has(.account-badge) + td.col-vers:has(.account-badge)::before {
+        content: "→";
+        display: inline !important;
+        margin-right: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags:not(:empty) {
+        font-size: 12px;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers {
+        align-self: center;
+        line-height: 1;
+    }
+}
+
+
+/* Operation modal footer: action buttons wrap instead of overflowing (Dupliquer, Ignorer, Annuler, Enregistrer) */
+@media (max-width: 768px) {
+    #operationModal div:has(> #op_save_btn) {
+        flex-wrap: wrap !important;
+        flex-shrink: 1 !important;
+        justify-content: flex-end;
+        width: 100%;
+    }
+
+    #operationModal div:has(> #op_save_btn) > .btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+    }
+}

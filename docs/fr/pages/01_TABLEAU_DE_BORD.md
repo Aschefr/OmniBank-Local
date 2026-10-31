@@ -48,7 +48,7 @@ La liste des opérations du cycle en cours, l'outil de travail quotidien :
 - **Colonnes** : date, libellé, catégorie, montant, rapprochement et actions ; d'autres colonnes (comptes, enveloppe, récurrence, pièces jointes…) s'activent via le bouton **Colonnes**.
 - **Filtres** : recherche, période, type, catégorie et « Non-rapproché avant paie ».
 - **Actions** : **Importer un relevé**, **Relever en ligne** (si une banque est connectée), **Automatismes** et **Nouvelle opération**. Sur mobile, les trois premières sont dans le menu **⋯**, les filtres derrière le bouton **Filtres** (avec le nombre de filtres actifs) et **Nouvelle opération** est le bouton rond **＋** en bas à droite. L'Historique suit le même principe.
-- **Rapprochement** : bouton **Rapprocher** sur chaque opération ; les opérations rapprochées s'affichent en retrait avec leur date de rapprochement.
+- **Rapprochement** : bouton **Rapprocher** sur chaque opération ; les opérations rapprochées s'affichent en retrait avec leur date de rapprochement. Sur mobile, chaque opération tient sur deux lignes : un bouton rond **✓** rapproche, un appui sur la carte ouvre la modification (avec **Dupliquer**, **Ignorer** et **Supprimer**), le compte est indiqué par sa pastille de couleur et les icônes 🔁 📎 🗂️ signalent récurrence, pièce jointe et enveloppe.
 - **Barre « Période »** : navigation entre les cycles (◀ 📅 ▶) et bouton **Clôturer le mois en cours**. Sur ordinateur, elle reste en bas de la liste ; sur mobile, elle s'affiche dans l'en-tête via le bouton **📅 Période**.
 
 Pour consulter toutes les opérations, toutes périodes confondues, utilisez l'**Historique**.

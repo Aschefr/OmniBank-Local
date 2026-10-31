@@ -918,7 +918,7 @@
   "bank_sync_orphan_transfer_badge": "Liaison virement",
   "bank_sync_orphan_transfer_tooltip": "Une écriture isolée du même montant existe déjà sur un autre compte. La validation fusionnera ces écritures en un virement interne sans créer de doublon.",
   "bank_sync_password_field": "Mot de passe / Code secret *",
-  "bank_sync_pending_badge_short": "En attente",
+  "bank_sync_pending_badge_short": "Dernier relevé bancaire importé",
   "bank_sync_pending_box_desc": "Des opérations récentes ont été détectées en arrière-plan et sont prêtes à être validées.",
   "bank_sync_pending_box_title": "Opérations en attente de synchronisation",
   "bank_sync_pending_review_btn": "Ouvrir la revue",
