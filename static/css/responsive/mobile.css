@@ -5262,3 +5262,67 @@ button, .btn, .nav-btn, [role="button"] {
         min-height: 44px;
     }
 }
+
+/* Flags: three fixed slots (🔁 📎 🗂️) right-aligned on line 2, so they line up from card to card */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags {
+        display: flex !important;
+        order: 7;
+        margin-left: auto !important;
+        gap: 2px;
+        align-self: center;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags .mflag {
+        width: 18px;
+        height: 18px;
+        font-size: 13px;
+        line-height: 18px;
+        text-align: center;
+    }
+}
+
+
+/* Line 2: every item on the same 24px centre line */
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-date,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-cat,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags {
+        height: 24px;
+        align-items: center !important;
+        align-self: center !important;
+        line-height: 1 !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-depuis .account-badge,
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers .account-badge {
+        display: inline-flex !important;
+        align-items: center;
+        height: 24px;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-vers::before {
+        line-height: 24px;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags {
+        gap: 0;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags .mflag {
+        width: 17px;
+    }
+}
+
+@media (max-width: 768px) {
+    .timeline-table.mobile-card-table tbody tr[data-id] {
+        column-gap: 6px !important;
+    }
+
+    .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-btn),
+    .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-date-link) {
+        padding-right: 64px !important;
+    }
+}
