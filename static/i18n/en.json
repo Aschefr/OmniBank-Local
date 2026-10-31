@@ -918,7 +918,7 @@
   "bank_sync_orphan_transfer_badge": "Transfer link",
   "bank_sync_orphan_transfer_tooltip": "An isolated entry with the same amount already exists on another account. Committing will merge them into an internal transfer without duplicates.",
   "bank_sync_password_field": "Password / Secret code *",
-  "bank_sync_pending_badge_short": "Pending",
+  "bank_sync_pending_badge_short": "Latest imported bank statement",
   "bank_sync_pending_box_desc": "Recent transactions were detected in background and are ready to review.",
   "bank_sync_pending_box_title": "Pending synchronized transactions",
   "bank_sync_pending_review_btn": "Open review",

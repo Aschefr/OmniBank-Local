@@ -858,6 +858,9 @@
                 <div style="flex:1;"></div>
                 <!-- Droite : boutons d'action (largeur stable) -->
                 <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+                    <button id="op_dup_btn" class="btn btn-secondary" style="display:none; height:34px; padding:0 14px; font-size:13px; border-radius:8px; white-space:nowrap;" onclick="window.FormView.duplicateCurrent(); event.preventDefault();" type="button">
+                        <span style="margin-right:4px;">📋</span><span data-i18n="tooltip_duplicate">Dupliquer</span>
+                    </button>
                     <button id="op_skip_btn" class="btn btn-secondary" style="display:none; height:34px; padding:0 14px; font-size:13px; border-radius:8px; white-space:nowrap;" onclick="window.FormView.toggleSkipState(); event.preventDefault();" type="button">
                         <span style="margin-right:4px;">⏭️</span><span data-i18n="form_skip_btn_label">Ignorer</span>
                     </button>
