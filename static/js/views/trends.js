@@ -145,7 +145,223 @@ window.TrendsView = {
                     </table>
                 </div>
             </div>
+
+            ${this._renderExtras()}
         </div>`;
+    },
+
+    // ── Averages & pace + top expenses (moved here from the former full dashboard) ──
+    _rhythmLookback: '6m',
+    _rhythmGranularity: 'month',
+    _top6Filter: 'all',
+
+    _renderExtras() {
+        const t = (k, f) => window.i18n.t(k) || f;
+        const ps = window.ProfileStorage;
+        if (ps) {
+            this._rhythmLookback = ps.get('overview_stats_lookback') || this._rhythmLookback;
+            this._rhythmGranularity = ps.get('overview_stats_granularity') || this._rhythmGranularity;
+            this._top6Filter = ps.get('overview_top6_filter') || this._top6Filter;
+        }
+        const seg = (setter, value, current, label, key) =>
+            `<button class="ov-seg-btn ${current === value ? 'active' : ''}" onclick="window.TrendsView.${setter}('${value}')" data-i18n="${key}">${t(key, label)}</button>`;
+        const badge = (cls, key, label, id) => `
+                        <div class="overview-rhythm-badge ${cls}">
+                            <div class="overview-badge-dot"></div>
+                            <div class="overview-badge-info">
+                                <span class="overview-badge-label" data-i18n="${key}">${t(key, label)}</span>
+                                <div class="overview-badge-value-wrapper">
+                                    <span class="overview-badge-value privacy-blur" id="trRhythm${id}">—</span>
+                                    <span class="overview-badge-unit trRhythmUnit"></span>
+                                </div>
+                            </div>
+                        </div>`;
+        const lb = this._rhythmLookback, gr = this._rhythmGranularity, tf = this._top6Filter;
+        return `
+            <div class="trends-extras">
+                <div class="overview-rhythm-strip" id="trRhythmStrip">
+                    <div class="overview-rhythm-header">
+                        <div class="overview-rhythm-title">
+                            <span class="overview-rhythm-icon">⏱️</span>
+                            <span class="overview-rhythm-label" data-i18n="overview_rhythm_title">${t('overview_rhythm_title', 'Moyennes & Rythme')}</span>
+                        </div>
+                        <div class="overview-rhythm-controls">
+                            <div class="overview-rhythm-control-group">
+                                <span class="overview-control-label" data-i18n="overview_lookback_label">${t('overview_lookback_label', 'Période :')}</span>
+                                <div class="overview-rhythm-segmented" id="trLookbackGroup">
+                                    ${seg('setRhythmLookback', 'all', lb, 'Tout', 'overview_lookback_all')}
+                                    ${seg('setRhythmLookback', '12m', lb, '1 an', 'overview_lookback_12m')}
+                                    ${seg('setRhythmLookback', '6m', lb, '6m', 'overview_lookback_6m')}
+                                    ${seg('setRhythmLookback', '3m', lb, '3m', 'overview_lookback_3m')}
+                                    ${seg('setRhythmLookback', '1m', lb, '1m', 'overview_lookback_1m')}
+                                    ${seg('setRhythmLookback', '1w', lb, '1 sem.', 'overview_lookback_1w')}
+                                </div>
+                            </div>
+                            <div class="overview-rhythm-control-group">
+                                <span class="overview-control-label" data-i18n="overview_granularity_label">${t('overview_granularity_label', 'Affichage :')}</span>
+                                <div class="overview-rhythm-segmented" id="trGranularityGroup">
+                                    ${seg('setRhythmGranularity', 'month', gr, 'Mois', 'overview_granularity_month')}
+                                    ${seg('setRhythmGranularity', 'week', gr, 'Semaine', 'overview_granularity_week')}
+                                    ${seg('setRhythmGranularity', 'day', gr, 'Jour', 'overview_granularity_day')}
+                                    ${seg('setRhythmGranularity', 'hour', gr, 'Heure', 'overview_granularity_hour')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overview-rhythm-badges">
+                        ${badge('badge-income', 'overview_rhythm_income', 'Revenus', 'Income')}
+                        ${badge('badge-fixed', 'overview_rhythm_fixed', 'Dépenses Fixes', 'Fixed')}
+                        ${badge('badge-var', 'overview_rhythm_var', 'Dépenses Variables', 'Var')}
+                        ${badge('badge-net', 'overview_rhythm_net', 'Solde Net', 'Net')}
+                    </div>
+                </div>
+
+                <div class="overview-card overview-card-top3 trends-top6-card">
+                    <div class="overview-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <h3 style="margin:0;">🏆 <span data-i18n="overview_top3_expenses">${t('overview_top3_expenses', 'Top 6 Dépenses du mois')}</span></h3>
+                        <div class="ov-mode-selector" id="trTop6Filter" style="display:inline-flex; gap:2px;">
+                            <button class="ov-mode-btn ${tf === 'all' ? 'active' : ''}" onclick="window.TrendsView.setTop6Filter('all')" data-i18n="filter_top6_all">${t('filter_top6_all', 'Tous')}</button>
+                            <button class="ov-mode-btn ${tf === 'fixed' ? 'active' : ''}" onclick="window.TrendsView.setTop6Filter('fixed')" data-i18n="filter_top6_fixed">${t('filter_top6_fixed', 'Fixes')}</button>
+                            <button class="ov-mode-btn ${tf === 'var' ? 'active' : ''}" onclick="window.TrendsView.setTop6Filter('var')" data-i18n="filter_top6_var">${t('filter_top6_var', 'Variables')}</button>
+                        </div>
+                    </div>
+                    <div id="trTop6List" class="overview-top3-list"><div class="overview-loading">⏳</div></div>
+                </div>
+            </div>`;
+    },
+
+    _extrasAccountParam(name) {
+        const id = this.selectedAccountId;
+        return id && id !== 'total' ? `&${name}=${id}` : '';
+    },
+
+    async _loadExtras() {
+        await Promise.all([this._loadRhythm(), this._loadTop6()]);
+    },
+
+    async _loadRhythm() {
+        try {
+            this._rhythm = await API.get(`/api/stats/rhythm?lookback=${this._rhythmLookback}${this._extrasAccountParam('account_id')}`);
+        } catch (e) {
+            console.warn('[trends] rhythm', e);
+            this._rhythm = null;
+        }
+        this._renderRhythm();
+    },
+
+    _renderRhythm() {
+        const a = this._rhythm || { income: 0, fixed: 0, variable: 0 };
+        const units = {
+            month: [1, 'unit_per_month', '/ mois'],
+            week: [52 / 12, 'unit_per_week', '/ sem.'],
+            day: [365.25 / 12, 'unit_per_day', '/ jour'],
+            hour: [(365.25 * 24) / 12, 'unit_per_hour', '/ heure']
+        };
+        const [divisor, unitKey, unitFallback] = units[this._rhythmGranularity] || units.month;
+        const set = (id, v) => {
+            const el = document.getElementById(`trRhythm${id}`);
+            if (el) el.textContent = formatCurrency(v / divisor);
+        };
+        set('Income', a.income);
+        set('Fixed', a.fixed);
+        set('Var', a.variable);
+        const net = (a.income - a.fixed - a.variable) / divisor;
+        const netEl = document.getElementById('trRhythmNet');
+        if (netEl) {
+            netEl.textContent = `${net > 0 ? '+' : ''}${formatCurrency(net)}`;
+            netEl.style.color = net >= 0 ? '#10b981' : '#ef4444';
+        }
+        const unit = window.i18n.t(unitKey) || unitFallback;
+        document.querySelectorAll('.trRhythmUnit').forEach(el => { el.textContent = unit; });
+    },
+
+    _setSegActive(groupId, value) {
+        document.querySelectorAll(`#${groupId} .ov-seg-btn, #${groupId} .ov-mode-btn`).forEach(btn => {
+            btn.classList.toggle('active', (btn.getAttribute('onclick') || '').includes(`'${value}'`));
+        });
+    },
+
+    async setRhythmLookback(value) {
+        this._rhythmLookback = value;
+        if (window.ProfileStorage) window.ProfileStorage.set('overview_stats_lookback', value);
+        this._setSegActive('trLookbackGroup', value);
+        await this._loadRhythm();
+    },
+
+    setRhythmGranularity(value) {
+        this._rhythmGranularity = value;
+        if (window.ProfileStorage) window.ProfileStorage.set('overview_stats_granularity', value);
+        this._setSegActive('trGranularityGroup', value);
+        this._renderRhythm();
+    },
+
+    async _loadTop6() {
+        try {
+            this._top6Data = await API.get(`/api/stats/categories_by_month?months=1${this._extrasAccountParam('account_ids')}`);
+        } catch (e) {
+            console.warn('[trends] top6', e);
+            this._top6Data = null;
+        }
+        this._renderTop6();
+    },
+
+    _renderTop6() {
+        const container = document.getElementById('trTop6List');
+        if (!container) return;
+        const data = this._top6Data;
+        const month = data && data.months ? data.months[data.months.length - 1] : null;
+        const types = this._top6Filter === 'fixed' ? ['expense_fixed']
+            : this._top6Filter === 'var' ? ['expense_var'] : ['expense_fixed', 'expense_var'];
+        const catMap = {};
+        types.forEach(type => {
+            const cats = (data && data.by_type && data.by_type[type] && data.by_type[type].categories) || {};
+            Object.keys(cats).forEach(cat => {
+                const amt = Math.abs(cats[cat][month] || 0);
+                if (amt) catMap[cat] = (catMap[cat] || 0) + amt;
+            });
+        });
+        const top6 = Object.keys(catMap)
+            .map(c => ({ category: c, amount: catMap[c] }))
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 6);
+        if (!top6.length) {
+            container.innerHTML = `<div class="overview-empty">— ${window.i18n.t('overview_no_expenses_this_month') || 'Aucune dépense ce mois-ci'} —</div>`;
+            return;
+        }
+        const maxAmt = top6[0].amount || 1;
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+        const tooltip = escapeHtml(window.i18n.t('overview_top3_click_tooltip') || "Voir les opérations dans l'historique");
+        container.innerHTML = top6.map((item, i) => {
+            const cat = escapeHtml(item.category);
+            const catForJs = cat.replace(/'/g, "\\'");
+            return `
+                <div class="overview-top3-item overview-top3-item-clickable" onclick="window.TrendsView.drillDownToHistory('${catForJs}', '${month}')" title="${tooltip}">
+                    <div class="overview-top3-header">
+                        <span class="overview-top3-name">${medals[i]} ${cat}</span>
+                        <span class="overview-top3-amt privacy-blur">${formatCurrency(item.amount)}</span>
+                    </div>
+                    <div class="overview-top3-bar-bg">
+                        <div class="overview-top3-bar-fill" style="width: ${Math.round((item.amount / maxAmt) * 100)}%;"></div>
+                    </div>
+                </div>`;
+        }).join('');
+    },
+
+    setTop6Filter(mode) {
+        this._top6Filter = mode;
+        if (window.ProfileStorage) window.ProfileStorage.set('overview_top6_filter', mode);
+        this._setSegActive('trTop6Filter', mode);
+        this._renderTop6();
+    },
+
+    drillDownToHistory(category, monthKey) {
+        window.AllOperationsView.pendingFilter = {
+            category,
+            monthKey,
+            type: this._top6Filter === 'fixed' ? 'expense_fixed' : this._top6Filter === 'var' ? 'expense_var' : '',
+            backToView: 'trends'
+        };
+        window.app.loadView('all_operations');
     },
 
     async init() {
@@ -417,6 +633,7 @@ window.TrendsView = {
 
             this.updateAlignmentVisibility();
             this.renderChart();
+            this._loadExtras();
         } catch(e) {
             console.error('TrendsView data:', e);
         }
