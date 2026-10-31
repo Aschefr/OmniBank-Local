@@ -5,8 +5,8 @@ OmniBank Local offers three complementary views of the current cycle (from one p
 | View | Purpose | Access |
 |---|---|---|
 | **🎛️ Cockpit** | The essentials at a glance: remaining budget, reconciled spending, spending pace. The app's **home screen**. | Main menu, logo click, mobile tab |
-| **📊 Dashboard** | The detailed version: balances, averages, operations to reconcile, trends. | Main menu, mobile tab |
-| **📒 Ledger** | The cycle's list of operations, to enter, reconcile and filter. | Main menu, "More" menu on mobile |
+| **📊 Dashboard** | The detailed version: balances, averages, operations to reconcile, trends. | Main menu, "More" menu on mobile |
+| **📒 Ledger** | The cycle's list of operations, to enter, reconcile and filter. | Main menu, mobile tab |
 
 The Cockpit and the Dashboard are always available: they cannot be disabled in Configuration.
 
@@ -73,7 +73,7 @@ The Cockpit and the Dashboard show the Auto-Pilot status:
 ## 🧭 6. Navigation and Header Controls
 
 - **On desktop**: horizontal menu at the top of the screen.
-- **On mobile**: tab bar at the bottom of the screen (Cockpit, Dashboard, Auto-Pilot, AI Chat when enabled, and **More** for every other view).
+- **On mobile**: tab bar at the bottom of the screen (Cockpit, Ledger, Auto-Pilot, AI Chat when enabled, and **More** for every other view).
 - **Undo / Redo**: ↩️ / ↪️ (or `Ctrl+Z` / `Ctrl+Y`) to undo or redo any accounting action.
 - **Notification center (🔔)**: budget alerts, AI reports and due-date reminders.
 - **Profile switcher**: switch between your profiles (e.g. *Personal finances*, *Association*).
