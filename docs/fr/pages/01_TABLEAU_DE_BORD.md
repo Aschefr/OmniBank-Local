@@ -61,6 +61,8 @@ Le bouton **Nouvelle opération** ouvre la modale de création :
 - **Libellé** et **catégorie**.
 - **Statut de rapprochement** : coché ou non.
 
+Sur mobile, la saisie s'ouvre en plein écran : montant en grand, libellé, comptes, date et catégorie, puis **Plus d'options** pour la récurrence, l'enveloppe, la date de rapprochement, le bordereau et les pièces jointes (ouvert d'office si l'opération les utilise). Le menu **⋯** de l'en-tête regroupe Mode Auto-Pilote, Dupliquer, Ignorer et Supprimer.
+
 ## 🤖 5. Widget Auto-Pilote
 
 Le Cockpit et le Tableau de bord affichent l'état de l'Auto-Pilote :

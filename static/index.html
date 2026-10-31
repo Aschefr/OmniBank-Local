@@ -543,6 +543,9 @@
                     <button type="button" id="op_autopilot_toggle_btn" class="btn btn-secondary btn-sm" onclick="window.FormView.toggleAutopilotMode()" style="display: none; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; white-space: nowrap; gap: 4px; align-items: center;" title="Basculer le mode Auto-Pilote pour lier cette opération ou apprendre une règle">🤖 <span id="op_autopilot_toggle_btn_text">Mode Auto-Pilote</span></button>
                     <div id="op_autopilot_badge" class="badge" style="display: none; background: rgba(99,102,241,0.2); color: var(--accent); border: 1px solid rgba(99,102,241,0.4); font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">🤖 Auto-Pilote</div>
                     <div id="op_inferred_type_display" class="op-inferred-type-badge" style="background-color: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;">neutral</div>
+                    <button type="button" id="op_m_more" class="btn btn-secondary op-m-only" onclick="window.MobileOpForm.toggleMenu()" aria-expanded="false" data-i18n-title="label_more_actions" title="Plus d'actions">⋯</button>
+                    <button type="button" id="op_m_close" class="btn btn-secondary op-m-only" onclick="window.FormView.close()" data-i18n-title="btn_close" title="Fermer">✕</button>
+                    <div id="op_m_menu" class="op-m-menu" hidden></div>
                 </div>
             </div>
             
@@ -551,7 +554,7 @@
             <div class="op-modal-grid" style="display: flex; flex-direction: column; gap: 16px;">
                 
                 <!-- 1. Description + Amount -->
-                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 140px; gap: 12px;">
+                <div class="op-form-grid-2 op-m-main" style="display: grid; grid-template-columns: 1fr 140px; gap: 12px;">
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_description">Description*</label>
                         <input type="text" id="op_desc" class="inline-input" data-i18n-placeholder="ph_description" placeholder="Ex: Amazon, Salaire..." list="descList" autocomplete="off" style="width: 100%; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input);" oninput="window.FormView.onDescriptionInput()">
@@ -561,7 +564,7 @@
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_amount">Montant*</label>
                         <div style="display:flex; align-items:center; gap:6px; background: var(--bg-input); padding: 0 10px 0 0; border-radius: 6px; border: 1px solid var(--border-color);">
-                            <input type="number" id="op_amount" class="inline-input" step="0.01" style="flex: 1; font-size: 15px; font-weight: 700; border: none; background: transparent; padding: 8px 10px;" placeholder="0.00">
+                            <input type="number" id="op_amount" class="inline-input" step="0.01" inputmode="decimal" style="flex: 1; font-size: 15px; font-weight: 700; border: none; background: transparent; padding: 8px 10px;" placeholder="0.00">
                             <span id="op_amount_curr_symbol" style="font-size: 14px; font-weight: 600; color: var(--text-muted);">€</span>
                         </div>
                         <div style="margin-top: 4px; text-align: right;">
@@ -595,7 +598,7 @@
                 </div>
 
                 <!-- 3. Depuis / Vers -->
-                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="op-form-grid-2 op-m-accounts" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                             <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_from">Depuis</label>
@@ -639,7 +642,7 @@
 
 
                 <!-- Annex: Recurrence Toggle -->
-                <div style="background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <div class="op-m-adv" style="background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
                     <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin: 0; color: var(--text-main);">
                         <!-- Custom Toggle Switch -->
                         <div style="position: relative; width: 36px; height: 20px;">
@@ -661,14 +664,14 @@
                         </select>
                     </div>
                 </div>
-                <div id="op_rec_edit_hint" style="display: none; align-items: center; gap: 8px; margin: -8px 0 0 0; padding: 6px 14px;">
+                <div id="op_rec_edit_hint" class="op-m-adv" style="display: none; align-items: center; gap: 8px; margin: -8px 0 0 0; padding: 6px 14px;">
                     <p style="font-size: 10px; color: var(--text-muted); margin: 0; line-height: 1.3; flex: 1;" data-i18n="hint_recurrence_edit">Pour supprimer ou gérer cette récurrence, utilisez la page Récurrences.</p>
                     <button type="button" onclick="window.FormView.close(); window.RecurrenceView.openEditModal(window.FormView._pendingRecId);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--primary-color, #6366f1); background: var(--primary-color, #6366f1); color: white; cursor: pointer; font-weight: 600;" data-i18n="btn_edit_recurrence">✏️ Modifier</button>
                     <button type="button" onclick="window.FormView.close(); window.app.loadView('recurrences'); setTimeout(() => { if (window.RecurrenceView && window.RecurrenceView.scrollToAndHighlightTemplate) { window.RecurrenceView.scrollToAndHighlightTemplate(window.FormView._pendingRecId); } }, 350);" style="white-space: nowrap; font-size: 10px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600;" data-i18n="btn_go_recurrences">🔄 Récurrences</button>
                 </div>
                 
                 <!-- Bimonthly Day Inputs -->
-                <div id="op_bimonthly_days_container" style="display: none; background: var(--bg-sidebar); padding: 15px; border-radius: 12px; margin-top: -10px;">
+                <div id="op_bimonthly_days_container" class="op-m-adv" style="display: none; background: var(--bg-sidebar); padding: 15px; border-radius: 12px; margin-top: -10px;">
                     <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div>
                             <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px;" data-i18n="label_day_1">Jour 1</label>
@@ -682,7 +685,7 @@
                 </div>
 
                 <!-- 4. Catégorie -->
-                <div>
+                <div class="op-m-cat">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                         <label class="input-label" style="font-size:10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_category">Catégorie</label>
                         <div style="display: flex; gap: 5px; align-items: center;">
@@ -705,7 +708,7 @@
                 </div>
 
                 <!-- Enveloppe projet (hidden if no project budgets exist) -->
-                <div id="op_budget_container" style="display:none;">
+                <div id="op_budget_container" class="op-m-adv" style="display:none;">
                     <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:6px; color: var(--text-color);" data-i18n="label_project_envelope">🗂️ Enveloppe projet</label>
                     <select id="op_budget_id" class="inline-input" style="width:100%; border-radius:8px; padding:8px; font-size:13px;">
                         <option value="" data-i18n="opt_no_envelope">-- Aucune enveloppe --</option>
@@ -714,18 +717,18 @@
                 </div>
 
                 <!-- Salary Identification Checkbox (visible only for incomes) -->
-                <div id="op_is_salary_container" style="display: none; background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); align-items: center; justify-content: space-between;">
+                <div id="op_is_salary_container" class="op-m-adv" style="display: none; background: var(--bg-input); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); align-items: center; justify-content: space-between;">
                     <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin: 0; color: var(--text-main);">
                         <input type="checkbox" id="op_is_salary" style="width: 16px; height: 16px; accent-color: var(--accent);">
                         <span data-i18n="label_is_salary">Considérer comme une paye / salaire</span>
                     </label>
                 </div>
 
-                <div style="border-top: 1px solid var(--border-color); margin: 2px 0;"></div>
+                <div class="op-m-sep" style="border-top: 1px solid var(--border-color); margin: 2px 0;"></div>
 
 
                 <!-- 5. Dates & Rapprochement -->
-                <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="op-form-grid-2 op-m-dates" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_planned_debit_date">Date prélèvement</label>
                         <input type="date" id="op_date" class="inline-input" style="width: 100%; border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border-color); background-color: var(--bg-input);">
@@ -736,7 +739,7 @@
                         </div>
                         <input type="hidden" id="op_date_saisie">
                     </div>
-                    <div>
+                    <div class="op-m-adv">
                         <label class="input-label" style="display:block; font-size:10px; font-weight: 700; margin-bottom:4px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="label_reconciliation_date">Date rapprochement</label>
                         <input type="date" id="op_recon_date" class="inline-input" style="width: 100%; border-radius: 6px; padding: 8px 10px; border: 1px solid var(--border-color); background-color: var(--bg-input);">
                         <div style="display: flex; gap: 4px; margin-top: 4px; width: 100%;">
@@ -751,7 +754,7 @@
                 </div>
 
                 <!-- Check Slip & Attachments Container (Hidden by default) -->
-                <div id="op_optional_container" class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div id="op_optional_container" class="op-form-grid-2 op-m-adv" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                     <div id="op_check_slip_container" style="display: none;">
                         <label class="input-label" style="display:block; font-size:12px; font-weight: 600; margin-bottom:8px; color: var(--text-color);" data-i18n="label_check_slip">Bordereau de chèque</label>
                         <input type="text" id="op_check_slip" class="inline-input" data-i18n-placeholder="ph_check_slip" placeholder="N° de bordereau" style="width: 100%; border-radius: 8px; padding: 10px;">
@@ -767,6 +770,11 @@
                     </div>
                 </div>
 
+
+                <!-- Mobile: advanced fields (recurrence, envelope, salary, reconciliation date, slip, attachments) fold behind this -->
+                <button type="button" id="op_m_adv_toggle" class="btn btn-secondary op-m-only" onclick="window.MobileOpForm.toggleAdvanced()" aria-expanded="false">
+                    <span data-i18n="label_more_options">Plus d'options</span> <span class="op-m-adv-chevron">▾</span>
+                </button>
 
                 <!-- Auto-Pilote : Option de mémorisation de la règle -->
                 <div id="op_autopilot_learn_container" style="display: none; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 8px; padding: 10px 14px;">

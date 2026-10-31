@@ -5248,21 +5248,6 @@ button, .btn, .nav-btn, [role="button"] {
 }
 
 
-/* Operation modal footer: action buttons wrap instead of overflowing (Dupliquer, Ignorer, Annuler, Enregistrer) */
-@media (max-width: 768px) {
-    #operationModal div:has(> #op_save_btn) {
-        flex-wrap: wrap !important;
-        flex-shrink: 1 !important;
-        justify-content: flex-end;
-        width: 100%;
-    }
-
-    #operationModal div:has(> #op_save_btn) > .btn {
-        flex: 1 1 auto;
-        min-height: 44px;
-    }
-}
-
 /* Flags: three fixed slots (🔁 📎 🗂️) right-aligned on line 2, so they line up from card to card */
 @media (max-width: 768px) {
     .timeline-table.mobile-card-table tbody tr[data-id] > td.col-mflags {
@@ -5324,5 +5309,268 @@ button, .btn, .nav-btn, [role="button"] {
     .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-btn),
     .timeline-table.mobile-card-table tbody tr[data-id]:has(> td.col-recon .recon-date-link) {
         padding-right: 64px !important;
+    }
+}
+
+/* ── Operation form on mobile: full-screen sheet (mobile_header.js → MobileOpForm) ── */
+.op-m-only {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    body #operationModal.modal-overlay {
+        padding: 0 !important;
+        align-items: stretch !important;
+    }
+
+    body #operationModal.modal-overlay > .modal.modal {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        border-radius: 0 !important;
+        border: none !important;
+        margin: 0 !important;
+    }
+
+    /* Header: title, type badge, ⋯ and ✕ */
+    #operationModal > .modal > div:first-child {
+        position: relative;
+        padding: 8px 8px 8px 16px !important;
+        padding-top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+        gap: 8px !important;
+    }
+
+    #operationModal #op_modal_title {
+        font-size: 16px !important;
+        white-space: normal !important;
+        line-height: 1.2;
+    }
+
+    #operationModal #op_autopilot_toggle_btn {
+        display: none !important;
+    }
+
+    #operationModal .op-m-only {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #operationModal #op_m_more,
+    #operationModal #op_m_close {
+        width: 44px;
+        height: 44px;
+        min-height: 44px !important;
+        padding: 0 !important;
+        font-size: 20px !important;
+        border-radius: 10px !important;
+    }
+
+    #operationModal #op_m_more[hidden] {
+        display: none !important;
+    }
+
+    #operationModal .op-m-menu {
+        position: absolute;
+        top: calc(100% - 4px);
+        right: 8px;
+        z-index: 20;
+        min-width: 230px;
+        display: flex;
+        flex-direction: column;
+        padding: 6px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    #operationModal .op-m-menu[hidden] {
+        display: none;
+    }
+
+    #operationModal .op-m-menu-item {
+        min-height: 44px;
+        padding: 0 12px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-main);
+        font: 600 14px/1.2 'Inter', sans-serif;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    #operationModal .op-m-menu-item.is-danger {
+        color: var(--color-expense, #ef4444);
+    }
+
+    /* Body: one column, comfortable fields */
+    #operationModal > .modal > div:nth-child(2) {
+        padding: 14px 16px 24px !important;
+    }
+
+    #operationModal .op-modal-grid {
+        gap: 14px !important;
+    }
+
+    #operationModal .op-form-grid-2 {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    #operationModal .input-label {
+        font-size: 12px !important;
+    }
+
+    #operationModal input.inline-input:not([type="checkbox"]),
+    #operationModal select.inline-input {
+        min-height: 44px;
+        font-size: 16px !important;
+        height: auto !important;
+    }
+
+    /* Amount first, large */
+    #operationModal .op-m-main > div:last-child {
+        order: -1;
+    }
+
+    #operationModal #op_amount {
+        font-size: 24px !important;
+        font-weight: 700;
+    }
+
+    #operationModal #op_amount_curr_symbol {
+        font-size: 18px !important;
+    }
+
+    /* Section order */
+    #operationModal .op-modal-grid > .op-m-main { order: 1; }
+    #operationModal .op-modal-grid > #op_foreign_currency_box { order: 2; }
+    #operationModal .op-modal-grid > .op-m-accounts { order: 3; }
+    #operationModal .op-modal-grid > #op_cross_profile_warning { order: 3; }
+    #operationModal .op-modal-grid > .op-m-dates { order: 4; }
+    #operationModal .op-modal-grid > .op-m-cat { order: 5; }
+    #operationModal .op-modal-grid > #newCatForm { order: 5; }
+    #operationModal .op-modal-grid > #op_m_adv_toggle { order: 6; }
+    #operationModal .op-modal-grid > .op-m-adv { order: 7; }
+    #operationModal .op-modal-grid > #op_autopilot_learn_container,
+    #operationModal .op-modal-grid > #op_link_container { order: 8; }
+
+    #operationModal .op-m-sep {
+        display: none;
+    }
+
+    #operationModal .op-m-accounts .btn,
+    #operationModal .op-m-cat .btn,
+    #operationModal .op-m-cat #op_category_search {
+        min-height: 32px;
+        font-size: 12px !important;
+        padding: 4px 10px !important;
+    }
+
+    #operationModal .op-m-cat #op_category_search {
+        width: 120px !important;
+    }
+
+    #operationModal .op-m-dates .btn {
+        min-height: 40px;
+        font-size: 14px !important;
+    }
+
+    /* Advanced fields fold behind "Plus d'options" */
+    #operationModal:not(.op-m-adv-open) .op-m-adv {
+        display: none !important;
+    }
+
+    #operationModal #op_m_adv_toggle {
+        width: 100%;
+        min-height: 44px;
+        justify-content: space-between;
+        padding: 0 14px !important;
+        font-size: 14px !important;
+    }
+
+    #operationModal.op-m-adv-open .op-m-adv-chevron {
+        transform: rotate(180deg);
+    }
+
+    /* Recurrence box: options wrap under the switch */
+    #operationModal .op-modal-grid > .op-m-adv:has(#op_is_recurrent) {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    #operationModal #op_rec_options {
+        flex-wrap: wrap;
+    }
+
+    /* Footer: "Garder ouvert" + one large Save button; the rest lives in ⋯ */
+    #operationModal .op-modal-footer {
+        flex-wrap: nowrap !important;
+        padding: 10px 16px !important;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+        gap: 12px !important;
+    }
+
+    #operationModal .op-modal-footer > div:nth-child(2) {
+        display: none;
+    }
+
+    #operationModal #op_undo_last_btn,
+    #operationModal #op_clear_after_save_container,
+    #operationModal #op_dup_btn,
+    #operationModal #op_skip_btn,
+    #operationModal #op_cancel_btn {
+        display: none !important;
+    }
+
+    #operationModal .op-modal-footer > div:last-child {
+        flex: 1 1 auto !important;
+    }
+
+    #operationModal #op_save_btn {
+        flex: 1 1 auto;
+        height: 48px !important;
+        font-size: 16px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body #operationModal.modal-overlay > .modal.modal {
+        padding: 0 !important;
+    }
+
+    /* Category: label on its own line, search + IA + Nouvelle on the next */
+    #operationModal .op-m-cat > div:first-child {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    #operationModal .op-m-cat > div:first-child > label {
+        flex: 1 0 100%;
+    }
+
+    #operationModal .op-m-cat > div:first-child > div {
+        flex: 1 1 100%;
+    }
+
+    #operationModal .op-m-cat #op_category_search {
+        flex: 1 1 auto;
+        width: auto !important;
+        min-width: 0;
+    }
+
+    #operationModal .op-m-cat .btn {
+        white-space: nowrap;
+        flex-direction: row !important;
+    }
+}
+
+
+@media (max-width: 768px) {
+    #operationModal.modal-overlay > .modal > div:first-child {
+        align-items: center !important;
     }
 }
