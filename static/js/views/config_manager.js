@@ -8,7 +8,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         const activeTab = (function() {
             try {
                 const saved = localStorage.getItem('omnibank_config_tab');
-                if (['general', 'security', 'ai', 'data'].includes(saved)) return saved;
+                if (saved === 'security') return 'profiles';
+                if (['general', 'profiles', 'categorization', 'ai', 'data', 'advanced'].includes(saved)) return saved;
             } catch(e) {}
             return 'general';
         })();
@@ -17,40 +18,47 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         return `
             <div class="view-header-bar config-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div class="view-header-title-group">
-                    <h2 class="view-header-title">⚙️ <span data-i18n="nav_configuration">${window.i18n.t('nav_configuration')}</span></h2>
+                    <h2 class="view-header-title"><span class="config-h-icon"><svg class="config-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> <span data-i18n="nav_configuration">${window.i18n.t('nav_configuration')}</span></h2>
                 </div>
                 <div class="config-search-box">
-                    <span class="config-search-icon">🔍</span>
+                    <span class="config-search-icon"><svg class="config-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
                     <input type="text" id="configSearchInput" class="config-search-input" data-i18n-placeholder="config_search_placeholder" placeholder="${window.i18n ? window.i18n.t('config_search_placeholder') : 'Rechercher un paramètre...'}" oninput="window.ConfigView.filterSettings(this.value)">
                 </div>
             </div>
 
             <!-- Tab Navigation Bar -->
-            <div class="config-tabs-bar" id="configTabsBar">
-                <button type="button" class="config-tab-btn ${activeTab === 'general' ? 'active' : ''}" data-tab="general" onclick="window.ConfigView.switchTab('general')">
-                    <span class="config-tab-icon">🎛️</span>
+            <div class="config-tabs-bar" id="configTabsBar" role="tablist">
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'general' ? 'active' : ''}" data-tab="general" onclick="window.ConfigView.switchTab('general')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
                     <span data-i18n="config_tab_general">${window.i18n ? window.i18n.t('config_tab_general') : 'Général'}</span>
                 </button>
-                <button type="button" class="config-tab-btn ${activeTab === 'security' ? 'active' : ''}" data-tab="security" onclick="window.ConfigView.switchTab('security')">
-                    <span class="config-tab-icon">🔒</span>
-                    <span data-i18n="config_tab_security">${window.i18n ? window.i18n.t('config_tab_security') : 'Sécurité & Accès'}</span>
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'profiles' ? 'active' : ''}" data-tab="profiles" onclick="window.ConfigView.switchTab('profiles')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                    <span data-i18n="config_tab_profiles">${window.i18n ? window.i18n.t('config_tab_profiles') : 'Profils & accès'}</span>
                 </button>
-                <button type="button" class="config-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-tab="ai" onclick="window.ConfigView.switchTab('ai')">
-                    <span class="config-tab-icon">🤖</span>
-                    <span data-i18n="config_tab_ai">${window.i18n ? window.i18n.t('config_tab_ai') : 'Intelligence Artificielle'}</span>
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'categorization' ? 'active' : ''}" data-tab="categorization" onclick="window.ConfigView.switchTab('categorization')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+                    <span data-i18n="config_tab_categorization">${window.i18n ? window.i18n.t('config_tab_categorization') : 'Catégorisation'}</span>
                 </button>
-                <button type="button" class="config-tab-btn ${activeTab === 'data' ? 'active' : ''}" data-tab="data" onclick="window.ConfigView.switchTab('data')">
-                    <span class="config-tab-icon">💾</span>
-                    <span data-i18n="config_tab_data">${window.i18n ? window.i18n.t('config_tab_data') : 'Données & Maintenance'}</span>
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-tab="ai" onclick="window.ConfigView.switchTab('ai')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></span>
+                    <span data-i18n="config_tab_ai">${window.i18n ? window.i18n.t('config_tab_ai') : 'Assistant IA'}</span>
+                </button>
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'data' ? 'active' : ''}" data-tab="data" onclick="window.ConfigView.switchTab('data')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
+                    <span data-i18n="config_tab_data">${window.i18n ? window.i18n.t('config_tab_data') : 'Sauvegardes & données'}</span>
+                </button>
+                <button type="button" role="tab" class="config-tab-btn ${activeTab === 'advanced' ? 'active' : ''}" data-tab="advanced" onclick="window.ConfigView.switchTab('advanced')">
+                    <span class="config-tab-icon"><svg class="config-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+                    <span data-i18n="config_tab_advanced">${window.i18n ? window.i18n.t('config_tab_advanced') : 'Avancé'}</span>
                 </button>
             </div>
 
-            <!-- TAB 1: GÉNÉRAL -->
             <div class="config-tab-pane" id="configPane_general" style="${activeTab === 'general' ? '' : 'display: none;'}">
                 <!-- Theme & Appearance Management -->
-                <div class="config-card" id="themeConfigCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div class="config-card" id="themeConfigCard" >
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
-                        <h3 data-i18n="theme_manager_title">🎨 ${window.i18n ? window.i18n.t('theme_manager_title') : 'Gestionnaire de Thèmes'}</h3>
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.75 1.5-1.5 0-.39-.15-.74-.39-1.04-.23-.29-.38-.63-.38-1.04 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z"/></svg></span> <span data-i18n="theme_manager_title">${window.i18n ? window.i18n.t('theme_manager_title') : 'Gestionnaire de Thèmes'}</span></h3>
                     </div>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 16px;" data-i18n="theme_manager_desc">
                         ${window.i18n ? window.i18n.t('theme_manager_desc') : 'Personnalisez l\'apparence visuelle d\'OmniBank selon vos préférences.'}
@@ -110,41 +118,41 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
 
                 <!-- Optional Features / Modules -->
-                <div class="config-card" id="configFeaturesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                    <h3 data-i18n="config_opt_title">🎛️ ${window.i18n.t('config_opt_title')}</h3>
+                <div class="config-card" id="configFeaturesCard" >
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="16" cy="12" r="3"/></svg></span> <span data-i18n="config_opt_title">${window.i18n.t('config_opt_title')}</span></h3>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
                         ${window.i18n.t('config_opt_desc')}
                     </p>
-                    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    <div class="config-toggle-list">
+                        <label class="config-toggle-row">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_bimonthly" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
                             </span>
                             <span data-i18n="config_opt_bimonthly">Activer la récurrence bi-mensuelle</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <label class="config-toggle-row">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_attachments" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
                             </span>
                             <span data-i18n="config_opt_attachments">Activer les documents joints (Upload de fichiers)</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <label class="config-toggle-row">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_check_slips" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
                             </span>
                             <span data-i18n="config_opt_check_slips">Activer la saisie des numéros de bordereaux de chèques</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <label class="config-toggle-row">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_org_mode" onchange="window.ConfigView._onOrgModeToggle()">
                                 <span class="slider"></span>
                             </span>
                             <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        <label class="config-toggle-row">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_simulator" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
@@ -155,66 +163,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
                 </div>
 
-                <!-- Multi-Currency & Exchange Rates Settings -->
-                <div class="config-card" id="configCurrenciesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                    <h3 data-i18n="config_currency_title">💱 Devises & Taux de Change</h3>
-                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
-                    
-                    <div style="margin-bottom: 18px; max-width: 320px;">
-                        <label style="display: block; font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
-                        <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px 12px; width: 100%; font-size: 13.5px;" onchange="window.ConfigView.saveBaseCurrency()">
-                            <option value="EUR">EUR (€) - Euro</option>
-                            <option value="USD">USD ($) - Dollar US</option>
-                            <option value="GBP">GBP (£) - Livre Sterling</option>
-                            <option value="CHF">CHF (CHF) - Franc Suisse</option>
-                            <option value="CAD">CAD (CA$) - Dollar Canadien</option>
-                            <option value="JPY">JPY (¥) - Yen Japonais</option>
-                        </select>
-                    </div>
-
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 8px; margin: 18px 0 10px 0;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h4 style="margin:0; font-size: 13.5px; font-weight: 600;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
-                            <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
-                        </div>
-                        <button class="btn btn-secondary btn-sm" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
-                    </div>
-                    
-                    <div class="rate-add-container" style="background: var(--bg-base); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
-                            <span style="font-weight: 700; color: var(--text-muted); font-size: 13px;">➔</span>
-                            <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
-                        </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="flex: 1; min-width: 100px; font-size: 13px;">
-                            <button class="btn btn-primary btn-sm" onclick="window.ConfigView.addExchangeRate()" style="padding: 6px 14px; font-size: 13px; white-space: nowrap; font-weight: 600;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 8px;">
-                        <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:13px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
-                    </div>
-
-                    <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
-                        <table class="data-table rates-table" style="width: 100%; margin: 0; font-size: 13px; border-collapse: collapse;">
-                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border-color);">
-                                <tr>
-                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_pair">Paire</th>
-                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_rate">Taux</th>
-                                    <th style="width: 36px; text-align: center; padding: 8px 4px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="exchangeRatesBody">
-                                <!-- Rendered dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
                 <!-- General Settings (Recurrences) -->
-                <div class="config-card" id="configGenSettingsCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                    <h3 data-i18n="config_gen_settings_title">⚙️ ${window.i18n.t('config_gen_settings_title')}</h3>
+                <div class="config-card" id="configGenSettingsCard" >
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span> <span data-i18n="config_gen_settings_title">${window.i18n.t('config_gen_settings_title')}</span></h3>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_gen_settings_desc">
                         ${window.i18n.t('config_gen_settings_desc')}
                     </p>
@@ -225,12 +176,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
 
-            <!-- TAB 2: SÉCURITÉ & ACCÈS -->
-            <div class="config-tab-pane" id="configPane_security" style="${activeTab === 'security' ? '' : 'display: none;'}">
+            <div class="config-tab-pane" id="configPane_profiles" style="${activeTab === 'profiles' ? '' : 'display: none;'}">
                 <!-- Master Profiles & PIN Lock -->
-                <div class="config-card" id="configProfilesCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div class="config-card" id="configProfilesCard" >
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                        <h3 data-i18n="profiles_title">👤 Profils Maîtres</h3>
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> <span data-i18n="profiles_title">Profils Maîtres</span></h3>
                         <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="window.ConfigView._showCreateProfileModal()">
                             ➕ <span data-i18n="profiles_create">Créer un profil</span>
                         </button>
@@ -258,8 +208,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
 
                 <!-- Org Users Panel (org mode only) -->
-                <div id="configOrgUsersPanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); display: none;">
-                    <h3 data-i18n="config_org_users">👥 ${window.i18n.t('config_org_users')}</h3>
+                <div id="configOrgUsersPanel" class="config-card" style="display: none;">
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> <span data-i18n="config_org_users">${window.i18n.t('config_org_users')}</span></h3>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_org_users_desc">${window.i18n.t('config_org_users_desc')}</p>
                     <div id="orgUsersList" style="margin-bottom: 12px;"></div>
                     <div style="display: flex; gap: 8px; align-items: center;">
@@ -269,18 +219,18 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
 
                 <!-- Shared Mode Panel (Multi-session Windows) -->
-                <div id="configSharedModePanel" class="config-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                    <h3>🖥️ <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
+                <div id="configSharedModePanel" class="config-card" >
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span> <span data-i18n="config_shared_mode">${window.i18n.t('config_shared_mode')}</span></h3>
                     <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_shared_mode_desc">${window.i18n.t('config_shared_mode_desc')}</p>
                     <div id="sharedModeStatus" style="margin-bottom: 12px;"></div>
                     <div id="sharedModeActions" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
                 </div>
 
                 <!-- Server Connection Settings Card -->
-                <div class="config-card" id="configServerCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div class="config-card" id="configServerCard" >
                     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                         <div>
-                            <h3 data-i18n="config_server_title">📡 ${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</h3>
+                            <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span> <span data-i18n="config_server_title">${window.i18n ? window.i18n.t('config_server_title') : 'Connexion Serveur (Docker / Client Distant)'}</span></h3>
                             <p style="color: var(--text-muted); font-size: 12.5px; margin: 0;" data-i18n="config_server_desc">${window.i18n ? window.i18n.t('config_server_desc') : "Configurez l'adresse IP et le port du serveur backend auto-hébergé pour les accès distants ou mobiles."}</p>
                         </div>
                         <button class="btn btn-primary" onclick="window.ServerConfig.openModal()" style="display:flex; align-items:center; gap:6px;">
@@ -290,12 +240,16 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
             </div>
 
-            <!-- TAB 3: INTELLIGENCE ARTIFICIELLE -->
+            <div class="config-tab-pane" id="configPane_categorization" style="${activeTab === 'categorization' ? '' : 'display: none;'}">
+                <!-- Smart Label Matching Rules -->
+                ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
+            </div>
+
             <div class="config-tab-pane" id="configPane_ai" style="${activeTab === 'ai' ? '' : 'display: none;'}">
                 <!-- Ollama AI Settings -->
-                <div class="config-card config-ai-card" id="configAiCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div class="config-card config-ai-card" id="configAiCard" >
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                        <h3 data-i18n="config_ai_title">🤖 Configuration Ollama (Assistant IA)</h3>
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg></span> <span data-i18n="config_ai_title">Configuration Ollama (Assistant IA)</span></h3>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600;">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_ai" onchange="window.ConfigView.toggleAI(this.checked); window.ConfigView.save();">
@@ -401,81 +355,42 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
                     </div> <!-- End ollamaSettings -->
                 </div>
-
-                <!-- Smart Label Matching Rules -->
-                ${window.ConfigSmartLabels ? window.ConfigSmartLabels.render() : ''}
             </div>
 
-            <!-- TAB 4: DONNÉES & MAINTENANCE -->
             <div class="config-tab-pane" id="configPane_data" style="${activeTab === 'data' ? '' : 'display: none;'}">
                 <!-- Data Management & Backups -->
-                <div class="config-card" id="configDataMgmtCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-                    <h3 data-i18n="config_data_mgmt">💾 Gestion des données</h3>
-                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;">
-                        ${window.i18n.t('config_data_desc')}
-                    </p>
-                    
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                        <!-- Export -->
-                        <button class="btn btn-secondary" onclick="window.ConfigView.exportCSV()" style="display: flex; align-items: center; gap: 5px;">
-                            📥 <span data-i18n="btn_export_csv">Exporter les données (CSV)</span>
-                        </button>
-                        
-                        <!-- Import vers DB -->
-                        <input type="file" id="rawDbCsvInput" accept=".csv" style="display: none;" onchange="window.ConfigView.importRawCSV(event)">
-                        <button class="btn btn-primary" onclick="document.getElementById('rawDbCsvInput').click()" style="display: flex; align-items: center; gap: 5px;">
-                            📤 <span data-i18n="btn_import_csv_db">Import CSV vers DB</span>
-                        </button>
-                        
-                        <!-- Backup -->
-                        <button class="btn btn-secondary" onclick="window.ConfigView.downloadBackup()" style="display: flex; align-items: center; gap: 5px;">
-                            💾 <span data-i18n="btn_download_backup">Télécharger Sauvegarde Complète (ZIP)</span>
-                        </button>
+                <div class="config-card" id="configDataMgmtCard">
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span> <span data-i18n="config_data_mgmt">${window.i18n.t('config_data_mgmt')}</span></h3>
+                    <p data-i18n="config_data_desc">${window.i18n.t('config_data_desc')}</p>
 
-                        <!-- Restore Backup -->
-                        <input type="file" id="restoreBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreBackup(event)">
-                        <button class="btn btn-warning" onclick="document.getElementById('restoreBackupInput').click()" style="display: flex; align-items: center; gap: 5px; background-color: var(--color-expense-fixed, #ff5630); color: #fff;">
-                            📂 <span data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</span>
+                    <h4 class="config-group-title" data-i18n="config_group_export">${window.i18n ? window.i18n.t('config_group_export') : 'Exporter et sauvegarder'}</h4>
+                    <div class="config-btn-row">
+                        <button class="btn btn-primary" onclick="window.ConfigView.downloadBackup()">
+                            <span data-i18n="btn_download_backup">Télécharger Sauvegarde Complète (ZIP)</span>
                         </button>
-
-                        <!-- Backup Global All Profiles -->
-                        <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_backup_all_tooltip') : 'Sauvegarder tous les profils maîtres dans une seule archive'}">
-                            📦 <span data-i18n="profiles_backup_all">Sauvegarder tous les profils (ZIP)</span>
+                        <button class="btn btn-secondary" onclick="window.ConfigView.downloadAllProfilesBackup()" title="${window.i18n ? window.i18n.t('profiles_backup_all_tooltip') : 'Sauvegarder tous les profils maîtres dans une seule archive'}">
+                            <span data-i18n="profiles_backup_all">Sauvegarder tous les profils (ZIP)</span>
                         </button>
-
-                        <!-- Restore Global All Profiles -->
-                        <input type="file" id="restoreAllProfilesBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreAllProfilesBackup(event)">
-                        <button class="btn btn-secondary" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" style="display: flex; align-items: center; gap: 5px;" title="${window.i18n ? window.i18n.t('profiles_restore_all_tooltip') : 'Restaurer tous les profils maîtres depuis une archive globale'}">
-                            📂 <span data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</span>
+                        <button class="btn btn-secondary" onclick="window.ConfigView.exportCSV()">
+                            <span data-i18n="btn_export_csv">Exporter les données (CSV)</span>
                         </button>
                     </div>
-                    <p data-i18n="backup_global_info_html" style="font-size:12px; line-height:1.5; color:var(--text-muted); margin:10px 0 0 0;">${window.i18n ? window.i18n.t('backup_global_info_html') : ''}</p>
+                    <p data-i18n="backup_global_info_html" class="config-help">${window.i18n ? window.i18n.t('backup_global_info_html') : ''}</p>
 
-                    <hr style="border:none; border-top:1px solid var(--border-color); margin:18px 0;">
-
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                        <!-- Re-launch Wizard -->
-                        <button class="btn btn-secondary" onclick="window.SetupWizard.show()" style="display: flex; align-items: center; gap: 5px;">
-                            🧙 <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
-                        </button>
-
-                        <!-- Data Cleanup & Integrity Modal Trigger -->
-                        <button class="btn btn-primary" id="btnOpenDataCleanupModal" onclick="window.ConfigView.openDataCleanupModal()" style="display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(168,85,247,0.18)); border: 1px solid rgba(99,102,241,0.4); color: var(--text-main); cursor: pointer; transition: all 0.2s ease;">
-                            🧹 <span data-i18n="maintenance_cleanup_modal_btn">${(window.i18n && window.i18n.t) ? window.i18n.t('maintenance_cleanup_modal_btn') || "Boîte à Outils d'Assainissement des Données" : "Boîte à Outils d'Assainissement des Données"}</span>
-                            <span id="cleanupModalTriggerBadge" class="cleanup-badge cleanup-badge-warning" style="display:none; padding: 2px 7px; font-size: 11px;"></span>
-                        </button>
-
-                        <!-- Clear DB -->
-                        <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-                            ⚠️ <span data-i18n="btn_clear_db">Vider la base de données</span>
+                    <h4 class="config-group-title" data-i18n="config_group_import">${window.i18n ? window.i18n.t('config_group_import') : 'Importer'}</h4>
+                    <div class="config-btn-row">
+                        <input type="file" id="rawDbCsvInput" accept=".csv" style="display: none;" onchange="window.ConfigView.importRawCSV(event)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('rawDbCsvInput').click()">
+                            <span data-i18n="btn_import_csv_db">Import CSV vers DB</span>
                         </button>
                     </div>
                 </div>
 
+
                 <!-- Auto Backup Card -->
-                <div class="config-card" id="configAutoBackupCard" style="margin-bottom: 20px; background: var(--bg-surface); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+                <div class="config-card" id="configAutoBackupCard" >
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 15px;">
-                        <h3 data-i18n="config_auto_backup_title">🕒 ${window.i18n.t('config_auto_backup_title')}</h3>
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> <span data-i18n="config_auto_backup_title">${window.i18n.t('config_auto_backup_title')}</span></h3>
                         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 500;">
                             <span class="toggle-switch">
                                 <input type="checkbox" id="conf_auto_backup_enabled" onchange="window.ConfigView.toggleAutoBackup(this.checked); window.ConfigView.save()">
@@ -515,6 +430,117 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </div>
                 </div>
 
+                <!-- Danger zone -->
+                <details class="config-card config-danger" id="configDangerCard">
+                    <summary>
+                        <span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+                        <span class="config-danger-title" data-i18n="config_danger_title">${window.i18n ? window.i18n.t('config_danger_title') : 'Zone de danger'}</span>
+                        <span class="config-danger-hint" data-i18n="config_danger_desc">${window.i18n ? window.i18n.t('config_danger_desc') : 'Ces actions remplacent ou effacent des données.'}</span>
+                    </summary>
+                    <div class="config-danger-row">
+                        <div>
+                            <strong data-i18n="btn_restore_backup">Restaurer Sauvegarde (ZIP)</strong>
+                            <p data-i18n="config_danger_restore_desc">${window.i18n ? window.i18n.t('config_danger_restore_desc') : 'Remplace les données du profil actif par celles de l\'archive.'}</p>
+                        </div>
+                        <input type="file" id="restoreBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreBackup(event)">
+                        <button class="btn btn-danger-outline" onclick="document.getElementById('restoreBackupInput').click()" data-i18n="config_danger_restore_btn">${window.i18n ? window.i18n.t('config_danger_restore_btn') : 'Restaurer'}</button>
+                    </div>
+                    <div class="config-danger-row">
+                        <div>
+                            <strong data-i18n="profiles_restore_all">Restaurer tous les profils (ZIP)</strong>
+                            <p data-i18n="config_danger_restore_all_desc">${window.i18n ? window.i18n.t('config_danger_restore_all_desc') : 'Remplace tous les profils par ceux de l\'archive globale.'}</p>
+                        </div>
+                        <input type="file" id="restoreAllProfilesBackupInput" accept=".zip" style="display: none;" onchange="window.ConfigView.restoreAllProfilesBackup(event)">
+                        <button class="btn btn-danger-outline" onclick="document.getElementById('restoreAllProfilesBackupInput').click()" title="${window.i18n ? window.i18n.t('profiles_restore_all_tooltip') : 'Restaurer tous les profils maîtres depuis une archive globale'}" data-i18n="config_danger_restore_btn">${window.i18n ? window.i18n.t('config_danger_restore_btn') : 'Restaurer'}</button>
+                    </div>
+                    <div class="config-danger-row">
+                        <div>
+                            <strong data-i18n="btn_clear_db">Vider la base de données</strong>
+                            <p data-i18n="config_danger_clear_desc">${window.i18n ? window.i18n.t('config_danger_clear_desc') : 'Supprime toutes les données du profil actif. Irréversible.'}</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="window.ConfigView.clearDB()" data-i18n="btn_clear_db">Vider la base de données</button>
+                    </div>
+                </details>
+
+            </div>
+
+            <div class="config-tab-pane" id="configPane_advanced" style="${activeTab === 'advanced' ? '' : 'display: none;'}">
+                <!-- Multi-Currency & Exchange Rates Settings -->
+                <div class="config-card" id="configCurrenciesCard" >
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></svg></span> <span data-i18n="config_currency_title">Devises & Taux de Change</span></h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_currency_desc">Configurez la devise principale de l'application et les taux de conversion hors-ligne pour la valeur nette globale.</p>
+                    
+                    <div style="margin-bottom: 18px; max-width: 320px;">
+                        <label style="display: block; font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;" data-i18n="config_base_currency_label">Devise Principale Globale</label>
+                        <select id="conf_base_currency" class="inline-input" style="border: 1px solid var(--border-color); padding: 8px 12px; width: 100%; font-size: 13.5px;" onchange="window.ConfigView.saveBaseCurrency()">
+                            <option value="EUR">EUR (€) - Euro</option>
+                            <option value="USD">USD ($) - Dollar US</option>
+                            <option value="GBP">GBP (£) - Livre Sterling</option>
+                            <option value="CHF">CHF (CHF) - Franc Suisse</option>
+                            <option value="CAD">CAD (CA$) - Dollar Canadien</option>
+                            <option value="JPY">JPY (¥) - Yen Japonais</option>
+                        </select>
+                    </div>
+
+                    <details class="config-collapse" id="configRatesDetails">
+                        <summary data-i18n="config_rates_summary">${window.i18n.t('config_rates_summary')}</summary>
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 8px; margin: 18px 0 10px 0;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h4 style="margin:0; font-size: 13.5px; font-weight: 600;" data-i18n="config_exchange_rates_title">Grille des Taux de Change (Hors-Ligne)</h4>
+                            <span id="rateCountBadge" class="badge" style="background:rgba(99,102,241,0.1); color:var(--primary); font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:12px;">0 devises</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btnFetchOnlineRates" onclick="window.ConfigView.fetchOnlineRates()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px;" data-i18n="config_btn_fetch_online">🌐 Actualiser en ligne</button>
+                    </div>
+                    
+                    <div class="rate-add-container" style="background: var(--bg-base); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="rate_from" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_from_placeholder') : 'De (ex: USD)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
+                            <span style="font-weight: 700; color: var(--text-muted); font-size: 13px;">➔</span>
+                            <input type="text" id="rate_to" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_to_placeholder') : 'Vers (ex: EUR)'}" style="flex: 1; min-width: 80px; text-transform: uppercase; font-size: 13px; text-align: center; font-weight: 600;">
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="rate_value" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_val_placeholder') : 'Taux (ex: 0.92)'}" step="0.0001" style="flex: 1; min-width: 100px; font-size: 13px;">
+                            <button class="btn btn-primary btn-sm" onclick="window.ConfigView.addExchangeRate()" style="padding: 6px 14px; font-size: 13px; white-space: nowrap; font-weight: 600;" data-i18n="config_btn_add_rate">➕ Ajouter</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" id="rateSearchInput" class="inline-input" placeholder="${window.i18n ? window.i18n.t('config_rate_search_placeholder') : '🔍 Rechercher une devise (USD, GBP, CHF...)'}" style="width:100%; font-size:13px; padding:6px 10px; border:1px solid var(--border-color); border-radius:6px;" oninput="window.ConfigView.filterExchangeRates()">
+                    </div>
+
+                    <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+                        <table class="data-table rates-table" style="width: 100%; margin: 0; font-size: 13px; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 2; border-bottom: 1px solid var(--border-color);">
+                                <tr>
+                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_pair">Paire</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-size: 11.5px;" data-i18n="config_th_rate">Taux</th>
+                                    <th style="width: 36px; text-align: center; padding: 8px 4px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="exchangeRatesBody">
+                                <!-- Rendered dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    </details>
+                </div>
+
+                <!-- Maintenance -->
+                <div class="config-card" id="configMaintenanceCard">
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span> <span data-i18n="config_maintenance_title">${window.i18n ? window.i18n.t('config_maintenance_title') : 'Maintenance'}</span></h3>
+                    <p data-i18n="config_maintenance_desc">${window.i18n ? window.i18n.t('config_maintenance_desc') : ''}</p>
+                    <div class="config-btn-row">
+                        <button class="btn btn-secondary" onclick="window.SetupWizard.show()">
+                            <span data-i18n="btn_relaunch_wizard">${window.i18n.t('btn_relaunch_wizard')}</span>
+                        </button>
+                        <button class="btn btn-secondary" id="btnOpenDataCleanupModal" onclick="window.ConfigView.openDataCleanupModal()">
+                            <span data-i18n="maintenance_cleanup_modal_btn">${(window.i18n && window.i18n.t) ? window.i18n.t('maintenance_cleanup_modal_btn') || "Boîte à Outils d'Assainissement des Données" : "Boîte à Outils d'Assainissement des Données"}</span>
+                            <span id="cleanupModalTriggerBadge" class="cleanup-badge cleanup-badge-warning" style="display:none;"></span>
+                        </button>
+                    </div>
+                </div>
+
+
                 <!-- Diagnostics & Bug Reporting -->
                 ${window.ConfigDiagnostics ? window.ConfigDiagnostics.render() : ''}
             </div>
@@ -522,7 +548,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     },
 
     switchTab(tabId) {
-        if (!['general', 'security', 'ai', 'data'].includes(tabId)) {
+        if (tabId === 'security') tabId = 'profiles';
+        if (!['general', 'profiles', 'categorization', 'ai', 'data', 'advanced'].includes(tabId)) {
             tabId = 'general';
         }
         this.activeTab = tabId;
@@ -552,7 +579,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             card.classList.remove('config-card-hidden');
         });
 
-        if (tabId === 'security') {
+        if (tabId === 'profiles') {
             this._refreshOrgUsersPanel();
         }
     },
@@ -611,7 +638,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         const tab = this.activeTab || (function() {
             try {
                 const saved = localStorage.getItem('omnibank_config_tab');
-                if (['general', 'security', 'ai', 'data'].includes(saved)) return saved;
+                if (saved === 'security') return 'profiles';
+                if (['general', 'profiles', 'categorization', 'ai', 'data', 'advanced'].includes(saved)) return saved;
             } catch(e) {}
             return 'general';
         })();

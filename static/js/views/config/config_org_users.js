@@ -98,7 +98,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             el.style.gap = '10px';
             el.innerHTML = `
                 <span class="license-badge active">✅ ${window.i18n.t('license_active')} — ${status.email}</span>
-                <button class="btn btn-danger" style="padding:3px 10px;font-size:11px;" onclick="window.ConfigView._deactivateLicense()">${window.i18n.t('license_btn_deactivate')}</button>
+                <button class="btn btn-danger-outline" style="padding:4px 12px;font-size:12px;" onclick="window.ConfigView._deactivateLicense()">${window.i18n.t('license_btn_deactivate')}</button>
             `;
         } else {
             const isOrgOn = document.getElementById('conf_enable_org_mode')?.checked;
