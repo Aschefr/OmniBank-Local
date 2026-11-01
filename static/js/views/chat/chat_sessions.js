@@ -741,6 +741,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 const session = this.sessions.find(s => s.id === this.activeSessionId);
                 if (session) session.role = newRole;
                 this.renderSidebarList();
+                if (!this.messages || !this.messages.length) this.renderHistory();
             }
         } catch (e) {
             console.error("Error changing session role:", e);
