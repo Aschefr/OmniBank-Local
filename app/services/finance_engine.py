@@ -1,6 +1,7 @@
 import logging
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
+from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Account, Transaction, GlobalConfig, ExchangeRate
@@ -432,10 +433,16 @@ def predict_next_paycheck(db: Session):
     
     today = date.today()
     
-    # 1. Get Base Pay Day from active profile or config
+    # 1. Get Base Pay Day from the profile of this database (background tasks walk every profile,
+    #    the "active" one is only the UI's), falling back to the active profile, then to config
     try:
-        from app.profile_manager import get_active_profile
-        active_prof = get_active_profile()
+        from app.database import profile_id_for_session
+        from app.profile_manager import get_active_profile, load_profiles_data
+        session_pid = profile_id_for_session(db)
+        active_prof = next((p for p in load_profiles_data().get("profiles", []) if p.get("id") == session_pid),
+                           None) if session_pid else None
+        if active_prof is None:
+            active_prof = get_active_profile()
     except Exception as e:
         logger.debug(f"Impossible de récupérer le profil actif pour le cycle de paie: {e}")
         active_prof = None
