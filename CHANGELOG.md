@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added & Improved
 - **Lighter, More Focused AI Assistant 🪶**: The tool descriptions sent to the model with every message are about a third shorter, and the default "Conseiller financier" role keeps only everyday tools (about half the previous size), so answers start faster and the right tool is picked more reliably. For a detailed project or loan simulation, a full data audit or deleting categories, envelopes or recurrences, the assistant now tells you which conversation role to choose. The "Generate the action cards" button asks the model for the action it announced instead of guessing it from the text, so it no longer produces a wrong card.
 
+### Fixed & Ergonomics
+- **Budget Envelopes: Reliable Totals 🎯**: An expense now counts in a single envelope: a category already tracked by another envelope over the same period (and the same accounts in organisation mode) can no longer be added, which prevents double counting; dated envelopes of different fiscal periods may still share a category. A spending envelope needs at least one category (it used to count every expense of the profile), and the automatic follow-up of recurring charges now adjusts monthly and yearly envelopes in proportion to the charge's frequency and leaves dated envelopes alone.
+
 ## [1.3.0] - 2026-11-01
 
 ### Added & Improved

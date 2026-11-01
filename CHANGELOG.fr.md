@@ -7,6 +7,9 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 ### Ajouts & améliorations
 - **Assistant IA plus léger et plus ciblé 🪶** : les descriptions d'outils envoyées au modèle à chaque message sont environ un tiers plus courtes, et le rôle par défaut « Conseiller financier » ne garde que les outils du quotidien (environ moitié moins lourd) : les réponses démarrent plus vite et le bon outil est choisi plus sûrement. Pour une simulation détaillée de projet ou de prêt, un audit complet des données ou la suppression de catégories, d'enveloppes ou de récurrences, l'assistant indique désormais le rôle de conversation à choisir. Le bouton « Générer les cartes d'actions » demande au modèle l'action qu'il a annoncée au lieu de la deviner dans le texte : il ne produit plus de carte erronée.
 
+### Corrections & ergonomie
+- **Enveloppes budgétaires : des totaux fiables 🎯** : une dépense ne compte plus que dans une seule enveloppe : une catégorie déjà suivie par une autre enveloppe sur la même période (et sur les mêmes comptes en mode organisation) ne peut plus y être ajoutée, ce qui évite les doubles comptages ; des enveloppes datées sur des exercices différents peuvent toujours partager une catégorie. Une enveloppe de dépenses doit avoir au moins une catégorie (elle comptait sinon toutes les dépenses du profil), et le suivi automatique des charges récurrentes ajuste les enveloppes mensuelles et annuelles en proportion de la fréquence de la charge, sans toucher aux enveloppes datées.
+
 ## [1.3.0] - 2026-11-01
 
 ### Ajouts & améliorations
