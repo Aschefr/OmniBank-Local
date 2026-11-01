@@ -1610,7 +1610,7 @@
   "cockpit_cadence_detail": "{spent} spent by day {day}/{total_days}",
   "cockpit_cadence_detail_daily": "{spent}/d (vs {avg}/d avg)",
   "cockpit_cadence_gauge_tooltip": "Budget pace: {cadence}%. Real expenses at {spent_pct}% with {time_pct}% of cycle elapsed ({status}).",
-  "cockpit_cadence_gauge_tooltip_analog": "Daily cadence: {dailySpent}/d (Clean average: {dailyRef}/d — {status}). Current expenses: {totalSpent} over {days} days.",
+  "cockpit_cadence_gauge_tooltip_analog": "Daily cadence: {dailySpent}/d (Clean average: {dailyRef}/d — {status}). Current expenses: {totalSpent} over {days} days (reconciled operations, upcoming card payments and recorded expenses already past).",
   "cockpit_cadence_gauge_tooltip_daily": "Budget pace: {cadence}% ({status}). Daily living expenses: {dailySpent}/day ({totalSpent} over {days} days, fixed charges and peaks excluded). Usual average pace: {dailyRef}/day.",
   "cockpit_cadence_high": "Overspending",
   "cockpit_cadence_label": "Pace",
@@ -3929,5 +3929,8 @@
   "chat_starter_auditor_3": "Are there duplicates or entry mistakes?",
   "chat_starter_auditor_4": "Which recurring charges are missing?",
   "chat_context_tokens_hint": "Beyond {limit} tokens, the oldest exchanges are summarized automatically; the last two stay intact. Model context: {num_ctx} tokens.",
-  "chat_context_superseded": "included in the next summary"
+  "chat_context_superseded": "included in the next summary",
+  "cockpit_cadence_warming": "Not enough hindsight yet",
+  "cockpit_cadence_sub_warming": "Verdict from day {days} of the cycle",
+  "cockpit_cadence_sub_no_spend": "No everyday spending since the start of the cycle"
 }
