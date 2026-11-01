@@ -6,7 +6,7 @@
 </p>
 ---
 
-# 🇫🇷[![Version](https://img.shields.io/badge/version-1.2.11-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+# 🇫🇷[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/éditeur-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -96,10 +96,13 @@ OmniBank propose un **mode organisation** conçu pour les associations, comités
 Téléchargez le dernier installateur `.msi` depuis la page des [Releases](https://github.com/Aschefr/OmniBank-Local/releases).
 
 ### 🐳 Docker
+Image prête à l'emploi (amd64 et arm64), par exemple pour Unraid ou un NAS : `aschefr/omnibank-local:latest`, port `8434`, données dans le volume `/app/data`.
+
+Depuis les sources :
 ```bash
 docker-compose up -d --build
 ```
-Accédez à l'interface sur `http://localhost:8434`.
+Accédez à l'interface sur `http://localhost:8434`. Le `docker-compose.yml` n'écoute que sur la machine locale : pour y accéder depuis un autre appareil du réseau (téléphone, autre PC), lancez-le avec `OMNIBANK_BIND_IP=0.0.0.0`.
 
 ---
 
@@ -110,20 +113,20 @@ Accédez à l'interface sur `http://localhost:8434`.
 *   **Desktop** : Tauri (Wrapper Rust).
 *   **IA** : Ollama (Support Texte & Vision).
 
-## 🆕 Nouveautés (v1.2.11)
+## 🆕 Nouveautés (v1.3.0)
+
+* **🎛️ Cockpit en Page d'Accueil & Navigation Repensée** : le Cockpit devient la page d'accueil, l'ancien Dashboard devient « Journal » et le Tableau de bord complet est retiré (les anciens liens ouvrent le Cockpit). Carte patrimoine net, jauge de cadence qui compte les dépenses dès qu'elles ont lieu, et menu « Plus » au lieu du défilement horizontal des onglets.
+* **📱 Refonte Mobile** : barre d'onglets en bas, cartes d'opération compactes, formulaire plein écran (montant d'abord) et tableaux lisibles sur téléphone (Récurrences, Synthèse, Tendances).
+* **🤖 Assistant IA Repensé** : réponses plus courtes et fiables, actions proposées avant d'être préparées, personnalité et guide de l'interface modifiables, aperçu du prompt final, questions de démarrage et mémoire des longues conversations (résumé automatique sans bloquer l'application).
+* **🔐 Code PIN Appliqué par le Serveur & Sauvegardes Chiffrées** : un profil protégé exige un déverrouillage (essais limités, code de récupération) et ses données sont chiffrées dans les sauvegardes globales.
+* **⚙️ Configuration Réorganisée** : six sections claires, actions sensibles regroupées dans une « Zone de danger » repliée, page deux fois plus courte sur téléphone.
+
+## 📦 Historique Récent (v1.2.11)
 
 * **⚡ Navigation Instantanée & Caching SWR Multi-Vues** : Rendu instantané et non-bloquant des vues (Dashboard, Historique, Synthèse, Budgets, Tendances, Récurrences, Simulateur) via le pattern Stale-While-Revalidate (SWR) et parallélisation des requêtes, abaissant les transitions sous 380ms.
 * **⏱️ Filtrage Côté Serveur & Fenêtrage Scoped (Timeline & Récurrences)** : Réduction de plus de 90% des charges utiles de transactions grâce au fenêtrage ciblé (`timeline_window` et `has_recurrence`), avec bascule transparente vers l'historique complet à la demande.
 * **🎯 Cadence Financière Serveur & Parité de Rendu Stricte (Navigation vs F5)** : Nouveau endpoint optimisé `/api/stats/rhythm` avec calcul des moyennes IQR sans latence client et résolution préalable des comptes actifs pour une parité 100% stricte entre sessions et démarrage à froid (Zero F5).
 * **🤖 Fenêtre d'Opération Unifiée & Rapprochement Prévisionnel Auto-Pilote** : Modale unifiée permettant de lier n'importe quelle opération bancaire à une prévision comptable avec sélection chronologique, défilement automatique, traçabilité des décisions et déliaison bidirectionnelle réversible.
-
-## 📦 Historique Récent (v1.2.0)
-
-* **🤖 Auto-Pilote Bancaire & Centre de Contrôle Autonome** : Automatisation complète des opérations bancaires — pointage haute confiance, détection des débits annoncés, rattachement aux échéances prévisionnelles, découverte et recalibrage dynamique des enveloppes budgétaires, gestion de l'incertitude avec validation 1-clic `[✓ C'est OK]` et annulation instantanée unitaire ou par lot.
-* **🎛️ Mode Cockpit & Jauge Analogique de Cadence (€/jour)** : Sélecteur de vue instantané (« Cockpit » vs « Complet »), jauge analogique à aiguille avec gradient chromatique, synthèse prévisionnelle « Cap sur le mois prochain » et visualisations enrichies des débits à venir.
-* **🔮 Simulateur Prévisionnel What-If & Saisonnalité** : Projection multi-mois avec cônes de confiance browniens ($\sigma \sqrt{t}$), personnalisation de la saisonnalité des dépenses, neutralisation des virements internes et persistance multi-appareils.
-* **🏛️ Mode Organisation & Rapports Financiers A4 Live Preview** : Prévisualisation en feuilles physiques A4 avec rubans de césure, insertion de sauts de page interactifs, et modèles dédiés aux associations (Loi 1901) et CSE (bilan d'exploitation, piste d'audit, trésorerie et blocs d'approbation AG).
-* **🔄 Réactivité UI Zero-F5 & Garde-fous Bancaires** : Synchronisation en arrière-plan et actualisation en direct de l'ensemble des vues sans rechargement de page (F5), protégée par une analyse d'empreinte historique anti-inversion de relevés.
 
 > 📖 Pour l'historique complet et détaillé de toutes les versions antérieures, consultez le **[CHANGELOG.md](CHANGELOG.md)**.
 
@@ -131,7 +134,7 @@ Accédez à l'interface sur `http://localhost:8434`.
 
 # 🇺🇸 English
 
-[![Version](https://img.shields.io/badge/version-1.2.11-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Aschefr/OmniBank-Local/releases)
 [![Publisher](https://img.shields.io/badge/publisher-Amify_Studio-purple.svg)](https://amify-studio.fr)
 [![Tech](https://img.shields.io/badge/stack-FastAPI%20%7C%20Tauri%20%7C%20Ollama-orange.svg)](#)
 
@@ -217,10 +220,13 @@ OmniBank includes an **organization mode** designed for non-profits, sports club
 Download the latest `.msi` installer from the [Releases](https://github.com/Aschefr/OmniBank-Local/releases) page.
 
 ### 🐳 Docker
+Ready-to-use image (amd64 and arm64), for example on Unraid or a NAS: `aschefr/omnibank-local:latest`, port `8434`, data in the `/app/data` volume.
+
+From source:
 ```bash
 docker-compose up -d --build
 ```
-Access the interface at `http://localhost:8434`.
+Access the interface at `http://localhost:8434`. The `docker-compose.yml` only listens on the local machine: to reach it from another device on your network (phone, other PC), start it with `OMNIBANK_BIND_IP=0.0.0.0`.
 
 ---
 
@@ -231,20 +237,20 @@ Access the interface at `http://localhost:8434`.
 *   **Desktop**: Tauri (Rust Wrapper).
 *   **AI**: Ollama (Text & Vision Support).
 
-## 🆕 What's New (v1.2.11)
+## 🆕 What's New (v1.3.0)
+
+* **🎛️ Cockpit as Home Page & Reworked Navigation**: The Cockpit is now the landing page, the former Dashboard is renamed "Journal" and the full "Tableau de bord" is retired (old links open the Cockpit). Net worth card, a pace gauge that counts spending as soon as it happens, and a "More" menu instead of sideways-scrolling tabs.
+* **📱 Mobile Redesign**: Bottom tab bar, compact operation cards, a full-screen operation form (amount first) and tables that read well on phones (Recurrences, Analytics, Trends).
+* **🤖 Reworked AI Assistant**: Shorter, more reliable answers, actions offered before being prepared, editable personality and interface guide, a final prompt preview, starter questions and memory for long conversations (automatic summary without freezing the app).
+* **🔐 Server-Enforced Profile PIN & Encrypted Backups**: A protected profile must be unlocked (rate-limited, with a recovery code), and its data is encrypted in global backups.
+* **⚙️ Reorganised Configuration**: Six clear sections, sensitive actions grouped in a folded "Danger zone", and a page half as long on phones.
+
+## 📦 Recent History (v1.2.11)
 
 * **⚡ Instant View Navigation & Multi-View SWR Caching**: Non-blocking instant view rendering across Dashboard, Operations History, Analytics, Budgets, Trends, Recurrences, and Simulator using Stale-While-Revalidate (SWR) caching and parallel fetching, dropping screen transitions below 380ms.
 * **⏱️ Server-Side Targeted Windowing (Timeline & Recurrences)**: Drops transaction payload by over 90% with server-side windowing (`timeline_window` and `has_recurrence`), while providing seamless, on-demand fallback to full history for older cycles.
 * **🎯 Server-Side Financial Rhythm & Strict Render Parity (Navigation vs F5)**: Dedicated cached `/api/stats/rhythm` endpoint computing robust IQR averages in under 1ms with pre-resolved active account state, guaranteeing 100% strict equality between navigation and cold reloads (Zero F5).
 * **🤖 Unified Operation Modal & Auto-Pilot Forecast Linking**: Unified editing dialog to directly link bank transactions to accounting forecasts with chronological candidate matching, auto-scrolling, human override tracking, and reversible bi-directional unlinking.
-
-## 📦 Recent History (v1.2.0)
-
-* **🤖 Auto-Pilot Control Center & Autonomous Banking Operations**: Full hands-free financial automation — high-certainty auto-reconciliation, announced upcoming debit linking, dynamic budget envelope discovery/recalibration, in-situ review queue with 1-click validation (`[✓ C'est OK]`), and instant 1-click decision or cycle batch rollback.
-* **🎛️ Overview Cockpit Mode & Analog Spending Pace Gauge (€/day)**: Dual display toggle ("Cockpit" vs "Full"), analog needle meter with chromatic arc, compact "Next Month Outlook" forecast banner, and enriched upcoming debit progression arcs.
-* **🔮 What-If Financial Projection Simulator & Seasonality**: Multi-month cash flow forecasting with Brownian confidence cones ($\sigma \sqrt{t}$), customizable expense seasonality, neutral internal transfers, and persistent preferences.
-* **🏛️ Organisation Mode & Live A4 Multi-Page PDF Reports**: Real-time split-view live preview rendered as discrete A4 sheets with page markers, drag-and-drop page break insertion, and dedicated non-profit (Loi 1901 / CSE) accounting presets (Operating Statement, Cash Runway, dual Treasurer/President approval blocks).
-* **🔄 Zero-F5 Real-Time UI Reactivity & Banking Guardrails**: Instant background sync and cross-view DOM updates without manual browser refreshes, safeguarded by historical fingerprint overlap analysis preventing statement inversions.
 
 > 📖 For the full, detailed history of all previous releases, see the **[CHANGELOG.md](CHANGELOG.md)**.
 

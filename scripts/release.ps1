@@ -259,14 +259,14 @@ if (Test-Path $notesFilePath) {
 # --- Step 9: Docker Hub Release ---
 Write-Host "`n[9/9] Building and pushing Docker image..." -ForegroundColor Yellow
 
-docker build -f docker/Dockerfile.standalone -t aschefr/omnibank-local:$Version -t aschefr/omnibank-local:latest .
+# Multi-architecture image (PC/serveurs x86 et ARM : Raspberry Pi, NAS ARM), poussee en une fois.
+# Necessite le magasin d'images containerd de Docker Desktop (multi-plateforme).
+docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile.standalone `
+    -t aschefr/omnibank-local:$Version -t aschefr/omnibank-local:latest --push .
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Docker build failed" -ForegroundColor Red
+    Write-Host "ERROR: Docker multi-arch build/push failed" -ForegroundColor Red
     exit 1
 }
-
-docker push aschefr/omnibank-local:$Version
-docker push aschefr/omnibank-local:latest
 
 Write-Host "`n=== Release v$Version complete! ===" -ForegroundColor Green
 $releaseUrl = "https://github.com/Aschefr/OmniBank-Local/releases/tag/v$Version"

@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.3.0] - 2026-11-01
 
 ### Ajouts & améliorations
 - **Assistant IA : questions de démarrage 💡** : une nouvelle conversation propose quatre questions adaptées à son rôle (conseiller, prévisions, audit…) ; un clic l'envoie, et changer de rôle les met à jour.
