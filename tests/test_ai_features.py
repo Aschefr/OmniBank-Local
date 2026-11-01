@@ -157,7 +157,7 @@ def test_financial_briefing_generation(db_session):
     briefing = generate_financial_briefing(db, role="advisor")
     assert "LIVE USER FINANCIAL SITUATION & DOSSIER" in briefing
     assert "Reconciled Net Worth" in briefing
-    assert "Reste à Vivre" in briefing
+    assert "Left to live" in briefing
 
     # 4. Test role specific briefing
     briefing_sim = generate_financial_briefing(db, role="simulator")

@@ -6,13 +6,16 @@ de Configuration) :
 1. Personnalité — ton et style, modifiable dans Configuration › Assistant IA (restauration par défaut).
 2. Mission du rôle — objectif et méthode propres au rôle de la conversation (fixe).
 3. Règles de fonctionnement — outils, actions à valider, raisonnement financier, format (fixe).
-4. Guide de l'interface — où se trouve chaque fonction, modifiable dans Configuration (restauration par défaut).
+4. Guide de l'interface — où se trouve chaque fonction, avec les libellés de la langue de l'interface ;
+   modifiable par langue dans Configuration (restauration par défaut).
 5. Contexte live — date, dossier financier, connaissances OmniBank (selon la question et le fil), faits mémorisés, catégories.
 
 Les exemples restent neutres : aucun nom de compte, montant ou libellé réel d'un utilisateur.
 """
 import json
 import logging
+import os
+import re
 from datetime import date
 from typing import Dict, List, Optional
 
@@ -32,24 +35,68 @@ DEFAULT_PERSONALITY = """You are the OmniBank financial companion: a sharp, bene
 - Sober, factual and constructive; never moralising. Bold the key amounts and percentages.
 - Answer the current question only: do not recap points already settled earlier in the conversation."""
 
+# Guide modifié : enregistré par langue d'interface (ai_app_guide_fr, ai_app_guide_en)
 APP_GUIDE_CONFIG_KEY = "ai_app_guide"
 
-DEFAULT_APP_GUIDE = """OMNIBANK INTERFACE GUIDE — use it to tell the user where to go, with the exact French labels in « ». If you are not sure where something is, say so instead of guessing.
-- Navigation: tabs at the top (on phones, a tab bar at the bottom); tabs that do not fit are under « Plus ».
-- « Cockpit »: home page — left to live, next paycheck, forecast, net worth.
-- « Journal »: operations of the current period, opened on the oldest one still to reconcile; reconcile, edit or add an operation.
-- « Historique »: all operations, with search and filters.
-- « Synthèse »: tables by category and month, « Exporter en PDF ».
-- « Budgets »: envelopes (monthly, yearly or with no end) and savings piggy banks, with adjustment suggestions.
-- « Tendances »: averages and pace, top expenses, comparison between years.
-- « Récurrences »: recurring charges and income, as a table or « Chronogramme »; an ended contract is closed there.
-- « Auto-Pilote »: review of imported operations and automatic reconciliation; its decisions can be undone.
-- « Simulateur »: what-if projects, « Conseillé » or « Avancé » mode.
-- « Comptes »: bank accounts and bank connections, « Importer un relevé » (CSV / XLSX).
-- « Relever en ligne » (Cockpit, Journal, Historique): fetches the latest operations from the connected banks.
-- « Actions »: history of changes, each of which can be undone; the undo and redo arrows at the top right of the screen undo or redo the last change.
-- « Catégories »: categories and their colours.
-- « Configuration »: « Général », « Profils & accès », « Catégorisation », « Assistant IA », « Sauvegardes & données », « Avancé »."""
+# Gabarit du guide par défaut : les libellés {clé} viennent des traductions de l'interface
+# (static/i18n/<langue>.json), pour citer exactement ce que l'utilisateur voit à l'écran.
+APP_GUIDE_TEMPLATE = """OMNIBANK INTERFACE GUIDE — use it to tell the user where to go, quoting the labels exactly as written here (they are the ones displayed in the user's interface). If you are not sure where something is, say so instead of guessing.
+- Navigation: tabs at the top (on phones, a tab bar at the bottom); tabs that do not fit are under {nav_more}.
+- {nav_cockpit}: home page — left to live, next paycheck, forecast, net worth.
+- {nav_dashboard}: operations of the current period, opened on the oldest one still to reconcile; reconcile, edit or add an operation.
+- {nav_history}: all operations, with search and filters.
+- {nav_analytics}: tables by category and month, {btn_export_pdf}.
+- {nav_budgets}: envelopes (monthly, yearly or with no end) and savings piggy banks, with adjustment suggestions.
+- {nav_trends}: averages and pace, top expenses, comparison between years.
+- {nav_recurrences}: recurring charges and income, as a table or {rec_view_timeline}; an ended contract is closed there.
+- {nav_autopilot}: review of imported operations and automatic reconciliation; its decisions can be undone.
+- {nav_simulator}: what-if projects, {sim_mode_recommended} or {sim_mode_advanced} mode.
+- {nav_accounts}: bank accounts and bank connections, {btn_import_statement} (CSV / XLSX).
+- {bank_sync_run_background_btn} ({nav_cockpit}, {nav_dashboard}, {nav_history}): fetches the latest operations from the connected banks.
+- {nav_history_actions}: history of changes, each of which can be undone; the undo and redo arrows at the top right of the screen undo or redo the last change.
+- {nav_categories}: categories and their colours.
+- {nav_configuration}: {config_tab_general}, {config_tab_profiles}, {config_tab_categorization}, {config_tab_ai}, {config_tab_data}, {config_tab_advanced}."""
+
+# Libellés de secours (français) si le fichier de traduction est introuvable
+_FALLBACK_LABELS = {
+    "nav_more": "Plus", "nav_cockpit": "Cockpit", "nav_dashboard": "Journal", "nav_history": "Historique",
+    "nav_analytics": "Synthèse", "btn_export_pdf": "Exporter en PDF", "nav_budgets": "Budgets",
+    "nav_trends": "Tendances", "nav_recurrences": "Récurrences", "rec_view_timeline": "Chronogramme",
+    "nav_autopilot": "Auto-Pilote", "nav_simulator": "Simulateur", "sim_mode_recommended": "Conseillé",
+    "sim_mode_advanced": "Avancé", "nav_accounts": "Comptes", "btn_import_statement": "Importer un relevé",
+    "bank_sync_run_background_btn": "Relever en ligne", "nav_history_actions": "Actions",
+    "nav_categories": "Catégories", "nav_configuration": "Configuration", "config_tab_general": "Général",
+    "config_tab_profiles": "Profils & accès", "config_tab_categorization": "Catégorisation",
+    "config_tab_ai": "Assistant IA", "config_tab_data": "Sauvegardes & données", "config_tab_advanced": "Avancé",
+}
+
+_I18N_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "i18n"))
+_UI_LABELS_CACHE: Dict[str, Dict[str, str]] = {}
+
+
+def _ui_labels(lang: str) -> Dict[str, str]:
+    """Libellés de l'interface dans la langue demandée, sans emoji, entre guillemets de la langue."""
+    lang = lang if lang in ("fr", "en") else "fr"
+    if lang not in _UI_LABELS_CACHE:
+        texts = dict(_FALLBACK_LABELS)
+        try:
+            with open(os.path.join(_I18N_DIR, f"{lang}.json"), encoding="utf-8-sig") as fh:
+                data = json.load(fh)
+            for key in _FALLBACK_LABELS:
+                if isinstance(data.get(key), str) and data[key].strip():
+                    texts[key] = data[key]
+        except Exception as e:
+            logger.warning(f"[Prompt] Traductions '{lang}' illisibles pour le guide, libellés français utilisés : {e}")
+        quote = ("« ", " »") if lang == "fr" else ('"', '"')
+        _UI_LABELS_CACHE[lang] = {
+            k: f"{quote[0]}{re.sub(r'^[^0-9A-Za-zÀ-ÿ]+', '', v).strip()}{quote[1]}" for k, v in texts.items()
+        }
+    return _UI_LABELS_CACHE[lang]
+
+
+def default_app_guide(lang: str = "fr") -> str:
+    return APP_GUIDE_TEMPLATE.format_map(_ui_labels(lang))
+
 
 ROLE_MISSIONS: Dict[str, str] = {
     "advisor": """ROLE: Personal financial advisor.
@@ -109,8 +156,9 @@ def get_personality(db: Optional[Session]) -> str:
     return _editable_text(db, PERSONALITY_CONFIG_KEY, DEFAULT_PERSONALITY)
 
 
-def get_app_guide(db: Optional[Session]) -> str:
-    return _editable_text(db, APP_GUIDE_CONFIG_KEY, DEFAULT_APP_GUIDE)
+def get_app_guide(db: Optional[Session], lang: str = "fr") -> str:
+    lang = lang if lang in ("fr", "en") else "fr"
+    return _editable_text(db, f"{APP_GUIDE_CONFIG_KEY}_{lang}", default_app_guide(lang))
 
 
 # ── Couche 2 : mission du rôle ─────────────────────────────────────────────────
@@ -125,7 +173,7 @@ def rules_block(role: str, lang: str = "fr") -> str:
     parts: List[str] = []
 
     if lang == "en":
-        parts.append("LANGUAGE: Write your whole answer in English.")
+        parts.append("LANGUAGE: Write your whole answer in English, including follow-up suggestions and table headers: translate any French example or label from these instructions (the interface labels in the guide below are already in English).")
     else:
         parts.append("LANGUAGE: Write your whole answer in French and address the user formally with « vous » (never « tu »), including in follow-up questions and suggestions. Write amounts the French way: 1 234,56 € (comma for decimals, € after the number). Prefer plain words to abbreviations (« reste à vivre », not « RTL »).")
 
@@ -172,12 +220,15 @@ def rules_block(role: str, lang: str = "fr") -> str:
     parts.append("""TIME:
 - Use the current date below. For a future month or the next pay cycle, rely on the forecast and the scheduled debits for that period: variable spending has not happened yet, and the committed amounts are planned recurring commitments, not overspending.""")
 
-    parts.append("""FORMAT:
+    suggestion_example = (
+        "- Show the operations of this category\n- Adjust the limit of this envelope" if lang == "en" else
+        "- Voir le détail des opérations de cette catégorie\n- Ajuster la limite de cette enveloppe"
+    )
+    parts.append(f"""FORMAT:
 - Several topics: separate them with headers (### 1. …). Comparing 2 or more items: prefer a markdown table. Bullet points start with a bold key.
-- End with 2 or 3 short follow-up suggestions written from the user's point of view, in a ```suggestions block:
+- End with 2 or 3 short follow-up suggestions written from the user's point of view, in the answer's language, in a ```suggestions block:
 ```suggestions
-- Voir le détail des opérations de cette catégorie
-- Ajuster la limite de cette enveloppe
+{suggestion_example}
 ```""")
 
     parts.append("""MEMORY:
@@ -277,7 +328,7 @@ def build_system_prompt_layers(
         {"id": "personality", "text": get_personality(db)},
         {"id": "role", "text": role_block(role)},
         {"id": "rules", "text": rules_block(role, lang)},
-        {"id": "guide", "text": get_app_guide(db)},
+        {"id": "guide", "text": get_app_guide(db, lang)},
         {"id": "context", "text": live_context_block(db, role, lang, categories, session_id, user_name, user_query)},
     ]
 

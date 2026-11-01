@@ -213,7 +213,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             lines.append(f"• Secondary Accounts: {sec_detail_str}.")
 
         lines.extend([
-            f"• Reste à Vivre (RTL): {rtl:.2f} {base_curr} available on main account until next paycheck ({days_until_paycheck} days remaining).",
+            f"• Left to live (« reste à vivre » in French): {rtl:.2f} {base_curr} available on main account until next paycheck ({days_until_paycheck} days remaining).",
             f"• Next Scheduled Paycheck: {next_pay_date} ({pay_amount:.2f} {base_curr}).",
         ])
 

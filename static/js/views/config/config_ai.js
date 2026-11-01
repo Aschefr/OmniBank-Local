@@ -242,12 +242,25 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     // ── Assistant behaviour: editable layers of the system prompt (personality, interface guide) ──
     _aiTextFields: {
         personality: { input: 'conf_ai_personality', key: 'ai_chat_personality', defaultField: 'default', saved: 'config_ai_personality_saved' },
-        guide: { input: 'conf_ai_guide', key: 'ai_app_guide', defaultField: 'guide', saved: 'config_ai_guide_saved' },
+        // The guide quotes the interface labels: one version per interface language
+        guide: { input: 'conf_ai_guide', key: 'ai_app_guide', perLang: true, defaultField: 'guide', saved: 'config_ai_guide_saved' },
+    },
+
+    _aiLang() {
+        const lang = (window.i18n && window.i18n.lang) || 'fr';
+        return lang === 'en' ? 'en' : 'fr';
+    },
+
+    _aiTextKey(kind) {
+        const field = this._aiTextFields[kind];
+        return field.perLang ? `${field.key}_${this._aiLang()}` : field.key;
     },
 
     async _aiTextDefault(kind) {
-        if (!this._aiTextDefaults) {
-            this._aiTextDefaults = await API.get('/api/chat/prompt/personality-default');
+        const lang = this._aiLang();
+        if (!this._aiTextDefaults || this._aiTextDefaultsLang !== lang) {
+            this._aiTextDefaults = await API.get(`/api/chat/prompt/personality-default?lang=${lang}`);
+            this._aiTextDefaultsLang = lang;
         }
         return this._aiTextDefaults[this._aiTextFields[kind].defaultField] || '';
     },
@@ -258,7 +271,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             const el = document.getElementById(field.input);
             if (!el) continue;
             try {
-                const saved = ((this.configData && this.configData[field.key]) || '').trim();
+                const saved = ((this.configData && this.configData[this._aiTextKey(kind)]) || '').trim();
                 el.value = saved || await this._aiTextDefault(kind);
             } catch (e) {
                 console.error(e);
@@ -275,8 +288,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
             const val = el.value.trim();
             // Same text as the default: store nothing so later improvements of the default apply
             const stored = (!val || val === def.trim()) ? '' : val;
-            await API.post('/api/config/', { [field.key]: stored });
-            if (this.configData) this.configData[field.key] = stored;
+            const key = this._aiTextKey(kind);
+            await API.post('/api/config/', { [key]: stored });
+            if (this.configData) this.configData[key] = stored;
             if (!val) el.value = def;
             showToast(window.i18n.t(field.saved), 'success');
         } catch (e) {

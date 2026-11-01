@@ -90,12 +90,24 @@ def _check_preview(client):
 
 
 def test_interface_guide_is_editable_with_default(db):
-    from app.services.chat.chat_prompt import DEFAULT_APP_GUIDE, APP_GUIDE_CONFIG_KEY
-    assert DEFAULT_APP_GUIDE in load_system_prompt(db=db)
-    db.add(GlobalConfig(key=APP_GUIDE_CONFIG_KEY, value="GUIDE PERSO : tout est dans Cockpit."))
+    from app.services.chat.chat_prompt import default_app_guide, APP_GUIDE_CONFIG_KEY
+    assert default_app_guide("fr") in load_system_prompt(db=db, lang="fr")
+    db.add(GlobalConfig(key=f"{APP_GUIDE_CONFIG_KEY}_fr", value="GUIDE PERSO : tout est dans Cockpit."))
     db.commit()
-    prompt = load_system_prompt(db=db)
-    assert "GUIDE PERSO" in prompt and DEFAULT_APP_GUIDE not in prompt
+    prompt = load_system_prompt(db=db, lang="fr")
+    assert "GUIDE PERSO" in prompt and default_app_guide("fr") not in prompt
+    # The English interface keeps its own (default) guide
+    assert "GUIDE PERSO" not in load_system_prompt(db=db, lang="en")
+
+
+def test_interface_guide_quotes_the_labels_of_the_interface_language():
+    from app.services.chat.chat_prompt import default_app_guide
+    fr, en = default_app_guide("fr"), default_app_guide("en")
+    assert "« Comptes »" in fr and "« Importer un relevé »" in fr and "« Relever en ligne »" in fr
+    assert '"Accounts"' in en and '"Import statement"' in en and '"Fetch online"' in en
+    assert "Comptes" not in en and "Relever" not in en
+    # Emoji prefixes of button labels are dropped
+    assert '"Export as PDF"' in en and "📥" not in en + fr
 
 
 @pytest.mark.parametrize("question", [
@@ -135,3 +147,10 @@ def test_follow_up_keeps_the_topic_of_the_conversation(db):
     db.add(ChatMessage(session_id=s2.id, role="user", content=follow_up))
     db.commit()
     assert "AUTHORITATIVE OMNIBANK APPLICATION RULES" not in load_system_prompt(db=db, session_id=s2.id, user_query=follow_up)
+
+
+def test_english_rules_carry_english_examples():
+    en = rules_block("advisor", "en")
+    assert "Show the operations of this category" in en
+    assert "Voir le détail" not in en
+    assert "Voir le détail" in rules_block("advisor", "fr")

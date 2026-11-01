@@ -67,10 +67,11 @@ logger = logging.getLogger(__name__)
 # ─── Prompt système (Configuration › Assistant IA) ──────────────────────────
 
 @router.get("/prompt/personality-default")
-async def get_default_personality():
-    """Textes par défaut des couches modifiables, pour les boutons « Restaurer » de Configuration."""
-    from app.services.chat.chat_prompt import DEFAULT_PERSONALITY, DEFAULT_APP_GUIDE
-    return {"default": DEFAULT_PERSONALITY, "guide": DEFAULT_APP_GUIDE}
+async def get_default_personality(lang: str = "fr"):
+    """Textes par défaut des couches modifiables, pour les boutons « Restaurer » de Configuration.
+    Le guide de l'interface dépend de la langue (libellés affichés à l'écran)."""
+    from app.services.chat.chat_prompt import DEFAULT_PERSONALITY, default_app_guide
+    return {"default": DEFAULT_PERSONALITY, "guide": default_app_guide(lang)}
 
 
 @router.get("/prompt/preview")

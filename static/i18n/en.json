@@ -3895,7 +3895,7 @@
   "config_ai_role_forecaster": "Cash flow forecast",
   "config_ai_role_auditor": "Transaction audit",
   "config_ai_guide_label": "Interface guide",
-  "config_ai_guide_help": "Tells the assistant where each feature is, so it can guide you through the app. Adjust it if you rename or hide pages.",
+  "config_ai_guide_help": "Tells the assistant where each feature is, with the labels shown on screen. This guide is specific to the interface language: you are editing the English version here. Adjust it if you rename or hide pages.",
   "config_ai_guide_saved": "Interface guide saved",
   "config_ai_layer_guide": "4. Interface guide (editable)",
   "chat_starters_title": "Where to start?",
