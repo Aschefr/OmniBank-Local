@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.3.0] - 2026-11-01
 
 ### Added & Improved
 - **AI Assistant: Starter Questions 💡**: A new conversation shows four starter questions suited to its role (advisor, forecast, audit…); one click sends it, and changing the role updates them.

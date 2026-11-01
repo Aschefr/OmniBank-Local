@@ -332,7 +332,10 @@ Le script effectue dans l'ordre :
 6. Mise a jour de `latest.json` avec la signature base64
 7. Git commit + tag + push
 8. Creation de la GitHub Release avec upload du MSI
-9. **Nouveau** : Build de l'image Docker (`Dockerfile.standalone`) et push vers Docker Hub (`aschefr/omnibank-local`).
+9. Build de l'image Docker (`Dockerfile.standalone`) pour **amd64 et arm64** (`docker buildx --platform linux/amd64,linux/arm64 --push`) et push vers Docker Hub (`aschefr/omnibank-local`). Nécessite le magasin d'images containerd de Docker Desktop (`docker info` → `driver-type: io.containerd.snapshotter.v1`).
+
+> [!IMPORTANT]
+> Le script commite sur la branche courante mais pousse `main` : lancez-le **depuis `main`**, après avoir ramené `main` au niveau de `dev` (`git checkout main && git merge --ff-only dev`). Lancé depuis `dev`, le tag et `latest.json` ne seraient pas publiés sur `main` et l'auto-update ne verrait pas la version.
 
 ### Methode manuelle (si le script echoue)
 
