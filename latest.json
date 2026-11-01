@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHpMMFZzd1kzTnROeHMwYVNXWVZtUTVwdjRlSGovNnJSdUM0Q2RHdUJiWGtWT3VDb1Q4NHdhcDJYU2xicFZpeFoxVjBuTFdLT2VjRGtsS1dqUndCcXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMTIwNTI2CWZpbGU6T21uaUJhbmtfMS4yLjExX3g2NF9mci1GUi5tc2kKd2hGME1USlFSVCtHQW44VG1IVzlXdFArcE9PWWdMM0Viais5Und2QkZLZ0FxVWlhKzYrN0Nyd2JzUDNRWkRjcDV0WHlqMkRDa2t2NFM2Zm9XdjdtRGc9PQo=",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.2.11/OmniBank_1.2.11_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDF6WHN3cUF0b2NvQ2lQek93NXl6V1BWSTlQQ3hnSWZ6d2h1VlV6NEYvUkpvZnJFc1FoRVRDbzA5bjNEWlluaGpURy9qN3hXQTdnd3VxOHhQUEd4L1EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNTU4ODkyCWZpbGU6T21uaUJhbmtfMS4zLjBfeDY0X2ZyLUZSLm1zaQpZVlh4aDNxQklLSGRlWHJZUU8wTjVGWjMwT1ZlOGpLQ015SHRDd3BuNkJPaEVjdndJMkc2Rk42WVhXRWVWL2ExRThJR1Y1RmJyVytENFVOWHZPa1JDZz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.3.0/OmniBank_1.3.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-10-27T17:02:06Z",
-    "version":  "1.2.11",
-    "notes":  "Instant SWR View Navigation, Full-Stack Performance \u0026 Unified Auto-Pilot Forecast Linking"
+    "pub_date":  "2026-11-01T18:48:12Z",
+    "version":  "1.3.0",
+    "notes":  "Cockpit home page, mobile redesign, reworked AI assistant, server-enforced profile PIN"
 }
