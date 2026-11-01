@@ -11,6 +11,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         if (reports) {
             reports.style.display = enabled ? '' : 'none';
         }
+        const behavior = document.getElementById('configAiBehaviorCard');
+        if (behavior) {
+            behavior.style.display = enabled ? '' : 'none';
+        }
 
         // Toggle Chat Nav Button instantly
         document.querySelectorAll('.nav-btn[data-view="chat"]').forEach(btn => {
@@ -235,5 +239,71 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
+    // ── Assistant behaviour: personality (editable layer of the system prompt) ──
+    async _defaultAiPersonality() {
+        if (!this._aiPersonalityDefault) {
+            const res = await API.get('/api/chat/prompt/personality-default');
+            this._aiPersonalityDefault = res.default || '';
+        }
+        return this._aiPersonalityDefault;
+    },
+
+    async loadAiPersonality() {
+        const el = document.getElementById('conf_ai_personality');
+        if (!el) return;
+        try {
+            const saved = ((this.configData && this.configData.ai_chat_personality) || '').trim();
+            el.value = saved || await this._defaultAiPersonality();
+        } catch (e) {
+            console.error(e);
+        }
+    },
+
+    async saveAiPersonality() {
+        const el = document.getElementById('conf_ai_personality');
+        if (!el) return;
+        try {
+            const def = await this._defaultAiPersonality();
+            const val = el.value.trim();
+            // Same text as the default: store nothing so later improvements of the default apply
+            const stored = (!val || val === def.trim()) ? '' : val;
+            await API.post('/api/config/', { ai_chat_personality: stored });
+            if (this.configData) this.configData.ai_chat_personality = stored;
+            if (!val) el.value = def;
+            showToast(window.i18n.t('config_ai_personality_saved'), 'success');
+        } catch (e) {
+            console.error(e);
+            showToast(window.i18n.t('config_ai_personality_error'), 'error');
+        }
+    },
+
+    async restoreAiPersonality() {
+        const el = document.getElementById('conf_ai_personality');
+        if (!el) return;
+        el.value = await this._defaultAiPersonality();
+        await this.saveAiPersonality();
+    },
+
+    async previewAiPrompt() {
+        const box = document.getElementById('aiPromptPreview');
+        if (!box) return;
+        const role = document.getElementById('conf_ai_preview_role')?.value || 'advisor';
+        box.innerHTML = `<p class="config-help">${window.i18n.t('config_ai_preview_loading')}</p>`;
+        try {
+            const lang = (window.i18n && window.i18n.lang) || 'fr';
+            const data = await API.get(`/api/chat/prompt/preview?role=${encodeURIComponent(role)}&lang=${encodeURIComponent(lang)}`);
+            const total = data.prompt_tokens + data.tools_tokens;
+            const summary = window.i18n.tp('config_ai_preview_tokens', { prompt: data.prompt_tokens, tools: data.tools_tokens, total, ctx: data.num_ctx });
+            box.innerHTML = `<p class="config-status ${total > data.num_ctx * 0.6 ? 'is-error' : 'is-ok'}">${window.escapeHtml(summary)}</p>` +
+                data.layers.map(l => `
+                    <details class="config-collapse">
+                        <summary>${window.escapeHtml(window.i18n.t('config_ai_layer_' + l.id))} · ${l.tokens} tokens</summary>
+                        <pre class="config-prompt-pre">${window.escapeHtml(l.text)}</pre>
+                    </details>`).join('');
+        } catch (e) {
+            console.error(e);
+            box.innerHTML = `<p class="config-status is-error">${window.i18n.t('config_ai_preview_error')}</p>`;
+        }
+    },
 
 });

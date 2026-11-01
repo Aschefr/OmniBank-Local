@@ -64,6 +64,32 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
 
 
+# ─── Prompt système (Configuration › Assistant IA) ──────────────────────────
+
+@router.get("/prompt/personality-default")
+async def get_default_personality():
+    """Personnalité par défaut, pour le bouton « Restaurer » de Configuration."""
+    from app.services.chat.chat_prompt import DEFAULT_PERSONALITY
+    return {"default": DEFAULT_PERSONALITY}
+
+
+@router.get("/prompt/preview")
+async def preview_system_prompt(role: str = "advisor", lang: str = "fr", user_name: Optional[str] = None, db: Session = Depends(get_db)):
+    """Prompt système final tel qu'envoyé au modèle, couche par couche, avec une estimation en tokens."""
+    from app.services.chat.chat_prompt import build_system_prompt_layers
+    categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
+    layers = build_system_prompt_layers(role, categories, lang, db=db, user_name=user_name)
+    tools_tokens = estimate_tokens(json.dumps(get_tools_for_role(role)))
+    out = [{"id": l["id"], "text": l["text"], "tokens": estimate_tokens(l["text"])} for l in layers]
+    return {
+        "role": role,
+        "layers": out,
+        "prompt_tokens": sum(l["tokens"] for l in out),
+        "tools_tokens": tools_tokens,
+        "num_ctx": get_ollama_config(db)["num_ctx"],
+    }
+
+
 # ─── Sessions ───────────────────────────────────────────────────────────────
 
 @router.get("/sessions")

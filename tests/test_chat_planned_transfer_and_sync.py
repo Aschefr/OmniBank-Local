@@ -389,10 +389,11 @@ def test_store_and_forget_financial_facts(db_session):
         assert fact_row is not None
         assert fact_row.fact_value == test_val
 
-        # 2. Verify fact appears in briefing Live Financial Dossier
-        briefing = generate_financial_briefing(db_session)
-        assert "Known Financial Facts & Memory (ai_facts)" in briefing
-        assert test_val in briefing
+        # 2. Verify fact appears in the system prompt memory block (filtered per user/session there)
+        from app.services.chat.chat_prompt import load_system_prompt
+        prompt = load_system_prompt(db=db_session)
+        assert "PERSISTENT USER FACTS" in prompt
+        assert test_val in prompt
 
         # 3. Forget fact
         res_forget = forget_financial_fact_tool(db_session, key=test_key)
@@ -437,7 +438,12 @@ def test_bridge_restitution_briefing_prompt(db_session):
     briefing_before = generate_financial_briefing(db_session)
     assert "Pending Savings Restitution" in briefing_before
     assert "250.00" in briefing_before
-    assert "ACTION REQUIRED: Propose scheduling the return transfer" in briefing_before
+    assert "Return transfer to offer (record it only if the user agrees)" in briefing_before
+    assert "ACTION REQUIRED" not in briefing_before
+    from app.services.finance_engine import predict_next_paycheck
+    pay = predict_next_paycheck(db_session)["date"]
+    pay = pay if isinstance(pay, date) else date.fromisoformat(str(pay))
+    assert f"on {(pay + timedelta(days=1)).isoformat()} (day after the next paycheck)" in briefing_before
 
     # 2. Schedule the return transfer
     res_return = create_planned_transfer_tool(

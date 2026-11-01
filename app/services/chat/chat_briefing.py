@@ -42,7 +42,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         total_net_worth = get_net_worth(db, only_reconciled=True, precomputed_balances=balances_reconciled)
 
         main_acc = get_main_account(db)
-        main_acc_name = main_acc.name if main_acc else "Compte Principal"
+        main_acc_name = main_acc.name if main_acc else "main account"
         main_acc_bal = balances_reconciled.get(main_acc.id, 0.0) if main_acc else 0.0
 
         # Categorize liquid savings and secondary accounts
@@ -266,12 +266,13 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
         if recent_bridge_tx:
             from_acc_obj = db.query(Account).filter(Account.id == recent_bridge_tx.from_account_id).first()
             to_acc_obj = db.query(Account).filter(Account.id == recent_bridge_tx.to_account_id).first()
-            from_acc_name = from_acc_obj.name if from_acc_obj else "Livret A"
-            to_acc_name = to_acc_obj.name if to_acc_obj else "Compte courant"
+            from_acc_name = from_acc_obj.name if from_acc_obj else "savings account"
+            to_acc_name = to_acc_obj.name if to_acc_obj else "checking account"
 
             p_dt = None
             try:
-                p_dt = date.fromisoformat(next_pay_date)
+                # predict_next_paycheck renvoie une date (ou une chaîne ISO selon l'appelant)
+                p_dt = next_pay_date if isinstance(next_pay_date, date) else date.fromisoformat(str(next_pay_date))
                 day_after_pay = (p_dt + timedelta(days=1)).isoformat()
             except Exception:
                 day_after_pay = next_pay_date
@@ -297,7 +298,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             if not return_tx:
                 lines.append(
                     f"• Pending Savings Restitution: A bridge transfer of {recent_bridge_tx.amount:.2f} {base_curr} was recorded from {from_acc_name} to {to_acc_name}. "
-                    f"No return transfer has been scheduled yet! ACTION REQUIRED: Propose scheduling the return transfer ({to_acc_name} -> {from_acc_name}, {recent_bridge_tx.amount:.2f} {base_curr}) on {day_after_pay} (day after next paycheck) via `create_planned_transfer` to automatically replenish liquid savings."
+                    f"No return transfer is scheduled yet. Return transfer to offer (record it only if the user agrees): from {to_acc_name} to {from_acc_name}, {recent_bridge_tx.amount:.2f} {base_curr}, on {day_after_pay} (day after the next paycheck)."
                 )
             else:
                 lines.append(
@@ -324,13 +325,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             goals_str = ", ".join(f"{g['name']} ({g['saved']:.0f}/{g['target']:.0f} {base_curr} - {g['pct']}%)" for g in active_savings_goals[:3])
             lines.append(f"• Active Savings Goals: {goals_str}.")
 
-        # Known Financial Facts & Memory (from ai_facts)
-        from app.models import AIFact
-        ai_facts_rows = db.query(AIFact).all()
-        if ai_facts_rows:
-            facts_list = [f"[{f.fact_key}]: {f.fact_value}" for f in ai_facts_rows if f.fact_value]
-            if facts_list:
-                lines.append(f"• Known Financial Facts & Memory (ai_facts): {'; '.join(facts_list)}.")
+        # Les faits mémorisés sont ajoutés par le prompt, filtrés par utilisateur et par conversation
 
         lines.append(f"• Latest AI Financial Health Evaluation: {last_report_summary}")
 
@@ -359,7 +354,7 @@ def generate_financial_briefing(db: Session, role: str = 'advisor', user_name: s
             from app.services.chat.chat_tools import get_active_recurrence_templates
             active_templates = get_active_recurrence_templates(db, template_types=("expense_fixed", "expense_var"))
             rec_exp_total = sum(t.amount for t in active_templates)
-            lines.append(f"[Optimizer Briefing] {len(active_templates)} active recurring templates ({rec_exp_total:.2f} {base_curr}/mo total commitments). Check `detect_anomalies_and_subscriptions` for price increases.")
+            lines.append(f"[Optimizer Briefing] {len(active_templates)} active recurring templates ({rec_exp_total:.2f} {base_curr}/mo total commitments). Look up subscriptions and anomalies for price increases.")
         elif role == 'budget_planner':
             six_months_ago = today - timedelta(days=180)
             cat_txs = db.query(Transaction.category, func.sum(Transaction.amount)).filter(
