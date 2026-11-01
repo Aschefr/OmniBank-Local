@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from typing import Dict
+from typing import Dict, Optional
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.engine import Engine
@@ -173,6 +173,20 @@ def dispose_engine(profile_id: str):
             logger.warning(f"[DB] Erreur lors de la fermeture de l'engine {profile_id}: {e}")
         _engines.pop(profile_id, None)
         _session_factories.pop(profile_id, None)
+
+
+def profile_id_for_session(db) -> Optional[str]:
+    """Profil dont la base est derrière cette session (via son engine), ou None si l'engine n'est pas celui
+    d'un profil (session de test en mémoire…). Utile aux tâches de fond, qui parcourent tous les profils
+    alors que le « profil actif » est celui de l'interface."""
+    try:
+        bind = db.get_bind()
+    except Exception:
+        return None
+    for pid, eng in _engines.items():
+        if eng is bind:
+            return pid
+    return None
 
 
 def SessionLocal() -> Session:
