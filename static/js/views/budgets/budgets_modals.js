@@ -174,7 +174,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         try {
             const budget = this.statusData?.budgets.find(b => b.id === budgetId);
             const isSavings = (budget?.envelope_type || 'spending') === 'savings';
-            const txs = await API.get(`/api/budgets/${budgetId}/transactions?year=${year}&month=${month}`);
+            // Enveloppe mensuelle : opérations de la période affichée (cycle de paie ou période personnalisée)
+            let txUrl = `/api/budgets/${budgetId}/transactions?year=${year}&month=${month}`;
+            const isMonthlyEnv = budget && !budget.is_project && (!budget.period || budget.period === 'monthly');
+            if (isMonthlyEnv && this.customPeriod?.enabled && this.customPeriod.start && this.customPeriod.end) {
+                txUrl += `&date_start=${this.customPeriod.start}&date_end=${this.customPeriod.end}`;
+            } else if (isMonthlyEnv && this.periodInfo) {
+                txUrl += `&date_start=${this.periodInfo.start}&date_end=${this.periodInfo.end}`;
+            }
+            const txs = await API.get(txUrl);
 
             if (isSavings) {
                 let allocs = [];
@@ -275,8 +283,25 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 return;
             }
 
+            // Réglages de l'enveloppe (retirés de la liste pour la garder lisible)
+            const t = (k, fb) => window.i18n.t(k) || fb;
+            const engaged = budget?.expenses || 0;
+            const canAlign = budget && engaged > 0 && Math.abs(engaged - (budget.budget_amount || 0)) > 0.009;
+            const limitControls = budget ? `
+                <div class="bv-detail-controls" onclick="event.stopPropagation()">
+                    <label class="bv-detail-limit">
+                        <span>${t('bv_detail_limit', 'Plafond')}</span>
+                        <input type="number" class="inline-input" value="${budget.budget_amount}" min="0" step="0.01"
+                               onchange="window.BudgetsView.updateAmount(${budgetId}, this.value)"> €
+                    </label>
+                    ${canAlign ? `<button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.updateAmount(${budgetId}, ${engaged}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">${t('bv_detail_align', 'Aligner sur le réalisé')} (${formatCurrency(engaged)})</button>` : ''}
+                    <button type="button" class="btn btn-secondary bv-btn-compact" aria-pressed="${budget.is_locked ? 'true' : 'false'}" onclick="window.BudgetsView.toggleLock(${budgetId}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">
+                        ${budget.is_locked ? t('bv_detail_unlock', 'Déverrouiller') : t('bv_detail_lock', 'Verrouiller')}
+                    </button>
+                </div>` : '';
+
             if (!txs.length) {
-                graph.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
+                graph.innerHTML = `${limitControls}<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
                 return;
             }
 
@@ -299,7 +324,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const expW = Math.max(0, Math.min(totalExp / maxVal * 100, 100));
             const recW = Math.max(0, Math.min(totalRecExp / maxVal * 100, 100));
 
-            graph.innerHTML = `<div style="margin-bottom:10px;">
+            graph.innerHTML = `${limitControls}<div style="margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;">
                         <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(target)}</span> ${window.i18n.t('budget_objective')}</span><span class="privacy-blur">${expSublabel}</span>
                     </div>

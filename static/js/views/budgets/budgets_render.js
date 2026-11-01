@@ -47,14 +47,25 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </button>
                 </div>
                 <div class="bv-header-actions">
-                    <button class="btn btn-secondary bv-btn-automations" onclick="window.BudgetsView.openBudgetAutomationsModal()" 
-                            title="${window.i18n.t('budget_automations_title') || 'Automatismes des enveloppes budgétaires'}" 
-                            style="padding: 7px 14px; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
-                        <span>⚙️</span> <span class="btn-text" data-i18n="budget_automations_btn">${window.i18n.t('budget_automations_btn') || 'Automatismes'}</span>
+                    <div class="bv-tools">
+                        <button type="button" id="bvToolsBtn" class="btn btn-secondary bv-tools-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="bvToolsMenu" onclick="window.BudgetsView.toggleToolsMenu(event)">
+                            ${this._bvIcon('sliders')}<span>${window.i18n.t('bv_tools') || 'Outils'}</span>${this._bvIcon('chevronDown', 14)}
+                        </button>
+                        <div id="bvToolsMenu" class="bv-tools-menu" role="menu" hidden>
+                            <button type="button" role="menuitem" onclick="window.BudgetsView.openBudgetAutomationsModal()">
+                                ${this._bvIcon('sliders')}<span>${this._stripEmoji(window.i18n.t('budget_automations_btn') || 'Automatismes')}</span>
+                            </button>
+                            <button type="button" role="menuitem" id="budgetAiBtn" class="${btnExtraClass.trim()}" onclick="window.BudgetsView.handleHeaderSuggestionsBtnClick()" title="${btnSuggestionsTitle}">
+                                ${this._bvIcon('bulb')}<span>${this._stripEmoji(btnSuggestionsText)}</span>
+                            </button>
+                            <button type="button" role="menuitem" class="bv-tools-danger" onclick="window.BudgetsView.showBulkDeleteModal()">
+                                ${this._bvIcon('trash')}<span>${this._stripEmoji(window.i18n.t('budget_btn_bulk_delete') || 'Nettoyer')}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary bv-btn-new" onclick="window.BudgetsView.showAddForm()">
+                        ${this._bvIcon('plus')}<span>${this._stripEmoji((window.i18n.t('budget_btn_new') || 'Nouvelle enveloppe').replace(/^\+\s*/, ''))}</span>
                     </button>
-                    <button id="budgetAiBtn" class="btn btn-secondary${btnExtraClass}" style="${aiDisp}" onclick="window.BudgetsView.handleHeaderSuggestionsBtnClick()" title="${btnSuggestionsTitle}">${btnSuggestionsText}</button>
-                    <button class="btn btn-secondary bv-btn-delete" onclick="window.BudgetsView.showBulkDeleteModal()" data-i18n="budget_btn_bulk_delete">${window.i18n.t('budget_btn_bulk_delete') || '🗑️ Nettoyer'}</button>
-                    <button class="btn btn-primary" onclick="window.BudgetsView.showAddForm()" data-i18n="budget_btn_new">${window.i18n.t('budget_btn_new')}</button>
                 </div>
             </div>
 
@@ -424,592 +435,297 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         `;
     },
 
+    // Icônes au trait (même famille que le reste de l'interface), héritent de currentColor
+    _bvIcon(name, size = 16) {
+        const paths = {
+            pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+            trash: '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+            lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+            chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+            chevronRight: '<path d="m9 18 6-6-6-6"/>',
+            chevronDown: '<path d="m6 9 6 6 6-6"/>',
+            sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+            bulb: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/>',
+            plus: '<path d="M12 5v14M5 12h14"/>',
+        };
+        return `<svg class="bv-ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
+    },
+
+    _stripEmoji(label) {
+        return (label || '').replace(/^[\s\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]+/u, '').trim();
+    },
+
+    toggleToolsMenu(event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('bvToolsMenu');
+        const btn = document.getElementById('bvToolsBtn');
+        if (!menu || !btn) return;
+        const open = menu.hasAttribute('hidden');
+        menu.toggleAttribute('hidden', !open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            const close = (e) => {
+                if (e.type === 'keydown' && e.key !== 'Escape') return;
+                if (e.type === 'click' && menu.contains(e.target)) return;
+                menu.setAttribute('hidden', '');
+                btn.setAttribute('aria-expanded', 'false');
+                document.removeEventListener('click', close);
+                document.removeEventListener('keydown', close);
+            };
+            setTimeout(() => {
+                document.addEventListener('click', close);
+                document.addEventListener('keydown', close);
+            }, 0);
+        }
+    },
+
     renderStatus() {
         const container = document.getElementById('budgetStatusContainer');
-        const hasBudgets = this.statusData && this.statusData.budgets && this.statusData.budgets.length > 0;
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const tp = (key, params, fallback) => {
+            let s = t(key, fallback);
+            for (const [k, v] of Object.entries(params || {})) s = s.split(`{${k}}`).join(v);
+            return s;
+        };
+        const lang = (window.i18n?.currentLang || window.i18n?.lang || 'fr') === 'en' ? 'en-US' : 'fr-FR';
+        const fmtDay = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'short' }) : '';
+        const fmtDate = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '?';
+        const isOrg = window.app?.config?.enable_org_mode === 'true';
+        const all = this.statusData?.budgets || [];
+        const period = this.periodInfo || null;
+        const isCurrentPeriod = !this.customPeriod.enabled && (this.cycleOffset || 0) === 0;
+        const isMonthly = (b) => !b.period || b.period === 'monthly';
 
-        const showCapacity = ProfileStorage.get('show_budget_capacity_panel') !== 'false';
-        const panelHelpText = window.i18n.t('budget_capacity_tooltip') || "À quoi sert ce panneau ?\nLa capacité budgétaire compare l'ensemble de vos enveloppes à vos recettes/revenus. C'est un outil prédictif basé sur le passé à titre indicatif.";
-
-        const toggleHeaderHtml = `
-            <div class="bv-capacity-toggle">
-                <label>
-                    <span class="toggle-switch" style="flex-shrink:0;">
-                        <input type="checkbox" id="toggleCapacityPanel" ${showCapacity ? 'checked' : ''} onchange="window.BudgetsView.toggleCapacityPanel(this.checked)">
-                        <span class="slider"></span>
-                    </span>
-                    <strong>${window.i18n.t('budget_capacity_panel_title') || 'Couverture du budget & Solde disponible'}</strong>
-                </label>
-                <span title="${panelHelpText}" class="bv-info-icon bv-info-icon--lg">i</span>
-            </div>
-        `;
-
-        let capacityHtml = '';
-        if (showCapacity && this.capacityData) {
-            const isOrg = window.app?.config?.enable_org_mode === 'true';
-            const incomeLabel = isOrg ? (window.i18n.t('budget_capacity_receipts') || 'Recettes') : (window.i18n.t('budget_capacity_income') || 'Revenus');
-            
-            const monthlyRatio = this.capacityData.monthly.engagement_ratio;
-            const monthlyColor = monthlyRatio > 100 ? '#ff5630' : monthlyRatio >= 85 ? '#f59e0b' : '#10b981';
-            
-            const yearlyRatio = this.capacityData.yearly.engagement_ratio;
-            const yearlyColor = yearlyRatio > 100 ? '#ff5630' : yearlyRatio >= 85 ? '#f59e0b' : '#10b981';
-            
-            let accountsHtml = '';
-            if (this.capacityData.accounts && this.capacityData.accounts.length > 0) {
-                accountsHtml = `
-                    <div class="bv-accounts-section">
-                        <strong class="bv-accounts-section-label">${window.i18n.t('budget_accounts_impact') || 'Impact sur les comptes & livrets'}</strong>
-                        <div class="bv-accounts-grid">
-                            ${this.capacityData.accounts.map(acc => {
-                                const accColor = acc.color || 'var(--accent)';
-                                const hasSavings = acc.savings_allocated > 0;
-                                return `
-                                    <div class="bv-account-card">
-                                        <div class="bv-account-card-name">
-                                            <span style="width:8px;height:8px;border-radius:50%;background:${accColor};"></span>
-                                            <span>${acc.name}</span>
-                                        </div>
-                                        <div class="bv-account-card-row">
-                                            <span style="color:var(--text-muted);">${window.i18n.t('budget_real_balance') || 'Solde réel'}</span>
-                                            <span class="privacy-blur" style="font-weight:600;">${formatCurrency(acc.real_balance)}</span>
-                                        </div>
-                                        ${hasSavings ? `
-                                        <div class="bv-account-card-row" style="color:#f59e0b;">
-                                            <span>${window.i18n.t('budget_savings_reserved') || 'Épargne réservée'}</span>
-                                            <span class="privacy-blur">- ${formatCurrency(acc.savings_allocated)}</span>
-                                        </div>
-                                        ` : ''}
-                                        <div class="bv-account-card-total">
-                                            <span>${window.i18n.t('budget_available_balance') || 'Disponible virtuel'}</span>
-                                            <span class="privacy-blur" style="color:${hasSavings ? 'var(--accent)' : 'inherit'};">${formatCurrency(acc.available_balance)}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            const monthlyLabelKey = this.capacityData.monthly.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
-            const yearlyLabelKey = this.capacityData.yearly.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
-
-            const monthlyLabel = window.i18n.t(monthlyLabelKey) || (this.capacityData.monthly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
-            const yearlyLabel = window.i18n.t(yearlyLabelKey) || (this.capacityData.yearly.is_fallback ? 'Dépenses moyennes' : 'Budgétisé');
-
-            const lang = window.i18n?.currentLang || window.i18n?.lang || 'fr';
-            const monthlyDetails = (lang === 'en' ? this.capacityData.monthly.details_en : this.capacityData.monthly.details_fr) || '';
-            const yearlyDetails = (lang === 'en' ? this.capacityData.yearly.details_en : this.capacityData.yearly.details_fr) || '';
-
-            const monthlyBudgetedDetails = (lang === 'en' ? this.capacityData.monthly.budgeted_details_en : this.capacityData.monthly.budgeted_details_fr) || '';
-            const yearlyBudgetedDetails = (lang === 'en' ? this.capacityData.yearly.budgeted_details_en : this.capacityData.yearly.budgeted_details_fr) || '';
-
-            const monthlyInfoIcon = monthlyDetails ? `<span title="${monthlyDetails}" class="bv-info-icon">i</span>` : '';
-            const yearlyInfoIcon = yearlyDetails ? `<span title="${yearlyDetails}" class="bv-info-icon">i</span>` : '';
-
-            const monthlyBudgetedInfoIcon = monthlyBudgetedDetails ? `<span title="${monthlyBudgetedDetails}" class="bv-info-icon">i</span>` : '';
-            const yearlyBudgetedInfoIcon = yearlyBudgetedDetails ? `<span title="${yearlyBudgetedDetails}" class="bv-info-icon">i</span>` : '';
-
-            capacityHtml = `
-                <div class="bv-capacity-panel">
-                    <div class="bv-capacity-grid">
-                        <!-- Monthly capacity -->
-                        <div>
-                            <div class="bv-capacity-meter-header">
-                                <span>${window.i18n.t('budget_capacity_monthly') || 'Engagement mensuel'}</span>
-                                <span style="color:${monthlyColor};">${monthlyRatio}%</span>
-                            </div>
-                            <div class="bv-progress-track bv-progress-track--sm" style="margin-bottom:6px;">
-                                <div class="bv-progress-bar" style="width:${Math.min(monthlyRatio, 100)}%;background:${monthlyColor};"></div>
-                            </div>
-                            <div class="bv-capacity-meter-footer">
-                                <span>${monthlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.budgeted)}</span>${monthlyBudgetedInfoIcon}</span>
-                                <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.monthly.average_income)}</span>${monthlyInfoIcon}</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Yearly capacity -->
-                        <div>
-                            <div class="bv-capacity-meter-header">
-                                <span>${window.i18n.t('budget_capacity_yearly') || "Projection d'engagement annuel"}</span>
-                                <span style="color:${yearlyColor};">${yearlyRatio}%</span>
-                            </div>
-                            <div class="bv-progress-track bv-progress-track--sm" style="margin-bottom:6px;">
-                                <div class="bv-progress-bar" style="width:${Math.min(yearlyRatio, 100)}%;background:${yearlyColor};"></div>
-                            </div>
-                            <div class="bv-capacity-meter-footer">
-                                <span>${yearlyLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.budgeted)}</span>${yearlyBudgetedInfoIcon}</span>
-                                <span>${incomeLabel} : <span class="privacy-blur" style="font-weight:600;color:var(--text-base);">${formatCurrency(this.capacityData.yearly.average_income)}</span>${yearlyInfoIcon}</span>
-                            </div>
-                        </div>
-                    </div>
-                    ${accountsHtml}
-                </div>
-            `;
-        }
-
-        const [my, mm] = this.monthlyMonth.split('-').map(Number);
-        const monthLabel = new Date(my, mm-1, 1).toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', {month:'long', year:'numeric'});
-        const yearLabel = String(this.yearlyYear);
-
+        // ── Tri par urgence : dépassées, proches de la limite, en avance sur le rythme, puis le reste ──
+        const rank = { over: 0, near: 1, ahead: 2, ok: 3 };
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const isEnded = (b) => b.period === 'custom' && b.end_date && b.end_date < todayIso;
+        const byUrgency = (a, b) => (isEnded(a) - isEnded(b))
+            || (rank[a.status] ?? 3) - (rank[b.status] ?? 3)
+            || (b.percent_to_date ?? b.percent ?? 0) - (a.percent_to_date ?? a.percent ?? 0);
+        const spending = all.filter(b => (b.envelope_type || 'spending') !== 'savings');
+        const savingsBudgets = all.filter(b => (b.envelope_type || 'spending') === 'savings');
+        const isFixed = (b) => !isOrg && b.is_fixed_charges;
         const groups = {
-            'monthly': { title: window.i18n.t('period_monthly'), budgets: [], label: monthLabel, y: my, m: mm },
-            'yearly': { title: window.i18n.t('period_yearly'), budgets: [], label: yearLabel, y: this.yearlyYear, m: 1 },
-            'indefinite': { title: window.i18n.t('budget_period_indefinite'), budgets: [], label: '', y: my, m: mm },
-            'custom': { title: window.i18n.t('budget_period_custom') || 'Time-bound', budgets: [], label: '', y: my, m: mm }
+            cycle: spending.filter(b => !b.is_project && isMonthly(b) && !isFixed(b)).sort(byUrgency),
+            yearly: spending.filter(b => !b.is_project && b.period === 'yearly' && !isFixed(b)).sort(byUrgency),
+            dated: spending.filter(b => !b.is_project && b.period === 'custom').sort(byUrgency),
+            fixed: spending.filter(b => !b.is_project && isFixed(b) && (isMonthly(b) || b.period === 'yearly')).sort(byUrgency),
+            long: spending.filter(b => !b.is_project && b.period === 'indefinite').sort(byUrgency),
+            projects: spending.filter(b => b.is_project).sort(byUrgency),
         };
 
-        for (const b of (this.statusData?.budgets || [])) {
-            if (groups[b.period]) {
-                groups[b.period].budgets.push(b);
-            } else {
-                groups['monthly'].budgets.push(b);
+        // ── Barre de période (enveloppes mensuelles : cycle de paie ou mois) ──
+        const hasMonthly = groups.cycle.length > 0 || groups.fixed.some(isMonthly);
+        let periodHtml = '';
+        if (hasMonthly && period) {
+            const isCycle = period.kind === 'cycle';
+            const title = this.customPeriod.enabled
+                ? tp('bv_dated_range', { start: fmtDate(this.customPeriod.start), end: fmtDate(this.customPeriod.end) }, 'Du {start} au {end}')
+                : isCycle
+                    ? tp('bv_period_cycle', { start: fmtDay(period.start), end: fmtDay(period.end) }, 'Cycle du {start} au {end}')
+                    : new Date(period.start + 'T00:00:00').toLocaleDateString(lang, { month: 'long', year: 'numeric' });
+            let sub = '';
+            if (!this.customPeriod.enabled && isCurrentPeriod) {
+                sub = tp('bv_period_day', { day: period.days_elapsed, total: period.days_total }, 'Jour {day} sur {total}') + ' · '
+                    + tp(isCycle ? 'bv_period_days_to_pay' : 'bv_period_days_to_end', { days: period.days_left },
+                         isCycle ? '{days} j avant la paie' : '{days} j avant la fin du mois');
+            } else if (!this.customPeriod.enabled) {
+                sub = t('bv_period_past', 'Période terminée');
             }
+            const customEnabled = this.customPeriod.enabled;
+            periodHtml = `
+            <section class="bv-period" aria-label="${t('bv_period_label', 'Période des enveloppes')}">
+                <div class="bv-period-nav">
+                    <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.stepMonthly(-1)" ${customEnabled ? 'disabled' : ''} aria-label="${t('bv_period_prev', 'Période précédente')}">${this._bvIcon('chevronLeft', 18)}</button>
+                    <div class="bv-period-label">
+                        <strong>${title}</strong>
+                        ${sub ? `<span>${sub}</span>` : ''}
+                    </div>
+                    <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.stepMonthly(1)" ${(customEnabled || isCurrentPeriod) ? 'disabled' : ''} aria-label="${t('bv_period_next', 'Période suivante')}">${this._bvIcon('chevronRight', 18)}</button>
+                </div>
+                <div class="bv-period-extra">
+                    ${(!isCurrentPeriod || customEnabled) ? `<button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.goTodayMonthly()">${t('btn_today', "Aujourd'hui")}</button>` : ''}
+                    <label class="bv-switch">
+                        <input type="checkbox" id="budgetCustomPeriodToggle" ${customEnabled ? 'checked' : ''} onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
+                        <span>${t('budget_custom_period', 'Période personnalisée')}</span>
+                    </label>
+                    <div id="budgetCustomPeriodInputs" class="bv-custom-dates" ${customEnabled ? '' : 'hidden'}>
+                        <input type="date" id="budgetCustomStart" class="inline-input" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()" aria-label="${t('bv_custom_start', 'Début')}">
+                        <span aria-hidden="true">→</span>
+                        <input type="date" id="budgetCustomEnd" class="inline-input" value="${this.customPeriod.end || ''}" onchange="window.BudgetsView.onCustomPeriodChange()" aria-label="${t('bv_custom_end', 'Fin')}">
+                    </div>
+                </div>
+            </section>`;
+        }
+
+        // ── Synthèse des points d'attention ──
+        const watched = [...groups.cycle, ...groups.yearly, ...groups.dated.filter(b => !isEnded(b)),
+                         ...groups.fixed, ...groups.projects];
+        const count = (s) => watched.filter(b => b.status === s).length;
+        const nOver = count('over'), nNear = count('near'), nAhead = count('ahead');
+        const plural = (n, one, many) => (n > 1 ? many : one).split('{count}').join(n);
+        const attnParts = [];
+        if (nOver) attnParts.push(`<span class="bv-attn-item bv-tone-over">${plural(nOver, t('bv_attn_over_one', '{count} enveloppe dépassée'), t('bv_attn_over_many', '{count} enveloppes dépassées'))}</span>`);
+        if (nNear) attnParts.push(`<span class="bv-attn-item bv-tone-near">${plural(nNear, t('bv_attn_near_one', '{count} proche de la limite'), t('bv_attn_near_many', '{count} proches de la limite'))}</span>`);
+        if (nAhead) attnParts.push(`<span class="bv-attn-item bv-tone-ahead">${plural(nAhead, t('bv_attn_ahead_one', '{count} en avance sur le rythme'), t('bv_attn_ahead_many', '{count} en avance sur le rythme'))}</span>`);
+        const attnHtml = all.length === 0 ? '' : `<p class="bv-attn" role="status">${attnParts.length
+            ? attnParts.join('<span class="bv-attn-sep" aria-hidden="true">·</span>')
+            : `<span class="bv-attn-item bv-tone-ok">${t('bv_attn_ok', 'Toutes les enveloppes sont dans les clous')}</span>`}</p>`;
+
+        // ── Ligne d'enveloppe ──
+        const renderRow = (b) => {
+            const limit = b.budget_amount || 0;
+            const spent = b.spent_to_date ?? b.spent ?? 0;
+            const planned = b.planned || 0;
+            const pct = limit > 0 ? (spent / limit) * 100 : 0;
+            const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
+            const status = b.status || 'ok';
+            const fixed = isFixed(b);
+            const ended = isEnded(b);
+            const tone = (fixed && status === 'ok') || (ended && status !== 'over') ? 'fixed' : status;
+            const remaining = limit - spent;
+            // Même règle que le serveur : pas de repère de rythme avant 15 % de la période
+            const showPace = b.expected_percent !== null && b.expected_percent !== undefined && b.expected_percent >= 15 && !fixed && isCurrentPeriod;
+
+            let statusText;
+            if (status === 'over') {
+                statusText = tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}');
+            } else if (status === 'near' && remaining <= 0.5) {
+                statusText = t('bv_status_empty', 'Épuisée');
+            } else {
+                statusText = tp('bv_status_left', { amount: formatCurrency(Math.max(remaining, 0)) }, 'Reste {amount}');
+                if (status === 'ahead') statusText = `${t('bv_status_ahead', 'En avance sur le rythme')} · ${statusText}`;
+            }
+            if (planned > 0.005) {
+                statusText += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
+            }
+            if (ended && status !== 'over') statusText = t('bv_status_ended', 'Terminée');
+
+            const cats = b.categories || [];
+            const catText = cats.length > 3 ? `${cats.slice(0, 3).join(', ')} +${cats.length - 3}` : cats.join(', ');
+            const meta = b.period === 'custom'
+                ? tp('bv_dated_range', { start: fmtDate(b.start_date), end: fmtDate(b.end_date) }, 'Du {start} au {end}')
+                : catText;
+
+            const autoSugg = (this.autopilotSuggestions || []).find(s => s.type !== 'creation' && s.budget_id === b.id);
+            const suggHtml = autoSugg ? `
+                <button type="button" class="bv-env-sugg" onclick="event.stopPropagation(); window.BudgetsView.openReviewModalForBudget(${b.id})">
+                    ${this._bvIcon('bulb', 14)}
+                    <span>${tp('bv_sugg', { amount: formatCurrency(autoSugg.suggested_amount) }, 'Plafond proposé : {amount}')}</span>
+                </button>` : '';
+
+            const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const y = period ? parseInt(period.start.slice(0, 4)) : new Date().getFullYear();
+            const m = period ? parseInt(period.start.slice(5, 7)) : new Date().getMonth() + 1;
+            const barLabel = tp('bv_bar_label', { pct: Math.round(pct) }, '{pct} % utilisés');
+            return `
+            <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}" data-budget-id="${b.id}" tabindex="0"
+                     onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})"
+                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})}">
+                <div class="bv-env-head">
+                    <div class="bv-env-name">
+                        <strong>${b.name}</strong>
+                        ${b.is_locked ? `<span class="bv-env-lock" title="${t('bv_locked', "Verrouillée : pas d'ajustement automatique")}">${this._bvIcon('lock', 13)}</span>` : ''}
+                    </div>
+                    <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span> / ${formatCurrency(limit)}</span></div>
+                    <div class="bv-env-actions" onclick="event.stopPropagation()">
+                        <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.editBudget(${b.id})" aria-label="${t('tooltip_edit', 'Modifier')} ${safeName}" title="${t('tooltip_edit', 'Modifier')}">${this._bvIcon('pencil')}</button>
+                        <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')} ${safeName}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
+                    </div>
+                </div>
+                <div class="bv-env-bar" role="img" aria-label="${barLabel}">
+                    <span class="bv-env-fill" style="width:${Math.min(pct, 100)}%"></span>
+                    ${plannedPct > 0.5 && pct < 100 ? `<span class="bv-env-planned" style="left:${Math.min(pct, 100)}%;width:${Math.min(plannedPct, 100 - Math.min(pct, 100))}%"></span>` : ''}
+                    ${showPace ? `<span class="bv-env-pace" style="left:${Math.min(b.expected_percent, 100)}%" title="${tp('bv_pace_marker', { pct: Math.round(b.expected_percent) }, "Rythme attendu aujourd'hui : {pct} %")}"></span>` : ''}
+                </div>
+                <div class="bv-env-foot">
+                    <span class="bv-env-meta">${meta}</span>
+                    <span class="bv-env-status privacy-blur">${statusText}</span>
+                </div>
+                ${suggHtml}
+            </article>`;
+        };
+
+        const sectionTotals = (list) => {
+            // Un total n'a de sens que pour des enveloppes de même période (pas mensuel + annuel)
+            if (new Set(list.map(b => b.period || 'monthly')).size > 1) return '';
+            const spent = list.reduce((s, b) => s + (b.spent_to_date ?? b.spent ?? 0), 0);
+            const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
+            return `<span class="bv-section-total privacy-blur">${tp('bv_total_spent', { spent: formatCurrency(spent), limit: formatCurrency(limit) }, '{spent} sur {limit}')}</span>`;
+        };
+        const renderSection = (key, title, list, extra = '') => {
+            if (!list.length) return '';
+            return `
+            <section class="bv-section" data-budget-period="${key}">
+                <header class="bv-section-head"><h3>${title}</h3>${sectionTotals(list)}</header>
+                ${extra}
+                <div class="bv-env-list">${list.map(renderRow).join('')}</div>
+            </section>`;
+        };
+
+        let html = periodHtml + attnHtml;
+
+        if (isOrg) {
+            // Mode organisation : pas de cycle de paie ; enveloppes regroupées par compte
+            const orgList = [...groups.cycle, ...groups.yearly, ...groups.dated].sort(byUrgency);
+            const byAccount = {};
+            for (const b of orgList) {
+                const key = (b.account_ids && b.account_ids.length) ? [...b.account_ids].sort((a, c) => a - c).join(',') : '__global__';
+                (byAccount[key] = byAccount[key] || []).push(b);
+            }
+            for (const [key, list] of Object.entries(byAccount)) {
+                let title = t('budget_summary_global', 'Toutes les enveloppes');
+                if (key !== '__global__') {
+                    const names = key.split(',').map(id => this.accounts?.find(a => a.id === parseInt(id))).filter(Boolean)
+                        .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
+                    title = names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ');
+                }
+                html += `<div data-budget-period-sub="org-${key}">${renderSection('org', title, list)}</div>`;
+            }
+        } else {
+            const cycleTitle = period?.kind === 'cycle' ? t('bv_section_cycle', 'Dépenses du cycle') : t('bv_section_month', 'Dépenses du mois');
+            html += renderSection('monthly', cycleTitle, groups.cycle);
+            html += renderSection('yearly', t('bv_section_yearly', 'Enveloppes annuelles'), groups.yearly);
+            html += renderSection('custom', t('bv_section_dated', 'Enveloppes datées'), groups.dated);
         }
 
         const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
-        let fullHtml = bannerHtml + toggleHeaderHtml + capacityHtml;
+        if (bannerHtml) html += `<div class="bv-sugg-zone">${bannerHtml}</div>`;
 
-        const activeFilter = this.currentGridFilter || 'all';
-        const filterBarHtml = `
-            <div class="bv-filter-bar">
-                <span class="bv-filter-bar-label">Filtrer :</span>
-                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'all' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('all')" data-i18n="budget_filter_all">${window.i18n.t('budget_filter_all') || 'Toutes'}</button>
-                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'spending' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('spending')" data-i18n="budget_filter_spending">${window.i18n.t('budget_filter_spending') || 'Mensuelles'}</button>
-                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'yearly' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('yearly')" data-i18n="budget_filter_yearly">${window.i18n.t('budget_filter_yearly') || 'Annuelles'}</button>
-                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'project' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('project')" data-i18n="budget_filter_project">${window.i18n.t('budget_filter_project') || 'Projets'}</button>
-                <button class="btn btn-secondary bv-filter-btn ${activeFilter === 'savings' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('savings')" data-i18n="budget_filter_savings">${window.i18n.t('budget_filter_savings') || 'Épargne'}</button>
-                <button class="btn btn-secondary bv-filter-btn bv-filter-btn--overspent ${activeFilter === 'overspent' ? 'bv-filter-btn--active' : ''}" onclick="window.BudgetsView.setGridFilter('overspent')" data-i18n="budget_filter_overspent">${window.i18n.t('budget_filter_overspent') || '⚠️ En dépassement'}</button>
-            </div>
-        `;
-        fullHtml += filterBarHtml;
-
-        const matchesFilter = (b) => {
-            if (activeFilter === 'all') return true;
-            if (activeFilter === 'spending') return !b.is_project && (b.envelope_type || 'spending') === 'spending' && (b.period === 'monthly' || !b.period);
-            if (activeFilter === 'yearly') return !b.is_project && (b.envelope_type || 'spending') === 'spending' && b.period === 'yearly';
-            if (activeFilter === 'project') return !!b.is_project;
-            if (activeFilter === 'savings') return (b.envelope_type || 'spending') === 'savings';
-            if (activeFilter === 'overspent') return (b.remaining || 0) < 0 || (b.is_overspent === true);
-            return true;
-        };
-
-        const renderDateControls = (period) => {
-            if (period === 'monthly') {
-                const customEnabled = this.customPeriod.enabled;
-                const monthOpacity = customEnabled ? 'opacity:0.4;pointer-events:none;' : '';
-                const customDisp = customEnabled ? 'display:flex;' : 'display:none;';
-                return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:0;${monthOpacity}">
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepMonthly(-1)">◀</button>
-                        <input type="month" id="budgetMonthInput" class="inline-input" style="min-width:130px;border-radius:0;font-size:12px;padding:4px 6px;" value="${this.monthlyMonth}" onchange="window.BudgetsView.monthlyMonth=this.value;ProfileStorage.set('budget_monthly_month',this.value);window.BudgetsView.loadStatusForType('monthly')">
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepMonthly(1)">▶</button>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;">
-                            <div style="position:relative;width:32px;height:18px;">
-                                <input type="checkbox" id="budgetCustomPeriodToggle" class="global-toggle" style="opacity:0;width:0;height:0;position:absolute;" ${customEnabled ? 'checked' : ''} onchange="window.BudgetsView.onCustomPeriodToggle(this.checked)">
-                                <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:var(--border-color);transition:.4s;border-radius:34px;"></span>
-                                <span class="slider-knob" style="position:absolute;height:12px;width:12px;left:3px;bottom:3px;background-color:white;transition:.4s;border-radius:50%;"></span>
-                            </div>
-                            <span>${window.i18n.t('budget_custom_period') || 'Period'}</span>
-                        </label>
-                        <div id="budgetCustomPeriodInputs" style="${customDisp}align-items:center;gap:4px;">
-                            <input type="date" id="budgetCustomStart" class="inline-input" style="width:130px;font-size:12px;" value="${this.customPeriod.start || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
-                            <span style="color:var(--text-muted);font-size:12px;">→</span>
-                            <input type="date" id="budgetCustomEnd" class="inline-input" style="width:130px;font-size:12px;" value="${this.customPeriod.end || ''}" onchange="window.BudgetsView.onCustomPeriodChange()">
-                        </div>
-                    </div>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="window.BudgetsView.goTodayMonthly()">${window.i18n.t('btn_today')}</button>
-                </div>`;
-            } else if (period === 'yearly') {
-                return `<div style="display:flex;align-items:center;gap:0;">
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:6px 0 0 6px;border-right:none;" onclick="window.BudgetsView.stepYearly(-1)">◀</button>
-                    <span class="inline-input" style="min-width:60px;text-align:center;border-radius:0;font-size:12px;padding:4px 10px;display:inline-block;">${this.yearlyYear}</span>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:13px;border-radius:0 6px 6px 0;border-left:none;" onclick="window.BudgetsView.stepYearly(1)">▶</button>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;margin-left:8px;" onclick="window.BudgetsView.goTodayYearly()">${window.i18n.t('btn_today')}</button>
-                </div>`;
-            }
-            return '';
-        };
-
-        const renderSummaryBar = (titleText, subtitleText, budgetsList, accentColor) => {
-            let totalTarget = 0, totalExpenses = 0, totalRecExpenses = 0, totalIncome = 0;
-            for (const b of budgetsList) {
-                totalTarget += b.budget_amount;
-                totalExpenses += b.expenses || 0;
-                totalRecExpenses += b.reconciled_expenses || 0;
-                totalIncome += b.income || 0;
-            }
-            const effectiveTarget = totalTarget + totalIncome;
-            const totalPct = effectiveTarget > 0 ? Math.min((totalExpenses / effectiveTarget) * 100, 100) : 0;
-            const recPct = effectiveTarget > 0 ? Math.min((totalRecExpenses / effectiveTarget) * 100, 100) : 0;
-            const totalBarColor = (effectiveTarget > 0 && (totalRecExpenses / effectiveTarget) * 100 > 100) ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
-            const netSpent = totalExpenses - totalIncome;
-            const globalOver = netSpent > totalTarget;
-            const globalRemaining = totalTarget - netSpent;
-            const borderStyle = accentColor ? `border-left:3px solid ${accentColor};` : '';
-            const incomeHtml = totalIncome > 0 ? `<span class="privacy-blur" style="color:#10b981;font-size:12px;align-self:flex-end;">↑ ${formatCurrency(totalIncome)} ${window.i18n.t('budget_received')}</span>` : '';
-
-            return `<div class="bv-summary-bar" style="${borderStyle}">
-                <div class="bv-summary-header">
-                    <div>
-                        <h4>${titleText}</h4>
-                        <span class="subtitle">${subtitleText}</span>
-                    </div>
-                    <div style="text-align:right;">
-                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(totalTarget)}</strong><span class="bv-summary-amount-label"> ${window.i18n.t('budget_budgeted')}</span>
-                    </div>
-                </div>
-                <div class="bv-progress-track bv-progress-track--lg">
-                    <div class="bv-progress-bar bv-progress-bar--bg" style="width:${totalPct}%;"></div>
-                    <div class="bv-progress-bar" style="width:${recPct}%;background:${totalBarColor};"></div>
-                </div>
-                <div class="bv-summary-footer">
-                    <div class="bv-summary-footer-left">
-                        <span class="privacy-blur" style="color:${totalBarColor};font-weight:600;">${formatCurrency(totalRecExpenses)} ${window.i18n.t('budget_reconciled')}</span>
-                        <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;">(${formatCurrency(totalExpenses)} ${window.i18n.t('budget_committed')})</span>
-                        ${incomeHtml}
-                    </div>
-                    <span style="color:${globalOver ? '#ff5630' : 'var(--text-muted)'};font-weight:600;">${globalOver ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(globalRemaining))}</span> ${globalOver ? window.i18n.t('budget_global_exceeded') : window.i18n.t('budget_global_remaining')}</span>
-                </div>
-            </div>`;
-        };
-
-        const renderBudgetCard = (b, y, m) => {
-            const effectiveBudget = b.budget_amount + (b.income || 0);
-            const expensesPct = effectiveBudget > 0 ? Math.min(((b.expenses || 0) / effectiveBudget) * 100 || 0, 100) : 0;
-            const recExpPct = effectiveBudget > 0 ? Math.min(((b.reconciled_expenses || 0) / effectiveBudget) * 100 || 0, 100) : 0;
-            const barColor = (effectiveBudget > 0 && ((b.reconciled_expenses || 0) / effectiveBudget) * 100 > 100) ? '#ff5630' : recExpPct >= 80 ? '#f59e0b' : '#10b981';
-            const overBudget = b.remaining < 0;
-            const typeTag = b.is_project
-                ? `<span class="bv-tag bv-tag--project">${window.i18n.t('budget_project_tag')}</span>`
-                : '';
-            const catTags = (b.categories || []).map(c =>
-                `<span class="bv-tag bv-tag--cat">${c}</span>`
-            ).join(' ');
-
-            const incomeHtml = b.income > 0
-                ? `<div style="font-size:12px;color:#10b981;margin-top:3px;">↑ <span class="privacy-blur">${formatCurrency(b.income)}</span> ${window.i18n.t('budget_received')}</div>`
-                : '';
-
-            const safeName = b.name.replace(/'/g, "\\'");
-            const periodLabel = b.period === 'monthly' ? window.i18n.t('period_monthly') : b.period === 'yearly' ? window.i18n.t('period_yearly') : b.period === 'custom' ? `${window.i18n.t('budget_period_custom') || 'Time-bound'} (${b.start_date || '?'} → ${b.end_date || '?'})` : window.i18n.t('period_undefined');
-            const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
-            const closedTag = b.is_closed
-                ? `<span class="bv-tag bv-tag--closed">${window.i18n.t('budget_closed_tag')}</span>`
-                : '';
-
-            let accountBadges = '';
-            if (b.account_ids && b.account_ids.length > 0 && window.app?.config?.enable_org_mode === 'true') {
-                accountBadges = b.account_ids.map(aid => {
-                    const acc = this.accounts?.find(a => a.id === aid);
-                    if (!acc) return '';
-                    const color = acc.color || 'var(--accent)';
-                    return `<span class="bv-tag bv-tag--account" style="background:${color}1a; color:${color}; border:1px solid ${color}33;">● ${acc.name}</span>`;
-                }).join(' ');
-            }
-
-            const showSyncBtn = (b.expenses !== undefined && b.expenses > 0 && Math.abs(b.expenses - b.budget_amount) > 0.009);
-            const syncTitle = showSyncBtn ? (window.i18n.t('budget_sync_to_committed_tt') || 'Ajuster le montant du budget sur le montant engagé ({amount})').replace('{amount}', formatCurrency(b.expenses)) : '';
-
-            const syncBtnHtml = showSyncBtn ? `
-                <button type="button" class="btn btn-secondary bv-sync-btn" 
-                        onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" 
-                        title="${syncTitle}">
-                    ${window.i18n.t('budget_btn_sync_committed') || '⚡ Aligner'}
-                </button>
-            ` : '';
-
-            const autoSugg = (this.autopilotSuggestions || []).find(s => s.type !== 'creation' && s.budget_id === b.id);
-            let autoSuggBadgeHtml = '';
-            if (autoSugg) {
-                const delta = (autoSugg.suggested_amount || 0) - (b.budget_amount || 0);
-                const deltaStr = (delta >= 0 ? '+' : '') + formatCurrency(delta);
-                autoSuggBadgeHtml = `
-                    <div class="bv-card-sugg-badge" onclick="event.stopPropagation(); window.BudgetsView.openReviewModalForBudget(${b.id})" 
-                         title="${window.i18n.t('budget_card_sugg_tt') || 'Examiner la recommandation de recalibrage'}">
-                        <span class="bv-card-sugg-icon">💡</span>
-                        <span class="bv-card-sugg-text">${window.i18n.t('budget_card_sugg_label') || 'Ajustement'} : <strong class="privacy-blur">${formatCurrency(autoSugg.suggested_amount)}</strong> <small class="privacy-blur">(${deltaStr})</small></span>
-                    </div>
-                `;
-            }
-
-            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card ${overBudget ? 'over-budget' : ''}" style="${closedStyle}">
-                    <div class="bv-card-header">
-                        <div class="bv-card-name-area">
-                            <div class="bv-card-name-row">
-                                <strong>${b.name}</strong>
-                                ${closedTag}
-                                ${accountBadges}
-                            </div>
-                            <div class="bv-card-tags">${typeTag}${catTags}</div>
-                        </div>
-                        <div class="bv-card-actions" onclick="event.stopPropagation()">
-                            <button class="btn btn-secondary ${b.is_locked ? 'btn-active' : ''}" 
-                                    onclick="window.BudgetsView.toggleLock(${b.id})" 
-                                    title="${b.is_locked ? window.i18n.t('budget_locked_tooltip') : window.i18n.t('budget_unlocked_tooltip')}"
-                                    style="${b.is_locked ? 'color: var(--accent-primary, #f59e0b); font-weight: bold;' : 'opacity: 0.6;'}">
-                                ${b.is_locked ? '🔒' : '🔓'}
-                            </button>
-                            <button class="btn btn-secondary" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                            ${(b.is_project || b.is_closed) ? `<button class="btn btn-secondary" onclick="window.BudgetsView.toggleClose(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_close_action')}">${b.is_closed ? '↩️' : '📦'}</button>` : ''}
-                            <button class="btn btn-danger" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
-                        </div>
-                    </div>
-
-                    ${autoSuggBadgeHtml}
-
-                    <div class="bv-card-amount-row">
-                        <span>${periodLabel}</span>
-                        <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                            ${syncBtnHtml}
-                            <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
-                        </div>
-                    </div>
-
-                    <div class="bv-progress-track bv-progress-track--sm">
-                        <div class="bv-progress-bar bv-progress-bar--bg" style="width:${expensesPct}%;"></div>
-                        <div class="bv-progress-bar" style="width:${recExpPct}%;background:${barColor};"></div>
-                    </div>
-                    <div class="bv-card-footer">
-                        <div class="bv-card-footer-left" onclick="event.stopPropagation()">
-                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(b.reconciled_expenses || 0)} ${window.i18n.t('budget_reconciled')}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);font-size:12px;align-self:flex-end;${showSyncBtn ? 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;' : ''}" ${showSyncBtn ? `onclick="window.BudgetsView.updateAmount(${b.id}, ${b.expenses})" title="${syncTitle}"` : ''}>(${formatCurrency(b.expenses || 0)} ${window.i18n.t('budget_committed')})</span>
-                            ${incomeHtml}
-                        </div>
-                        <span style="color:${overBudget ? '#ff5630' : 'var(--text-muted)'}">${overBudget ? '⚠️ ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining))}</span> ${overBudget ? window.i18n.t('budget_exceeded_label') : window.i18n.t('budget_remaining_label')}</span>
-                    </div>
-                </div>`;
-        };
-
-        const renderSavingsCard = (b, y, m) => {
-            const balance = b.balance || 0;
-            const goal = b.budget_amount || 0;
-            const funded = b.funded || 0;
-            const withdrawn = b.withdrawn || 0;
-
-            const overflow = this.savingsOverflow;
-            let tempWithdrawn = 0;
-            if (overflow && overflow.total_savings > 0 && !b.is_closed) {
-                const proportion = balance / overflow.total_savings;
-                tempWithdrawn = Math.min(balance, overflow.overflow_amount * proportion);
-            }
-
-            const effectiveBalance = balance - tempWithdrawn;
-            const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
-            const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
-            const goalReached = balance >= goal && goal > 0;
-            const barColor = goalReached ? '#f59e0b' : '#10b981';
-
-            const safeName = b.name.replace(/'/g, "\\'");
-            const closedStyle = b.is_closed ? 'opacity:0.6;' : '';
-            const closedTag = b.is_closed
-                ? `<span class="bv-tag bv-tag--closed">${window.i18n.t('budget_closed_tag')}</span>`
-                : '';
-            const typeTag = `<span class="bv-tag bv-tag--savings">${window.i18n.t('budget_savings_tag')}</span>`;
-
-            let accountBadges = '';
-            if (b.account_ids && b.account_ids.length > 0 && window.app?.config?.enable_org_mode === 'true') {
-                accountBadges = b.account_ids.map(aid => {
-                    const acc = this.accounts?.find(a => a.id === aid);
-                    if (!acc) return '';
-                    const color = acc.color || 'var(--accent)';
-                    return `<span class="bv-tag bv-tag--account" style="background:${color}1a; color:${color}; border:1px solid ${color}33;">● ${acc.name}</span>`;
-                }).join(' ');
-            }
-
-            const withdrawnHtml = withdrawn > 0
-                ? `<span class="privacy-blur" style="color:#ff5630;font-size:12px;">↓ ${formatCurrency(withdrawn)} ${window.i18n.t('budget_savings_withdrawn')}</span>`
-                : '';
-
-            const tempWithdrawnBadge = tempWithdrawn > 0
-                ? `<span class="bv-temp-withdrawn-badge privacy-blur" style="color:#ef4444;" title="${window.i18n.t('savings_temp_withdrawn') || 'Temporarily withdrawn'}">⚠ -${formatCurrency(tempWithdrawn)}</span>`
-                : '';
-
-            return `<div data-budget-id="${b.id}" onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})" class="budget-envelope-card savings ${goalReached ? 'goal-reached' : ''}" style="${closedStyle}">
-                    <div class="bv-card-header">
-                        <div class="bv-card-name-area">
-                            <div class="bv-card-name-row">
-                                <strong>${b.name}</strong>
-                                ${closedTag}
-                                ${accountBadges}
-                                ${tempWithdrawnBadge}
-                            </div>
-                            <div class="bv-card-tags">${typeTag}</div>
-                        </div>
-                        <div class="bv-card-actions" onclick="event.stopPropagation()">
-                            ${!b.is_closed ? `<button class="btn btn-secondary" onclick="window.BudgetsView.showAllocationForm(${b.id})" title="${window.i18n.t('budget_savings_add_funds')}">➕</button>` : ''}
-                            <button class="btn btn-secondary" onclick="window.BudgetsView.editBudget(${b.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                            <button class="btn btn-secondary" onclick="window.BudgetsView.${b.is_closed ? 'toggleClose' : 'breakPiggyBank'}(${b.id})" title="${b.is_closed ? window.i18n.t('budget_reopen_action') : window.i18n.t('budget_savings_break_action')}">${b.is_closed ? '↩️' : '🔨'}</button>
-                            <button class="btn btn-danger" onclick="window.BudgetsView.deleteBudget(${b.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
-                        </div>
-                    </div>
-
-                    <div class="bv-card-amount-row">
-                        <span>${window.i18n.t('budget_savings_goal')}</span>
-                        <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;">
-                            <input type="number" class="inline-input" style="width:80px;text-align:right;padding:2px 6px;font-size:12px;border-radius:4px;" value="${b.budget_amount}" min="0" step="0.01" onchange="window.BudgetsView.updateAmount(${b.id}, this.value)"> €
-                        </div>
-                    </div>
-
-                    <div class="bv-progress-track bv-progress-track--sm">
-                        ${tempWithdrawn > 0 ? `<div class="bv-progress-bar" style="width:${theoreticalPct}%;background:${barColor};opacity:0.25;"></div>` : ''}
-                        <div class="bv-progress-bar" style="width:${pct}%;background:${barColor};transition:width 0.5s ease;"></div>
-                    </div>
-                    <div class="bv-card-footer">
-                        <div class="bv-card-footer-left">
-                            <span class="privacy-blur" style="color:${barColor};font-weight:600;">↑ ${formatCurrency(funded)} ${window.i18n.t('budget_savings_funded')}</span>
-                            ${withdrawnHtml}
-                        </div>
-                        <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(b.remaining || 0))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
-                    </div>
-                </div>`;
-        };
-
-        const isOrgMode = window.app?.config?.enable_org_mode === 'true';
-
-        const savingsBudgets = [];
-        for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
-            const group = groups[period];
-            if (group.budgets.length === 0) continue;
-            const y = group.y;
-            const m = group.m;
-            const label = group.label;
-
-            let spendingBudgets = group.budgets.filter(b => (b.envelope_type || 'spending') !== 'savings');
-            let groupSavings = group.budgets.filter(b => (b.envelope_type || 'spending') === 'savings');
-
-            spendingBudgets = spendingBudgets.filter(matchesFilter);
-            groupSavings = groupSavings.filter(matchesFilter);
-            savingsBudgets.push(...groupSavings.map(b => ({ ...b, _y: y, _m: m })));
-
-            if (spendingBudgets.length === 0) continue;
-
-            const periodColors = {
-                'monthly': '#3b82f6',
-                'yearly': '#8b5cf6',
-                'indefinite': '#14b8a6',
-                'custom': '#ec4899'
-            };
-            const pColor = periodColors[period] || '#3b82f6';
-
-            let html = `<div data-budget-period="${period}" class="bv-period-section">
-                <div class="bv-period-header" style="border-bottom:2px solid ${pColor}80;">
-                    <h3>${window.i18n.t('budget_envelopes_title')} — ${group.title}</h3>
-                    ${renderDateControls(period)}
-                </div>`;
-
-            const hasAnyAccountScope = isOrgMode && spendingBudgets.some(b => b.account_ids && b.account_ids.length > 0);
-
-            if (hasAnyAccountScope) {
-                const subGroups = {};
-                for (const b of spendingBudgets) {
-                    const key = (b.account_ids && b.account_ids.length > 0) ? [...b.account_ids].sort((a2,b2) => a2 - b2).join(',') : '__global__';
-                    if (!subGroups[key]) subGroups[key] = [];
-                    subGroups[key].push(b);
-                }
-
-                for (const [key, budgets] of Object.entries(subGroups)) {
-                    let subTitle, accentColor;
-                    if (key === '__global__') {
-                        subTitle = `${window.i18n.t('budget_summary_global')} — ${group.title}`;
-                        accentColor = null;
-                    } else {
-                        const accIds = key.split(',').map(id => parseInt(id));
-                        const accObjs = accIds.map(id => this.accounts?.find(a => a.id === id)).filter(Boolean);
-                        if (accObjs.length > 0) {
-                            subTitle = accObjs.map(a => {
-                                const c = a.color || 'var(--accent)';
-                                return `<span style="color:${c};font-weight:600;">● ${a.name}</span>`;
-                            }).join(' <span style="color:var(--text-muted);">+</span> ');
-                        } else {
-                            const firstBudget = budgets[0];
-                            if (firstBudget?.account_names?.length > 0) {
-                                subTitle = firstBudget.account_names.join(' + ');
-                            } else {
-                                subTitle = accIds.map(id => `#${id}`).join(' + ');
-                            }
-                        }
-                        const firstAcc = accObjs[0];
-                        accentColor = firstAcc?.color || 'var(--accent)';
-                    }
-
-                    html += `<div data-budget-period-sub="${period}-${key}">`;
-                    html += renderSummaryBar(subTitle, label, budgets, accentColor);
-                    html += `<div class="bv-card-grid">`;
-                    for (const b of budgets) html += renderBudgetCard(b, y, m);
-                    html += '</div></div>';
-                }
-            } else {
-                html += `<div data-budget-period-sub="${period}-__global__">`;
-                html += renderSummaryBar(`${window.i18n.t('budget_summary_global')} — ${group.title}`, label, spendingBudgets, null);
-                html += `<div class="bv-card-grid">`;
-                for (const b of spendingBudgets) html += renderBudgetCard(b, y, m);
-                html += '</div></div>';
-            }
-
-            html += '</div>';
-            fullHtml += html;
+        if (groups.fixed.length) {
+            const fixedOver = groups.fixed.filter(b => b.status === 'over').length;
+            const open = fixedOver > 0 || ProfileStorage.get('budget_fixed_open') === 'true';
+            html += `
+            <details class="bv-section bv-fold" data-budget-period="fixed" ${open ? 'open' : ''}
+                     ontoggle="ProfileStorage.set('budget_fixed_open', this.open ? 'true' : 'false')">
+                <summary class="bv-section-head">
+                    <h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3>
+                    ${sectionTotals(groups.fixed)}
+                    <span class="bv-fold-chevron">${this._bvIcon('chevronDown', 18)}</span>
+                </summary>
+                <p class="bv-section-hint">${t('bv_section_fixed_hint', 'Suivies par les récurrences : seul un dépassement est signalé.')}</p>
+                <div class="bv-env-list">${groups.fixed.map(renderRow).join('')}</div>
+            </details>`;
         }
+        html += renderSection('indefinite', t('bv_section_long', 'Suivis long terme'), groups.long);
+        html += renderSection('projects', t('bv_section_projects', 'Projets'), groups.projects);
 
         if (savingsBudgets.length > 0) {
-            let savingsHtml = `<div data-budget-period="savings" class="bv-period-section">
-                <div class="bv-savings-header">
-                    <h3>🏦 ${window.i18n.t('budget_savings_section')}</h3>
-                </div>`;
-
-            const totalGoal = savingsBudgets.reduce((s, b) => s + (b.budget_amount || 0), 0);
-            const totalBalance = savingsBudgets.reduce((s, b) => s + (b.balance || 0), 0);
-            const overflow = this.savingsOverflow;
-            const totalTempWithdrawn = overflow ? overflow.overflow_amount : 0;
-            const effectiveTotalBalance = totalBalance - totalTempWithdrawn;
-            const savingsPct = totalGoal > 0 ? Math.min(Math.max(effectiveTotalBalance / totalGoal, 0) * 100, 100) : 0;
-            const theoreticalSavingsPct = totalGoal > 0 ? Math.min((totalBalance / totalGoal) * 100, 100) : 0;
-            const savingsBarColor = theoreticalSavingsPct >= 100 ? '#f59e0b' : '#10b981';
-
-            const overflowBadgeHtml = overflow
-                ? `<span class="bv-overflow-badge privacy-blur" style="color:${overflow.fully_consumed ? '#ef4444' : '#f59e0b'}; background:${overflow.fully_consumed ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)'};">⚠ -${formatCurrency(totalTempWithdrawn)} ${window.i18n.t('savings_temp_withdrawn') || 'temporarily withdrawn'}</span>`
-                : '';
-
-            savingsHtml += `<div class="bv-summary-bar" style="border-left:3px solid ${overflow ? (overflow.fully_consumed ? '#ef4444' : '#f59e0b') : '#f59e0b'};">
-                <div class="bv-summary-header">
-                    <div>
-                        <h4>🏦 ${window.i18n.t('budget_savings_summary')}</h4>
-                        <div class="bv-savings-summary-counts">
-                            <span style="font-size:12px;color:var(--text-muted);">${savingsBudgets.length} ${window.i18n.t('budget_savings_tag').toLowerCase()}${savingsBudgets.length > 1 ? 's' : ''}</span>
-                            ${overflowBadgeHtml}
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <strong class="privacy-blur bv-summary-amount">${formatCurrency(effectiveTotalBalance)}</strong><span class="bv-summary-amount-label"> / <span class="privacy-blur">${formatCurrency(totalGoal)}</span></span>
-                    </div>
-                </div>
-                <div class="bv-progress-track bv-progress-track--lg">
-                    ${totalTempWithdrawn > 0 ? `<div class="bv-progress-bar" style="width:${theoreticalSavingsPct}%;background:${savingsBarColor};opacity:0.25;"></div>` : ''}
-                    <div class="bv-progress-bar" style="width:${savingsPct}%;background:${savingsBarColor};"></div>
-                </div>
-                <div class="bv-summary-footer">
-                    <span class="privacy-blur" style="color:${savingsBarColor};font-weight:600;">${formatCurrency(effectiveTotalBalance)} ${window.i18n.t('budget_savings_funded')}</span>
-                    <span style="color:var(--text-muted);font-weight:600;"><span class="privacy-blur">${formatCurrency(Math.abs(totalGoal - totalBalance))}</span> ${totalBalance >= totalGoal ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
-                </div>
-            </div>`;
-
-            savingsHtml += `<div class="bv-card-grid">`;
-            for (const b of savingsBudgets) savingsHtml += renderSavingsCard(b, b._y, b._m);
-            savingsHtml += '</div></div>';
-            fullHtml += savingsHtml;
+            html += `
+            <section class="bv-section" data-budget-period="savings">
+                <header class="bv-section-head"><h3>${t('budget_savings_section', 'Tirelires')}</h3></header>
+                <div class="bv-card-grid">${savingsBudgets.map(b => this._renderSavingsCard(b)).join('')}</div>
+            </section>`;
         }
 
-        let html = fullHtml;
-        if (!hasBudgets) {
-            html += `<p class="bv-empty">${window.i18n.t('budget_no_active') || 'Aucune enveloppe budgétaire active.'}</p>`;
+        if (all.length === 0) {
+            html += `<p class="bv-empty">${t('budget_no_active', 'Aucune enveloppe budgétaire active.')}</p>`;
         }
 
-        if (container) {
-            container.innerHTML = html;
-        }
+        html += this._renderCapacityPanel(isOrg);
+
+        if (container) container.innerHTML = html;
 
         if (this._pendingHighlightId || this._pendingHighlightName) {
             const hid = this._pendingHighlightId;
@@ -1018,18 +734,103 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             this._pendingHighlightName = null;
             requestAnimationFrame(() => this._highlightBudget(hid, name));
         } else if (this._pendingHighlightPeriod || this._pendingHighlightPeriodSub) {
-            const period = this._pendingHighlightPeriod;
+            const p = this._pendingHighlightPeriod;
             const sub = this._pendingHighlightPeriodSub;
             this._pendingHighlightPeriod = null;
             this._pendingHighlightPeriodSub = null;
-            requestAnimationFrame(() => this._highlightSection(period, sub));
+            requestAnimationFrame(() => this._highlightSection(p, sub));
         }
 
         if (this.aiProposals && this.aiProposals.length > 0) {
-            setTimeout(() => {
-                this.renderAiProposalsList();
-            }, 50);
+            setTimeout(() => this.renderAiProposalsList(), 50);
         }
+    },
+
+    // Panneau « Couverture du budget » : replié par défaut, en fin de page (outil d'analyse, pas de suivi)
+    _renderCapacityPanel(isOrg) {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const open = ProfileStorage.get('show_budget_capacity_panel') === 'true';
+        let body = '';
+        if (open && this.capacityData) {
+            const incomeLabel = isOrg ? t('budget_capacity_receipts', 'Recettes') : t('budget_capacity_income', 'Revenus');
+            const tone = (r) => r > 100 ? 'over' : r >= 85 ? 'near' : 'ok';
+            const lng = window.i18n?.currentLang || window.i18n?.lang || 'fr';
+            const meter = (titleKey, titleFb, data) => {
+                const ratio = data.engagement_ratio;
+                const labelKey = data.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
+                const details = (lng === 'en' ? data.details_en : data.details_fr) || '';
+                return `
+                <div class="bv-meter bv-tone-${tone(ratio)}">
+                    <div class="bv-meter-head"><span>${t(titleKey, titleFb)}</span><strong>${ratio} %</strong></div>
+                    <div class="bv-env-bar"><span class="bv-env-fill" style="width:${Math.min(ratio, 100)}%"></span></div>
+                    <div class="bv-meter-foot">
+                        <span>${t(labelKey, 'Budgétisé')} : <strong class="privacy-blur">${formatCurrency(data.budgeted)}</strong></span>
+                        <span title="${details}">${incomeLabel} : <strong class="privacy-blur">${formatCurrency(data.average_income)}</strong></span>
+                    </div>
+                </div>`;
+            };
+            const accounts = (this.capacityData.accounts || []).map(acc => `
+                <div class="bv-account-card">
+                    <div class="bv-account-card-name"><span class="bv-env-account" style="--acc:${acc.color || 'var(--accent)'}">${acc.name}</span></div>
+                    <div class="bv-account-card-row"><span>${t('budget_real_balance', 'Solde réel')}</span><span class="privacy-blur">${formatCurrency(acc.real_balance)}</span></div>
+                    ${acc.savings_allocated > 0 ? `<div class="bv-account-card-row"><span>${t('budget_savings_reserved', 'Épargne réservée')}</span><span class="privacy-blur">- ${formatCurrency(acc.savings_allocated)}</span></div>` : ''}
+                    <div class="bv-account-card-total"><span>${t('budget_available_balance', 'Disponible virtuel')}</span><span class="privacy-blur">${formatCurrency(acc.available_balance)}</span></div>
+                </div>`).join('');
+            // Mode organisation : pas d'engagement mensuel (recettes annuelles ou ponctuelles)
+            body = `
+                <div class="bv-capacity-body">
+                    <div class="bv-capacity-grid">
+                        ${isOrg ? '' : meter('budget_capacity_monthly', 'Engagement mensuel', this.capacityData.monthly)}
+                        ${meter('budget_capacity_yearly', "Projection d'engagement annuel", this.capacityData.yearly)}
+                    </div>
+                    ${accounts ? `<div class="bv-accounts-section"><strong class="bv-accounts-section-label">${t('budget_accounts_impact', 'Impact sur les comptes & livrets')}</strong><div class="bv-accounts-grid">${accounts}</div></div>` : ''}
+                </div>`;
+        }
+        return `
+            <section class="bv-section bv-capacity">
+                <button type="button" class="bv-capacity-toggle-btn" aria-expanded="${open}" onclick="window.BudgetsView.toggleCapacityPanel(${!open})">
+                    <span>${t('budget_capacity_panel_title', 'Couverture du budget & Solde disponible')}</span>
+                    <span class="bv-fold-chevron${open ? ' is-open' : ''}">${this._bvIcon('chevronDown', 18)}</span>
+                </button>
+                ${body}
+            </section>`;
+    },
+
+    _renderSavingsCard(b) {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const balance = b.balance || 0;
+        const goal = b.budget_amount || 0;
+        const funded = b.funded || 0;
+        const withdrawn = b.withdrawn || 0;
+        const overflow = this.savingsOverflow;
+        let tempWithdrawn = 0;
+        if (overflow && overflow.total_savings > 0 && !b.is_closed) {
+            tempWithdrawn = Math.min(balance, overflow.overflow_amount * (balance / overflow.total_savings));
+        }
+        const effectiveBalance = balance - tempWithdrawn;
+        const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
+        const goalReached = balance >= goal && goal > 0;
+        const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const now = new Date();
+        return `
+            <article class="bv-env bv-env--savings${goalReached ? ' bv-tone-near' : ' bv-tone-ok'}${b.is_closed ? ' bv-env--closed' : ''}" data-budget-id="${b.id}" tabindex="0"
+                     onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${now.getFullYear()}, ${now.getMonth() + 1})"
+                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, '${safeName}', ${now.getFullYear()}, ${now.getMonth() + 1})}">
+                <div class="bv-env-head">
+                    <div class="bv-env-name"><strong>${b.name}</strong></div>
+                    <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(effectiveBalance)}</strong><span> / ${formatCurrency(goal)}</span></div>
+                    <div class="bv-env-actions" onclick="event.stopPropagation()">
+                        ${!b.is_closed ? `<button type="button" class="bv-icon-btn" onclick="window.BudgetsView.showAllocationForm(${b.id})" aria-label="${t('budget_savings_add_funds', 'Alimenter')}" title="${t('budget_savings_add_funds', 'Alimenter')}">${this._bvIcon('plus')}</button>` : ''}
+                        <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.editBudget(${b.id})" aria-label="${t('tooltip_edit', 'Modifier')}" title="${t('tooltip_edit', 'Modifier')}">${this._bvIcon('pencil')}</button>
+                        <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
+                    </div>
+                </div>
+                <div class="bv-env-bar"><span class="bv-env-fill" style="width:${pct}%"></span></div>
+                <div class="bv-env-foot">
+                    <span class="bv-env-meta privacy-blur">${formatCurrency(funded)} ${t('budget_savings_funded', 'versés')}${withdrawn > 0 ? ` · ${formatCurrency(withdrawn)} ${t('budget_savings_withdrawn', 'retirés')}` : ''}</span>
+                    <span class="bv-env-status privacy-blur">${goalReached ? t('budget_savings_goal_reached', 'Objectif atteint') : `${formatCurrency(Math.max(goal - balance, 0))} ${t('budget_savings_remaining', 'restants')}`}</span>
+                </div>
+            </article>`;
     },
 
     _highlightByName(budgetName) {

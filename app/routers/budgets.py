@@ -192,9 +192,11 @@ def get_budget_capacity(db: Session = Depends(get_db)):
 
 
 @router.get("/{budget_id}/transactions")
-def get_budget_transactions(budget_id: int, year: int = None, month: int = None, db: Session = Depends(get_db)):
+def get_budget_transactions(budget_id: int, year: int = None, month: int = None, date_start: str = None,
+                            date_end: str = None, db: Session = Depends(get_db)):
     try:
-        return budget_service.get_budget_transactions_data(budget_id=budget_id, year=year, month=month, db=db)
+        return budget_service.get_budget_transactions_data(budget_id=budget_id, year=year, month=month, db=db,
+                                                           date_start=date_start, date_end=date_end)
     except HTTPException:
         raise
     except Exception as e:
