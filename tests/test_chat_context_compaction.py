@@ -145,6 +145,23 @@ def test_summary_call_is_async_without_reasoning_and_same_context(monkeypatch):
     assert "think" not in seen[1]  # nouvel essai pour un modèle sans mode raisonnement
 
 
+def test_title_call_disables_reasoning_with_fallback(monkeypatch):
+    from app.services.chat import ollama_client
+    seen = []
+
+    def fake_post(url, json=None, timeout=None):
+        seen.append(dict(json))
+        if "think" in json:
+            return httpx.Response(400, json={"error": "model does not support thinking"})
+        return httpx.Response(200, json={"message": {"content": "Épargne vélo"}})
+
+    monkeypatch.setattr(ollama_client.httpx, "post", fake_post)
+    out = ollama_client.call_ollama_sync("p", dict(CFG), extra_options={"num_predict": 30, "think": False})
+    assert out == "Épargne vélo"
+    assert seen[0]["think"] is False and "think" not in seen[0]["options"]
+    assert "think" not in seen[1]
+
+
 def test_session_messages_endpoint_reports_usage_against_compaction_threshold():
     from fastapi.testclient import TestClient
     from app.main import app

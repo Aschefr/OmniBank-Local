@@ -401,7 +401,8 @@ TITRE :"""
         db = None
         try:
             time.sleep(2 if attempt == 1 else 6)
-            raw_title = call_ollama_sync(prompt, cfg, extra_options={"temperature": 0.2, "num_predict": 30})
+            # Sans raisonnement : un modèle qui réfléchit épuiserait les 30 tokens avant d'écrire le titre
+            raw_title = call_ollama_sync(prompt, cfg, extra_options={"temperature": 0.2, "num_predict": 30, "think": False})
             clean_title = clean_llm_title(raw_title)
             if clean_title:
                 db = _create_db_session()

@@ -69,7 +69,9 @@ def get_ollama_config(db: Session) -> dict:
 
 def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     """Blocking (sync) call to Ollama — use from non-async endpoints only.
-    extra_options: additional Ollama options (e.g. num_predict) merged on top of defaults."""
+    extra_options: additional Ollama options (e.g. num_predict) merged on top of defaults.
+    "format" and "think" are request-level parameters, not options: think=False keeps a reasoning
+    model from spending a short num_predict on its reasoning."""
     url = (cfg.get("url") or "").rstrip("/")
     model = cfg.get("model") or ""
     if not url or not model:
@@ -77,9 +79,11 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     default_ctx = normalize_num_ctx(cfg.get("num_ctx"))
     options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
+    think_opt = None
     if extra_options:
         opts_copy = dict(extra_options)
         format_opt = opts_copy.pop("format", None)
+        think_opt = opts_copy.pop("think", None)
         options.update(opts_copy)
 
     payload = {
@@ -90,6 +94,8 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     }
     if format_opt:
         payload["format"] = format_opt
+    if think_opt is not None:
+        payload["think"] = think_opt
 
     try:
         resp = httpx.post(
@@ -97,6 +103,10 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
             json=payload,
             timeout=httpx.Timeout(300.0, connect=10.0),
         )
+        if resp.status_code == 400 and "think" in payload and "think" in resp.text.lower():
+            # Modèle sans mode raisonnement : même appel sans le paramètre
+            payload.pop("think")
+            resp = httpx.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
         if resp.status_code != 200:
             err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
