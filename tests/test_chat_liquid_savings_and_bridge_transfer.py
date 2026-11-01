@@ -44,9 +44,9 @@ def test_advisor_system_prompt_includes_bridge_transfer_directive():
     db = SessionLocal()
     try:
         prompt = load_system_prompt(role='advisor', db=db, lang='fr')
-        assert "LIQUIDITY DEFICIT, OVERDRAFT PREVENTION & BRIDGE TRANSFER DIRECTIVE" in prompt
-        assert "NEVER PANIC OR PREACH SURVIVAL MODE IF LIQUID SAVINGS ARE AVAILABLE" in prompt
-        assert "RECOMMEND AN EXACT PRECAUTIONARY BRIDGE TRANSFER" in prompt
+        assert "CASH FLOW REASONING" in prompt
+        assert "survival mode" in prompt
+        assert "precautionary transfer from savings to the checking account" in prompt
         assert "Livret A" in prompt
     finally:
         db.close()

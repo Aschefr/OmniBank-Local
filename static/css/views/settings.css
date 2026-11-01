@@ -1452,3 +1452,29 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
         min-height: 44px !important;
     }
 }
+
+/* Assistant behaviour: personality editor and final prompt preview */
+.config-prompt-textarea {
+    width: 100%;
+    min-height: 180px;
+    resize: vertical;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 12.5px;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+.config-prompt-preview { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.config-prompt-pre {
+    margin: 8px 0 0;
+    max-height: 420px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--bg-input, var(--bg-secondary));
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+}

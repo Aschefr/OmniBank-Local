@@ -600,6 +600,29 @@ def merge_phase_texts(accumulated: str, new: str) -> str:
     return acc + "\n\n" + "\n\n".join(kept)
 
 
+_PROMISE_RE = re.compile(
+    r"\bj['’]ai (?:également |aussi )?prépar[ée]|\bje (?:vous )?(?:ai |viens d['’])?prépar[ée]|valider ci-dessous|"
+    r"\bi(?: have|'ve) (?:also )?prepared\b|validate (?:it |them )?below|review and (?:validate|confirm)",
+    re.IGNORECASE,
+)
+
+_NUDGE_FR = (
+    "[Message automatique] Votre réponse indique qu'une action a été préparée, mais aucun outil n'a été appelé : "
+    "aucune carte de validation n'existe. Appelez maintenant l'outil correspondant avec exactement les valeurs "
+    "de votre réponse (comptes, montant, date, sens). N'écrivez aucun texte."
+)
+_NUDGE_EN = (
+    "[Automatic message] Your answer says an action was prepared, but no tool was called, so no validation card "
+    "exists. Call the matching tool now with exactly the values from your answer (accounts, amount, date, direction). "
+    "Do not write any text."
+)
+
+
+def announces_prepared_action(text: str) -> bool:
+    """Le texte affirme avoir préparé une action à valider (hors raisonnement interne)."""
+    return bool(_PROMISE_RE.search(_THINK_RE.sub('', text or '')))
+
+
 async def _run_generation_task(
     session_id: int,
     req: ChatSendMessage,
@@ -772,6 +795,8 @@ async def _run_generation_task(
                 "get_application_knowledge": "Consultation de la documentation et des règles OmniBank...",
                 "create_planned_transfer": "Préparation du virement prévisionnel dans OmniBank...",
                 "trigger_bank_sync": "Lancement du relevé et de la synchronisation bancaire...",
+                "store_financial_fact": "Mémorisation de l'information...",
+                "forget_financial_fact": "Mise à jour de la mémoire...",
             }
             tool_desc_map_en = {
                 "get_financial_summary": "Analyzing left-to-live and paycheck forecasts...",
@@ -811,6 +836,8 @@ async def _run_generation_task(
                 "get_application_knowledge": "Looking up OmniBank documentation and feature rules...",
                 "create_planned_transfer": "Preparing planned transfer in OmniBank...",
                 "trigger_bank_sync": "Triggering online bank statement synchronization...",
+                "store_financial_fact": "Remembering this information...",
+                "forget_financial_fact": "Updating memory...",
             }
             tool_desc_map = tool_desc_map_en if req.lang == "en" else tool_desc_map_fr
 
@@ -895,7 +922,11 @@ async def _run_generation_task(
             context_length_reached = False
             last_iteration_phase_text = ""
             error_yielded = False
-            while iteration < MAX_TOOL_ITERATIONS:
+            # Relance unique quand le texte annonce une action sans l'avoir appelée
+            nudge_pending = False
+            nudge_done = False
+            session_can_write = any(t["function"]["name"] in _WRITE_TOOLS for t in session_tools)
+            while iteration < MAX_TOOL_ITERATIONS + (1 if nudge_pending else 0):
                 # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
                 budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=session_tools)
                 payload = {
@@ -917,19 +948,42 @@ async def _run_generation_task(
                         if chunk.get("_done_reason") == "length":
                             context_length_reached = True
                     else:
+                        is_content = False
                         if isinstance(chunk, str) and chunk.startswith('data: '):
                             try:
                                 d = json.loads(chunk[6:].strip())
                                 if d.get('content'):
-                                    final_text += d['content']
+                                    is_content = True
+                                    if not nudge_pending:
+                                        final_text += d['content']
                                 if d.get('error'):
                                     error_yielded = True
                             except Exception:
                                 pass
-                        await _emit(chunk)
+                        if not (nudge_pending and is_content):
+                            await _emit(chunk)
+
+                if nudge_pending:
+                    # Tour de relance : on garde la réponse déjà affichée, on ne retient que les appels d'actions
+                    nudge_pending = False
+                    nudge_done = True
+                    final_text = accumulated_substantive_text
+                    detected_tool_calls = [tc for tc in detected_tool_calls if tc["function"]["name"] in _WRITE_TOOLS]
+                    if not detected_tool_calls:
+                        break
+                    phase_text = ""
 
                 if not detected_tool_calls:
                     final_text = merge_phase_texts(accumulated_substantive_text, phase_text)
+                    if (session_can_write and not nudge_done and not detected_write_actions
+                            and not error_yielded and announces_prepared_action(final_text)):
+                        logger.info("[Chat] Action annoncée sans appel d'outil — relance du modèle pour obtenir l'appel")
+                        accumulated_substantive_text = final_text
+                        ollama_msgs.append({"role": "assistant", "content": _THINK_RE.sub('', phase_text).strip()})
+                        ollama_msgs.append({"role": "user", "content": _NUDGE_EN if req.lang == "en" else _NUDGE_FR})
+                        nudge_pending = True
+                        iteration += 1
+                        continue
                     break
 
                 # We have tool calls. Check if the text emitted in this phase was a substantial analysis or just a transient scratchpad/preamble.
@@ -944,6 +998,8 @@ async def _run_generation_task(
                     final_text = accumulated_substantive_text
                     sep_payload = json.dumps({'content': '\n\n'})
                     await _emit(f"data: {sep_payload}\n\n")
+                elif nudge_done:
+                    pass
                 else:
                     # Transient preamble (e.g. "Checking accounts..."): clear it so the real answer begins cleanly
                     final_text = ""
@@ -983,9 +1039,7 @@ async def _run_generation_task(
                                 action_params["date_operation"] = date.today().isoformat()
                         detected_write_actions.append({"action": fn_name, "params": action_params})
 
-                    desc_status = tool_desc_map.get(fn_name, f"Exécution de {fn_name}...")
-                    if iteration > 0:
-                        desc_status = f"🔄 Tour {iteration + 1} — {desc_status}"
+                    desc_status = tool_desc_map.get(fn_name) or ("Looking at your data..." if req.lang == "en" else "Consultation de vos données...")
                     await _emit(f"data: {json.dumps({'status': desc_status})}\n\n")
                     await asyncio.sleep(0)
 
@@ -1202,6 +1256,10 @@ async def _run_generation_task(
                         "content": json.dumps(tool_result, ensure_ascii=False),
                     })
 
+                if nudge_done:
+                    final_text = accumulated_substantive_text
+                    break
+
                 if is_substantive and detected_tool_calls and all(tc["function"]["name"] in _WRITE_TOOLS for tc in detected_tool_calls):
                     final_text = accumulated_substantive_text
                     break
@@ -1215,8 +1273,8 @@ async def _run_generation_task(
                 status_synth = "Synthèse finale de vos données en cours..." if req.lang != "en" else "Synthesizing final answer..."
                 await _emit(f"data: {json.dumps({'status': status_synth})}\n\n")
                 synth_instruction = (
-                    "Synthétise maintenant clairement et exhaustivement ta réponse finale pour l'utilisateur "
-                    "à partir de l'ensemble des données financières collectées ci-dessus. Ne formule aucun nouvel appel d'outil."
+                    "Rédigez maintenant la réponse finale pour l'utilisateur à partir des données collectées ci-dessus, "
+                    "en le vouvoyant et en respectant les consignes de longueur. N'appelez plus aucun outil."
                     if req.lang != "en" else
                     "Synthesize now a clear, complete and helpful final answer for the user based on all the financial data collected above. Do not call any tools."
                 )
@@ -1248,24 +1306,15 @@ async def _run_generation_task(
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
-            # Récupération d'actions promises mais jamais appelées. Uniquement quand le modèle n'a appelé
-            # aucune action pendant ce tour : sinon l'heuristique textuelle devine des virements à tort
-            # (ex. le sens inverse d'un virement déjà préparé).
-            if final_text and not detected_write_actions:
-                try:
-                    from app.services.chat.chat_action_recovery import find_missing_promised_actions
-                    missing_actions = find_missing_promised_actions(
-                        final_text,
-                        db,
-                        existing_actions=detected_write_actions,
-                        target_year=target_period_override.get("year"),
-                        target_month=target_period_override.get("month")
-                    )
-                    if missing_actions:
-                        logger.info(f"[Chat Auto-Recovery] {len(missing_actions)} action(s) promise(s) manquante(s) récupérée(s)")
-                        detected_write_actions.extend(missing_actions)
-                except Exception as e:
-                    logger.warning(f"[Chat Auto-Recovery] Erreur extraction proactive: {e}")
+            # Action annoncée mais toujours pas appelée après la relance : ne rien deviner, le dire
+            if final_text and session_can_write and not detected_write_actions and announces_prepared_action(final_text):
+                notice = (
+                    "\n\n*(⚠️ The announced action could not be prepared. Ask for it again to get the validation card.)*"
+                    if req.lang == "en" else
+                    "\n\n*(⚠️ L'action annoncée n'a pas pu être préparée. Redemandez-la pour obtenir la carte de validation.)*"
+                )
+                final_text += notice
+                await _emit(f"data: {json.dumps({'content': notice})}\n\n")
 
             if detected_write_actions:
                 # N'émettre et concaténer que les actions qui ne sont pas déjà sérialisées dans final_text
@@ -1379,19 +1428,6 @@ async def _run_generation_task(
                 args=(active_pid, session_id, req.content, cfg, context_hint),
                 daemon=True,
             ).start()
-
-        # Lancement asynchrone non-bloquant de l'audit critic / auto-correction
-        if bot_msg and bot_msg.id:
-            try:
-                from app.services.chat.chat_critic import should_critique, run_background_critic
-                if should_critique(bot_msg.content, bot_msg.role):
-                    threading.Thread(
-                        target=run_background_critic,
-                        args=(active_pid, session_id, bot_msg.id),
-                        daemon=True,
-                    ).start()
-            except Exception as e_crit:
-                logger.debug(f"[Chat] Erreur lancement critic background: {e_crit}")
 
         await _emit("data: [DONE]\n\n")
         _done_sent = True

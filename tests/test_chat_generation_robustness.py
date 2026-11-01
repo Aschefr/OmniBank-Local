@@ -1,5 +1,6 @@
 """Robustesse de la boucle de génération : fusion des tours, outil en échec, raisonnement non rejoué."""
 import asyncio
+import re
 import json
 
 import pytest
@@ -151,3 +152,53 @@ def test_no_guessed_action_when_model_already_called_one(monkeypatch, gen_env):
     db.expire_all()
     answer = db.query(ChatMessage).filter(ChatMessage.session_id == sid, ChatMessage.role == "assistant").first()
     assert answer.content.count("```action") == 1
+
+
+PROMISE = ("J'ai préparé un virement de 250 € de votre Compte Courant vers votre Livret A, prévu le 30 novembre. "
+           "Vous pouvez l'examiner et la valider ci-dessous.")
+
+
+def _run_turns(monkeypatch, gen_env, turns):
+    sid, uid, db = gen_env
+    fake = _FakeOllama(turns)
+    monkeypatch.setattr(orch.httpx, "AsyncClient", lambda *a, **k: fake)
+    monkeypatch.setattr(orch, "create_planned_transfer_tool", lambda db, **k: {"status": "pending_validation"})
+    q = asyncio.Queue()
+    asyncio.run(orch._run_generation_task(sid, orch.ChatSendMessage(content="Oui, enregistrez-le.", lang="fr"), q, {}, "p", uid))
+    streamed = ""
+    while not q.empty():
+        c = q.get_nowait()
+        if c and c.startswith("data: {"):
+            streamed += json.loads(c[6:]).get("content", "")
+    db.expire_all()
+    answer = db.query(ChatMessage).filter(ChatMessage.session_id == sid, ChatMessage.role == "assistant").first()
+    return fake, streamed, answer.content
+
+
+def test_promised_action_without_call_is_requested_from_the_model(monkeypatch, gen_env):
+    turns = [
+        [{"message": {"content": PROMISE}, "done": True}],
+        [{"message": {"content": "", "tool_calls": [{"function": {"name": "create_planned_transfer", "arguments": {
+            "from_account": "Compte Courant", "to_account": "Livret A", "amount": 250, "date_operation": "2026-11-30"}}}]}},
+         {"message": {"content": "Texte de relance à ne pas afficher"}, "done": True}],
+    ]
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, turns)
+    assert len(fake.payloads) == 2
+    assert "[Message automatique]" in fake.payloads[1]["messages"][-1]["content"]
+    actions = re.findall(r"```action\s*(.*?)\s*```", content, re.S)
+    assert len(actions) == 1
+    params = json.loads(actions[0])["params"]
+    assert (params["from_account"], params["to_account"], params["date_operation"]) == ("Compte Courant", "Livret A", "2026-11-30")
+    assert content.count("J'ai préparé") == 1
+    assert "relance" not in content and "relance" not in streamed
+
+
+def test_promised_action_still_not_called_gets_a_notice_not_a_guess(monkeypatch, gen_env):
+    turns = [
+        [{"message": {"content": PROMISE}, "done": True}],
+        [{"message": {"content": "D'accord."}, "done": True}],
+    ]
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, turns)
+    assert "```action" not in content
+    assert "n'a pas pu être préparée" in content
+    assert "D'accord." not in content

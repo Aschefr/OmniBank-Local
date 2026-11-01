@@ -159,13 +159,19 @@ def test_prompt_category_pruning(db_session):
 
 
 def test_briefing_facts_behavior(db_session):
-    """Vérifie que les ai_facts n'apparaissent dans le briefing que s'ils existent en DB."""
-    briefing = generate_financial_briefing(db_session, role="simulator")
-    assert "Known Financial Facts & Memory (ai_facts)" not in briefing
-
-    from app.models import AIFact
-    db_session.add(AIFact(fact_key="test_fact", fact_value="test_value"))
+    """Les ai_facts ne sont plus dans le briefing (non filtré) : le prompt les ajoute, filtrés par utilisateur."""
+    from app.models import AIFact, OrgUser
+    alice = OrgUser(name="Alice")
+    db_session.add(alice)
     db_session.commit()
-    briefing_with_fact = generate_financial_briefing(db_session, role="simulator")
-    assert "Known Financial Facts & Memory (ai_facts)" in briefing_with_fact
-    assert "test_value" in briefing_with_fact
+    db_session.add(AIFact(fact_key="shared_fact", fact_value="shared_value"))
+    db_session.add(AIFact(fact_key="alice_fact", fact_value="alice_private", user_id=alice.id))
+    db_session.commit()
+
+    briefing = generate_financial_briefing(db_session, role="simulator")
+    assert "alice_private" not in briefing and "shared_value" not in briefing
+
+    prompt_other = load_system_prompt("simulator", [], "fr", db=db_session)
+    assert "shared_value" in prompt_other
+    assert "alice_private" not in prompt_other
+    assert "alice_private" in load_system_prompt("simulator", [], "fr", db=db_session, user_name="Alice")

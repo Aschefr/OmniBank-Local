@@ -317,6 +317,35 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </div> <!-- End ollamaSettings -->
                 </div>
 
+                <!-- Assistant behaviour: editable personality + final prompt preview -->
+                <div class="config-card" id="configAiBehaviorCard">
+                    <div class="config-card-header">
+                        <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> <span data-i18n="config_ai_behavior_title">${window.i18n.t('config_ai_behavior_title')}</span></h3>
+                    </div>
+                    <div class="config-field">
+                        <label class="config-label" for="conf_ai_personality" data-i18n="config_ai_personality_label">${window.i18n.t('config_ai_personality_label')}</label>
+                        <textarea id="conf_ai_personality" class="inline-input config-prompt-textarea" rows="9" spellcheck="false"></textarea>
+                        <p class="config-help" data-i18n="config_ai_personality_help">${window.i18n.t('config_ai_personality_help')}</p>
+                    </div>
+                    <div class="config-chip-row">
+                        <button type="button" class="btn btn-primary" onclick="window.ConfigView.saveAiPersonality()" data-i18n="config_ai_personality_save">${window.i18n.t('config_ai_personality_save')}</button>
+                        <button type="button" class="btn btn-secondary" onclick="window.ConfigView.restoreAiPersonality()" data-i18n="config_ai_personality_restore">${window.i18n.t('config_ai_personality_restore')}</button>
+                    </div>
+
+                    <h4 class="config-group-title" data-i18n="config_ai_preview_title">${window.i18n.t('config_ai_preview_title')}</h4>
+                    <p class="config-help" data-i18n="config_ai_preview_help">${window.i18n.t('config_ai_preview_help')}</p>
+                    <div class="flex-row-mobile-col config-field-row">
+                        <div class="config-field">
+                            <label class="config-label" for="conf_ai_preview_role" data-i18n="config_ai_preview_role">${window.i18n.t('config_ai_preview_role')}</label>
+                            <select id="conf_ai_preview_role" class="inline-input">
+                                ${['advisor', 'simulator', 'alerts', 'optimizer', 'budget_planner', 'forecaster', 'auditor'].map(r => `<option value="${r}">${window.i18n.t('config_ai_role_' + r)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-secondary config-field-action" onclick="window.ConfigView.previewAiPrompt()" data-i18n="config_ai_preview_btn">${window.i18n.t('config_ai_preview_btn')}</button>
+                    </div>
+                    <div id="aiPromptPreview" class="config-prompt-preview"></div>
+                </div>
+
                 <!-- Proactive reports -->
                 <div class="config-card" id="configAiReportsCard">
                     <div class="config-card-header">
@@ -651,6 +680,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 document.getElementById('conf_ollama_ctx').value = this.configData.ollama_context;
             }
             
+            this.loadAiPersonality();
+
             if (this.configData.enable_ai === 'true') {
                 document.getElementById('conf_enable_ai').checked = true;
                 this.toggleAI(true);
