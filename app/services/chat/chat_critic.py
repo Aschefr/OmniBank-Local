@@ -1,20 +1,21 @@
 """
 app/services/chat/chat_critic.py — Background Critic & Auto-Correction Worker
 
-Audite de manière asynchrone les réponses de l'assistant :
-1. Fast-audit déterministe (actions promises vs émises).
-2. Évaluation de pertinence/omission avec prompt concis (format: json).
-3. Génération d'une variante corrigée ("origin": "auto_correction") et notification non intrusive.
+Audite de manière asynchrone les réponses de l'assistant, sans appel au modèle :
+vérifie que les actions promises dans le texte ont bien été émises et, sinon, enregistre
+une variante complétée ("origin": "auto_correction") avec une notification non intrusive.
+
+Aucune réécriture par le modèle : une relecture sans le dossier financier ni les outils
+ne peut que reformuler, voire inventer des chiffres.
 """
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from sqlalchemy.orm import Session, sessionmaker
+from app.database import SessionLocal, get_engine
 from app.models import ChatMessage, Notification
-from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync, strip_thinking
 from app.services.chat.chat_action_recovery import find_missing_promised_actions, append_actions_to_text
 
 logger = logging.getLogger(__name__)
@@ -31,11 +32,21 @@ def should_critique(message_content: str, role: str) -> bool:
     return any(kw in content_lower for kw in financial_keywords)
 
 
-def run_background_critic(profile_id: Optional[int], session_id: int, message_id: int):
+def _open_profile_session(profile_id: Optional[str]) -> Session:
+    """Session sur la base du profil de la conversation (et non du profil actif à cet instant)."""
+    if profile_id:
+        return sessionmaker(autocommit=False, autoflush=False, bind=get_engine(profile_id))()
+    return SessionLocal()
+
+
+def run_background_critic(profile_id: Optional[str], session_id: int, message_id: int):
     """Point d'entrée exécuté en tâche de fond (Thread démon)."""
-    db: Session = SessionLocal()
+    db: Session = _open_profile_session(profile_id)
     try:
-        msg = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+        msg = db.query(ChatMessage).filter(
+            ChatMessage.id == message_id,
+            ChatMessage.session_id == session_id,
+        ).first()
         if not msg or msg.role != "assistant" or not msg.content:
             return
 
@@ -44,52 +55,16 @@ def run_background_critic(profile_id: Optional[int], session_id: int, message_id
         if any(v.get("origin") == "auto_correction" for v in variants):
             return
 
-        # 1. Audit rapide déterministe : actions promises manquantes (0 ms GPU)
+        # Le modèle a déjà émis ses actions : ne pas en deviner d'autres à partir du texte
+        if "```action" in msg.content:
+            return
+
+        # Audit déterministe : actions promises manquantes (0 ms GPU)
         missing = find_missing_promised_actions(msg.content, db)
         if missing:
             logger.info(f"[Chat Critic] Fast-audit : {len(missing)} action(s) manquante(s) détectée(s) pour le message #{message_id}")
             improved_content = append_actions_to_text(msg.content, missing)
             _save_auto_corrected_variant(db, msg, improved_content, session_id, critique_note="Complétion automatique des actions promises")
-            return
-
-        # 2. Audit LLM ciblé si le message formule une stratégie complexe
-        if any(w in msg.content.lower() for w in ("stratégie", "virement", "recommandation", "plan d'action")):
-            cfg = get_ollama_config(db)
-            if not cfg.get("enabled") or not cfg.get("url") or not cfg.get("model"):
-                return
-
-            critique_prompt = f"""Tu es un auditeur financier rigoureux. Évalue la réponse suivante donnée à l'utilisateur :
-\"\"\"{msg.content[:1500]}\"\"\"
-
-Règles d'évaluation :
-- Note de 1 à 10 la clarté, la rigueur et l'exhaustivité des conseils.
-- Si une opération essentielle a été omise ou si une incohérence apparaît, mets une note inférieure à 7 et explique brièvement.
-- Réponds au format JSON strict :
-{{"score": 8, "needs_improvement": false, "critique": ""}} ou {{"score": 5, "needs_improvement": true, "critique": "Raison courte"}}"""
-
-            try:
-                resp_str = call_ollama_sync(critique_prompt, cfg, extra_options={"format": "json"})
-                if not resp_str:
-                    return
-
-                cleaned_json = strip_thinking(resp_str)
-                eval_data = json.loads(cleaned_json)
-                if eval_data.get("needs_improvement") and eval_data.get("critique"):
-                    critique_note = str(eval_data.get("critique"))
-                    logger.info(f"[Chat Critic] Amélioration requise (score {eval_data.get('score')}) : {critique_note}")
-
-                    refine_prompt = f"""Voici ta réponse précédente :
-\"\"\"{msg.content[:1500]}\"\"\"
-
-Remarque d'audit : {critique_note}.
-Réécris la réponse de manière fluide, complète et corrigée en intégrant cette précision."""
-
-                    refined_resp = call_ollama_sync(refine_prompt, cfg)
-                    refined_clean = strip_thinking(refined_resp)
-                    if refined_clean and len(refined_clean.strip()) > 100:
-                        _save_auto_corrected_variant(db, msg, refined_clean.strip(), session_id, critique_note=critique_note)
-            except Exception as e:
-                logger.debug(f"[Chat Critic] Erreur LLM critic (bénigne) : {e}")
 
     except Exception as err:
         logger.warning(f"[Chat Critic] Erreur audit fond message #{message_id} : {err}")
