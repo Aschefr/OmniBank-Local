@@ -1384,6 +1384,10 @@ window.OverviewView = {
         let cycleComingExpenses = 0;
         let cyclePlannedExpenses = 0;
         let cycleReconciledVarExpenses = 0;
+        // Cadence : dépenses réellement engagées (rapprochées, paiements carte « à venir » et
+        // dépenses saisies déjà passées), sans attendre le rapprochement
+        let cycleSpentExpenses = 0;
+        let cycleSpentVarExpenses = 0;
 
         const pendingMatches = this._pendingData?.matches_by_tx_id || window.BankSyncView?.pendingMatches || {};
         const matchedTxIds = new Set();
@@ -1415,6 +1419,11 @@ window.OverviewView = {
             const isComing = (match && match.is_coming) ||
                              tx.is_coming === true || tx.is_coming === 1 || tx.is_coming === 'true' ||
                              (tx.csv_id && String(tx.csv_id).startsWith('woob_coming_'));
+
+            if (tx.reconciliation_date || isComing || tx.date_operation <= todayISO) {
+                cycleSpentExpenses += amt;
+                if (!isFixed) cycleSpentVarExpenses += amt;
+            }
 
             if (tx.reconciliation_date) {
                 cycleReconciledExpenses += amt;
@@ -1805,86 +1814,44 @@ window.OverviewView = {
                 max: t('cockpit_org_runway_scale_max', '12m+'),
                 isRunway: true
             };
-        } else if (stats.next_pay_date) {
-            // Mode Personnel avec cycle de paye
-            const effectiveDays = Math.max(1, elapsedDays);
-            dailySpent = cycleReconciledVarExpenses / effectiveDays;
-            dailyRef = (this._cachedMonthlyAverages?.dailyVarClean > 0)
-                ? this._cachedMonthlyAverages.dailyVarClean
-                : (totalCycleExpenses / Math.max(1, totalCycleDays));
-
-            if (dailyRef <= 0) dailyRef = 1;
-
-            if (elapsedDays === 0 || cycleReconciledVarExpenses === 0) {
-                cadenceRatio = 0.0;
-                needleAngle = -90;
-            } else {
-                cadenceRatio = dailySpent / dailyRef;
-                let theta = 0;
-                if (dailySpent <= dailyRef) {
-                    theta = (dailySpent / dailyRef) * 90;
-                } else {
-                    theta = 90 + Math.min(1, (dailySpent - dailyRef) / dailyRef) * 90;
-                }
-                needleAngle = Math.max(-90, Math.min(90, theta - 90));
-            }
-
-            const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
-
-            if (cadenceRatio <= 0.90) {
-                cadenceColorClass = 'cadence-green';
-                cadenceStatusClass = 'status-green';
-                cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
-                cadenceSubText = tp('cockpit_cadence_sub_under', { diff: diffPercent }, `-${diffPercent}% sous la moyenne`);
-            } else if (cadenceRatio <= 1.10) {
-                cadenceColorClass = 'cadence-blue';
-                cadenceStatusClass = 'status-blue';
-                cadenceStatusText = t('cockpit_cadence_on_track', 'Dans les clous');
-                cadenceSubText = t('cockpit_cadence_sub_aligned', 'Dépenses alignées sur le cycle');
-            } else if (cadenceRatio <= 1.30) {
-                cadenceColorClass = 'cadence-orange';
-                cadenceStatusClass = 'status-orange';
-                cadenceStatusText = t('cockpit_cadence_moderate', 'Cadence soutenue');
-                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
-            } else {
-                cadenceColorClass = 'cadence-red';
-                cadenceStatusClass = 'status-red';
-                cadenceStatusText = t('cockpit_cadence_high', 'Surconsommation');
-                cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
-            }
-
-            cadenceDetailText = tp('cockpit_cadence_avg_ref', { avg: formatCurrency(dailyRef) }, `(Moyenne : ${formatCurrency(dailyRef)}/j)`);
-            cadenceCycleText = tp('cockpit_cadence_sub_cycle', { current: elapsedDays, total: totalCycleDays, totalSpent: formatCurrency(cycleReconciledVarExpenses) }, `${formatCurrency(cycleReconciledVarExpenses)} vie courante au j. ${elapsedDays}/${totalCycleDays}`);
-            cadenceTooltip = tp('cockpit_cadence_gauge_tooltip_analog', { dailySpent: formatCurrency(dailySpent), dailyRef: formatCurrency(dailyRef), status: cadenceStatusText, days: elapsedDays, totalSpent: formatCurrency(cycleReconciledVarExpenses) }, `Cadence journalière : ${formatCurrency(dailySpent)}/j (Moyenne propre : ${formatCurrency(dailyRef)}/j — ${cadenceStatusText}). Dépenses courantes : ${formatCurrency(cycleReconciledVarExpenses)} sur ${elapsedDays} jours.`);
-
-            cadenceCenterAmount = `${formatCurrency(dailySpent)}<span class="cockpit-gauge-unit">/j</span>`;
-            cadenceCenterSub = cadenceDetailText;
         } else {
-            // Mode Personnel sans cycle de paye
+            // Mode Personnel : avec cycle de paye, vie courante seule (charges fixes exclues) ;
+            // sans cycle de paye, toutes les dépenses du mois
+            const withPayCycle = !!stats.next_pay_date;
+            const spent = withPayCycle ? cycleSpentVarExpenses : cycleSpentExpenses;
             const effectiveDays = Math.max(1, elapsedDays);
-            dailySpent = cycleReconciledExpenses / effectiveDays;
-            const avgDailyExp = (this._cachedMonthlyAverages?.dailyFixed || 0) + (this._cachedMonthlyAverages?.dailyVar || 0);
-            dailyRef = avgDailyExp > 0 ? avgDailyExp : (totalCycleExpenses / Math.max(1, totalCycleDays));
-
+            dailySpent = spent / effectiveDays;
+            if (withPayCycle) {
+                dailyRef = (this._cachedMonthlyAverages?.dailyVarClean > 0)
+                    ? this._cachedMonthlyAverages.dailyVarClean
+                    : (totalCycleExpenses / Math.max(1, totalCycleDays));
+            } else {
+                const avgDailyExp = (this._cachedMonthlyAverages?.dailyFixed || 0) + (this._cachedMonthlyAverages?.dailyVar || 0);
+                dailyRef = avgDailyExp > 0 ? avgDailyExp : (totalCycleExpenses / Math.max(1, totalCycleDays));
+            }
             if (dailyRef <= 0) dailyRef = 1;
 
-            if (elapsedDays === 0 || cycleReconciledExpenses === 0) {
-                cadenceRatio = 0.0;
-                needleAngle = -90;
-            } else {
-                cadenceRatio = dailySpent / dailyRef;
-                let theta = 0;
-                if (dailySpent <= dailyRef) {
-                    theta = (dailySpent / dailyRef) * 90;
-                } else {
-                    theta = 90 + Math.min(1, (dailySpent - dailyRef) / dailyRef) * 90;
-                }
+            cadenceRatio = elapsedDays === 0 ? 0.0 : dailySpent / dailyRef;
+            if (cadenceRatio > 0) {
+                const theta = dailySpent <= dailyRef
+                    ? (dailySpent / dailyRef) * 90
+                    : 90 + Math.min(1, (dailySpent - dailyRef) / dailyRef) * 90;
                 needleAngle = Math.max(-90, Math.min(90, theta - 90));
+            } else {
+                needleAngle = -90;
             }
 
+            // Moins de 3 jours ou aucune dépense : pas de verdict tiré de quasiment aucune donnée
+            const CADENCE_MIN_DAYS = 3;
             const diffPercent = Math.round(Math.abs(cadenceRatio - 1.0) * 100);
-
-            if (cadenceRatio <= 0.90) {
+            if (elapsedDays < CADENCE_MIN_DAYS || spent === 0) {
+                cadenceColorClass = 'cadence-blue';
+                cadenceStatusClass = 'status-blue';
+                cadenceStatusText = t('cockpit_cadence_warming', 'Pas encore assez de recul');
+                cadenceSubText = spent === 0
+                    ? t('cockpit_cadence_sub_no_spend', 'Aucune dépense courante depuis le début du cycle')
+                    : tp('cockpit_cadence_sub_warming', { days: CADENCE_MIN_DAYS }, `Verdict à partir du jour ${CADENCE_MIN_DAYS} du cycle`);
+            } else if (cadenceRatio <= 0.90) {
                 cadenceColorClass = 'cadence-green';
                 cadenceStatusClass = 'status-green';
                 cadenceStatusText = t('cockpit_cadence_steady', 'Rythme maîtrisé');
@@ -1907,8 +1874,10 @@ window.OverviewView = {
             }
 
             cadenceDetailText = tp('cockpit_cadence_avg_ref', { avg: formatCurrency(dailyRef) }, `(Moyenne : ${formatCurrency(dailyRef)}/j)`);
-            cadenceCycleText = `📅 ${cycleDetailText} (${cycleDayLabel})`;
-            cadenceTooltip = tp('cockpit_cadence_gauge_tooltip_analog', { dailySpent: formatCurrency(dailySpent), dailyRef: formatCurrency(dailyRef), status: cadenceStatusText, days: elapsedDays, totalSpent: formatCurrency(cycleReconciledExpenses) }, `Cadence journalière : ${formatCurrency(dailySpent)}/j (Moyenne : ${formatCurrency(dailyRef)}/j — ${cadenceStatusText}). Dépenses pointées : ${formatCurrency(cycleReconciledExpenses)} sur ${elapsedDays}/${totalCycleDays} jours.`);
+            cadenceCycleText = withPayCycle
+                ? tp('cockpit_cadence_sub_cycle', { current: elapsedDays, total: totalCycleDays, totalSpent: formatCurrency(spent) }, `${formatCurrency(spent)} vie courante au j. ${elapsedDays}/${totalCycleDays}`)
+                : `📅 ${cycleDetailText} (${cycleDayLabel})`;
+            cadenceTooltip = tp('cockpit_cadence_gauge_tooltip_analog', { dailySpent: formatCurrency(dailySpent), dailyRef: formatCurrency(dailyRef), status: cadenceStatusText, days: elapsedDays, totalSpent: formatCurrency(spent) }, `Cadence journalière : ${formatCurrency(dailySpent)}/j (Moyenne propre : ${formatCurrency(dailyRef)}/j — ${cadenceStatusText}). Dépenses courantes : ${formatCurrency(spent)} sur ${elapsedDays} jours.`);
 
             cadenceCenterAmount = `${formatCurrency(dailySpent)}<span class="cockpit-gauge-unit">/j</span>`;
             cadenceCenterSub = cadenceDetailText;
@@ -2190,7 +2159,7 @@ window.OverviewView = {
                         { label: 'Statut du rythme', value: cadenceStatusText },
                         { label: 'Dépenses journalières constatées', value: `${formatCurrency(dailySpent)}/j` },
                         { label: 'Moyenne propre de référence', value: `${formatCurrency(dailyRef)}/j` },
-                        { label: 'Dépenses courantes cumulées', value: formatCurrency(cycleReconciledVarExpenses) },
+                        { label: 'Dépenses courantes cumulées', value: formatCurrency(stats.next_pay_date ? cycleSpentVarExpenses : cycleSpentExpenses) },
                         { label: 'Avancement du cycle', value: `${elapsedDays} / ${totalCycleDays} jours` }
                     ],
                     text: cadenceTooltip
