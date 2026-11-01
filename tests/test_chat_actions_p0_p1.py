@@ -149,7 +149,7 @@ def test_create_budget_envelope_via_chat_records_undo(db_session):
     res = execute_chat_action(
         db_session,
         action="create_budget_envelope",
-        params={"name": "Vacances 2026", "monthly_amount": 250.0, "period": "monthly"},
+        params={"name": "Vacances 2026", "monthly_amount": 250.0, "period": "monthly", "categories": ["Vacances"]},
         message_id=msg.id,
         action_id=action_id
     )
@@ -311,7 +311,7 @@ def test_chat_apply_action_endpoint_headers_and_body(db_session):
 
         resp = client.post("/api/chat/apply-action", json={
             "action": "create_budget_envelope",
-            "params": {"name": "Enveloppe Mode Standard", "monthly_amount": 150.0}
+            "params": {"name": "Enveloppe Mode Standard", "monthly_amount": 150.0, "categories": ["Loisirs"]}
         })
         assert resp.status_code == 200
         assert resp.json().get("success") is True
@@ -332,14 +332,14 @@ def test_chat_apply_action_endpoint_headers_and_body(db_session):
         # Sans header ni body user_name -> 403
         resp_blocked = client.post("/api/chat/apply-action", json={
             "action": "create_budget_envelope",
-            "params": {"name": "Enveloppe Sans User", "monthly_amount": 100.0}
+            "params": {"name": "Enveloppe Sans User", "monthly_amount": 100.0, "categories": ["Cinéma"]}
         })
         assert resp_blocked.status_code == 403
 
         # Avec user_name dans le body -> 200
         resp_body = client.post("/api/chat/apply-action", json={
             "action": "create_budget_envelope",
-            "params": {"name": "Enveloppe Sarah Body", "monthly_amount": 100.0},
+            "params": {"name": "Enveloppe Sarah Body", "monthly_amount": 100.0, "categories": ["Sport"]},
             "user_name": "Sarah"
         })
         assert resp_body.status_code == 200
@@ -350,7 +350,7 @@ def test_chat_apply_action_endpoint_headers_and_body(db_session):
             "/api/chat/apply-action",
             json={
                 "action": "create_budget_envelope",
-                "params": {"name": "Enveloppe Sarah Header", "monthly_amount": 120.0}
+                "params": {"name": "Enveloppe Sarah Header", "monthly_amount": 120.0, "categories": ["Presse"]}
             },
             headers={"X-User-Name": "Sarah"}
         )
