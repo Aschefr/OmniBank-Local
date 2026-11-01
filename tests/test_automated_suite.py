@@ -328,6 +328,13 @@ def test_csv_import_export(tmp_path):
 # TEST 7: Budgets (Envelopes)
 # ==============================================================================
 def test_budgets_envelopes():
+    # A category already tracked by an envelope over the same period is refused (it would be counted twice)
+    res = client.post("/api/budgets/", json={
+        "name": "Doublon", "monthly_amount": 50.0, "period": "monthly", "is_project": False,
+        "categories": ["Alimentaire"]
+    })
+    assert res.status_code == 409 and "Alimentation" in res.json()["detail"]
+
     # Create new budget
     res = client.post("/api/budgets/", json={
         "name": "Cadeaux",
@@ -335,7 +342,7 @@ def test_budgets_envelopes():
         "period": "monthly",
         "is_project": False,
         "is_closed": False,
-        "categories": ["Alimentaire"]
+        "categories": ["Abonnement"]
     })
     assert res.status_code == 200
     b = res.json()
@@ -1500,7 +1507,7 @@ def test_global_undo_redo_system():
         "period": "monthly",
         "is_project": False,
         "is_closed": False,
-        "categories": ["Alimentaire"]
+        "categories": ["Abonnement"]
     })
     assert res_bg.status_code == 200
     bg_id = res_bg.json()["id"]
@@ -1522,7 +1529,7 @@ def test_global_undo_redo_system():
     bg_list = client.get("/api/budgets/").json()
     restored_bg = next(b for b in bg_list if b["id"] == bg_id)
     assert restored_bg["name"] == "Undo Test Budget"
-    assert "Alimentaire" in restored_bg["categories"]
+    assert "Abonnement" in restored_bg["categories"]
 
     # 4. Test Category CREATE -> UNDO -> REDO
     res_cat = client.post("/api/categories/", json={"name": "Undo Test Cat", "type": "expense_var"})
@@ -1624,7 +1631,7 @@ def test_budgets_status_tool_returns_summary():
             "period": "monthly",
             "is_project": False,
             "is_closed": False,
-            "categories": ["Alimentaire"]
+            "categories": ["Abonnement"]
         })
         assert res_bg.status_code == 200
         bg_id = res_bg.json()["id"]
@@ -1659,7 +1666,7 @@ def test_ai_write_capabilities_tools():
     db = TestingSessionLocal()
     try:
         # 1. Test Budget tools
-        res_bg = create_budget_envelope_tool(db, name="AI Test Budget", monthly_amount=150.0, categories=["Alimentaire"], force_write=True)
+        res_bg = create_budget_envelope_tool(db, name="AI Test Budget", monthly_amount=150.0, categories=["Abonnement"], force_write=True)
         assert res_bg["success"] is True
         bg_id = res_bg["budget_id"]
         

@@ -68,7 +68,8 @@ def test_budget_is_locked_field(test_db):
         name="Budget Alimentation Fixe",
         monthly_amount=400.0,
         envelope_type="spending",
-        is_locked=True
+        is_locked=True,
+        categories=["Courses"],
     )
     created = create_new_budget(data, test_db)
     assert created["is_locked"] is True

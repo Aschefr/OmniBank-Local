@@ -58,6 +58,71 @@ def serialize_account_ids(ids: list) -> str:
         return None
     return json.dumps(ids)
 
+def _envelope_window(period: Optional[str], start: Optional[date], end: Optional[date]) -> tuple:
+    """Période couverte par une enveloppe : bornée pour une période personnalisée, sinon permanente."""
+    if period == "custom" and start and end:
+        return start, end
+    return date.min, date.max
+
+
+def _tracks_by_category(envelope_type: Optional[str], is_project: bool) -> bool:
+    """Les enveloppes de dépenses classiques suivent les opérations de leurs catégories ; projets et
+    tirelires suivent les opérations qui leur sont rattachées à la main (budget_id)."""
+    return (envelope_type or "spending") == "spending" and not is_project
+
+
+def category_conflicts(db: Session, categories, period: Optional[str], start: Optional[date], end: Optional[date],
+                       account_ids, exclude_id: Optional[int] = None) -> List[tuple]:
+    """(catégorie, enveloppe) déjà suivies par une autre enveloppe active dont la période et les comptes
+    recoupent ceux-ci : la même dépense y serait comptée deux fois."""
+    if not categories:
+        return []
+    s1, e1 = _envelope_window(period, start, end)
+    acc1 = set(account_ids or [])
+    rows = (
+        db.query(BudgetCategory.category_name, Budget)
+        .join(Budget, Budget.id == BudgetCategory.budget_id)
+        .filter(BudgetCategory.category_name.in_(list(categories)), Budget.is_closed == False)
+        .all()
+    )
+    conflicts = []
+    for cat, other in rows:
+        if other.id == exclude_id or not _tracks_by_category(other.envelope_type, other.is_project):
+            continue
+        s2, e2 = _envelope_window(other.period, other.start_date, other.end_date)
+        if s1 > e2 or s2 > e1:
+            continue
+        acc2 = set(parse_account_ids(other.account_ids))
+        if acc1 and acc2 and not (acc1 & acc2):
+            continue
+        conflicts.append((cat, other.name))
+    return conflicts
+
+
+def envelope_validation_error(db: Session, *, categories, envelope_type: Optional[str], is_project: bool,
+                              period: Optional[str], start: Optional[date] = None, end: Optional[date] = None,
+                              account_ids=None, exclude_id: Optional[int] = None) -> Optional[str]:
+    """Message d'erreur si l'enveloppe fausserait le suivi, sinon None."""
+    if not _tracks_by_category(envelope_type, is_project):
+        return None
+    if not categories:
+        return ("Choisissez au moins une catégorie : une enveloppe de dépenses suit les opérations de ses catégories "
+                "(pour y rattacher des opérations à la main, créez un projet).")
+    conflicts = category_conflicts(db, categories, period, start, end, account_ids, exclude_id)
+    if conflicts:
+        details = ", ".join(f"« {c} » (enveloppe « {n} »)" for c, n in conflicts)
+        return (f"Déjà suivie par une autre enveloppe sur une période qui se recoupe : {details}. "
+                "Une dépense ne doit compter que dans une seule enveloppe.")
+    return None
+
+
+def free_categories(db: Session, categories, period: Optional[str] = "monthly", start: Optional[date] = None,
+                    end: Optional[date] = None, account_ids=None, exclude_id: Optional[int] = None) -> List[str]:
+    """Catégories qui ne sont suivies par aucune autre enveloppe sur la même période (suggestions automatiques)."""
+    taken = {c for c, _ in category_conflicts(db, categories, period, start, end, account_ids, exclude_id)}
+    return [c for c in categories or [] if c not in taken]
+
+
 def budget_to_dict(b: Budget, db: Session) -> dict:
     cats = db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()
     return {
@@ -112,6 +177,12 @@ def create_new_budget(data, db: Session) -> dict:
     period = data.period
     if data.envelope_type == "savings":
         period = "indefinite"
+    error = envelope_validation_error(
+        db, categories=data.categories, envelope_type=data.envelope_type, is_project=data.is_project,
+        period=period, start=_start, end=_end, account_ids=data.account_ids,
+    )
+    if error:
+        raise HTTPException(status_code=409 if data.categories else 400, detail=error)
     b = Budget(
         name=data.name,
         monthly_amount=data.monthly_amount,
@@ -156,6 +227,17 @@ def update_existing_budget(budget_id: int, data, db: Session) -> dict:
             setattr(b, k, serialize_account_ids(v))
             continue
         setattr(b, k, v)
+
+    final_cats = data.categories if data.categories is not None else [
+        c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).all()
+    ]
+    error = None if b.is_closed else envelope_validation_error(
+        db, categories=final_cats, envelope_type=b.envelope_type, is_project=b.is_project, period=b.period,
+        start=b.start_date, end=b.end_date, account_ids=parse_account_ids(b.account_ids), exclude_id=b.id,
+    )
+    if error:
+        db.rollback()
+        raise HTTPException(status_code=409 if final_cats else 400, detail=error)
 
     if data.categories is not None:
         db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
@@ -405,13 +487,10 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
                 txs_by_budget_id.get(b.id, []), _match_account
             )
         else:
-            # Fast category-indexed tx lookup
-            if cats:
-                target_txs = []
-                for c in cats:
-                    target_txs.extend(txs_by_cat.get(c, []))
-            else:
-                target_txs = all_category_txs
+            # Fast category-indexed tx lookup (sans catégorie : rien à suivre, et non toutes les dépenses)
+            target_txs = []
+            for c in cats:
+                target_txs.extend(txs_by_cat.get(c, []))
 
             if b.period == "indefinite":
                 expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
@@ -1586,7 +1665,9 @@ def suggest_new_envelopes(
         if is_auto_create and prop["observed_months"] >= 2:
             from app.services.history_service import record_action, snapshot_entity
             b = db.query(Budget).filter(Budget.id == target_budget_id).first()
-            if b and not b.is_closed:
+            if b and not b.is_closed and free_categories(
+                    db, [prop["new_category"]], b.period, b.start_date, b.end_date,
+                    parse_account_ids(b.account_ids), exclude_id=b.id):
                 old_snap = snapshot_entity(b, db)
                 existing_bc = db.query(BudgetCategory).filter(
                     BudgetCategory.budget_id == b.id,
@@ -1638,7 +1719,9 @@ def suggest_new_envelopes(
 
     # B. Enregistrement des propositions de création de nouvelles enveloppes
     for prop in proposals_data:
-        cats = prop["categories"]
+        cats = free_categories(db, prop["categories"])  # jamais deux enveloppes sur la même catégorie
+        if not cats:
+            continue
         main_cat = cats[0] if len(cats) == 1 else prop["name"]
 
         snapshot = _json.dumps({
@@ -2281,6 +2364,13 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         period = snap.get("suggested_period", "monthly")
         base_annual = amount if period == "yearly" else amount * 12
 
+        cats = snap.get("categories", [])
+        if not cats and snap.get("category"):
+            cats = [snap.get("category")]
+        error = envelope_validation_error(db, categories=cats, envelope_type="spending", is_project=False, period=period)
+        if error:
+            raise HTTPException(status_code=409, detail=error)
+
         b = Budget(
             name=envelope_name,
             monthly_amount=amount,
@@ -2294,9 +2384,6 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         db.add(b)
         db.flush()
 
-        cats = snap.get("categories", [])
-        if not cats and snap.get("category"):
-            cats = [snap.get("category")]
         for c in cats:
             db.add(BudgetCategory(budget_id=b.id, category_name=c))
         db.flush()
@@ -2330,6 +2417,12 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         new_cat = snap.get("new_category") or snap.get("category")
         if not new_cat:
             raise HTTPException(status_code=400, detail="Catégorie à rattacher manquante.")
+
+        conflicts = category_conflicts(db, [new_cat], b.period, b.start_date, b.end_date,
+                                       parse_account_ids(b.account_ids), exclude_id=b.id)
+        if conflicts:
+            raise HTTPException(status_code=409, detail=f"« {new_cat} » est déjà suivie par l'enveloppe « {conflicts[0][1]} » : "
+                                                        "une dépense ne doit compter que dans une seule enveloppe.")
 
         # Capturer l'ancien snapshot avant d'attacher la nouvelle catégorie et de modifier le montant
         old_snapshot = snapshot_entity(b, db)
@@ -2601,13 +2694,20 @@ def get_budget_automations_history(db: Session, limit: int = 50) -> List[dict]:
     return results
 
 
+_OCCURRENCES_PER_YEAR = {
+    "weekly": 52, "bi-weekly": 26, "semi-monthly": 24, "monthly": 12, "bimonthly": 6, "bi-monthly": 6,
+    "quarterly": 4, "semiannual": 2, "semi-annually": 2, "yearly": 1, "annually": 1,
+}
+
+
 def sync_budget_from_recurrence_change(
     db: Session,
     category: str,
     change_type: str,
     amount_delta: float,
     batch_id: Optional[str] = None,
-    profile_id: Optional[str] = None
+    profile_id: Optional[str] = None,
+    frequency: Optional[str] = "Monthly",
 ) -> Optional[dict]:
     """
     Synchronise de manière transparente et déterministe les enveloppes budgétaires
@@ -2635,17 +2735,27 @@ def sync_budget_from_recurrence_change(
     if not auto_apply:
         return None
 
-    budget_cat = db.query(BudgetCategory).filter(BudgetCategory.category_name == category).first()
-    if not budget_cat:
-        return None
-
-    budget = db.query(Budget).filter(
-        Budget.id == budget_cat.budget_id,
-        Budget.is_closed == False,
-        Budget.is_locked == False
-    ).first()
+    # Enveloppe mensuelle ou annuelle qui suit cette catégorie (une seule par période, voir category_conflicts).
+    # Les enveloppes datées, projets et tirelires ne sont pas des plafonds récurrents : non concernées.
+    budget = (
+        db.query(Budget)
+        .join(BudgetCategory, BudgetCategory.budget_id == Budget.id)
+        .filter(
+            BudgetCategory.category_name == category,
+            Budget.is_closed == False,
+            Budget.is_locked == False,
+            Budget.is_project == False,
+            Budget.envelope_type == "spending",
+            (Budget.period.in_(["monthly", "yearly"])) | (Budget.period.is_(None)),
+        )
+        .first()
+    )
     if not budget:
         return None
+
+    # amount_delta est par occurrence : ramené à la période de l'enveloppe selon la fréquence de la récurrence
+    per_year = _OCCURRENCES_PER_YEAR.get((frequency or "Monthly").strip().lower(), 12)
+    amount_delta = amount_delta * per_year / (1 if budget.period == "yearly" else 12)
 
     old_amount = float(budget.monthly_amount or 0.0)
     new_amount = max(0.0, round(old_amount + amount_delta, 2))

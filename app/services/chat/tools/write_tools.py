@@ -213,7 +213,12 @@ def create_budget_envelope_tool(db: Session, name: str, monthly_amount: float, p
     dup = db.query(Budget).filter(Budget.name == name, Budget.is_closed == False).first()
     if dup:
         return {"success": False, "error": f"L'enveloppe de budget '{name}' existe déjà."}
-        
+    from app.services.budget_service import envelope_validation_error
+    error = envelope_validation_error(db, categories=categories, envelope_type="spending", is_project=is_project,
+                                      period=period or "monthly")
+    if error:
+        return {"success": False, "error": error}
+
     if not force_write:
         return {"success": True, "pending_validation": True}
 
@@ -281,13 +286,25 @@ def update_budget_envelope_tool(db: Session, budget_id: int = None, name: str = 
     if not b:
         return {"success": False, "error": "Budget envelope not found"}
         
+    if categories is not None or period is not None:
+        from app.models import BudgetCategory
+        from app.services.budget_service import envelope_validation_error, parse_account_ids
+        final_cats = categories if categories is not None else [
+            c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()]
+        error = envelope_validation_error(
+            db, categories=final_cats, envelope_type=b.envelope_type, is_project=b.is_project,
+            period=period or b.period, start=b.start_date, end=b.end_date,
+            account_ids=parse_account_ids(b.account_ids), exclude_id=b.id)
+        if error:
+            return {"success": False, "error": error}
+
     if not force_write:
         return {"success": True, "pending_validation": True, "budget_id": b.id}
 
     from app.models import BudgetCategory
     from app.services.history_service import record_action, snapshot_entity
     old_snapshot = snapshot_entity(b, db)
-    
+
     if name is not None and _normalize_name(b.name) != _normalize_name(name):
         b.name = name
     if monthly_amount is not None:

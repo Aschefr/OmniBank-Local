@@ -507,7 +507,8 @@ def process_recurrence_promotions(
                         change_type="promotion",
                         amount_delta=amt,
                         batch_id=bid,
-                        profile_id=pid
+                        profile_id=pid,
+                        frequency=tpl.frequency,
                     )
                 except Exception as sync_b_err:
                     logger.debug(f"[AutoPilot] Sync budget promotion ignorée: {sync_b_err}")
@@ -590,7 +591,8 @@ def process_recurrence_promotions(
                                 change_type="hike",
                                 amount_delta=(a1 - old_amt),
                                 batch_id=bid,
-                                profile_id=pid
+                                profile_id=pid,
+                                frequency=tpl.frequency,
                             )
                         except Exception as sync_b_err:
                             logger.debug(f"[AutoPilot] Sync budget hike ignorée: {sync_b_err}")
