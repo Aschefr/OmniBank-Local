@@ -21,6 +21,7 @@ from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notific
 from app.schemas.api_schemas import ChatSendMessage
 from app.services.chat.chat_compression import (
     build_replay_messages,
+    clean_for_replay,
     compaction_threshold,
     context_usage,
     estimate_payload_tokens,
@@ -631,6 +632,90 @@ def announces_prepared_action(text: str) -> bool:
     return bool(_PROMISE_RE.search(_THINK_RE.sub('', text or '')))
 
 
+def write_action_from_call(fn_name: str, fn_args: Any) -> Dict[str, Any]:
+    """Carte d'action à valider par l'utilisateur pour un appel d'outil d'écriture du modèle."""
+    params = dict(fn_args) if isinstance(fn_args, dict) else {}
+    if fn_name == "create_planned_transfer":
+        if not params.get("description"):
+            params["description"] = f"Virement prévisionnel {params.get('from_account', '')} -> {params.get('to_account', '')}".strip()
+        if not params.get("category"):
+            params["category"] = "Virement interne"
+        if not params.get("date_operation"):
+            params["date_operation"] = date.today().isoformat()
+    return {"action": fn_name, "params": params}
+
+
+_ACTION_BLOCK_JSON_RE = re.compile(r'```action\s*([\s\S]*?)```')
+_UNPREPARED_NOTICE_RE = re.compile(r'\n*\*\(⚠️ (?:L\'action annoncée|The announced action)[^\n]*\)\*')
+
+
+async def recover_actions_with_model(db: Session, message: ChatMessage, lang: str = "fr") -> List[Dict[str, Any]]:
+    """Bouton « Générer les cartes d'actions » : redemande au modèle l'appel d'outil de l'action annoncée
+    dans ce message (même relance que pendant la génération). Rien n'est deviné depuis le texte : sans
+    appel d'outil du modèle, aucune carte. Lève RuntimeError si Ollama n'est pas configuré ou injoignable."""
+    session = db.query(ChatSession).filter(ChatSession.id == message.session_id).first()
+    cfg = get_ollama_config(db)
+    if not session or not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
+        raise RuntimeError("Ollama URL ou modèle non configuré.")
+    tools = [t for t in get_tools_for_role(session.role) if t["function"]["name"] in WRITE_TOOLS]
+    if not tools:
+        return []
+
+    history = db.query(ChatMessage).filter(
+        ChatMessage.session_id == session.id, ChatMessage.id <= message.id
+    ).order_by(ChatMessage.timestamp.asc()).all()
+    categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
+    sys_prompt = load_system_prompt(session.role, categories, lang, db=db, session_id=session.id)
+    msgs = build_replay_messages(sys_prompt, session, history)
+    if msgs[-1]["role"] != "assistant":  # message déjà couvert par le résumé de la conversation
+        msgs.append({"role": "assistant", "content": clean_for_replay(message.content)})
+    msgs.append({"role": "user", "content": _NUDGE_EN if lang == "en" else _NUDGE_FR})
+
+    payload = {
+        "model": cfg["model"], "messages": msgs, "tools": tools, "stream": False, "think": False,
+        "options": {"temperature": 0.1, "num_ctx": cfg["num_ctx"]}, "keep_alive": "30m",
+    }
+    url = cfg["url"].rstrip("/") + "/api/chat"
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=15.0)) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 400 and "think" in resp.text.lower():
+                payload.pop("think")
+                resp = await client.post(url, json=payload)
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"Ollama injoignable : {e}") from e
+
+    existing = []
+    for block in _ACTION_BLOCK_JSON_RE.findall(message.content or ""):
+        try:
+            existing.append(json.loads(block))
+        except ValueError:
+            pass
+    actions = []
+    for call in (resp.json().get("message") or {}).get("tool_calls") or []:
+        fn = call.get("function") or {}
+        args = fn.get("arguments")
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except ValueError:
+                args = {}
+        if fn.get("name") in WRITE_TOOLS:
+            action = write_action_from_call(fn["name"], args)
+            if action not in existing and action not in actions:
+                actions.append(action)
+    return actions
+
+
+def append_recovered_actions(content: str, actions: List[Dict[str, Any]]) -> str:
+    """Ajoute les cartes au message et retire l'avis « action non préparée » devenu faux."""
+    content = _UNPREPARED_NOTICE_RE.sub("", content or "").rstrip()
+    for action in actions:
+        content += f"\n\n```action\n{json.dumps(action, ensure_ascii=False)}\n```"
+    return content
+
+
 async def _run_generation_task(
     session_id: int,
     req: ChatSendMessage,
@@ -997,15 +1082,7 @@ async def _run_generation_task(
                                 pass
 
                     if fn_name in _WRITE_TOOLS:
-                        action_params = dict(fn_args) if isinstance(fn_args, dict) else {}
-                        if fn_name == "create_planned_transfer":
-                            if not action_params.get("description"):
-                                action_params["description"] = f"Virement prévisionnel {action_params.get('from_account', '')} -> {action_params.get('to_account', '')}".strip()
-                            if not action_params.get("category"):
-                                action_params["category"] = "Virement interne"
-                            if not action_params.get("date_operation"):
-                                action_params["date_operation"] = date.today().isoformat()
-                        detected_write_actions.append({"action": fn_name, "params": action_params})
+                        detected_write_actions.append(write_action_from_call(fn_name, fn_args))
 
                     desc_status = tool_desc_map.get(fn_name) or ("Looking at your data..." if req.lang == "en" else "Consultation de vos données...")
                     await _emit(f"data: {json.dumps({'status': desc_status})}\n\n")

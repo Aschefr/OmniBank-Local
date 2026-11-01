@@ -53,16 +53,20 @@ def test_tools_deduplication():
 
 def test_get_tools_for_role_known_and_fallback():
     """Vérifie que get_tools_for_role retourne les sous-ensembles corrects et gère le fallback."""
-    # Unknown role or None falls back to all tools
+    # No role means the default advisor role; an unknown role falls back to all tools
     fb_tools = get_tools_for_role(None)
-    assert len(fb_tools) == 40
+    assert len(fb_tools) == len(get_tools_for_role("advisor")) == 28
 
     unknown_tools = get_tools_for_role("unknown_role_xyz")
     assert len(unknown_tools) == 40
 
-    # Advisor has all tools
+    # Advisor: everyday tools only; specialised ones (simulations, full audit, deletions…) stay in their roles
     adv_tools = get_tools_for_role("advisor")
-    assert len(adv_tools) == 40
+    assert len(adv_tools) == 28
+    adv_names = {t["function"]["name"] for t in adv_tools}
+    assert {"get_financial_summary", "get_upcoming_expenses", "create_planned_transfer", "apply_transaction_correction",
+            "close_recurrence_template", "generate_csv_export_link"} <= adv_names
+    assert not {"simulate_loan_amortization", "audit_transactions_integrity", "delete_category"} & adv_names
 
     # Simulator role has only simulation and analytical read tools
     sim_tools = get_tools_for_role("simulator")
@@ -114,25 +118,26 @@ def test_get_tools_for_role_known_and_fallback():
 
     # Budget planner role
     bp_tools = get_tools_for_role("budget_planner")
-    assert len(bp_tools) == 16
+    assert len(bp_tools) == 17
     bp_names = {t["function"]["name"] for t in bp_tools}
     assert "create_budget_envelope" in bp_names
     assert "get_upcoming_expenses" in bp_names
     assert "update_budget_envelope" in bp_names
 
 
-def test_token_reduction_per_role():
-    """Vérifie que l'empreinte token des outils pour les rôles spécialisés est réduite de plus de 50% vs TOOLS."""
-    global_tools_tok = estimate_tokens(json.dumps(TOOLS))
-    assert global_tools_tok > 6000
+def test_every_tool_is_reachable_from_a_role():
+    """Retirer un outil du conseiller ne doit jamais le rendre inaccessible."""
+    from app.services.chat.tools import ROLE_TOOL_NAMES
+    reachable = {name for names in ROLE_TOOL_NAMES.values() for name in names}
+    assert {t["function"]["name"] for t in TOOLS} <= reachable
 
+
+def test_tool_schemas_stay_compact():
+    """Les schémas d'outils sont renvoyés à chaque échange : budget en caractères JSON (~4,7 car./token mesurés)."""
+    assert len(json.dumps(get_tools_for_role("advisor"), ensure_ascii=False)) < 12500
     for role in ["simulator", "alerts", "optimizer", "budget_planner", "forecaster", "auditor"]:
-        role_tools = get_tools_for_role(role)
-        role_tok = estimate_tokens(json.dumps(role_tools))
-        # Each specialized role must consume less than 3,000 tokens of tool schemas
-        assert role_tok < 3000, f"Role {role} tool tokens {role_tok} exceeds 3000"
-        reduction = (global_tools_tok - role_tok) / global_tools_tok
-        assert reduction >= 0.50, f"Role {role} reduction {reduction:.1%} is less than 50%"
+        size = len(json.dumps(get_tools_for_role(role), ensure_ascii=False))
+        assert size < 6500, f"Role {role} tool schemas {size} chars"
 
 
 def test_prompt_category_pruning(db_session):

@@ -2090,25 +2090,13 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
     },
 
+    // Même règle que le serveur (announces_prepared_action) : le texte affirme avoir préparé une action
+    _PROMISE_RE: /\bj['’]ai (?:également |aussi )?prépar[ée]|\bje (?:vous )?(?:ai |viens d['’])?prépar[ée]|valider ci-dessous|\bi(?: have|'ve) (?:also )?prepared\b|validate (?:it |them )?below|review and (?:validate|confirm)/i,
+
     _hasPromisedAction(rawContent) {
         if (!rawContent || typeof rawContent !== 'string') return false;
         if (rawContent.includes('🛑')) return false;
-        const lower = rawContent.toLowerCase();
-        return (
-            lower.includes("j'ai préparé l'enregistrement") ||
-            lower.includes("j’ai préparé l’enregistrement") ||
-            lower.includes("j'ai préparé l'opération") ||
-            lower.includes("j’ai préparé l’opération") ||
-            lower.includes("j'ai préparé un virement") ||
-            lower.includes("j’ai préparé un virement") ||
-            lower.includes("veuillez l'examiner et le valider") ||
-            lower.includes("veuillez l’examiner et le valider") ||
-            lower.includes("veuillez examiner et valider") ||
-            lower.includes("valider ci-dessous") ||
-            lower.includes("valider ces deux transferts") ||
-            lower.includes("propose d'enregistrer ce virement") ||
-            lower.includes("propose d’enregistrer ce virement")
-        );
+        return this._PROMISE_RE.test(rawContent.replace(/<think>[\s\S]*?<\/think>/g, ''));
     },
 
     async recoverActionsForMessage(msgId, btnElement = null) {
@@ -2119,7 +2107,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         }
 
         try {
-            const res = await API.post(`/api/chat/messages/${msgId}/recover-actions`);
+            const res = await API.post(`/api/chat/messages/${msgId}/recover-actions?lang=${encodeURIComponent(window.i18n.lang || 'fr')}`);
             if (res && res.ok && res.actions && res.actions.length > 0) {
                 // Update message in memory
                 const msg = (this.messages || []).find(m => m.id === msgId);
@@ -2140,7 +2128,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
         } catch (e) {
             console.error('[Chat] Error recovering actions:', e);
-            if (window.showToast) window.showToast("Erreur lors de la récupération des actions", "error");
+            if (window.showToast) window.showToast(e.message || "Erreur lors de la récupération des actions", "error");
             if (btnElement) {
                 btnElement.disabled = false;
                 btnElement.innerHTML = `<span>🪄</span> <span>${window.i18n ? window.i18n.t('chat_btn_recover_action') : "Générer les cartes d'actions"}</span>`;
