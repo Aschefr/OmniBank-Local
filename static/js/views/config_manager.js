@@ -328,9 +328,21 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         <p class="config-help" data-i18n="config_ai_personality_help">${window.i18n.t('config_ai_personality_help')}</p>
                     </div>
                     <div class="config-chip-row">
-                        <button type="button" class="btn btn-primary" onclick="window.ConfigView.saveAiPersonality()" data-i18n="config_ai_personality_save">${window.i18n.t('config_ai_personality_save')}</button>
-                        <button type="button" class="btn btn-secondary" onclick="window.ConfigView.restoreAiPersonality()" data-i18n="config_ai_personality_restore">${window.i18n.t('config_ai_personality_restore')}</button>
+                        <button type="button" class="btn btn-primary" onclick="window.ConfigView.saveAiText('personality')" data-i18n="config_ai_personality_save">${window.i18n.t('config_ai_personality_save')}</button>
+                        <button type="button" class="btn btn-secondary" onclick="window.ConfigView.restoreAiText('personality')" data-i18n="config_ai_personality_restore">${window.i18n.t('config_ai_personality_restore')}</button>
                     </div>
+
+                    <details class="config-collapse">
+                        <summary data-i18n="config_ai_guide_label">${window.i18n.t('config_ai_guide_label')}</summary>
+                        <div class="config-field">
+                            <textarea id="conf_ai_guide" class="inline-input config-prompt-textarea" rows="12" spellcheck="false" aria-label="${window.i18n.t('config_ai_guide_label')}"></textarea>
+                            <p class="config-help" data-i18n="config_ai_guide_help">${window.i18n.t('config_ai_guide_help')}</p>
+                        </div>
+                        <div class="config-chip-row">
+                            <button type="button" class="btn btn-primary" onclick="window.ConfigView.saveAiText('guide')" data-i18n="config_ai_personality_save">${window.i18n.t('config_ai_personality_save')}</button>
+                            <button type="button" class="btn btn-secondary" onclick="window.ConfigView.restoreAiText('guide')" data-i18n="config_ai_personality_restore">${window.i18n.t('config_ai_personality_restore')}</button>
+                        </div>
+                    </details>
 
                     <h4 class="config-group-title" data-i18n="config_ai_preview_title">${window.i18n.t('config_ai_preview_title')}</h4>
                     <p class="config-help" data-i18n="config_ai_preview_help">${window.i18n.t('config_ai_preview_help')}</p>

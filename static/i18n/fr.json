@@ -3886,12 +3886,16 @@
   "config_ai_layer_personality": "1. Personnalité (modifiable)",
   "config_ai_layer_role": "2. Mission du rôle",
   "config_ai_layer_rules": "3. Règles de fonctionnement",
-  "config_ai_layer_context": "4. Contexte live (date, situation, connaissances, mémoire)",
+  "config_ai_layer_context": "5. Contexte live (date, situation, connaissances, mémoire)",
   "config_ai_role_advisor": "Conseiller",
   "config_ai_role_simulator": "Simulation de projets",
   "config_ai_role_alerts": "Alertes",
   "config_ai_role_optimizer": "Optimisation des abonnements",
   "config_ai_role_budget_planner": "Planification budgétaire",
   "config_ai_role_forecaster": "Prévisions de trésorerie",
-  "config_ai_role_auditor": "Audit des opérations"
+  "config_ai_role_auditor": "Audit des opérations",
+  "config_ai_guide_label": "Guide de l'interface",
+  "config_ai_guide_help": "Indique à l'assistant où se trouve chaque fonction, pour qu'il puisse vous guider dans l'application. À adapter si vous renommez ou masquez des pages.",
+  "config_ai_guide_saved": "Guide de l'interface enregistré",
+  "config_ai_layer_guide": "4. Guide de l'interface (modifiable)"
 }

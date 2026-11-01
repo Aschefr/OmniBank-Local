@@ -68,9 +68,9 @@ logger = logging.getLogger(__name__)
 
 @router.get("/prompt/personality-default")
 async def get_default_personality():
-    """Personnalité par défaut, pour le bouton « Restaurer » de Configuration."""
-    from app.services.chat.chat_prompt import DEFAULT_PERSONALITY
-    return {"default": DEFAULT_PERSONALITY}
+    """Textes par défaut des couches modifiables, pour les boutons « Restaurer » de Configuration."""
+    from app.services.chat.chat_prompt import DEFAULT_PERSONALITY, DEFAULT_APP_GUIDE
+    return {"default": DEFAULT_PERSONALITY, "guide": DEFAULT_APP_GUIDE}
 
 
 @router.get("/prompt/preview")

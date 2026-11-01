@@ -239,49 +239,57 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
-    // ── Assistant behaviour: personality (editable layer of the system prompt) ──
-    async _defaultAiPersonality() {
-        if (!this._aiPersonalityDefault) {
-            const res = await API.get('/api/chat/prompt/personality-default');
-            this._aiPersonalityDefault = res.default || '';
+    // ── Assistant behaviour: editable layers of the system prompt (personality, interface guide) ──
+    _aiTextFields: {
+        personality: { input: 'conf_ai_personality', key: 'ai_chat_personality', defaultField: 'default', saved: 'config_ai_personality_saved' },
+        guide: { input: 'conf_ai_guide', key: 'ai_app_guide', defaultField: 'guide', saved: 'config_ai_guide_saved' },
+    },
+
+    async _aiTextDefault(kind) {
+        if (!this._aiTextDefaults) {
+            this._aiTextDefaults = await API.get('/api/chat/prompt/personality-default');
         }
-        return this._aiPersonalityDefault;
+        return this._aiTextDefaults[this._aiTextFields[kind].defaultField] || '';
     },
 
     async loadAiPersonality() {
-        const el = document.getElementById('conf_ai_personality');
-        if (!el) return;
-        try {
-            const saved = ((this.configData && this.configData.ai_chat_personality) || '').trim();
-            el.value = saved || await this._defaultAiPersonality();
-        } catch (e) {
-            console.error(e);
+        for (const kind of Object.keys(this._aiTextFields)) {
+            const field = this._aiTextFields[kind];
+            const el = document.getElementById(field.input);
+            if (!el) continue;
+            try {
+                const saved = ((this.configData && this.configData[field.key]) || '').trim();
+                el.value = saved || await this._aiTextDefault(kind);
+            } catch (e) {
+                console.error(e);
+            }
         }
     },
 
-    async saveAiPersonality() {
-        const el = document.getElementById('conf_ai_personality');
+    async saveAiText(kind) {
+        const field = this._aiTextFields[kind];
+        const el = document.getElementById(field.input);
         if (!el) return;
         try {
-            const def = await this._defaultAiPersonality();
+            const def = await this._aiTextDefault(kind);
             const val = el.value.trim();
             // Same text as the default: store nothing so later improvements of the default apply
             const stored = (!val || val === def.trim()) ? '' : val;
-            await API.post('/api/config/', { ai_chat_personality: stored });
-            if (this.configData) this.configData.ai_chat_personality = stored;
+            await API.post('/api/config/', { [field.key]: stored });
+            if (this.configData) this.configData[field.key] = stored;
             if (!val) el.value = def;
-            showToast(window.i18n.t('config_ai_personality_saved'), 'success');
+            showToast(window.i18n.t(field.saved), 'success');
         } catch (e) {
             console.error(e);
             showToast(window.i18n.t('config_ai_personality_error'), 'error');
         }
     },
 
-    async restoreAiPersonality() {
-        const el = document.getElementById('conf_ai_personality');
+    async restoreAiText(kind) {
+        const el = document.getElementById(this._aiTextFields[kind].input);
         if (!el) return;
-        el.value = await this._defaultAiPersonality();
-        await this.saveAiPersonality();
+        el.value = await this._aiTextDefault(kind);
+        await this.saveAiText(kind);
     },
 
     async previewAiPrompt() {

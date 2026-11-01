@@ -162,47 +162,74 @@ def load_knowledge_doc(topic_id: str) -> Optional[str]:
     return None
 
 
-def resolve_relevant_knowledge(query: str, max_topics: int = 2) -> Optional[str]:
+# Mots trop courants dans une question sur ses propres données ("où en sont mes comptes ?")
+# pour justifier à eux seuls l'ajout d'une fiche entière au prompt.
+GENERIC_KEYWORDS = {
+    "compte", "comptes", "budget", "budgets", "enveloppe", "enveloppes", "envelope", "envelopes",
+    "projet", "import", "releve", "simulation", "pret", "emprunt", "formule", "seuil", "dynamique",
+    "plafond", "plafonds", "livret a", "livrets", "checking", "savings", "projections", "forecast",
+}
+
+# Question sur le fonctionnement de l'application (et non sur la situation de l'utilisateur)
+_EXPLAIN_RE = re.compile(
+    r"\b(comment|pourquoi|c ?est quoi|qu ?est[- ]ce que?|que (veut dire|signifie)|signifie|fonctionne|marche|calcul\w*|"
+    r"how|why|what (is|does)|means?|works?)\b"
+)
+
+# Score minimal pour injecter une fiche, et poids des messages précédents (relance de la conversation)
+KNOWLEDGE_MIN_SCORE = 3.0
+HISTORY_WEIGHT = 0.6
+
+
+def _score_topics(norm_query: str) -> Dict[str, float]:
+    explains = bool(_EXPLAIN_RE.search(norm_query))
+    scores: Dict[str, float] = {}
+    for topic_id, meta in TOPIC_METADATA.items():
+        score = 0.0
+        for pattern in meta.get("intent_patterns", []):
+            if re.search(pattern, norm_query, re.IGNORECASE):
+                score += 5.0
+        for kw in meta.get("keywords", []):
+            norm_kw = _normalize_text(kw)
+            if " " in norm_kw:
+                hit = norm_kw in norm_query
+                weight = 0.5 if norm_kw in GENERIC_KEYWORDS else 3.0
+            else:
+                hit = re.search(r'\b' + re.escape(norm_kw) + r'\b', norm_query, re.IGNORECASE) is not None
+                weight = 0.5 if norm_kw in GENERIC_KEYWORDS else 1.5
+            if hit:
+                score += weight
+        if score > 0 and explains:
+            score += 1.5
+        if score > 0:
+            scores[topic_id] = score
+    return scores
+
+
+def resolve_relevant_knowledge(query: str, max_topics: int = 2, history: Optional[List[str]] = None) -> Optional[str]:
     """
     Analyse la requête de l'utilisateur et extrait les fiches de connaissances
     OmniBank les plus pertinentes pour enrichir le prompt système.
+
+    history : messages précédents de l'utilisateur (du plus ancien au plus récent). Une relance
+    courte ("et pour le mois prochain ?") hérite ainsi du sujet en cours, avec un poids réduit.
+    Une fiche n'est injectée qu'au-delà de KNOWLEDGE_MIN_SCORE : un simple mot courant
+    ("comptes", "budget") dans une question sur ses données n'y suffit pas.
     """
     if not query or len(query.strip()) < 3:
         return None
 
-    norm_query = _normalize_text(query)
-    scores: Dict[str, float] = {}
-
-    for topic_id, meta in TOPIC_METADATA.items():
-        score = 0.0
-
-        # Test des patterns d'intention regex
-        for pattern in meta.get("intent_patterns", []):
-            if re.search(pattern, norm_query, re.IGNORECASE):
-                score += 5.0
-
-        # Test des mots-clés
-        for kw in meta.get("keywords", []):
-            norm_kw = _normalize_text(kw)
-            if " " in norm_kw:
-                # Expression multi-mots
-                if norm_kw in norm_query:
-                    score += 3.0
-            else:
-                # Mot simple
-                pattern = r'\b' + re.escape(norm_kw) + r'\b'
-                if re.search(pattern, norm_query, re.IGNORECASE):
-                    score += 1.0
-
-        if score > 0:
-            scores[topic_id] = score
+    scores = _score_topics(_normalize_text(query))
+    for previous in (history or [])[-2:]:
+        if previous and previous.strip():
+            for topic_id, sc in _score_topics(_normalize_text(previous)).items():
+                scores[topic_id] = scores.get(topic_id, 0.0) + sc * HISTORY_WEIGHT
 
     if not scores:
         return None
 
-    # Sélectionner les N meilleurs topics au-dessus du seuil minimum
     sorted_topics = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    selected_topics = [t[0] for t in sorted_topics[:max_topics] if t[1] >= 1.5]
+    selected_topics = [t[0] for t in sorted_topics[:max_topics] if t[1] >= KNOWLEDGE_MIN_SCORE]
 
     if not selected_topics:
         return None
