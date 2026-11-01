@@ -292,8 +292,10 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         align-items: center;
                         gap: 6px;
                     }
+                    /* 150px sticky description + 12 months of 78px: amounts like "1800,00 €" fit in their cell */
                     .gantt-header, .gantt-row {
-                        min-width: 800px !important;
+                        min-width: 1110px !important;
+                        grid-template-columns: 150px 1fr !important;
                     }
                     .gantt-desc, .gantt-header > div:first-child {
                         position: sticky !important;
@@ -301,10 +303,14 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         background: var(--bg-surface) !important;
                         z-index: 5 !important;
                         box-shadow: 3px 0 6px rgba(0, 0, 0, 0.18) !important;
-                        width: 190px !important;
-                        min-width: 190px !important;
-                        max-width: 190px !important;
+                        width: 150px !important;
+                        min-width: 150px !important;
+                        max-width: 150px !important;
+                        box-sizing: border-box;
                     }
+                    .gantt-desc { font-size: 13px !important; padding: 8px 10px !important; }
+                    .gantt-bar-container { height: 44px !important; }
+                    .gantt-segment-label { font-size: 12px !important; line-height: 1.25; }
                     .gantt-header > div:first-child {
                         z-index: 12 !important;
                     }
