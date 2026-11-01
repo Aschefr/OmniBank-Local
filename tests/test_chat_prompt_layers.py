@@ -58,7 +58,7 @@ def test_personality_is_editable_and_falls_back_to_default(db):
 
 def test_layers_order_and_prompt_equals_their_join(db):
     layers = build_system_prompt_layers("forecaster", [], "fr", db=db)
-    assert [l["id"] for l in layers] == ["personality", "role", "rules", "context"]
+    assert [l["id"] for l in layers] == ["personality", "role", "rules", "guide", "context"]
     assert load_system_prompt("forecaster", [], "fr", db=db) == "\n\n".join(l["text"] for l in layers)
     assert "CURRENT DATE" in layers[-1]["text"]
 
@@ -84,6 +84,54 @@ def _check_preview(client):
     res = client.get("/api/chat/prompt/preview?role=auditor&lang=fr")
     assert res.status_code == 200
     data = res.json()
-    assert [l["id"] for l in data["layers"]] == ["personality", "role", "rules", "context"]
+    assert [l["id"] for l in data["layers"]] == ["personality", "role", "rules", "guide", "context"]
     assert data["prompt_tokens"] > 0 and data["tools_tokens"] > 0
     assert client.get("/api/chat/prompt/personality-default").json()["default"] == DEFAULT_PERSONALITY
+
+
+def test_interface_guide_is_editable_with_default(db):
+    from app.services.chat.chat_prompt import DEFAULT_APP_GUIDE, APP_GUIDE_CONFIG_KEY
+    assert DEFAULT_APP_GUIDE in load_system_prompt(db=db)
+    db.add(GlobalConfig(key=APP_GUIDE_CONFIG_KEY, value="GUIDE PERSO : tout est dans Cockpit."))
+    db.commit()
+    prompt = load_system_prompt(db=db)
+    assert "GUIDE PERSO" in prompt and DEFAULT_APP_GUIDE not in prompt
+
+
+@pytest.mark.parametrize("question", [
+    "Quelle est ma prochaine grosse dépense et où en sont mes comptes ?",
+    "Mon budget transport coince ce mois-ci",
+    "Crée une enveloppe budget vacances à 200 €",
+])
+def test_questions_about_own_data_do_not_pull_documentation(question):
+    from app.services.chat.knowledge_service import resolve_relevant_knowledge
+    assert resolve_relevant_knowledge(question) is None
+
+
+@pytest.mark.parametrize("question", [
+    "Comment marche le rapprochement ?",
+    "C'est quoi une enveloppe dynamique ?",
+])
+def test_how_it_works_questions_get_documentation(question):
+    from app.services.chat.knowledge_service import resolve_relevant_knowledge
+    assert resolve_relevant_knowledge(question) is not None
+
+
+def test_follow_up_keeps_the_topic_of_the_conversation(db):
+    from app.models import ChatSession, ChatMessage
+    s = ChatSession(role="advisor", title="t")
+    db.add(s)
+    db.commit()
+    for content in ("Comment fonctionne l'auto-pilote ?", "Et pour les opérations déjà rapprochées ?"):
+        db.add(ChatMessage(session_id=s.id, role="user", content=content))
+        db.commit()
+    follow_up = "Et pour les opérations déjà rapprochées ?"
+    prompt = load_system_prompt(db=db, session_id=s.id, user_query=follow_up)
+    assert "AUTO-PILOTE" in prompt.upper() and "AUTHORITATIVE OMNIBANK APPLICATION RULES" in prompt
+    # Same follow-up in a fresh conversation: no documentation
+    s2 = ChatSession(role="advisor", title="t2")
+    db.add(s2)
+    db.commit()
+    db.add(ChatMessage(session_id=s2.id, role="user", content=follow_up))
+    db.commit()
+    assert "AUTHORITATIVE OMNIBANK APPLICATION RULES" not in load_system_prompt(db=db, session_id=s2.id, user_query=follow_up)

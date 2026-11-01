@@ -3886,12 +3886,16 @@
   "config_ai_layer_personality": "1. Personality (editable)",
   "config_ai_layer_role": "2. Role mission",
   "config_ai_layer_rules": "3. Operating rules",
-  "config_ai_layer_context": "4. Live context (date, situation, knowledge, memory)",
+  "config_ai_layer_context": "5. Live context (date, situation, knowledge, memory)",
   "config_ai_role_advisor": "Advisor",
   "config_ai_role_simulator": "Project simulation",
   "config_ai_role_alerts": "Alerts",
   "config_ai_role_optimizer": "Subscription optimizer",
   "config_ai_role_budget_planner": "Budget planner",
   "config_ai_role_forecaster": "Cash flow forecast",
-  "config_ai_role_auditor": "Transaction audit"
+  "config_ai_role_auditor": "Transaction audit",
+  "config_ai_guide_label": "Interface guide",
+  "config_ai_guide_help": "Tells the assistant where each feature is, so it can guide you through the app. Adjust it if you rename or hide pages.",
+  "config_ai_guide_saved": "Interface guide saved",
+  "config_ai_layer_guide": "4. Interface guide (editable)"
 }

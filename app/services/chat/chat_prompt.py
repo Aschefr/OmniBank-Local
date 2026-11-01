@@ -6,7 +6,8 @@ de Configuration) :
 1. Personnalité — ton et style, modifiable dans Configuration › Assistant IA (restauration par défaut).
 2. Mission du rôle — objectif et méthode propres au rôle de la conversation (fixe).
 3. Règles de fonctionnement — outils, actions à valider, raisonnement financier, format (fixe).
-4. Contexte live — date, dossier financier, connaissances OmniBank, faits mémorisés, catégories.
+4. Guide de l'interface — où se trouve chaque fonction, modifiable dans Configuration (restauration par défaut).
+5. Contexte live — date, dossier financier, connaissances OmniBank (selon la question et le fil), faits mémorisés, catégories.
 
 Les exemples restent neutres : aucun nom de compte, montant ou libellé réel d'un utilisateur.
 """
@@ -30,6 +31,25 @@ DEFAULT_PERSONALITY = """You are the OmniBank financial companion: a sharp, bene
 - Keep first answers short: 2 to 3 short paragraphs — the diagnosis with figures, then the reassuring element and one concrete lever. Give a multi-section breakdown only when the user asks for details, a table or a full audit.
 - Sober, factual and constructive; never moralising. Bold the key amounts and percentages.
 - Answer the current question only: do not recap points already settled earlier in the conversation."""
+
+APP_GUIDE_CONFIG_KEY = "ai_app_guide"
+
+DEFAULT_APP_GUIDE = """OMNIBANK INTERFACE GUIDE — use it to tell the user where to go, with the exact French labels in « ». If you are not sure where something is, say so instead of guessing.
+- Navigation: tabs at the top (on phones, a tab bar at the bottom); tabs that do not fit are under « Plus ».
+- « Cockpit »: home page — left to live, next paycheck, forecast, net worth.
+- « Journal »: operations of the current period, opened on the oldest one still to reconcile; reconcile, edit or add an operation.
+- « Historique »: all operations, with search and filters.
+- « Synthèse »: tables by category and month, « Exporter en PDF ».
+- « Budgets »: envelopes (monthly, yearly or with no end) and savings piggy banks, with adjustment suggestions.
+- « Tendances »: averages and pace, top expenses, comparison between years.
+- « Récurrences »: recurring charges and income, as a table or « Chronogramme »; an ended contract is closed there.
+- « Auto-Pilote »: review of imported operations and automatic reconciliation; its decisions can be undone.
+- « Simulateur »: what-if projects, « Conseillé » or « Avancé » mode.
+- « Comptes »: bank accounts and bank connections, « Importer un relevé » (CSV / XLSX).
+- « Relever en ligne » (Cockpit, Journal, Historique): fetches the latest operations from the connected banks.
+- « Actions »: history of changes, each of which can be undone; the undo and redo arrows at the top right of the screen undo or redo the last change.
+- « Catégories »: categories and their colours.
+- « Configuration »: « Général », « Profils & accès », « Catégorisation », « Assistant IA », « Sauvegardes & données », « Avancé »."""
 
 ROLE_MISSIONS: Dict[str, str] = {
     "advisor": """ROLE: Personal financial advisor.
@@ -73,16 +93,24 @@ _MONTHS = {
 
 # ── Couche 1 : personnalité (modifiable) ───────────────────────────────────────
 
-def get_personality(db: Optional[Session]) -> str:
-    """Personnalité enregistrée dans Configuration, sinon celle par défaut."""
+def _editable_text(db: Optional[Session], key: str, default: str) -> str:
+    """Texte enregistré dans Configuration, sinon la valeur par défaut (champ vide = défaut)."""
     if db is not None:
         try:
-            row = db.query(GlobalConfig).filter(GlobalConfig.key == PERSONALITY_CONFIG_KEY).first()
+            row = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
             if row and row.value and row.value.strip():
                 return row.value.strip()
         except Exception as e:
-            logger.warning(f"[Prompt] Lecture de la personnalité impossible, valeur par défaut utilisée : {e}")
-    return DEFAULT_PERSONALITY
+            logger.warning(f"[Prompt] Lecture de '{key}' impossible, valeur par défaut utilisée : {e}")
+    return default
+
+
+def get_personality(db: Optional[Session]) -> str:
+    return _editable_text(db, PERSONALITY_CONFIG_KEY, DEFAULT_PERSONALITY)
+
+
+def get_app_guide(db: Optional[Session]) -> str:
+    return _editable_text(db, APP_GUIDE_CONFIG_KEY, DEFAULT_APP_GUIDE)
 
 
 # ── Couche 2 : mission du rôle ─────────────────────────────────────────────────
@@ -178,18 +206,24 @@ def _load_facts(db: Session, user_name: Optional[str], session_id: Optional[int]
     return {f.fact_key: f.fact_value for f in query.all()}
 
 
-def _knowledge_query(db: Optional[Session], session_id: Optional[int], user_query: Optional[str]) -> Optional[str]:
-    if user_query:
-        return user_query
+def _knowledge_query(db: Optional[Session], session_id: Optional[int], user_query: Optional[str]):
+    """Question courante et messages précédents de l'utilisateur (du plus ancien au plus récent)."""
+    recent: List[str] = []
     if db is not None and session_id:
         from app.models import ChatMessage
-        last_msg = db.query(ChatMessage).filter(
+        rows = db.query(ChatMessage.content).filter(
             ChatMessage.session_id == session_id,
             ChatMessage.role == 'user'
-        ).order_by(ChatMessage.timestamp.desc()).first()
-        if last_msg and last_msg.content:
-            return last_msg.content
-    return None
+        ).order_by(ChatMessage.timestamp.desc()).limit(3).all()
+        recent = [r[0] for r in reversed(rows) if r[0]]
+    if user_query:
+        # Le message courant est déjà enregistré : ne pas le compter deux fois
+        if recent and recent[-1] == user_query:
+            recent = recent[:-1]
+        return user_query, recent
+    if recent:
+        return recent[-1], recent[:-1]
+    return None, []
 
 
 def live_context_block(
@@ -209,9 +243,9 @@ def live_context_block(
             logger.warning(f"Erreur lors de la génération du briefing financier pour le prompt IA: {e}")
 
     try:
-        query = _knowledge_query(db, session_id, user_query)
+        query, history = _knowledge_query(db, session_id, user_query)
         if query:
-            knowledge = resolve_relevant_knowledge(query, max_topics=2)
+            knowledge = resolve_relevant_knowledge(query, max_topics=2, history=history)
             if knowledge:
                 parts.append(knowledge)
     except Exception as e:
@@ -243,6 +277,7 @@ def build_system_prompt_layers(
         {"id": "personality", "text": get_personality(db)},
         {"id": "role", "text": role_block(role)},
         {"id": "rules", "text": rules_block(role, lang)},
+        {"id": "guide", "text": get_app_guide(db)},
         {"id": "context", "text": live_context_block(db, role, lang, categories, session_id, user_name, user_query)},
     ]
 
