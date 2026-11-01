@@ -9,6 +9,8 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const durationFilter = this.activeDurationFilter || 'all';
         const periodFilter = this.activePeriodFilter || 'all';
         const viewMode = this.currentViewMode || ProfileStorage.get('recurrences_viewMode') || 'table';
+        // The content renderer reads currentViewMode: sync it with the restored value (the button state alone was restored before)
+        this.currentViewMode = viewMode;
         
         const durationClass = (f) => durationFilter === f ? 'active' : '';
         const periodClass = (f) => periodFilter === f ? 'active' : '';
@@ -593,6 +595,15 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         } else {
             this.renderTableView(tableContainer, filteredTemplates);
         }
+
+        // Header that stays visible while the list scrolls
+        if (this._floatCleanup) this._floatCleanup();
+        const isTimeline = this.currentViewMode === 'timeline';
+        const box = tableContainer.querySelector(isTimeline ? '.gantt-scroll-wrapper' : '.table-responsive');
+        const head = tableContainer.querySelector(isTimeline ? '.gantt-header' : 'thead');
+        this._floatCleanup = (box && head && window.FloatingHeaders)
+            ? window.FloatingHeaders.attach([{ card: tableContainer, box, head }])
+            : null;
 
         // Check if there is a pending template to highlight
         if (this._pendingHighlightTemplateId) {
