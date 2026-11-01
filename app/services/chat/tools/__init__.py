@@ -60,652 +60,233 @@ from app.services.chat.tools.simulation_tools import (  # noqa: F401
     simulate_loan_amortization_tool,
 )
 
+def _tool(name: str, description: str, properties: Optional[Dict[str, Any]] = None,
+          required: Optional[List[str]] = None) -> dict:
+    """Schéma d'outil au format Ollama. Descriptions courtes : elles sont envoyées à chaque échange."""
+    parameters: Dict[str, Any] = {"type": "object", "properties": properties or {}}
+    if required:
+        parameters["required"] = required
+    return {"type": "function", "function": {"name": name, "description": description, "parameters": parameters}}
+
+
+def _p(type_: str, description: str = "", enum: Optional[list] = None, **extra) -> dict:
+    prop: Dict[str, Any] = {"type": type_}
+    if description:
+        prop["description"] = description
+    if enum:
+        prop["enum"] = enum
+    prop.update(extra)
+    return prop
+
+
+_DATE = "YYYY-MM-DD"
+_TX_TYPES = ["expense_var", "expense_fixed", "income", "transfer", "neutral"]
+_FREQUENCIES = ["Weekly", "Bi-weekly", "Semi-monthly", "Monthly", "Quarterly", "Semiannual", "Yearly"]
+_PERIODS = ["monthly", "yearly", "custom", "indefinite"]
+_YEAR_MONTH = {"year": _p("integer"), "month": _p("integer", "1-12")}
+
 TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "audit_transactions_integrity",
-            "description": "Audit the database transactions for data integrity: unreconciled past operations (>30 days), un-categorized operations, suspicious/inverted entries, and missing regular recurring debits. Use this in Auditor mode.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "simulate_financial_scenario",
-            "description": "Run a comprehensive What-If financial sandbox simulation for a future project (vehicle purchase, real estate, sabbatical, renovations) over 3 to 36 months. Computes trajectory, net worth impact, debt capacity ratio, and overdraft risk. Use this in Simulator mode.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "horizon_months": {"type": "integer", "description": "Simulation horizon in months (e.g. 6, 12, 24). Default is 12."},
-                    "project_name": {"type": "string", "description": "Human name for the project (e.g. 'Achat Moto', 'Travaux Cuisine')."},
-                    "one_off_amount": {"type": "number", "description": "Initial one-off expense or down payment."},
-                    "recurring_monthly_amount": {"type": "number", "description": "Monthly recurring cost or loan repayment."},
-                    "recurring_duration_months": {"type": "integer", "description": "Duration in months of the recurring monthly cost."}
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_upcoming_expenses",
-            "description": "Get the unified list of all upcoming scheduled bank debits, bills, loan payments, and planned expenses over the next X days (default 30 days). Includes both scheduled bank operations already in the database (like tax complements or one-off planned bills) and projected recurring templates (loans, rent, subscriptions). Can sort by 'amount' (to identify the biggest upcoming expenses) or 'date' (chronological). ALWAYS use this tool when the user asks about their next upcoming expense(s), upcoming bills, or cash outflows before payday.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "days": {
-                        "type": "integer",
-                        "description": "Number of days ahead to look (e.g. 15, 30, 60). Default is 30."
-                    },
-                    "sort_by": {
-                        "type": "string",
-                        "description": "Sorting order: 'amount' (largest expenses first, ideal for 'quelle est ma plus grosse dépense') or 'date' (chronological order). Default is 'date'."
-                    },
-                    "min_amount": {
-                        "type": "number",
-                        "description": "Optional minimum amount filter in euros (e.g. 50 to see only significant expenses)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_financial_summary",
-            "description": "Get the current 'Reste à vivre' (left to live) amount, daily spending ceiling, days remaining until next paycheck, savings safety buffer, and predicted paycheck details. Use this when the user asks about remaining budget or paycheck projections.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_spending_trends",
-            "description": "Get historical spending and income averages over 3, 6, and 12 months, overall savings rate, and identify categories with recent notable spending growth or reduction. Use this for deep financial health analysis and budget optimization advice.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_dashboard_synthesis",
-            "description": "Get the complete monthly dashboard synthesis: total income, fixed vs variable expenses, net savings, comparison against previous month (M-1), and consumption status of all budget envelopes. Use this when the user asks about their overall monthly progress or dashboard metrics.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "year": {
-                        "type": "integer",
-                        "description": "Optional year. Defaults to current year."
-                    },
-                    "month": {
-                        "type": "integer",
-                        "description": "Optional month (1-12). Defaults to current month."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_net_worth",
-            "description": "Get the total net worth of the user (all accounts and savings combined). Returns reconciled balance (cleared in bank) and projected balance (including future/planned transactions).",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_account_balances",
-            "description": "Get the balances of all bank accounts and savings envelopes separately. Returns reconciled and projected balances.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_transactions",
-            "description": "Search user transactions with various filters. Returns a list of transactions matching the criteria.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "description_query": {
-                        "type": "string",
-                        "description": "Optional keyword search on transaction description."
-                    },
-                    "category": {
-                        "type": "string",
-                        "description": "Optional category name."
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "Optional transaction type: expense_var, expense_fixed, income, transfer, neutral."
-                    },
-                    "start_date": {
-                        "type": "string",
-                        "description": "Optional start date in YYYY-MM-DD format."
-                    },
-                    "end_date": {
-                        "type": "string",
-                        "description": "Optional end date in YYYY-MM-DD format."
-                    },
-                    "min_amount": {
-                        "type": "number",
-                        "description": "Optional minimum amount."
-                    },
-                    "max_amount": {
-                        "type": "number",
-                        "description": "Optional maximum amount."
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of transactions to return (default 50)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_spending_analytics",
-            "description": "Get aggregated raw spending and income statistics for a specific period, grouped by category and transaction type. Do NOT use this tool for tracking budget envelope limits or remaining budget envelope balances — use get_budgets_status for that.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "start_date": {
-                        "type": "string",
-                        "description": "Start date of the analysis period (YYYY-MM-DD)."
-                    },
-                    "end_date": {
-                        "type": "string",
-                        "description": "End date of the analysis period (YYYY-MM-DD)."
-                    }
-                },
-                "required": ["start_date", "end_date"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_budgets_status",
-            "description": "Get consumption progress and remaining balances of all budget envelopes and savings for a specific year and month. CRITICAL: When the user asks about a specific past or future month (e.g. next month, September -> year=2026, month=9), you MUST pass explicit year and month parameters so the tool returns the correct period and projected recurring commitments instead of the current month.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "year": {
-                        "type": "integer",
-                        "description": "Year to analyze (e.g. 2026). Pass explicitly when analyzing a past or future month."
-                    },
-                    "month": {
-                        "type": "integer",
-                        "description": "Month to analyze (1-12). Pass explicitly when analyzing a past or future month (e.g. 9 for September)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_recurrence_templates",
-            "description": "Get the list of recurring transaction templates (bills, subscriptions, salaries), including their active/closed status, next expected dates, and occurrence counts.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "include_closed": {
-                        "type": "boolean",
-                        "description": "Whether to include closed/archived recurrence templates (default true)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_net_worth_history",
-            "description": "Get the historical net worth trend data points grouped by month.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "months": {
-                        "type": "integer",
-                        "description": "Number of past months to retrieve (default 12)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_envelopes_impact",
-            "description": "Simulate the impact of a planned purchase (amount) on user budget envelopes or savings. Returns remaining capacity.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "amount": {"type": "number", "description": "The cost of the simulated purchase."},
-                    "budget_id": {"type": "integer", "description": "Optional budget envelope ID to test."}
-                },
-                "required": ["amount"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "suggest_transaction_category",
-            "description": "Suggest the most likely category for a transaction description based on existing database history.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "description": {"type": "string", "description": "Transaction description (e.g. 'Amazon', 'LIDL')."}
-                },
-                "required": ["description"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "forecast_balances_history",
-            "description": "Forecast account balances and left-to-live trend over next 30, 60, or 90 days. This simulation ALREADY automatically includes future recurring templates and predicted paychecks (salaries/income). Do NOT assume future income is missing from the forecast results.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "days": {"type": "integer", "description": "Number of days to forecast (30, 60, 90). Default is 30."}
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_monthly_overview",
-            "description": "Get a comprehensive monthly overview including budget envelopes status, category spending statistics, rest-to-live details, next paycheck predictions, and account balances in one single tool call. CRITICAL: Pass explicit year and month when analyzing a past or future month.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "year": {
-                        "type": "integer",
-                        "description": "Year to analyze (e.g. 2026). Defaults to current year."
-                    },
-                    "month": {
-                        "type": "integer",
-                        "description": "Month to analyze (1-12). Defaults to current month."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "detect_anomalies_and_subscriptions",
-            "description": "Detect possible active subscriptions, duplicate charges, or suspicious expense spikes in recent months.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "apply_transaction_correction",
-            "description": "Modify a transaction category, date, description, or amount in the database upon user request. Identify by transaction_id or by description/amount/date.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to update (if known)."},
-                    "category": {"type": "string", "description": "New category name (optional)."},
-                    "description": {"type": "string", "description": "New description or matching description keyword."},
-                    "amount": {"type": "number", "description": "New amount or matching amount."},
-                    "type": {"type": "string", "description": "New type: expense_var, expense_fixed, income (optional)."},
-                    "date_operation": {"type": "string", "description": "New date of the transaction or matching date (YYYY-MM-DD)."}
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_saving_recommendations",
-            "description": "Analyze financial history of last 6 months to suggest a tailored saving rule (e.g. 50/30/20 rule adaptation).",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_similar_past_spends",
-            "description": "Search database for similar seasonal expenditures from the previous year (e.g. comparing holiday, heating, or gift spends).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "keyword": {"type": "string", "description": "Description keyword to look for in past year transactions."}
-                },
-                "required": ["keyword"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "generate_csv_export_link",
-            "description": "Create a temporary CSV file with filtered transactions matching user criteria, and return the download URL.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {"type": "string", "description": "Optional category filter."},
-                    "start_date": {"type": "string", "description": "Optional start date filter (YYYY-MM-DD)."},
-                    "end_date": {"type": "string", "description": "Optional end date filter (YYYY-MM-DD)."},
-                    "type": {"type": "string", "description": "Optional transaction type filter."}
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "simulate_loan_amortization",
-            "description": "Calculate loan monthly payments, total interest, and project its impact on the user's Reste à Vivre.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "principal": {"type": "number", "description": "The amount to borrow."},
-                    "rate_percent": {"type": "number", "description": "Annual interest rate (e.g. 3.5)."},
-                    "years": {"type": "integer", "description": "Duration of loan in years."}
-                },
-                "required": ["principal", "rate_percent", "years"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_budget_envelope",
-            "description": "Create a new budget envelope with a specific limit, period (monthly, yearly, custom), and optional category names.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Name of the budget envelope."},
-                    "monthly_amount": {"type": "number", "description": "Amount allocated to this budget (monthly value)."},
-                    "period": {"type": "string", "description": "Period: monthly, yearly, custom, indefinite."},
-                    "categories": {"type": "array", "items": {"type": "string"}, "description": "List of category names linked to this budget."},
-                    "is_project": {"type": "boolean", "description": "True if this budget is a project (tracked via transactions budget_id)."}
-                },
-                "required": ["name", "monthly_amount"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_budget_envelope",
-            "description": "Update details of an existing budget envelope. Identify by budget_id or by name.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "budget_id": {"type": "integer", "description": "The ID of the budget to update (if known, or identify by name)."},
-                    "name": {"type": "string", "description": "Name of the budget envelope (used to identify or rename)."},
-                    "monthly_amount": {"type": "number", "description": "New budget amount (optional)."},
-                    "period": {"type": "string", "description": "New period (optional)."},
-                    "categories": {"type": "array", "items": {"type": "string"}, "description": "New list of categories (optional)."},
-                    "is_closed": {"type": "boolean", "description": "True to archive/close the budget."}
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_budget_envelope",
-            "description": "Delete a budget envelope from the database. Identify by budget_id or by name.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "budget_id": {"type": "integer", "description": "The ID of the budget to delete."},
-                    "name": {"type": "string", "description": "Name of the budget envelope to delete."}
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_transaction",
-            "description": "Delete a specific transaction from the database (e.g. to resolve a duplicate entry). Identify by transaction_id or by description/amount/date.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "transaction_id": {"type": "integer", "description": "The ID of the transaction to delete (if known)."},
-                    "description": {"type": "string", "description": "Description of the transaction to identify and delete (optional)."},
-                    "amount": {"type": "number", "description": "Amount of the transaction to delete (optional)."},
-                    "date_operation": {"type": "string", "description": "Date of the transaction (YYYY-MM-DD, optional)."}
-                },
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "allocate_savings_funds",
-            "description": "Add or withdraw funds from a savings envelope (tirelire). Positive amount to deposit, negative to withdraw.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "budget_id": {"type": "integer", "description": "The ID of the savings budget to allocate funds to/from."},
-                    "amount": {"type": "number", "description": "Amount to allocate. Positive for deposit, negative for withdrawal."},
-                    "note": {"type": "string", "description": "Optional comment or reason for this allocation."}
-                },
-                "required": ["budget_id", "amount"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_recurrence_template",
-            "description": "Create a new recurring transaction template (bill, salary, regular transfer).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "amount": {"type": "number", "description": "Transaction amount (positive for income, negative for expense)."},
-                    "description": {"type": "string", "description": "Description of the recurrence."},
-                    "frequency": {"type": "string", "description": "Frequency: Weekly, Bi-weekly, Semi-monthly, Monthly, Quarterly, Semiannual, Yearly."},
-                    "category": {"type": "string", "description": "Category name."},
-                    "type": {"type": "string", "description": "Type: expense_fixed, expense_var, income, transfer, neutral."},
-                    "day_of_month": {"type": "integer", "description": "Day of the month the transaction occurs (1-31)."},
-                    "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format."}
-                },
-                "required": ["amount", "description", "frequency", "category", "type", "day_of_month"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "update_recurrence_template",
-            "description": "Update details of an existing recurrence template.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "template_id": {"type": "integer", "description": "The ID of the template to update."},
-                    "amount": {"type": "number", "description": "New amount (optional)."},
-                    "description": {"type": "string", "description": "New description (optional)."},
-                    "frequency": {"type": "string", "description": "New frequency (optional)."},
-                    "category": {"type": "string", "description": "New category name (optional)."},
-                    "type": {"type": "string", "description": "New type (optional)."},
-                    "day_of_month": {"type": "integer", "description": "New day of month (optional)."},
-                    "is_active": {"type": "boolean", "description": "True to activate, False to pause (optional)."}
-                },
-                "required": ["template_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "close_recurrence_template",
-            "description": "Close a recurring transaction template to mark it as ended/inactive, stop future scheduled debit projections, and purge upcoming unreconciled instances while keeping historical transactions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "template_id": {"type": "integer", "description": "The ID of the recurrence template to close."},
-                    "description": {"type": "string", "description": "Description of the recurrence template if ID is not known."},
-                    "closure_date": {"type": "string", "description": "Effective cutoff date (YYYY-MM-DD). Default is today."}
-                },
-                "required": ["template_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_recurrence_template",
-            "description": "Delete a recurrence template permanently.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "template_id": {"type": "integer", "description": "The ID of the template to delete."}
-                },
-                "required": ["template_id"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_category",
-            "description": "Create a new transaction category.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Name of the new category."},
-                    "type": {"type": "string", "description": "Category type: expense_var, expense_fixed, income, neutral."}
-                },
-                "required": ["name", "type"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_category",
-            "description": "Delete a category from the database.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Name of the category to delete."}
-                },
-                "required": ["name"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "set_predicted_paycheck",
-            "description": "Set/override the predicted paycheck details (estimated amount, day of month, or custom date).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "amount": {"type": "number", "description": "Estimated paycheck amount."},
-                    "day_of_month": {"type": "integer", "description": "Estimated day of month."},
-                    "date_override": {"type": "string", "description": "Force a specific date for the next paycheck in YYYY-MM-DD format (optional)."}
-                },
-                "required": ["amount", "day_of_month"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "store_financial_fact",
-            "description": "Store a persistent financial fact about the user (e.g., rent amount, financial goals, recurring events) to the memory database. Set private_to_session to true if the fact should only be remembered within this chat session, or false if it should be remembered globally across all conversations.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "key": {"type": "string", "description": "Unique technical key for the fact (e.g. 'monthly_rent_euros', 'savings_goal_euros')."},
-                    "value": {"type": "string", "description": "The fact value (could be a number, short text, or JSON string)."},
-                    "private_to_session": {"type": "boolean", "description": "If true, this fact is isolated to this conversation. If false, it is shared across all conversations. Default is false."}
-                },
-                "required": ["key", "value"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "forget_financial_fact",
-            "description": "Delete a persistent financial fact about the user from the memory database. Key and private_to_session must match the parameters used when storing.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "key": {"type": "string", "description": "Technical key of the fact to delete."},
-                    "private_to_session": {"type": "boolean", "description": "Must match the visibility setting used when storing. Default is false."}
-                },
-                "required": ["key"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_application_knowledge",
-            "description": "Look up official OmniBank documentation, formulas, and operational rules (e.g. how Reste à Vivre is computed, Auto-Pilot states LINKED_COMING vs AUTO_COMMIT, budget envelopes EMA recalibration, What-If simulation cones, CSV/Woob bank sync, and Privacy mode).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "topic": {
-                        "type": "string",
-                        "description": "Topic or query to look up (e.g. 'reste_a_vivre', 'autopilot', 'budgets', 'simulateur', 'comptes_imports', 'confidentialite_modes', or a question)."
-                    }
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_planned_transfer",
-            "description": "Register a planned internal transfer transaction between two accounts in OmniBank (e.g. from a liquid savings account like Livret A to the main checking account) to update projected balances and Reste à Vivre in the application. Note: The system automatically assigns the category 'Virement interne'. The actual banking wire transfer must be performed by the user on their bank's application or web portal.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "from_account": {"type": "string", "description": "Source account name or ID (e.g. 'Livret A')."},
-                    "to_account": {"type": "string", "description": "Destination account name or ID (e.g. 'CA Centre-Est')."},
-                    "amount": {"type": "number", "description": "Amount to transfer in euros."},
-                    "description": {"type": "string", "description": "Contextual label for the transfer in OmniBank (e.g. 'Virement de précaution pour solde débiteur')."},
-                    "date_operation": {"type": "string", "description": "Date of the transfer in YYYY-MM-DD format (defaults to today)."}
-                },
-                "required": ["from_account", "to_account", "amount"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "trigger_bank_sync",
-            "description": "Trigger an online bank synchronization (relevé en ligne) in the background to fetch recent transactions from bank accounts and automatically match/reconcile them with planned operations via Auto-Pilot.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    }
+    _tool("audit_transactions_integrity",
+          "Data integrity audit: past operations unreconciled for 30+ days, uncategorized ones, suspicious or inverted entries, missing recurring debits."),
+    _tool("simulate_financial_scenario",
+          "What-if simulation of a future project (car, home, works…) over 3-36 months: balance trajectory, net worth impact, debt ratio, overdraft risk.",
+          {"horizon_months": _p("integer", "Default 12"),
+           "project_name": _p("string"),
+           "one_off_amount": _p("number", "One-off cost or down payment"),
+           "recurring_monthly_amount": _p("number", "Monthly cost or loan payment"),
+           "recurring_duration_months": _p("integer")}),
+    _tool("get_upcoming_expenses",
+          "All upcoming debits over the next days: scheduled operations and projected recurrences (loans, rent, subscriptions). Use it for any question about next bills or outflows before payday.",
+          {"days": _p("integer", "Default 30"),
+           "sort_by": _p("string", "amount = largest first", ["date", "amount"]),
+           "min_amount": _p("number")}),
+    _tool("get_financial_summary",
+          "Current left-to-live (reste à vivre), daily spending ceiling, days to next paycheck, safety buffer and predicted paycheck."),
+    _tool("get_spending_trends",
+          "3/6/12-month income and spending averages, savings rate, and categories rising or falling."),
+    _tool("get_dashboard_synthesis",
+          "Monthly synthesis: income, fixed vs variable spending, net savings, comparison with the previous month, envelope consumption.",
+          dict(_YEAR_MONTH)),
+    _tool("get_net_worth",
+          "Total net worth across all accounts, reconciled and projected."),
+    _tool("get_account_balances",
+          "Balance of each account and savings envelope, reconciled and projected."),
+    _tool("search_transactions",
+          "Search transactions by text, category, type, dates or amount range.",
+          {"description_query": _p("string", "Text in the description"),
+           "category": _p("string"),
+           "type": _p("string", enum=_TX_TYPES),
+           "start_date": _p("string", _DATE),
+           "end_date": _p("string", _DATE),
+           "min_amount": _p("number"),
+           "max_amount": _p("number"),
+           "limit": _p("integer", "Default 50")}),
+    _tool("get_spending_analytics",
+          "Income and spending totals by category and type for a period. Not for budget envelopes (use get_budgets_status).",
+          {"start_date": _p("string", _DATE), "end_date": _p("string", _DATE)},
+          ["start_date", "end_date"]),
+    _tool("get_budgets_status",
+          "Consumption and remaining balance of every budget envelope and savings for a month. For any month other than the current one, pass year and month.",
+          dict(_YEAR_MONTH)),
+    _tool("get_recurrence_templates",
+          "Recurring templates (bills, subscriptions, salaries): status, next dates, occurrence counts.",
+          {"include_closed": _p("boolean", "Default true")}),
+    _tool("get_net_worth_history",
+          "Monthly net worth history.",
+          {"months": _p("integer", "Default 12")}),
+    _tool("get_envelopes_impact",
+          "Impact of a planned purchase on budget envelopes and savings: remaining capacity.",
+          {"amount": _p("number"), "budget_id": _p("integer", "Envelope to test")},
+          ["amount"]),
+    _tool("suggest_transaction_category",
+          "Most likely category for a transaction description, based on history.",
+          {"description": _p("string")},
+          ["description"]),
+    _tool("forecast_balances_history",
+          "Balance and left-to-live forecast over 30, 60 or 90 days. Already includes recurrences and predicted paychecks.",
+          {"days": _p("integer", "Default 30")}),
+    _tool("get_monthly_overview",
+          "All-in-one monthly overview: envelopes, spending by category, left-to-live, next paycheck, balances. For any month other than the current one, pass year and month.",
+          dict(_YEAR_MONTH)),
+    _tool("detect_anomalies_and_subscriptions",
+          "Detect subscriptions, duplicate charges and unusual spending spikes in recent months."),
+    _tool("apply_transaction_correction",
+          "Change a transaction's category, date, description, amount or type. Identify it by transaction_id, or by description/amount/date.",
+          {"transaction_id": _p("integer"),
+           "category": _p("string", "New category"),
+           "description": _p("string", "New description, or text to find the transaction"),
+           "amount": _p("number", "New amount, or amount to find the transaction"),
+           "type": _p("string", "New type", ["expense_var", "expense_fixed", "income"]),
+           "date_operation": _p("string", "New date, or date to find the transaction (YYYY-MM-DD)")}),
+    _tool("get_saving_recommendations",
+          "Saving rule tailored to the last 6 months (e.g. an adapted 50/30/20)."),
+    _tool("search_similar_past_spends",
+          "Find similar spending from the previous year (holidays, heating, gifts…).",
+          {"keyword": _p("string")},
+          ["keyword"]),
+    _tool("generate_csv_export_link",
+          "CSV export of filtered transactions; returns a download link.",
+          {"category": _p("string"),
+           "start_date": _p("string", _DATE),
+           "end_date": _p("string", _DATE),
+           "type": _p("string", enum=_TX_TYPES)}),
+    _tool("simulate_loan_amortization",
+          "Loan monthly payment, total interest and impact on left-to-live.",
+          {"principal": _p("number"),
+           "rate_percent": _p("number", "Annual rate, e.g. 3.5"),
+           "years": _p("integer")},
+          ["principal", "rate_percent", "years"]),
+    _tool("create_budget_envelope",
+          "Create a budget envelope.",
+          {"name": _p("string"),
+           "monthly_amount": _p("number"),
+           "period": _p("string", enum=_PERIODS),
+           "categories": _p("array", "Linked category names", items={"type": "string"}),
+           "is_project": _p("boolean", "Project budget, tracked by its linked transactions")},
+          ["name", "monthly_amount"]),
+    _tool("update_budget_envelope",
+          "Update a budget envelope, identified by budget_id or name.",
+          {"budget_id": _p("integer"),
+           "name": _p("string", "Name, to find or rename the envelope"),
+           "monthly_amount": _p("number"),
+           "period": _p("string", enum=_PERIODS),
+           "categories": _p("array", items={"type": "string"}),
+           "is_closed": _p("boolean", "true to archive")}),
+    _tool("delete_budget_envelope",
+          "Delete a budget envelope, identified by budget_id or name.",
+          {"budget_id": _p("integer"), "name": _p("string")}),
+    _tool("delete_transaction",
+          "Delete a transaction (e.g. a duplicate), identified by transaction_id or by description/amount/date.",
+          {"transaction_id": _p("integer"),
+           "description": _p("string"),
+           "amount": _p("number"),
+           "date_operation": _p("string", _DATE)}),
+    _tool("allocate_savings_funds",
+          "Deposit into (positive amount) or withdraw from (negative amount) a savings envelope.",
+          {"budget_id": _p("integer"), "amount": _p("number"), "note": _p("string")},
+          ["budget_id", "amount"]),
+    _tool("create_recurrence_template",
+          "Create a recurring template (bill, salary, regular transfer).",
+          {"amount": _p("number", "Positive for income, negative for expense"),
+           "description": _p("string"),
+           "frequency": _p("string", enum=_FREQUENCIES),
+           "category": _p("string"),
+           "type": _p("string", enum=_TX_TYPES),
+           "day_of_month": _p("integer", "1-31"),
+           "start_date": _p("string", _DATE)},
+          ["amount", "description", "frequency", "category", "type", "day_of_month"]),
+    _tool("update_recurrence_template",
+          "Update a recurring template.",
+          {"template_id": _p("integer"),
+           "amount": _p("number"),
+           "description": _p("string"),
+           "frequency": _p("string", enum=_FREQUENCIES),
+           "category": _p("string"),
+           "type": _p("string", enum=_TX_TYPES),
+           "day_of_month": _p("integer"),
+           "is_active": _p("boolean", "false to pause")},
+          ["template_id"]),
+    _tool("close_recurrence_template",
+          "End a recurring template: stops future occurrences and removes upcoming unreconciled ones; history is kept.",
+          {"template_id": _p("integer"),
+           "description": _p("string", "If the ID is unknown"),
+           "closure_date": _p("string", "YYYY-MM-DD, default today")},
+          ["template_id"]),
+    _tool("delete_recurrence_template",
+          "Permanently delete a recurring template.",
+          {"template_id": _p("integer")},
+          ["template_id"]),
+    _tool("create_category",
+          "Create a transaction category.",
+          {"name": _p("string"), "type": _p("string", enum=["expense_var", "expense_fixed", "income", "neutral"])},
+          ["name", "type"]),
+    _tool("delete_category",
+          "Delete a category.",
+          {"name": _p("string")},
+          ["name"]),
+    _tool("set_predicted_paycheck",
+          "Override the predicted paycheck: amount, day of month, or an exact date.",
+          {"amount": _p("number"), "day_of_month": _p("integer"), "date_override": _p("string", _DATE)},
+          ["amount", "day_of_month"]),
+    _tool("store_financial_fact",
+          "Remember a lasting fact about the user (rent, goal, recurring event). private_to_session=true keeps it to this conversation only.",
+          {"key": _p("string", "Technical key, e.g. monthly_rent_euros"),
+           "value": _p("string"),
+           "private_to_session": _p("boolean", "Default false")},
+          ["key", "value"]),
+    _tool("forget_financial_fact",
+          "Forget a remembered fact (same key and private_to_session as when it was stored).",
+          {"key": _p("string"), "private_to_session": _p("boolean", "Default false")},
+          ["key"]),
+    _tool("get_application_knowledge",
+          "OmniBank documentation: formulas and rules (left-to-live, Auto-Pilot, envelopes, simulator, imports and bank sync, privacy).",
+          {"topic": _p("string", "Topic or question, e.g. reste_a_vivre, autopilot, budgets, simulateur, comptes_imports, confidentialite_modes")}),
+    _tool("create_planned_transfer",
+          "Record a planned internal transfer between two accounts in OmniBank (category 'Virement interne'), updating projected balances. The user makes the real transfer in their bank.",
+          {"from_account": _p("string", "Source account name or ID"),
+           "to_account": _p("string", "Destination account name or ID"),
+           "amount": _p("number"),
+           "description": _p("string", "Label"),
+           "date_operation": _p("string", "YYYY-MM-DD, default today")},
+          ["from_account", "to_account", "amount"]),
+    _tool("trigger_bank_sync",
+          "Start an online bank refresh in the background; Auto-Pilot then matches the new operations."),
 ]
 
 TOOL_MAP: Dict[str, dict] = {t["function"]["name"]: t for t in TOOLS}
 
+# Le conseiller (rôle par défaut) n'a pas les outils propres aux rôles spécialisés (simulation de projet ou de
+# prêt, audit complet, suppressions de catégories / enveloppes / récurrences…) : sa mission l'invite à
+# orienter vers le rôle adapté. Moins d'outils = prompt plus léger et choix d'outil plus sûr.
+_ADVISOR_EXCLUDED = {
+    "audit_transactions_integrity", "simulate_financial_scenario", "simulate_loan_amortization",
+    "suggest_transaction_category", "get_saving_recommendations", "search_similar_past_spends",
+    "delete_budget_envelope", "delete_recurrence_template", "create_category", "delete_category",
+    "set_predicted_paycheck", "get_net_worth_history",
+}
+
 ROLE_TOOL_NAMES: Dict[str, List[str]] = {
-    "advisor": [t["function"]["name"] for t in TOOLS],
+    "advisor": [t["function"]["name"] for t in TOOLS if t["function"]["name"] not in _ADVISOR_EXCLUDED],
     "simulator": [
         "simulate_financial_scenario",
         "simulate_loan_amortization",
@@ -768,6 +349,7 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
         "get_financial_summary",
         "get_account_balances",
         "create_category",
+        "delete_category",
         "get_application_knowledge",
         "store_financial_fact",
         "forget_financial_fact",

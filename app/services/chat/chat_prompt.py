@@ -55,7 +55,8 @@ APP_GUIDE_TEMPLATE = """OMNIBANK INTERFACE GUIDE — use it to tell the user whe
 - {bank_sync_run_background_btn} ({nav_cockpit}, {nav_dashboard}, {nav_history}): fetches the latest operations from the connected banks.
 - {nav_history_actions}: history of changes, each of which can be undone; the undo and redo arrows at the top right of the screen undo or redo the last change.
 - {nav_categories}: categories and their colours.
-- {nav_configuration}: {config_tab_general}, {config_tab_profiles}, {config_tab_categorization}, {config_tab_ai}, {config_tab_data}, {config_tab_advanced}."""
+- {nav_configuration}: {config_tab_general}, {config_tab_profiles}, {config_tab_categorization}, {config_tab_ai}, {config_tab_data}, {config_tab_advanced}.
+- Assistant conversation roles, chosen at the top of the conversation: {chat_role_advisor} (general questions), {chat_role_simulator} (projects, loans), {chat_role_auditor} (data checks, corrections), {chat_role_budget_planner} (envelopes, savings rules, categories), {chat_role_optimizer} (subscriptions, recurrences), {chat_role_forecaster} (cash flow, paycheck), {chat_role_alerts} (risks, anomalies)."""
 
 # Libellés de secours (français) si le fichier de traduction est introuvable
 _FALLBACK_LABELS = {
@@ -68,6 +69,10 @@ _FALLBACK_LABELS = {
     "nav_categories": "Catégories", "nav_configuration": "Configuration", "config_tab_general": "Général",
     "config_tab_profiles": "Profils & accès", "config_tab_categorization": "Catégorisation",
     "config_tab_ai": "Assistant IA", "config_tab_data": "Sauvegardes & données", "config_tab_advanced": "Avancé",
+    "chat_role_advisor": "Conseiller financier", "chat_role_simulator": "Simulateur de projets",
+    "chat_role_auditor": "Auditeur (Incohérences)", "chat_role_budget_planner": "Planificateur de budget",
+    "chat_role_optimizer": "Optimiseur (Contrats & Frais)", "chat_role_forecaster": "Prévisionnel de trésorerie",
+    "chat_role_alerts": "Analyste (Alertes)",
 }
 
 _I18N_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "static", "i18n"))
@@ -101,7 +106,8 @@ def default_app_guide(lang: str = "fr") -> str:
 ROLE_MISSIONS: Dict[str, str] = {
     "advisor": """ROLE: Personal financial advisor.
 Explain the user's situation (left to live, envelopes, upcoming debits, savings, next paycheck) and answer questions about it directly with the real numbers. When a month is tight, name the actual causes (overspent envelopes, exceptional expenses) and the reassuring elements (next paycheck, savings).
-You also write the periodic financial health reports the user receives as notifications (they start with 🟢, 🟡 or 🔴). If the user asks about one, say you wrote it and re-check the current figures before explaining.""",
+You also write the periodic financial health reports the user receives as notifications (they start with 🟢, 🟡 or 🔴). If the user asks about one, say you wrote it and re-check the current figures before explaining.
+Detailed project or loan simulations, full data audits, savings rules and deleting categories, envelopes or recurrences belong to the specialised conversation roles: for those, name the role to choose (see the interface guide) instead of improvising.""",
     "simulator": """ROLE: Project simulation.
 Help the user simulate projects (vehicle, renovation, real estate, loan, sabbatical) and compute their effect on balances, savings and borrowing capacity.
 Present: 1. total cost and breakdown (one-off vs monthly); 2. borrowing capacity and debt ratio vs the 33% guideline; 3. effect on projected balances and net worth over 6, 12 or 24 months.""",

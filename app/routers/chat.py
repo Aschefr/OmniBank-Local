@@ -380,10 +380,10 @@ async def delete_message(id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/messages/{id}/recover-actions")
-async def recover_message_actions(id: int, db: Session = Depends(get_db)):
+async def recover_message_actions(id: int, lang: str = "fr", db: Session = Depends(get_db)):
     """
-    Détecte et extrait les actions promises dans le texte d'un message assistant,
-    met à jour le contenu du message en base et retourne les actions pour affichage immédiat.
+    Bouton « Générer les cartes d'actions » : redemande au modèle l'appel d'outil de l'action annoncée
+    dans un message assistant, ajoute les cartes au message en base et les retourne pour affichage immédiat.
     """
     message = db.query(ChatMessage).filter(ChatMessage.id == id).first()
     if not message:
@@ -391,12 +391,15 @@ async def recover_message_actions(id: int, db: Session = Depends(get_db)):
     if message.role != "assistant":
         raise HTTPException(status_code=400, detail="Seuls les messages de l'assistant peuvent être analysés")
 
-    from app.services.chat.chat_action_recovery import find_missing_promised_actions, append_actions_to_text
-    actions = find_missing_promised_actions(message.content, db)
+    from app.services.chat.chat_orchestrator import recover_actions_with_model, append_recovered_actions
+    try:
+        actions = await recover_actions_with_model(db, message, lang)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     if not actions:
-        return {"ok": False, "message": "Toutes les actions promises sont déjà présentes ou aucune action exploitable n'a été trouvée.", "actions": []}
+        return {"ok": False, "message": "Le modèle n'a préparé aucune action pour ce message.", "actions": []}
 
-    new_content = append_actions_to_text(message.content, actions)
+    new_content = append_recovered_actions(message.content, actions)
     message.content = new_content
     db.commit()
 
