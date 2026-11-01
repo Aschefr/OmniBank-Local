@@ -325,7 +325,7 @@ MEMORY & PERSISTENT FACTS RULE:
 - If the user explicitly asks you to forget a piece of information or if it's no longer true, use `forget_financial_fact` to delete it.
 """
         except Exception as e:
-            pass
+            logger.warning(f"Erreur lors du chargement des faits mémorisés pour le prompt IA: {e}")
 
     if lang == 'fr':
         prompt += "\n\nIMPORTANT: You must write your response in French."

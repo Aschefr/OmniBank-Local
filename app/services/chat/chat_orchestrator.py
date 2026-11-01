@@ -574,6 +574,32 @@ def budget_messages_for_context(
     return final_msgs
 
 
+_THINK_RE = re.compile(r'<think>[\s\S]*?</think>\s*')
+
+
+def _norm_paragraph(p: str) -> str:
+    return re.sub(r'[\W_]+', ' ', p.lower()).strip()
+
+
+def merge_phase_texts(accumulated: str, new: str) -> str:
+    """
+    Fusionne le texte d'un nouveau tour de génération avec l'analyse déjà produite.
+    Les modèles reprennent souvent tout ou partie de leur analyse après un appel d'outil :
+    les paragraphes déjà présents (à la ponctuation/casse près) ne sont pas répétés.
+    """
+    acc = (accumulated or "").strip()
+    new = (new or "").strip()
+    if not acc:
+        return new
+    if not new:
+        return acc
+    seen = {_norm_paragraph(p) for p in re.split(r'\n\s*\n', acc) if _norm_paragraph(p)}
+    kept = [p.strip() for p in re.split(r'\n\s*\n', new) if _norm_paragraph(p) and _norm_paragraph(p) not in seen]
+    if not kept:
+        return acc
+    return acc + "\n\n" + "\n\n".join(kept)
+
+
 async def _run_generation_task(
     session_id: int,
     req: ChatSendMessage,
@@ -670,7 +696,8 @@ async def _run_generation_task(
                 filtered = current_messages
             for m in filtered:
                 clean = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', m.content)
-                clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean).strip()
+                clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean)
+                clean = _THINK_RE.sub('', clean).strip()
                 payload_msgs.append({"role": m.role, "content": clean})
             return payload_msgs
 
@@ -902,15 +929,7 @@ async def _run_generation_task(
                         await _emit(chunk)
 
                 if not detected_tool_calls:
-                    if accumulated_substantive_text:
-                        p_strip = phase_text.strip()
-                        a_strip = accumulated_substantive_text.strip()
-                        if p_strip == a_strip or p_strip.startswith(a_strip) or a_strip.endswith(p_strip):
-                            final_text = p_strip or a_strip
-                        else:
-                            final_text = f"{accumulated_substantive_text.rstrip()}\n\n{phase_text.lstrip()}".strip()
-                    else:
-                        final_text = phase_text
+                    final_text = merge_phase_texts(accumulated_substantive_text, phase_text)
                     break
 
                 # We have tool calls. Check if the text emitted in this phase was a substantial analysis or just a transient scratchpad/preamble.
@@ -921,10 +940,7 @@ async def _run_generation_task(
 
                 if is_substantive:
                     # Preserve this substantive analysis across iterations so it is never erased from the user's screen or message history!
-                    if accumulated_substantive_text:
-                        accumulated_substantive_text = f"{accumulated_substantive_text.rstrip()}\n\n{clean_phase}"
-                    else:
-                        accumulated_substantive_text = clean_phase
+                    accumulated_substantive_text = merge_phase_texts(accumulated_substantive_text, clean_phase)
                     final_text = accumulated_substantive_text
                     sep_payload = json.dumps({'content': '\n\n'})
                     await _emit(f"data: {sep_payload}\n\n")
@@ -933,7 +949,7 @@ async def _run_generation_task(
                     final_text = ""
                     await _emit(f"data: {json.dumps({'clear_text': True, 'iteration': iteration + 1})}\n\n")
 
-                ollama_msgs.append({"role": "assistant", "tool_calls": detected_tool_calls, "content": phase_text})
+                ollama_msgs.append({"role": "assistant", "tool_calls": detected_tool_calls, "content": _THINK_RE.sub('', phase_text).strip()})
 
                 for tool_call in detected_tool_calls:
                     fn_name = tool_call["function"]["name"]
@@ -971,10 +987,7 @@ async def _run_generation_task(
                     if iteration > 0:
                         desc_status = f"🔄 Tour {iteration + 1} — {desc_status}"
                     await _emit(f"data: {json.dumps({'status': desc_status})}\n\n")
-                    if not status.get("client_disconnected"):
-                        await asyncio.sleep(0.8)
-                    else:
-                        await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
 
                     tool_result = None
                     if fn_name in _CACHEABLE_READ_TOOLS:
@@ -984,174 +997,182 @@ async def _run_generation_task(
                             logger.info(f"[Chat Cache] Outil '{fn_name}' servi depuis le cache de boucle")
 
                     if tool_result is None:
-                        if fn_name == "get_financial_summary":
-                            tool_result = get_financial_summary_tool(db)
-                        elif fn_name == "get_net_worth":
-                            tool_result = get_net_worth_tool(db)
-                        elif fn_name == "get_account_balances":
-                            tool_result = get_account_balances_tool(db)
-                        elif fn_name == "search_transactions":
-                            tool_result = search_transactions_tool(
-                                db,
-                                description_query=fn_args.get("description_query") or fn_args.get("query"),
-                                category=fn_args.get("category"),
-                                account_id=fn_args.get("account_id"),
-                                start_date=fn_args.get("start_date") or fn_args.get("date_min"),
-                                end_date=fn_args.get("end_date") or fn_args.get("date_max"),
-                                min_amount=fn_args.get("min_amount"),
-                                max_amount=fn_args.get("max_amount"),
-                                type=fn_args.get("type"),
-                                limit=fn_args.get("limit", 20)
-                            )
-                        elif fn_name == "get_spending_analytics":
-                            tool_result = get_spending_analytics_tool(
-                                db,
-                                start_date=fn_args.get("start_date"),
-                                end_date=fn_args.get("end_date"),
-                                year=fn_args.get("year"),
-                                month=fn_args.get("month")
-                            )
-                        elif fn_name == "get_budgets_status":
-                            tool_result = get_budgets_status_tool(
-                                db,
-                                year=fn_args.get("year"),
-                                month=fn_args.get("month")
-                            )
-                        elif fn_name == "get_monthly_overview":
-                            tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
-                        elif fn_name == "get_spending_trends":
-                            tool_result = get_spending_trends_tool(db, months=fn_args.get("months", 3))
-                        elif fn_name == "get_dashboard_synthesis":
-                            tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
-                        elif fn_name == "audit_transactions_integrity":
-                            tool_result = audit_transactions_integrity_tool(db)
-                        elif fn_name == "simulate_financial_scenario":
-                            tool_result = simulate_financial_scenario_tool(
-                                db,
-                                horizon_months=fn_args.get("horizon_months", 12),
-                                project_name=fn_args.get("project_name") or fn_args.get("description") or fn_args.get("scenario_type") or "Simulation",
-                                one_off_amount=float(fn_args.get("one_off_amount") or fn_args.get("amount") or 0.0),
-                                recurring_monthly_amount=float(fn_args.get("recurring_monthly_amount") or fn_args.get("monthly_impact") or 0.0),
-                                recurring_duration_months=int(fn_args.get("recurring_duration_months") or fn_args.get("horizon_months", 12))
-                            )
-                        elif fn_name == "get_application_knowledge":
-                            tool_result = get_application_knowledge_tool(fn_args.get("topic"))
-                        elif fn_name == "get_recurrence_templates":
-                            tool_result = get_recurrence_templates_tool(
-                                db,
-                                include_closed=fn_args.get("include_closed", not fn_args.get("is_active", False) if "is_active" in fn_args else True)
-                            )
-                        elif fn_name == "get_upcoming_expenses":
-                            tool_result = get_upcoming_expenses_tool(
-                                db,
-                                days=fn_args.get("days", 30),
-                                min_amount=fn_args.get("min_amount"),
-                                sort_by=fn_args.get("sort_by", "date"),
-                                account_id=fn_args.get("account_id")
-                            )
-                        elif fn_name == "get_saving_recommendations":
-                            tool_result = get_saving_recommendations_tool(db)
-                        elif fn_name == "search_similar_past_spends":
-                            tool_result = search_similar_past_spends_tool(
-                                db,
-                                keyword=fn_args.get("keyword") or fn_args.get("description") or fn_args.get("category") or ""
-                            )
-                        elif fn_name == "generate_csv_export_link":
-                            tool_result = generate_csv_export_link_tool(
-                                db,
-                                account_id=fn_args.get("account_id"),
-                                category=fn_args.get("category"),
-                                start_date=fn_args.get("start_date") or fn_args.get("date_min"),
-                                end_date=fn_args.get("end_date") or fn_args.get("date_max"),
-                                type=fn_args.get("type")
-                            )
-                        elif fn_name == "simulate_loan_amortization":
-                            tool_result = simulate_loan_amortization_tool(
-                                db,
-                                principal=float(fn_args.get("principal") or fn_args.get("amount") or 0.0),
-                                rate_percent=float(fn_args.get("rate_percent") or fn_args.get("annual_rate") or 0.0),
-                                years=int(fn_args.get("years") or (round(int(fn_args.get("duration_months", 12)) / 12) if fn_args.get("duration_months") else 1))
-                            )
-                        elif fn_name == "get_net_worth_history":
-                            tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
-                        elif fn_name == "get_envelopes_impact":
-                            tool_result = get_envelopes_impact_tool(db, fn_args.get("amount"), fn_args.get("budget_id"))
-                        elif fn_name == "suggest_transaction_category":
-                            tool_result = suggest_transaction_category_tool(db, fn_args.get("description"))
-                        elif fn_name == "forecast_balances_history":
-                            tool_result = forecast_balances_history_tool(db, fn_args.get("days", 30))
-                        elif fn_name == "detect_anomalies_and_subscriptions":
-                            tool_result = detect_anomalies_and_subscriptions_tool(db)
-                        elif fn_name == "apply_transaction_correction":
-                            tool_result = apply_transaction_correction_tool(
-                                db,
-                                transaction_id=fn_args.get("transaction_id"),
-                                category=fn_args.get("category"),
-                                description=fn_args.get("description"),
-                                amount=fn_args.get("amount"),
-                                type=fn_args.get("type"),
-                                date_operation=fn_args.get("date_operation"),
-                                force_write=False
-                            )
-                        elif fn_name == "create_budget_envelope":
-                            tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
-                        elif fn_name == "update_budget_envelope":
-                            tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
-                        elif fn_name == "delete_budget_envelope":
-                            tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"))
-                        elif fn_name == "allocate_savings_funds":
-                            tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"), fn_args.get("name"))
-                        elif fn_name == "create_recurrence_template":
-                            tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
-                        elif fn_name == "update_recurrence_template":
-                            tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
-                        elif fn_name == "close_recurrence_template":
-                            tool_result = close_recurrence_template_tool(
-                                db,
-                                template_id=fn_args.get("template_id"),
-                                description=fn_args.get("description"),
-                                closure_date=fn_args.get("closure_date"),
-                                force_write=False
-                            )
-                        elif fn_name == "delete_recurrence_template":
-                            tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("description"))
-                        elif fn_name == "create_category":
-                            tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
-                        elif fn_name == "delete_category":
-                            tool_result = delete_category_tool(db, fn_args.get("name"))
-                        elif fn_name == "set_predicted_paycheck":
-                            tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
-                        elif fn_name == "delete_transaction":
-                            tool_result = delete_transaction_tool(
-                                db,
-                                transaction_id=fn_args.get("transaction_id"),
-                                description=fn_args.get("description"),
-                                amount=fn_args.get("amount"),
-                                date_operation=fn_args.get("date_operation"),
-                                force_write=False
-                            )
-                        elif fn_name == "create_planned_transfer":
+                        try:
+                            if fn_name == "get_financial_summary":
+                                tool_result = get_financial_summary_tool(db)
+                            elif fn_name == "get_net_worth":
+                                tool_result = get_net_worth_tool(db)
+                            elif fn_name == "get_account_balances":
+                                tool_result = get_account_balances_tool(db)
+                            elif fn_name == "search_transactions":
+                                tool_result = search_transactions_tool(
+                                    db,
+                                    description_query=fn_args.get("description_query") or fn_args.get("query"),
+                                    category=fn_args.get("category"),
+                                    account_id=fn_args.get("account_id"),
+                                    start_date=fn_args.get("start_date") or fn_args.get("date_min"),
+                                    end_date=fn_args.get("end_date") or fn_args.get("date_max"),
+                                    min_amount=fn_args.get("min_amount"),
+                                    max_amount=fn_args.get("max_amount"),
+                                    type=fn_args.get("type"),
+                                    limit=fn_args.get("limit", 20)
+                                )
+                            elif fn_name == "get_spending_analytics":
+                                tool_result = get_spending_analytics_tool(
+                                    db,
+                                    start_date=fn_args.get("start_date"),
+                                    end_date=fn_args.get("end_date"),
+                                    year=fn_args.get("year"),
+                                    month=fn_args.get("month")
+                                )
+                            elif fn_name == "get_budgets_status":
+                                tool_result = get_budgets_status_tool(
+                                    db,
+                                    year=fn_args.get("year"),
+                                    month=fn_args.get("month")
+                                )
+                            elif fn_name == "get_monthly_overview":
+                                tool_result = get_monthly_overview_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            elif fn_name == "get_spending_trends":
+                                tool_result = get_spending_trends_tool(db, months=fn_args.get("months", 3))
+                            elif fn_name == "get_dashboard_synthesis":
+                                tool_result = get_dashboard_synthesis_tool(db, fn_args.get("year"), fn_args.get("month"))
+                            elif fn_name == "audit_transactions_integrity":
+                                tool_result = audit_transactions_integrity_tool(db)
+                            elif fn_name == "simulate_financial_scenario":
+                                tool_result = simulate_financial_scenario_tool(
+                                    db,
+                                    horizon_months=fn_args.get("horizon_months", 12),
+                                    project_name=fn_args.get("project_name") or fn_args.get("description") or fn_args.get("scenario_type") or "Simulation",
+                                    one_off_amount=float(fn_args.get("one_off_amount") or fn_args.get("amount") or 0.0),
+                                    recurring_monthly_amount=float(fn_args.get("recurring_monthly_amount") or fn_args.get("monthly_impact") or 0.0),
+                                    recurring_duration_months=int(fn_args.get("recurring_duration_months") or fn_args.get("horizon_months", 12))
+                                )
+                            elif fn_name == "get_application_knowledge":
+                                tool_result = get_application_knowledge_tool(fn_args.get("topic"))
+                            elif fn_name == "get_recurrence_templates":
+                                tool_result = get_recurrence_templates_tool(
+                                    db,
+                                    include_closed=fn_args.get("include_closed", not fn_args.get("is_active", False) if "is_active" in fn_args else True)
+                                )
+                            elif fn_name == "get_upcoming_expenses":
+                                tool_result = get_upcoming_expenses_tool(
+                                    db,
+                                    days=fn_args.get("days", 30),
+                                    min_amount=fn_args.get("min_amount"),
+                                    sort_by=fn_args.get("sort_by", "date"),
+                                    account_id=fn_args.get("account_id")
+                                )
+                            elif fn_name == "get_saving_recommendations":
+                                tool_result = get_saving_recommendations_tool(db)
+                            elif fn_name == "search_similar_past_spends":
+                                tool_result = search_similar_past_spends_tool(
+                                    db,
+                                    keyword=fn_args.get("keyword") or fn_args.get("description") or fn_args.get("category") or ""
+                                )
+                            elif fn_name == "generate_csv_export_link":
+                                tool_result = generate_csv_export_link_tool(
+                                    db,
+                                    account_id=fn_args.get("account_id"),
+                                    category=fn_args.get("category"),
+                                    start_date=fn_args.get("start_date") or fn_args.get("date_min"),
+                                    end_date=fn_args.get("end_date") or fn_args.get("date_max"),
+                                    type=fn_args.get("type")
+                                )
+                            elif fn_name == "simulate_loan_amortization":
+                                tool_result = simulate_loan_amortization_tool(
+                                    db,
+                                    principal=float(fn_args.get("principal") or fn_args.get("amount") or 0.0),
+                                    rate_percent=float(fn_args.get("rate_percent") or fn_args.get("annual_rate") or 0.0),
+                                    years=int(fn_args.get("years") or (round(int(fn_args.get("duration_months", 12)) / 12) if fn_args.get("duration_months") else 1))
+                                )
+                            elif fn_name == "get_net_worth_history":
+                                tool_result = get_net_worth_history_tool(db, fn_args.get("months", 12))
+                            elif fn_name == "get_envelopes_impact":
+                                tool_result = get_envelopes_impact_tool(db, fn_args.get("amount"), fn_args.get("budget_id"))
+                            elif fn_name == "suggest_transaction_category":
+                                tool_result = suggest_transaction_category_tool(db, fn_args.get("description"))
+                            elif fn_name == "forecast_balances_history":
+                                tool_result = forecast_balances_history_tool(db, fn_args.get("days", 30))
+                            elif fn_name == "detect_anomalies_and_subscriptions":
+                                tool_result = detect_anomalies_and_subscriptions_tool(db)
+                            elif fn_name == "apply_transaction_correction":
+                                tool_result = apply_transaction_correction_tool(
+                                    db,
+                                    transaction_id=fn_args.get("transaction_id"),
+                                    category=fn_args.get("category"),
+                                    description=fn_args.get("description"),
+                                    amount=fn_args.get("amount"),
+                                    type=fn_args.get("type"),
+                                    date_operation=fn_args.get("date_operation"),
+                                    force_write=False
+                                )
+                            elif fn_name == "create_budget_envelope":
+                                tool_result = create_budget_envelope_tool(db, fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period", "monthly"), fn_args.get("categories"), fn_args.get("is_project", False))
+                            elif fn_name == "update_budget_envelope":
+                                tool_result = update_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"), fn_args.get("monthly_amount"), fn_args.get("period"), fn_args.get("categories"), fn_args.get("is_closed"))
+                            elif fn_name == "delete_budget_envelope":
+                                tool_result = delete_budget_envelope_tool(db, fn_args.get("budget_id"), fn_args.get("name"))
+                            elif fn_name == "allocate_savings_funds":
+                                tool_result = allocate_savings_funds_tool(db, fn_args.get("budget_id"), fn_args.get("amount"), fn_args.get("note"), fn_args.get("name"))
+                            elif fn_name == "create_recurrence_template":
+                                tool_result = create_recurrence_template_tool(db, fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"))
+                            elif fn_name == "update_recurrence_template":
+                                tool_result = update_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("amount"), fn_args.get("description"), fn_args.get("frequency"), fn_args.get("category"), fn_args.get("type"), fn_args.get("day_of_month"), fn_args.get("is_active"))
+                            elif fn_name == "close_recurrence_template":
+                                tool_result = close_recurrence_template_tool(
+                                    db,
+                                    template_id=fn_args.get("template_id"),
+                                    description=fn_args.get("description"),
+                                    closure_date=fn_args.get("closure_date"),
+                                    force_write=False
+                                )
+                            elif fn_name == "delete_recurrence_template":
+                                tool_result = delete_recurrence_template_tool(db, fn_args.get("template_id"), fn_args.get("description"))
+                            elif fn_name == "create_category":
+                                tool_result = create_category_tool(db, fn_args.get("name"), fn_args.get("type"))
+                            elif fn_name == "delete_category":
+                                tool_result = delete_category_tool(db, fn_args.get("name"))
+                            elif fn_name == "set_predicted_paycheck":
+                                tool_result = set_predicted_paycheck_tool(db, fn_args.get("amount"), fn_args.get("day_of_month"), fn_args.get("date_override"))
+                            elif fn_name == "delete_transaction":
+                                tool_result = delete_transaction_tool(
+                                    db,
+                                    transaction_id=fn_args.get("transaction_id"),
+                                    description=fn_args.get("description"),
+                                    amount=fn_args.get("amount"),
+                                    date_operation=fn_args.get("date_operation"),
+                                    force_write=False
+                                )
+                            elif fn_name == "create_planned_transfer":
 
-                            tool_result = create_planned_transfer_tool(
-                                db,
-                                from_account=fn_args.get("from_account"),
-                                to_account=fn_args.get("to_account"),
-                                amount=fn_args.get("amount"),
-                                date_operation=fn_args.get("date_operation"),
-                                description=fn_args.get("description"),
-                                category=fn_args.get("category"),
-                                force_write=False
-                            )
-                        elif fn_name == "trigger_bank_sync":
-                            tool_result = trigger_bank_sync_tool(db, force_write=False)
-                        elif fn_name == "store_financial_fact":
-                            tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
-                            await _emit(f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n")
-                        elif fn_name == "forget_financial_fact":
-                            tool_result = forget_financial_fact_tool(db, fn_args.get("key"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
-                            await _emit(f"data: {json.dumps({'fact_update': {'action': 'forget', 'key': fn_args.get('key')}})}\n\n")
-                        else:
-                            tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
+                                tool_result = create_planned_transfer_tool(
+                                    db,
+                                    from_account=fn_args.get("from_account"),
+                                    to_account=fn_args.get("to_account"),
+                                    amount=fn_args.get("amount"),
+                                    date_operation=fn_args.get("date_operation"),
+                                    description=fn_args.get("description"),
+                                    category=fn_args.get("category"),
+                                    force_write=False
+                                )
+                            elif fn_name == "trigger_bank_sync":
+                                tool_result = trigger_bank_sync_tool(db, force_write=False)
+                            elif fn_name == "store_financial_fact":
+                                tool_result = store_financial_fact_tool(db, fn_args.get("key"), fn_args.get("value"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
+                                await _emit(f"data: {json.dumps({'fact_update': {'action': 'store', 'key': fn_args.get('key')}})}\n\n")
+                            elif fn_name == "forget_financial_fact":
+                                tool_result = forget_financial_fact_tool(db, fn_args.get("key"), fn_args.get("private_to_session", False), session_id=session.id, user_name=req.user_name)
+                                await _emit(f"data: {json.dumps({'fact_update': {'action': 'forget', 'key': fn_args.get('key')}})}\n\n")
+                            else:
+                                tool_result = {"error": f"Tool '{fn_name}' is not supported or defined."}
+                        except Exception as tool_err:
+                            logger.error(f"[Chat] Échec de l'outil '{fn_name}' ({fn_args}) : {tool_err}", exc_info=True)
+                            db.rollback()
+                            tool_result = {
+                                "error": "tool_failed",
+                                "message": "This data could not be retrieved due to an internal error. Tell the user plainly that this information is temporarily unavailable, answer with the other data you have, and do not retry the same call.",
+                            }
 
                         if isinstance(tool_result, dict):
                             if "target_period" in tool_result:
@@ -1170,7 +1191,7 @@ async def _run_generation_task(
                                         if tool_result.get("amount") is not None and last_action["params"].get("amount") is None:
                                             last_action["params"]["amount"] = tool_result["amount"]
 
-                        if fn_name in _CACHEABLE_READ_TOOLS:
+                        if fn_name in _CACHEABLE_READ_TOOLS and not (isinstance(tool_result, dict) and tool_result.get("error") == "tool_failed"):
                             cache_key = f"{fn_name}:{json.dumps(fn_args, sort_keys=True)}"
                             loop_read_cache[cache_key] = tool_result
 
@@ -1182,7 +1203,7 @@ async def _run_generation_task(
                     })
 
                 if is_substantive and detected_tool_calls and all(tc["function"]["name"] in _WRITE_TOOLS for tc in detected_tool_calls):
-                    final_text = clean_phase
+                    final_text = accumulated_substantive_text
                     break
 
                 iteration += 1
@@ -1222,21 +1243,15 @@ async def _run_generation_task(
                                 pass
                         await _emit(chunk)
                 if synth_text:
-                    if accumulated_substantive_text:
-                        p_strip = synth_text.strip()
-                        a_strip = accumulated_substantive_text.strip()
-                        if p_strip == a_strip or p_strip.startswith(a_strip):
-                            final_text = p_strip
-                        else:
-                            final_text = f"{accumulated_substantive_text.rstrip()}\n\n{synth_text.lstrip()}".strip()
-                    else:
-                        final_text = synth_text
+                    final_text = merge_phase_texts(accumulated_substantive_text, synth_text)
 
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
-            # Récupération proactive automatique d'actions promises (support N-actions et actions manquantes)
-            if final_text:
+            # Récupération d'actions promises mais jamais appelées. Uniquement quand le modèle n'a appelé
+            # aucune action pendant ce tour : sinon l'heuristique textuelle devine des virements à tort
+            # (ex. le sens inverse d'un virement déjà préparé).
+            if final_text and not detected_write_actions:
                 try:
                     from app.services.chat.chat_action_recovery import find_missing_promised_actions
                     missing_actions = find_missing_promised_actions(
