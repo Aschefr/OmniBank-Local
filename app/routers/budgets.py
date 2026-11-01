@@ -160,6 +160,7 @@ def get_budget_status(
     date_start: str = None,
     date_end: str = None,
     period_filter: str = None,
+    cycle_offset: int = None,
     db: Session = Depends(get_db)
 ):
     try:
@@ -169,7 +170,8 @@ def get_budget_status(
             date_start=date_start,
             date_end=date_end,
             period_filter=period_filter,
-            db=db
+            db=db,
+            cycle_offset=cycle_offset,
         )
     except HTTPException:
         raise

@@ -84,8 +84,8 @@ def test_db():
 
 def test_t5_1_anti_thrashing(test_db):
     """T5.1 : Anti-thrashing — Aucune suggestion émise si déjà exécuté pour la période courante."""
-    today = date.today()
-    current_period = f"{today.year}-{today.month:02d}"
+    from app.services.budget_service import budget_period
+    current_period = budget_period(test_db, 0)["start"]
 
     # Marquer la période courante comme déjà traitée
     cfg = test_db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
@@ -163,9 +163,11 @@ def test_t5_2_deterministic_ema_calculation(test_db):
         ))
     test_db.commit()
 
+    # Recalibrage « signaler seulement » : dépassée sur les 3 dernières périodes -> dépense typique arrondie à 5 €
     suggestions = evaluate_monthly_budget_suggestions(test_db, force=True)
     assert len(suggestions) == 1
-    assert suggestions[0]["suggested_amount"] == 110.0
+    assert suggestions[0]["suggested_amount"] == 150.0
+    assert suggestions[0]["direction"] == "up"
     assert suggestions[0]["type"] == "recalibration"
 
     # Vérifier que le montant du budget en base n'a PAS été altéré (Mode Suggestion exclusif)

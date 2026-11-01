@@ -2,6 +2,8 @@ from typing import Optional, List, Union
 from datetime import date, datetime, timedelta, timezone
 import json
 import logging
+import math
+import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, or_
 from fastapi import HTTPException
@@ -121,6 +123,111 @@ def free_categories(db: Session, categories, period: Optional[str] = "monthly", 
     """Catégories qui ne sont suivies par aucune autre enveloppe sur la même période (suggestions automatiques)."""
     taken = {c for c, _ in category_conflicts(db, categories, period, start, end, account_ids, exclude_id)}
     return [c for c in categories or [] if c not in taken]
+
+
+# ── Période, rythme et état des enveloppes ─────────────────────────────────────
+
+NEAR_LIMIT_PERCENT = 90.0       # alerte d'approche
+AHEAD_OF_PACE_POINTS = 20.0     # « en avance sur le rythme » : % consommé dépasse le % de période écoulé de 20 points
+FIXED_SHARE_THRESHOLD = 0.8     # enveloppe de charges fixes : 80 % de ses dépenses récentes sont fixes ou récurrentes
+FIXED_LOOKBACK_DAYS = 90
+
+
+def is_org_mode(db: Session) -> bool:
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
+    return bool(row and str(row.value).strip().lower() == "true")
+
+
+def budget_period(db: Session, offset: int = 0, today: Optional[date] = None) -> dict:
+    """Période des enveloppes mensuelles. Mode personnel : cycle de paie (du jour de paie à la veille de la
+    suivante), comme le Cockpit et le reste à vivre. Mode organisation, ou sans historique de paie : mois
+    calendaire. offset = 0 pour la période en cours, -1 pour la précédente…"""
+    from dateutil.relativedelta import relativedelta
+    today = today or date.today()
+    if not is_org_mode(db):
+        try:
+            from app.services.finance_engine import predict_next_paycheck
+            info = predict_next_paycheck(db) or {}
+            starts = sorted({date.fromisoformat(h["date"][:10]) for h in info.get("history") or []
+                             if h.get("date") and date.fromisoformat(h["date"][:10]) <= today})
+            next_pay = info.get("date")
+            idx = len(starts) - 1 + offset
+            if starts and 0 <= idx < len(starts):
+                start = starts[idx]
+                following = starts[idx + 1] if idx + 1 < len(starts) else next_pay
+                # Garde-fou : une prédiction aberrante ne doit pas produire un cycle de deux mois
+                if not following or following <= start or following > start + relativedelta(months=1, days=10):
+                    following = start + relativedelta(months=1)
+                return _period_dict("cycle", start, following - timedelta(days=1), offset, today)
+        except Exception as e:
+            logger.debug(f"[Budgets] Cycle de paie indisponible, mois calendaire utilisé : {e}")
+    first = date(today.year, today.month, 1) + relativedelta(months=offset)
+    return _period_dict("month", first, first + relativedelta(months=1) - timedelta(days=1), offset, today)
+
+
+def _period_dict(kind: str, start: date, end: date, offset: int, today: date) -> dict:
+    total = (end - start).days + 1
+    elapsed = min(max((today - start).days + 1, 0), total)
+    return {"kind": kind, "start": start.isoformat(), "end": end.isoformat(), "offset": offset,
+            "days_total": total, "days_elapsed": elapsed, "days_left": total - elapsed}
+
+
+def _fixed_envelope_ids(db: Session, budgets: List[Budget], cats_by_budget: dict, today: date) -> set:
+    """Enveloppes de charges fixes : l'essentiel de leurs dépenses récentes vient de récurrences (prêts,
+    assurances, énergie…). Sans opération récurrente récente : toutes leurs catégories sont de type fixe."""
+    from app.models import Category
+    all_cats = {c for b in budgets for c in cats_by_budget.get(b.id, [])}
+    if not all_cats:
+        return set()
+    share = {}
+    rows = db.query(Transaction.category, Transaction.type, Transaction.recurrence_id, Transaction.amount).filter(
+        Transaction.category.in_(list(all_cats)),
+        Transaction.type.in_(["expense_fixed", "expense_var"]),
+        Transaction.date_operation >= today - timedelta(days=FIXED_LOOKBACK_DAYS),
+        Transaction.date_operation <= today,
+    ).all()
+    for cat, typ, rec_id, amount in rows:
+        fixed, total = share.get(cat, (0.0, 0.0))
+        amt = abs(amount or 0.0)
+        share[cat] = (fixed + (amt if rec_id else 0.0), total + amt)
+    cat_types = dict(db.query(Category.name, Category.type).filter(Category.name.in_(list(all_cats))).all())
+    fixed_ids = set()
+    for b in budgets:
+        cats = cats_by_budget.get(b.id, [])
+        if not cats or not _tracks_by_category(b.envelope_type, b.is_project):
+            continue
+        fixed = sum(share.get(c, (0.0, 0.0))[0] for c in cats)
+        total = sum(share.get(c, (0.0, 0.0))[1] for c in cats)
+        if fixed > 0:
+            if fixed / total >= FIXED_SHARE_THRESHOLD:
+                fixed_ids.add(b.id)
+        elif all(cat_types.get(c) == "expense_fixed" for c in cats):
+            fixed_ids.add(b.id)
+    return fixed_ids
+
+
+def envelope_health(limit: float, spent_now: float, window: Optional[tuple], today: date, is_fixed: bool) -> dict:
+    """État d'une enveloppe : over (dépassée), near (≥ 90 %), ahead (consommée plus vite que la période ne
+    s'écoule) ou ok. Charges fixes : seul un vrai dépassement compte (elles atteignent 100 % par nature)."""
+    pct = (spent_now / limit * 100) if limit and limit > 0 else 0.0
+    expected = None
+    if window and not is_fixed:
+        start, end = window
+        total = (end - start).days + 1
+        elapsed = min(max((today - start).days + 1, 0), total)
+        expected = elapsed / total * 100 if total > 0 else None
+    if limit and limit > 0 and spent_now > limit + 0.5:
+        status = "over"
+    elif is_fixed:
+        status = "ok"
+    elif pct >= NEAR_LIMIT_PERCENT:
+        status = "near"
+    elif expected is not None and expected >= 15 and pct >= 30 and pct - expected >= AHEAD_OF_PACE_POINTS:
+        status = "ahead"
+    else:
+        status = "ok"
+    return {"percent_to_date": round(pct, 1), "expected_percent": round(expected, 1) if expected is not None else None,
+            "status": status}
 
 
 def budget_to_dict(b: Budget, db: Session) -> dict:
@@ -309,13 +416,20 @@ def bulk_delete_budgets_by_type(target_type: str, db: Session) -> dict:
     db.commit()
     return {"ok": True, "deleted_count": deleted_count}
 
-def get_budget_status_data(year: int = None, month: int = None, date_start: str = None, date_end: str = None, period_filter: str = None, db: Session = None):
+def get_budget_status_data(year: int = None, month: int = None, date_start: str = None, date_end: str = None, period_filter: str = None, db: Session = None, cycle_offset: Optional[int] = None):
+    """Consommation des enveloppes. cycle_offset (sans dates explicites) : les enveloppes mensuelles suivent
+    budget_period (cycle de paie en mode personnel, mois calendaire en mode organisation)."""
     today = date.today()
     y = year or today.year
     m = month or today.month
 
     custom_start = None
     custom_end = None
+    period_info = None
+    if cycle_offset is not None and not (date_start and date_end):
+        period_info = budget_period(db, cycle_offset, today)
+        date_start, date_end = period_info["start"], period_info["end"]
+        y, m = int(period_info["start"][:4]), int(period_info["start"][5:7])
     if date_start and date_end:
         try:
             custom_start = safe_parse_budget_date(date_start, "date_start")
@@ -337,7 +451,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             q = q.filter(Budget.period.in_(["monthly", None]))
     budgets = q.all()
     if not budgets:
-        res = {"year": y, "month": m, "budgets": []}
+        res = {"year": y, "month": m, "budgets": [], "period": period_info}
         if period_filter == "all":
             res["statusByType"] = {
                 "monthly": {"year": y, "month": m, "budgets": []},
@@ -423,6 +537,10 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             cat_key = tx.category or "Sans catégorie"
             txs_by_cat.setdefault(cat_key, []).append(tx)
 
+    fixed_ids = _fixed_envelope_ids(db, spending_budgets, cats_by_budget, today) if not is_org_mode(db) else set()
+    month_window = (custom_start, custom_end) if custom_start and custom_end else (
+        date(y, m, 1), (date(y, m, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1))
+
     result = []
 
     for b in budgets:
@@ -482,7 +600,9 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             })
             continue
 
+        window = None  # période de l'enveloppe, pour le repère de rythme
         if b.is_project:
+            period_txs = None
             expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
                 txs_by_budget_id.get(b.id, []), _match_account
             )
@@ -493,29 +613,16 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
                 target_txs.extend(txs_by_cat.get(c, []))
 
             if b.period == "indefinite":
-                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
-                    target_txs, _match_account
-                )
+                period_txs = target_txs
             elif b.period == "custom" and b.start_date and b.end_date:
-                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
-                    (tx for tx in target_txs if b.start_date <= tx.date_operation <= b.end_date),
-                    _match_account
-                )
+                period_txs = [tx for tx in target_txs if b.start_date <= tx.date_operation <= b.end_date]
             elif b.period == "yearly":
-                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
-                    (tx for tx in target_txs if tx.date_operation.year == y),
-                    _match_account
-                )
-            elif custom_start and custom_end:
-                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
-                    (tx for tx in target_txs if custom_start <= tx.date_operation <= custom_end),
-                    _match_account
-                )
+                period_txs = [tx for tx in target_txs if tx.date_operation.year == y]
+                window = (date(y, 1, 1), date(y, 12, 31))
             else:
-                expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(
-                    (tx for tx in target_txs if tx.date_operation.year == y and tx.date_operation.month == m),
-                    _match_account
-                )
+                window = month_window
+                period_txs = [tx for tx in target_txs if window[0] <= tx.date_operation <= window[1]]
+            expenses, income, reconciled_expenses, reconciled_income = _accumulate_tx(period_txs, _match_account)
 
         expenses = round(expenses, 2)
         income = round(income, 2)
@@ -528,6 +635,15 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
         budget_amount = b.monthly_amount
         pct = round((max(spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
         reconciled_pct = round((max(reconciled_spent, 0) / budget_amount * 100) if budget_amount > 0 else 0, 1)
+
+        # Dépensé à ce jour (opérations datées jusqu'à aujourd'hui) et prévu d'ici la fin de la période
+        if period_txs is not None:
+            e_now, i_now, _, _ = _accumulate_tx((tx for tx in period_txs if tx.date_operation <= today), _match_account)
+            spent_to_date = round(max(e_now - i_now, 0), 2)
+        else:
+            spent_to_date = max(spent, 0)
+        is_fixed = b.id in fixed_ids
+        health = envelope_health(budget_amount, spent_to_date, window, today, is_fixed)
 
         result.append({
             "id": b.id,
@@ -547,6 +663,12 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
             "remaining": round(budget_amount - spent, 2),
             "percent": pct,
             "reconciled_percent": reconciled_pct,
+            "spent_to_date": spent_to_date,
+            "planned": round(max(max(spent, 0) - spent_to_date, 0), 2),
+            "percent_to_date": health["percent_to_date"],
+            "expected_percent": health["expected_percent"],
+            "status": health["status"],
+            "is_fixed_charges": is_fixed,
             "period": b.period,
             "start_date": b.start_date.isoformat() if b.start_date else None,
             "end_date": b.end_date.isoformat() if b.end_date else None,
@@ -563,7 +685,7 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
     for r in result:
         r["account_names"] = [acc_name_map.get(aid, f"#{aid}") for aid in (r.get("account_ids") or [])]
 
-    response_data = {"year": y, "month": m, "budgets": result}
+    response_data = {"year": y, "month": m, "budgets": result, "period": period_info}
     if period_filter == "all":
         response_data["statusByType"] = {
             "monthly": {"year": y, "month": m, "budgets": [r for r in result if r.get("period") in ("monthly", None)]},
@@ -1947,47 +2069,72 @@ def compute_budget_ema_suggestion(
     }
 
 
+RECALIBRATION_PERIODS = 3
+UNDER_USE_RATIO = 0.6
+
+
+def _round_up_5(amount: float) -> float:
+    return max(5.0, math.ceil(amount / 5.0) * 5.0)
+
+
+def _envelope_spend_between(db: Session, budget: Budget, cats: List[str], start: date, end: date) -> tuple:
+    """Dépense nette (dépenses - remboursements) d'une enveloppe entre deux dates, et détail par catégorie."""
+    if not cats:
+        return 0.0, {}
+    acc_ids = set(parse_account_ids(budget.account_ids))
+    rows = db.query(Transaction.category, Transaction.type, Transaction.amount,
+                    Transaction.from_account_id, Transaction.to_account_id).filter(
+        Transaction.category.in_(cats),
+        Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+        Transaction.date_operation >= start,
+        Transaction.date_operation <= end,
+    ).all()
+    by_cat = {}
+    for cat, typ, amount, from_id, to_id in rows:
+        if acc_ids and from_id not in acc_ids and to_id not in acc_ids:
+            continue
+        signed = -abs(amount or 0.0) if typ == "income" else abs(amount or 0.0)
+        by_cat[cat] = by_cat.get(cat, 0.0) + signed
+    return max(sum(by_cat.values()), 0.0), by_cat
+
+
 def evaluate_monthly_budget_suggestions(
     db: Session,
     profile_id_or_force: Union[str, bool, None] = None,
     force: bool = False,
 ) -> List[dict]:
-    """Volet B — Évaluation mensuelle et suggestion de recalibrage EMA des enveloppes existantes.
-    
-    Règle Anti-Thrashing : exécuté uniquement au 1er du mois / nouveau cycle,
-    sauf si force=True (ex: test unitaire ou recalcul forcé).
-    Si l'option auto_apply_budget_suggestions est activée, applique directement le recalibrage
-    avec traçabilité et rollback possible.
+    """Volet B — Recalibrage des enveloppes mensuelles : signaler, ne jamais appliquer seul.
+
+    Un plafond est un objectif : il ne suit plus la dépense mois après mois. Une suggestion (arrondie à 5 €)
+    n'est émise que si l'enveloppe a été dépassée, ou utilisée à moins de 60 %, sur chacune des 3 dernières
+    périodes terminées (cycles de paie en mode personnel, mois en mode organisation). Les enveloppes de
+    charges fixes (suivies par les récurrences) et les enveloppes verrouillées ne sont pas concernées.
+    Exécuté une fois par période, sauf force=True.
     """
+    import statistics
+    import json as _json
+    from app.models import Notification
+
     if isinstance(profile_id_or_force, bool):
         force = profile_id_or_force
-        profile_id = None
-    else:
-        profile_id = profile_id_or_force
-    today = date.today()
-    current_period = f"{today.year}-{today.month:02d}"
 
     cfg_enabled = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_budget_recalibration_suggestions").first()
     if cfg_enabled and cfg_enabled.value and cfg_enabled.value.strip().lower() == "false":
         logger.debug("[Budgets] Suggestions de recalibrage désactivées par l'utilisateur.")
         return []
 
+    today = date.today()
+    current = budget_period(db, 0, today)
+    period_key = current["start"]
     if not force:
         cfg_period = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
-        if cfg_period and cfg_period.value == current_period:
-            logger.debug(f"[AutoPilot Budgets] Période {current_period} déjà recalibrée. Anti-thrashing actif.")
+        if cfg_period and cfg_period.value == period_key:
+            logger.debug(f"[AutoPilot Budgets] Période {period_key} déjà évaluée. Anti-thrashing actif.")
             return []
 
-    # Enregistrer l'horodatage de l'analyse
     now_iso = datetime.now(timezone.utc).isoformat()
-    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
-    if cfg_last:
-        cfg_last.value = now_iso
-    else:
-        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
-    db.commit()
+    _set_config(db, "last_budget_autopilot_run_at", now_iso)
 
-    # Seuil plancher configurable
     min_threshold = 1.0
     cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_minimum_threshold").first()
     if cfg and cfg.value:
@@ -1996,174 +2143,233 @@ def evaluate_monthly_budget_suggestions(
         except (ValueError, TypeError):
             pass
 
-    # Option d'auto-application du recalibrage
-    cfg_auto_apply = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_apply_budget_suggestions").first()
-    if cfg_auto_apply and cfg_auto_apply.value is not None:
-        is_auto_apply = cfg_auto_apply.value.strip().lower() in ("true", "1", "yes", "on")
-    else:
-        from app.services.autopilot_service import is_autopilot_enabled
-        is_auto_apply = is_autopilot_enabled(db)
+    # Nouvelle période : les suggestions non traitées de la précédente sont remplacées par celles-ci
+    db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.decision_type == "budget_suggestion",
+        AutopilotDecisionLog.action == "SUGGESTED",
+        AutopilotDecisionLog.is_undone == False,
+    ).update({"action": "EXPIRED"}, synchronize_session=False)
 
-    # Filtre d'éligibilité strict
     budgets = (
         db.query(Budget)
         .filter(
             Budget.envelope_type == "spending",
-            Budget.period == "monthly",
+            (Budget.period == "monthly") | (Budget.period.is_(None)),
             Budget.is_project == False,
             Budget.is_closed == False,
             Budget.is_locked == False,
         )
         .all()
     )
+    cats_by_budget = {}
+    for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id.in_([b.id for b in budgets])).all():
+        cats_by_budget.setdefault(bc.budget_id, []).append(bc.category_name)
+    fixed_ids = _fixed_envelope_ids(db, budgets, cats_by_budget, today) if not is_org_mode(db) else set()
 
-    if not budgets:
-        logger.debug("[AutoPilot Budgets] Aucune enveloppe éligible au recalibrage.")
-        return []
-
-    # Exclure les budgets ayant déjà une suggestion SUGGESTED en cours
-    pending = (
-        db.query(AutopilotDecisionLog.entity_id)
-        .filter(
-            AutopilotDecisionLog.decision_type == "budget_suggestion",
-            AutopilotDecisionLog.action == "SUGGESTED",
-            AutopilotDecisionLog.entity_type == "budget",
-            AutopilotDecisionLog.is_undone == False,
-        )
-        .all()
-    )
-    already_suggested_ids = {row[0] for row in pending if row[0]}
-
-    # Vérifier les budgets dont un recalibrage a été DISMISSED pour cette période
-    today = date.today()
-    month_start = datetime(today.year, today.month, 1)
-    dismissed_ids = set()
-    dismissed_q = (
-        db.query(AutopilotDecisionLog.entity_id)
-        .filter(
+    dismissed_ids = {
+        row[0] for row in db.query(AutopilotDecisionLog.entity_id).filter(
             AutopilotDecisionLog.decision_type == "budget_suggestion",
             AutopilotDecisionLog.action == "DISMISSED",
             AutopilotDecisionLog.entity_type == "budget",
             AutopilotDecisionLog.is_undone == False,
-            AutopilotDecisionLog.created_at >= month_start,
-        )
-        .all()
-    )
-    dismissed_ids = {row[0] for row in dismissed_q if row[0]}
+            AutopilotDecisionLog.created_at >= datetime.fromisoformat(period_key),
+        ).all() if row[0]
+    }
+
+    # Périodes terminées, de la plus ancienne à la plus récente
+    periods = [budget_period(db, -k, today) for k in range(RECALIBRATION_PERIODS, 0, -1)]
 
     batch_id = str(uuid.uuid4())
     suggestions = []
-
     for b in budgets:
-        if b.id in already_suggested_ids or b.id in dismissed_ids:
+        cats = cats_by_budget.get(b.id, [])
+        limit = float(b.monthly_amount or 0.0)
+        if b.id in fixed_ids or b.id in dismissed_ids or not cats or limit <= 0:
             continue
 
-        avg_spending, observed_months, monthly_vals, category_breakdown = calculate_envelope_historical_spending(db, b)
+        values, totals_by_cat = [], {}
+        for p in periods:
+            spent, by_cat = _envelope_spend_between(db, b, cats, date.fromisoformat(p["start"]), date.fromisoformat(p["end"]))
+            values.append(round(spent, 2))
+            for cat, amount in by_cat.items():
+                totals_by_cat[cat] = totals_by_cat.get(cat, 0.0) + amount
 
-        if observed_months < 1:
+        typical = statistics.median(values)
+        if all(v > limit for v in values):
+            direction = "up"
+        elif max(values) > 0 and all(v < limit * UNDER_USE_RATIO for v in values):  # sans aucune dépense : enveloppe récente ou saisonnière
+            direction = "down"
+        else:
             continue
-
-        base_annual = b.base_annual_amount or (b.monthly_amount * 12)
-        ema_result = compute_budget_ema_suggestion(
-            current_budget=b.monthly_amount,
-            avg_spending=avg_spending,
-            base_annual_amount=base_annual,
-            observed_months=observed_months,
-            min_threshold=min_threshold,
-        )
-
-        # Ne pas suggérer si delta < 2% (insignifiant)
-        if abs(ema_result["delta_pct"]) < 2.0:
+        suggested = _round_up_5(max(typical, min_threshold))
+        if abs(suggested - limit) < max(5.0, limit * 0.05):
             continue
+        delta_pct = round((suggested - limit) / limit * 100, 1)
 
-        import json as _json
+        category_breakdown = sorted(
+            ({"category": c, "total_spending": round(t, 2), "avg_monthly": round(t / len(periods), 2)}
+             for c, t in totals_by_cat.items()),
+            key=lambda x: x["avg_monthly"], reverse=True)
         snapshot = _json.dumps({
             "budget_id": b.id,
             "budget_name": b.name,
-            "current_amount": b.monthly_amount,
-            "suggested_amount": ema_result["suggested_amount"],
-            "delta_pct": ema_result["delta_pct"],
-            "avg_spending": avg_spending,
-            "observed_months": observed_months,
-            "monthly_values": monthly_vals,
-            "drift_limit_reached": ema_result["drift_limit_reached"],
-            "raw_ema": ema_result["raw_ema"],
-            "base_annual_amount": base_annual,
-            "categories": [c["category"] for c in category_breakdown],
+            "current_amount": limit,
+            "suggested_amount": suggested,
+            "delta_pct": delta_pct,
+            "direction": direction,
+            "avg_spending": round(typical, 2),
+            "observed_months": len(periods),
+            "monthly_values": values,
+            "periods": [{"start": p["start"], "end": p["end"], "spent": v} for p, v in zip(periods, values)],
+            "period_kind": current["kind"],
+            "drift_limit_reached": False,
+            "raw_ema": suggested,
+            "base_annual_amount": b.base_annual_amount or limit * 12,
+            "categories": cats,
             "category_breakdown": category_breakdown,
         })
-
-        action_status = "SUGGESTED"
-
-        # Si l'option auto-application est activée et que le plafond de dérive annuelle n'est pas atteint
-        if is_auto_apply and not ema_result["drift_limit_reached"]:
-            from app.services.history_service import record_action, snapshot_entity
-            old_snapshot = snapshot_entity(b, db)
-            b.monthly_amount = ema_result["suggested_amount"]
-            db.flush()
-            record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
-            action_status = "AUTO_COMMIT"
-            logger.info(f"[AutoPilot Budgets] Auto-application du recalibrage pour '{b.name}' ({ema_result['suggested_amount']} €).")
-
         decision = AutopilotDecisionLog(
             batch_id=batch_id,
             decision_type="budget_suggestion",
-            action=action_status,
+            action="SUGGESTED",
             entity_type="budget",
             entity_id=b.id,
             conn_id=-1,
             account_id=None,
             raw_snapshot=snapshot,
-            confidence_score=85.0 if not ema_result["drift_limit_reached"] else 70.0,
+            confidence_score=80.0,
         )
         db.add(decision)
         db.flush()
+        suggestions.append({
+            "decision_id": decision.id,
+            "type": "recalibration",
+            "budget_id": b.id,
+            "budget_name": b.name,
+            "current_amount": limit,
+            "suggested_amount": suggested,
+            "delta_pct": delta_pct,
+            "direction": direction,
+            "avg_spending": round(typical, 2),
+            "observed_months": len(periods),
+            "drift_limit_reached": False,
+            "category_breakdown": category_breakdown,
+        })
 
-        if action_status == "SUGGESTED":
-            suggestions.append({
-                "decision_id": decision.id,
-                "type": "recalibration",
-                "budget_id": b.id,
-                "budget_name": b.name,
-                "current_amount": b.monthly_amount,
-                "suggested_amount": ema_result["suggested_amount"],
-                "delta_pct": ema_result["delta_pct"],
-                "avg_spending": avg_spending,
-                "observed_months": observed_months,
-                "drift_limit_reached": ema_result["drift_limit_reached"],
-                "category_breakdown": category_breakdown,
-            })
-
-    # Mettre à jour la période de dernière exécution et l'horodatage
-    now_iso = datetime.now(timezone.utc).isoformat()
-    period_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_recalibration_period").first()
-    if period_cfg:
-        period_cfg.value = current_period
-    else:
-        db.add(GlobalConfig(key="last_budget_recalibration_period", value=current_period))
-
-    cfg_last = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_autopilot_run_at").first()
-    if cfg_last:
-        cfg_last.value = now_iso
-    else:
-        db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
-
-    if suggestions or is_auto_apply:
-        notif = Notification(
+    _set_config(db, "last_budget_recalibration_period", period_key)
+    if suggestions:
+        over = sum(1 for s in suggestions if s["direction"] == "up")
+        under = len(suggestions) - over
+        parts = []
+        if over:
+            parts.append(f"{over} dépassée{'s' if over > 1 else ''}")
+        if under:
+            parts.append(f"{under} peu utilisée{'s' if under > 1 else ''}")
+        db.add(Notification(
             type="autopilot_budget",
-            title=f"📊 {len(suggestions)} suggestion(s) budgétaire(s)",
-            content=f"{len(suggestions)} ajustement(s) d'enveloppe(s) proposé(s) pour {current_period}.",
+            title=f"📊 {len(suggestions)} enveloppe{'s' if len(suggestions) > 1 else ''} à revoir",
+            content=f"Sur les {RECALIBRATION_PERIODS} dernières périodes : {' et '.join(parts)}. Plafonds proposés à valider.",
             detailed_content=None,
             link_data='{"view": "budgets"}',
-        )
-        db.add(notif)
-        db.commit()
-        logger.info(f"[AutoPilot Budgets] {len(suggestions)} suggestion(s) de recalibrage émise(s) pour {current_period}.")
-    else:
-        db.commit()
-        logger.debug(f"[AutoPilot Budgets] Aucune suggestion de recalibrage en attente pour {current_period}.")
-
+        ))
+        logger.info(f"[AutoPilot Budgets] {len(suggestions)} suggestion(s) de recalibrage pour la période du {period_key}.")
+    db.commit()
     return suggestions
+
+
+ALERT_CHECK_INTERVAL_MINUTES = 10
+_ALERTS_SENT_KEY = "budget_alerts_sent"
+
+
+def _fmt_eur(amount: float) -> str:
+    return f"{amount:,.2f}".replace(",", " ").replace(".", ",") + " €"
+
+
+def _alert_period_key(env: dict, period_info: Optional[dict]) -> Optional[str]:
+    """Clé de la période en cours d'une enveloppe (None si l'enveloppe n'est pas en cours aujourd'hui)."""
+    today_iso = date.today().isoformat()
+    period = env.get("period")
+    if period == "custom":
+        start, end = env.get("start_date"), env.get("end_date")
+        return start if start and end and start <= today_iso <= end else None
+    if period == "yearly":
+        return today_iso[:4]
+    if period == "indefinite":
+        return "all"
+    return (period_info or {}).get("start") or today_iso[:7]
+
+
+def check_envelope_alerts(db: Session, force: bool = False) -> List[dict]:
+    """Notifie quand une enveloppe en cours atteint 90 % ou est dépassée (une fois par seuil et par période).
+    Premier passage : l'état actuel sert de point de départ, sans notification (pas de rafale d'alertes
+    sur des situations déjà connues)."""
+    from app.models import Notification
+
+    now = datetime.now(timezone.utc)
+    if not force:
+        row = db.query(GlobalConfig).filter(GlobalConfig.key == "last_budget_alert_check_at").first()
+        if row and row.value:
+            try:
+                if now - datetime.fromisoformat(row.value) < timedelta(minutes=ALERT_CHECK_INTERVAL_MINUTES):
+                    return []
+            except ValueError:
+                pass
+    _set_config(db, "last_budget_alert_check_at", now.isoformat())
+
+    sent_row = db.query(GlobalConfig).filter(GlobalConfig.key == _ALERTS_SENT_KEY).first()
+    baseline = sent_row is None
+    try:
+        sent = json.loads(sent_row.value) if sent_row and sent_row.value else []
+    except ValueError:
+        sent = []
+    sent_set = set(sent)
+
+    status = get_budget_status_data(db=db, period_filter="all", cycle_offset=0)
+    period_info = status.get("period")
+    created = []
+    for env in status.get("budgets", []):
+        if env.get("envelope_type") == "savings" or env.get("status") not in ("near", "over"):
+            continue
+        pkey = _alert_period_key(env, period_info)
+        if not pkey:
+            continue
+        threshold = "100" if env["status"] == "over" else "90"
+        key = f"{env['id']}:{pkey}:{threshold}"
+        if key in sent_set or (threshold == "90" and f"{env['id']}:{pkey}:100" in sent_set):
+            continue
+        sent.append(key)
+        sent_set.add(key)
+        if baseline:
+            continue
+        limit, spent = env["budget_amount"], env.get("spent_to_date", env.get("spent", 0.0))
+        if threshold == "100":
+            title = f"🔴 {env['name']} : enveloppe dépassée"
+            content = f"{_fmt_eur(spent)} dépensés pour {_fmt_eur(limit)} prévus (+{_fmt_eur(spent - limit)})."
+        else:
+            title = f"🟠 {env['name']} : {round(env.get('percent_to_date', 0))} % utilisés"
+            content = f"{_fmt_eur(spent)} dépensés sur {_fmt_eur(limit)}, il reste {_fmt_eur(max(limit - spent, 0))}"
+            if env.get("period") in ("monthly", None) and period_info and period_info.get("days_left"):
+                days = period_info["days_left"]
+                horizon = "la paie" if period_info.get("kind") == "cycle" else "la fin du mois"
+                content += f" pour {days} jour{'s' if days > 1 else ''} jusqu'à {horizon}"
+            content += "."
+        db.add(Notification(type="budget_alert", title=title, content=content, detailed_content=None,
+                            link_data=json.dumps({"view": "budgets", "budget_id": env["id"]})))
+        created.append({"budget_id": env["id"], "threshold": int(threshold), "title": title})
+
+    _set_config(db, _ALERTS_SENT_KEY, json.dumps(sent[-500:]))
+    db.commit()
+    if created:
+        logger.info(f"[Budgets] {len(created)} alerte(s) d'enveloppe émise(s).")
+    return created
+
+
+def _set_config(db: Session, key: str, value: str):
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+    if row:
+        row.value = value
+    else:
+        db.add(GlobalConfig(key=key, value=value))
 
 
 def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
