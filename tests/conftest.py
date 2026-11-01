@@ -3,8 +3,43 @@ import shutil
 import hashlib
 import tempfile
 import warnings
-import pytest
-from app.services import stats_cache
+
+
+def _isolated_data_dir() -> str:
+    """
+    Les tests tournent sur une copie temporaire de ./data (profils et leurs bases), jamais sur les
+    vraies données : le serveur de développement / Docker partage ./data et ses tâches de fond
+    (génération des récurrences…) y mélangeraient sinon les données de test avec les vraies.
+    Doit s'exécuter avant tout import de l'application (DATA_DIR est lu à l'import).
+    """
+    # Copies de sessions précédentes : une base encore ouverte par une tâche de fond en fin de
+    # session ne peut pas être supprimée sous Windows, elle l'est ici au démarrage suivant
+    tmp_root = tempfile.gettempdir()
+    for name in os.listdir(tmp_root):
+        if name.startswith("omnibank_test_data_"):
+            shutil.rmtree(os.path.join(tmp_root, name), ignore_errors=True)
+
+    src = os.path.abspath("data")
+    dst = tempfile.mkdtemp(prefix="omnibank_test_data_")
+    if os.path.isdir(src):
+        for fname in ("omnibank.db", "profiles.json", "woob_storage.json"):
+            if os.path.isfile(os.path.join(src, fname)):
+                shutil.copy2(os.path.join(src, fname), os.path.join(dst, fname))
+        profiles_src = os.path.join(src, "profiles")
+        if os.path.isdir(profiles_src):
+            for pid in os.listdir(profiles_src):
+                db_src = os.path.join(profiles_src, pid, "omnibank.db")
+                if os.path.isfile(db_src):
+                    os.makedirs(os.path.join(dst, "profiles", pid), exist_ok=True)
+                    shutil.copy2(db_src, os.path.join(dst, "profiles", pid, "omnibank.db"))
+    return dst
+
+
+if not os.environ.get("OMNIBANK_DATA_DIR"):
+    os.environ["OMNIBANK_DATA_DIR"] = _isolated_data_dir()
+
+import pytest  # noqa: E402
+from app.services import stats_cache  # noqa: E402
 from app.profile_manager import set_active_profile
 
 
@@ -86,6 +121,22 @@ def pytest_sessionfinish(session, exitstatus):
                     pass
 
         shutil.rmtree(_SNAPSHOT_DIR, ignore_errors=True)
+
+    # Copie temporaire des données utilisée par la session (voir _isolated_data_dir)
+    test_data_dir = os.environ.get("OMNIBANK_DATA_DIR", "")
+    if os.path.basename(test_data_dir).startswith("omnibank_test_data_"):
+        # Windows refuse de supprimer une base SQLite encore ouverte : fermer les connexions d'abord
+        try:
+            import gc
+            gc.collect()  # sessions de tests jamais fermées
+            from app.database import _engines, dispose_engine
+            for pid in list(_engines):
+                dispose_engine(pid)
+            from app.database import engine as default_engine
+            default_engine.dispose()
+        except Exception:
+            pass
+        shutil.rmtree(test_data_dir, ignore_errors=True)
 
     if mutations_detected:
         msg = (
