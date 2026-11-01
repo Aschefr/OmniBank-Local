@@ -376,11 +376,82 @@ window.AnalyticsView = {
             sections.push(this.renderTypeTable(txType, typeData, months, revYears));
         }
         container.innerHTML = sections.join('');
+        this._initFloatingHeaders(container);
 
         if (preserveScroll) {
             container.scrollLeft = scrollX;
             container.scrollTop = scrollY;
         }
+    },
+
+    // ── Floating table headers ─────────────────────────────────────────────────────────
+    // position:sticky cannot work here (the horizontal scroll container traps it), so each table gets a
+    // fixed clone of its header, shown at the top of the page area while the table scrolls underneath.
+    _floatCleanup: null,
+
+    _initFloatingHeaders(root) {
+        if (this._floatCleanup) this._floatCleanup();
+        const scroller = document.querySelector('.app-main');
+        const cards = [...root.querySelectorAll('[data-type]')].filter(c => c.querySelector('.analytics-table-scroll-container table'));
+        if (!scroller || !cards.length) { this._floatCleanup = null; return; }
+
+        const items = cards.map(card => {
+            const box = card.querySelector('.analytics-table-scroll-container');
+            const table = box.querySelector('table');
+            const wrap = document.createElement('div');
+            wrap.className = 'analytics-float-head analytics-table-scroll-container';
+            wrap.style.cssText = 'display:none;position:fixed;overflow:hidden;z-index:40;pointer-events:none;box-shadow:0 4px 10px rgba(0,0,0,0.25);background:var(--bg-surface);';
+            const clone = document.createElement('table');
+            clone.className = table.className;
+            clone.setAttribute('style', table.getAttribute('style') || '');
+            clone.style.tableLayout = 'fixed';
+            clone.style.margin = '0';
+            clone.appendChild(table.querySelector('thead').cloneNode(true));
+            wrap.appendChild(clone);
+            card.insertBefore(wrap, card.firstChild);
+            return { card, box, table, wrap, clone, shown: false };
+        });
+
+        const update = () => {
+            // The view's own sticky toolbar (filters) sits on top of the page area: the floating header goes right under it
+            let top = scroller.getBoundingClientRect().top;
+            const bar = scroller.querySelector('.view-header-bar');
+            if (bar && getComputedStyle(bar).position === 'sticky') top = Math.max(top, bar.getBoundingClientRect().bottom);
+            items.forEach(it => {
+                const head = it.table.querySelector('thead');
+                const hr = head.getBoundingClientRect();
+                const br = it.box.getBoundingClientRect();
+                const visible = hr.top < top && br.bottom - hr.height > top && br.height > 0;
+                if (!visible) {
+                    if (it.shown) { it.wrap.style.display = 'none'; it.shown = false; }
+                    return;
+                }
+                if (!it.shown) { it.wrap.style.display = 'block'; it.shown = true; }
+                // Same column widths as the real table
+                const ths = head.querySelectorAll('th');
+                const cths = it.clone.querySelectorAll('th');
+                it.clone.style.width = it.table.offsetWidth + 'px';
+                cths.forEach((c, i) => { if (ths[i]) c.style.width = c.style.minWidth = c.style.maxWidth = ths[i].getBoundingClientRect().width + 'px'; });
+                it.wrap.style.left = br.left + 'px';
+                it.wrap.style.width = br.width + 'px';
+                it.wrap.style.top = top + 'px';
+                it.wrap.scrollLeft = it.box.scrollLeft;
+            });
+        };
+
+        let queued = false;
+        const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } };
+        scroller.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        items.forEach(it => it.box.addEventListener('scroll', schedule, { passive: true }));
+        this._floatCleanup = () => {
+            scroller.removeEventListener('scroll', schedule);
+            window.removeEventListener('scroll', schedule);
+            window.removeEventListener('resize', schedule);
+            items.forEach(it => it.wrap.remove());
+        };
+        schedule();
     },
 
     // Text width in px (canvas, no layout needed) — used to size columns so amounts never overlap or get cut
