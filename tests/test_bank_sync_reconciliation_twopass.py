@@ -1,4 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
+
+# Dates are relative to today: the pending store ignores operations older than 15 days
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -40,8 +42,8 @@ def test_check_reconciliation_exact_only_flag(twopass_db):
         amount=140.0,
         type="expense_var",
         category="Loisirs",
-        date_operation=date(2026, 9, 26),
-        reconciliation_date=date(2026, 9, 27),
+        date_operation=(date.today() - timedelta(days=10)),
+        reconciliation_date=(date.today() - timedelta(days=9)),
         from_account_id=acc.id,
         csv_id="woob_old_111"
     )
@@ -51,7 +53,7 @@ def test_check_reconciliation_exact_only_flag(twopass_db):
     # 1. Requête avec csv_id identique -> exact_only=True doit matcher (score 100)
     res_exact = check_reconciliation(
         twopass_db,
-        date(2026, 9, 26),
+        (date.today() - timedelta(days=10)),
         -140.0,
         account_id=acc.id,
         is_coming=False,
@@ -68,7 +70,7 @@ def test_check_reconciliation_exact_only_flag(twopass_db):
     # exact_only=True doit refuser d'associer et renvoyer None
     res_diff_csv = check_reconciliation(
         twopass_db,
-        date(2026, 10, 16),
+        (date.today() - timedelta(days=3)),
         -140.0,
         account_id=acc.id,
         is_coming=False,
@@ -81,7 +83,7 @@ def test_check_reconciliation_exact_only_flag(twopass_db):
     # 3. Requête sans csv_id -> exact_only=True doit renvoyer None
     res_no_csv = check_reconciliation(
         twopass_db,
-        date(2026, 9, 26),
+        (date.today() - timedelta(days=10)),
         -140.0,
         account_id=acc.id,
         is_coming=False,
@@ -109,8 +111,8 @@ def test_anti_theft_guardrail_prevents_stealing_existing_csv_id(twopass_db):
         amount=140.0,
         type="expense_var",
         category="Loisirs",
-        date_operation=date(2026, 9, 26),
-        reconciliation_date=date(2026, 9, 27),
+        date_operation=(date.today() - timedelta(days=10)),
+        reconciliation_date=(date.today() - timedelta(days=9)),
         from_account_id=acc.id,
         csv_id="woob_old_ginet_577"
     )
@@ -120,7 +122,7 @@ def test_anti_theft_guardrail_prevents_stealing_existing_csv_id(twopass_db):
     # Nouvelle opération survenue 20 jours plus tard avec libellé proche et même montant
     res_fuzzy = check_reconciliation(
         twopass_db,
-        date(2026, 10, 16),
+        (date.today() - timedelta(days=3)),
         -140.0,
         account_id=acc.id,
         is_coming=False,
@@ -154,8 +156,8 @@ def test_pending_store_two_pass_matching_in_reverse_chronological_order(twopass_
         amount=140.0,
         type="expense_var",
         category="Sport",
-        date_operation=date(2026, 9, 26),
-        reconciliation_date=date(2026, 9, 27),
+        date_operation=(date.today() - timedelta(days=10)),
+        reconciliation_date=(date.today() - timedelta(days=9)),
         from_account_id=acc.id,
         csv_id="woob_ginet_id"
     )
@@ -171,7 +173,7 @@ def test_pending_store_two_pass_matching_in_reverse_chronological_order(twopass_
                 "transactions": [
                     # Transaction plus récente en premier (comme reçu dans l'API Woob / tri décroissant)
                     {
-                        "date_operation": "2026-10-16",
+                        "date_operation": (date.today() - timedelta(days=3)).isoformat(),
                         "description": "PELLET F LICENCE SPORTIVE",
                         "raw_description": "FACTURE CARTE PELLET F LICENCE SPORTIVE 140 EUR",
                         "amount": -140.0,
@@ -181,7 +183,7 @@ def test_pending_store_two_pass_matching_in_reverse_chronological_order(twopass_
                     },
                     # Transaction plus ancienne ensuite
                     {
-                        "date_operation": "2026-09-26",
+                        "date_operation": (date.today() - timedelta(days=10)).isoformat(),
                         "description": "GINET LICENCE SPORTIVE",
                         "raw_description": "FACTURE CARTE GINET LICENCE SPORTIVE 140 EUR",
                         "amount": -140.0,
@@ -230,8 +232,8 @@ def test_import_engine_re_evaluate_two_pass(twopass_db):
         amount=120.0,
         type="expense_var",
         category="Sport",
-        date_operation=date(2026, 9, 21),
-        reconciliation_date=date(2026, 9, 22),
+        date_operation=(date.today() - timedelta(days=12)),
+        reconciliation_date=(date.today() - timedelta(days=11)),
         from_account_id=acc.id,
         csv_id="woob_camatta_id"
     )
@@ -246,7 +248,7 @@ def test_import_engine_re_evaluate_two_pass(twopass_db):
                 "bank_balance": 2880.0,
                 "transactions": [
                     {
-                        "date_operation": "2026-10-16",
+                        "date_operation": (date.today() - timedelta(days=3)).isoformat(),
                         "description": "CHASSARD LAURENT LOISIRS",
                         "raw_description": "FACTURE CARTE CHASSARD LAURENT LOISIRS 120 EUR",
                         "amount": -120.0,
@@ -255,7 +257,7 @@ def test_import_engine_re_evaluate_two_pass(twopass_db):
                         "is_coming": False
                     },
                     {
-                        "date_operation": "2026-09-21",
+                        "date_operation": (date.today() - timedelta(days=12)).isoformat(),
                         "description": "CAMATTA LICENCE SPORTIVE",
                         "raw_description": "FACTURE CARTE CAMATTA LICENCE SPORTIVE 120 EUR",
                         "amount": -120.0,
