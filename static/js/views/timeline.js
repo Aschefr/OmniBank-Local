@@ -966,7 +966,7 @@ window.TimelineView = {
                 rowClass += ' recurrent-row';
             }
             
-            const idAttr = tx._isFirstReconciled ? 'id="first-reconciled"' : '';
+            const idAttr = tx._isOldestUnreconciled ? 'id="oldest-unreconciled"' : (tx._isFirstReconciled ? 'id="first-reconciled"' : '');
             
             const reconcileHTML = window.ReconciliationStates.resolve(tx, { view: 'timeline', formatDate }).html;
 
@@ -1041,6 +1041,8 @@ window.TimelineView = {
 
         // Mark first reconciled for scroll targeting
         if (reconciled.length > 0) reconciled[0]._isFirstReconciled = true;
+        // Lists are sorted newest first: the last unreconciled row is the oldest one still to reconcile
+        if (unreconciled.length > 0) unreconciled[unreconciled.length - 1]._isOldestUnreconciled = true;
 
         const allRows = [
             ...unreconciled.map(renderRow),
@@ -1050,8 +1052,9 @@ window.TimelineView = {
         // Use virtual table for rendering
         const vt = this._ensureVT();
         const scrollOpts = {};
-        if (autoScroll && reconciled.length > 0) {
-            scrollOpts.scrollToId = 'first-reconciled';
+        if (autoScroll) {
+            if (unreconciled.length > 0) scrollOpts.scrollToId = 'oldest-unreconciled';
+            else if (reconciled.length > 0) scrollOpts.scrollToId = 'first-reconciled';
         }
         vt.setData(allRows, scrollOpts);
 
