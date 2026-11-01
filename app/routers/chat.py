@@ -40,6 +40,8 @@ from app.services.chat.chat_tools import TOOLS, get_tools_for_role  # noqa: F401
 from app.services.chat.chat_prompt import load_system_prompt  # noqa: F401
 from app.services.chat.chat_snapshot import build_entity_snapshots  # noqa: F401
 from app.services.chat.chat_compression import (  # noqa: F401
+    context_usage,
+    estimate_payload_tokens,
     estimate_tokens,
     generate_session_title,
     start_compression,
@@ -80,14 +82,16 @@ async def preview_system_prompt(role: str = "advisor", lang: str = "fr", user_na
     from app.services.chat.chat_prompt import build_system_prompt_layers
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
     layers = build_system_prompt_layers(role, categories, lang, db=db, user_name=user_name)
-    tools_tokens = estimate_tokens(json.dumps(get_tools_for_role(role)))
-    out = [{"id": l["id"], "text": l["text"], "tokens": estimate_tokens(l["text"])} for l in layers]
+    cfg = get_ollama_config(db)
+    model = cfg.get("model")
+    tools_tokens = estimate_payload_tokens([], get_tools_for_role(role), model)
+    out = [{"id": l["id"], "text": l["text"], "tokens": estimate_payload_tokens([{"content": l["text"]}], None, model)} for l in layers]
     return {
         "role": role,
         "layers": out,
         "prompt_tokens": sum(l["tokens"] for l in out),
         "tools_tokens": tools_tokens,
-        "num_ctx": get_ollama_config(db)["num_ctx"],
+        "num_ctx": cfg["num_ctx"],
     }
 
 
@@ -249,7 +253,7 @@ async def stop_generation_endpoint(id: int):
 # ─── Messages & Contexte ───────────────────────────────────────────────────
 
 @router.get("/sessions/{id}/messages")
-async def get_session_messages(id: int, user_name: Optional[str] = None, db: Session = Depends(get_db)):
+async def get_session_messages(id: int, user_name: Optional[str] = None, lang: str = "fr", db: Session = Depends(get_db)):
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session non trouvée")
@@ -257,20 +261,8 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
 
     cfg = get_ollama_config(db)
     categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
-    sys_prompt = load_system_prompt(session.role, categories, 'fr', db=db, session_id=session.id, user_name=user_name)
-
-    session_tools = get_tools_for_role(session.role)
-    tools_tokens = estimate_tokens(json.dumps(session_tools))
-    used = estimate_tokens(sys_prompt) + tools_tokens + 500
-    if session.compressed_context:
-        used += estimate_tokens(session.compressed_context)
-
-    if session.last_compressed_message_id:
-        messages_for_tokens = [m for m in messages if m.id > session.last_compressed_message_id]
-    else:
-        messages_for_tokens = messages
-    for m in messages_for_tokens:
-        used += estimate_tokens(m.content)
+    sys_prompt = load_system_prompt(session.role, categories, lang, db=db, session_id=session.id, user_name=user_name)
+    usage = context_usage(sys_prompt, session, messages, get_tools_for_role(session.role), cfg)
 
     return {
         "compressed_context": session.compressed_context,
@@ -288,10 +280,7 @@ async def get_session_messages(id: int, user_name: Optional[str] = None, db: Ses
             "variants": m.get_variants_list() if m.variants else None,
             "active_variant_index": m.active_variant_index or 0,
         } for m in messages],
-        "token_usage": {
-            "used": used,
-            "limit": cfg["num_ctx"],
-        },
+        "token_usage": usage,
     }
 
 
@@ -338,7 +327,7 @@ async def get_compression_status(id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/sessions/{id}/regenerate-compressed-context")
-async def regenerate_compressed_context(id: int, req: ChatRegenerateContext, db: Session = Depends(get_db)):
+async def regenerate_compressed_context(id: int, req: ChatRegenerateContext, lang: str = "fr", db: Session = Depends(get_db)):
     """Relance la compression avec une instruction optionnelle personnalisée."""
     session = db.query(ChatSession).filter(ChatSession.id == id).first()
     if not session:
@@ -355,7 +344,7 @@ async def regenerate_compressed_context(id: int, req: ChatRegenerateContext, db:
     session.compression_stack = None
     db.commit()
 
-    new_context = start_compression(db, session, messages, cfg, custom_instruction=req.instruction)
+    new_context = await start_compression(db, session, messages, cfg, lang=lang, custom_instruction=req.instruction)
     if new_context is None:
         raise HTTPException(status_code=500, detail="La compression a échoué. Vérifiez votre configuration Ollama.")
 

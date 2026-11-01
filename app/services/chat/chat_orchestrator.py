@@ -20,8 +20,12 @@ from app.database import get_engine, SessionLocal
 from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notification, OrgUser
 from app.schemas.api_schemas import ChatSendMessage
 from app.services.chat.chat_compression import (
-    estimate_tokens,
+    build_replay_messages,
+    compaction_threshold,
+    context_usage,
+    estimate_payload_tokens,
     generate_session_title,
+    record_real_usage,
     start_compression,
 )
 from app.services.chat.chat_prompt import load_system_prompt
@@ -71,7 +75,7 @@ from app.services.chat.chat_tools import (
     update_budget_envelope_tool,
     update_recurrence_template_tool,
 )
-from app.services.chat.ollama_client import get_ollama_config, strip_thinking
+from app.services.chat.ollama_client import get_ollama_config, normalize_num_ctx, strip_thinking
 
 logger = logging.getLogger(__name__)
 
@@ -521,7 +525,8 @@ def budget_messages_for_context(
     messages: List[Dict[str, Any]],
     num_ctx: int,
     min_headroom: int = 3500,
-    tools: Optional[List[Dict[str, Any]]] = None
+    tools: Optional[List[Dict[str, Any]]] = None,
+    model: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Garantit que le payload envoyé à Ollama ne sature pas la fenêtre de contexte num_ctx,
@@ -531,11 +536,14 @@ def budget_messages_for_context(
     2. Tronque les retours d'outils massifs (> 4000 caractères).
     3. Si le total reste excessif, condense les messages intermédiaires d'historique.
     """
-    tools_tokens = estimate_tokens(json.dumps(tools, ensure_ascii=False)) if tools else 0
+    tools_tokens = estimate_payload_tokens([], tools, model) if tools else 0
     max_prompt_tokens = max(1000, num_ctx - min_headroom - tools_tokens)
 
+    def _weight(msgs):
+        return estimate_payload_tokens(msgs, None, model)
+
     pruned = [dict(m) for m in messages]
-    current_tokens = estimate_tokens(json.dumps(pruned, ensure_ascii=False))
+    current_tokens = _weight(pruned)
     if current_tokens <= max_prompt_tokens:
         return pruned
 
@@ -549,7 +557,7 @@ def budget_messages_for_context(
                 logger.info(f"[Chat Context Budget] Rognage outil '{m.get('name')}' : {len(c)} chars -> 4000 chars")
                 m["content"] = c[:4000] + "\n[...données tronquées pour respecter la fenêtre mémoire...]"
 
-    current_tokens = estimate_tokens(json.dumps(pruned, ensure_ascii=False))
+    current_tokens = _weight(pruned)
     if current_tokens <= max_prompt_tokens:
         logger.info(f"[Chat Context Budget] Payload optimisé à {current_tokens} tokens après rognage d'outils")
         return pruned
@@ -563,13 +571,13 @@ def budget_messages_for_context(
     tail = rest[-preserve_count:]
     middle = rest[:-preserve_count]
 
-    while middle and estimate_tokens(json.dumps([sys_msg] + middle + tail if sys_msg else middle + tail, ensure_ascii=False)) > max_prompt_tokens:
+    while middle and _weight([sys_msg] + middle + tail if sys_msg else middle + tail) > max_prompt_tokens:
         removed = middle.pop(0)
         logger.info(f"[Chat Context Budget] Élagage message ancien ({removed.get('role')}) pour libérer de la mémoire")
 
     summary_notice = {"role": "system", "content": "[Historique antérieur condensé pour respecter la fenêtre de contexte]"}
     final_msgs = ([sys_msg] if sys_msg else []) + ([summary_notice] if len(middle) < len(rest) - preserve_count else []) + middle + tail
-    final_tokens = estimate_tokens(json.dumps(final_msgs, ensure_ascii=False))
+    final_tokens = _weight(final_msgs)
     logger.info(f"[Chat Context Budget] Payload final ajusté à {final_tokens} tokens (marge garantie: {num_ctx - final_tokens - tools_tokens} tokens)")
     return final_msgs
 
@@ -688,43 +696,8 @@ async def _run_generation_task(
         options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
 
         session_tools = get_tools_for_role(session.role)
-        tools_tokens = estimate_tokens(json.dumps(session_tools))
-        total_tokens = estimate_tokens(sys_prompt) + tools_tokens + 500
-        if session.compressed_context:
-            total_tokens += estimate_tokens(session.compressed_context)
-        if session.last_compressed_message_id:
-            messages_after_compression = [m for m in messages if m.id > session.last_compressed_message_id]
-        else:
-            messages_after_compression = messages
-        for m in messages_after_compression:
-            total_tokens += estimate_tokens(m.content)
-
-        needs_compression = (total_tokens > int(cfg["num_ctx"] * 0.85))
-
-        def build_ollama_payload(current_session, current_messages):
-            sys_content = sys_prompt
-            if current_session.compression_stack:
-                try:
-                    stack = json.loads(current_session.compression_stack)
-                    for entry in stack:
-                        sys_content += f"\n\n[COMPRESSED HISTORY]\n{entry['context']}"
-                except Exception:
-                    pass
-            if current_session.compressed_context:
-                sys_content += f"\n\n[CONTEXT SUMMARY — earlier conversation]\n{current_session.compressed_context}"
-            payload_msgs = [{"role": "system", "content": sys_content}]
-            if current_session.last_compressed_message_id:
-                filtered = [m for m in current_messages if m.id > current_session.last_compressed_message_id]
-            else:
-                filtered = current_messages
-            for m in filtered:
-                clean = re.sub(r'<!--\s*TOOLS_USED:[^>]*-->\n?', '', m.content)
-                clean = re.sub(r'```action\s*[\s\S]*?```\n?', '', clean)
-                clean = _THINK_RE.sub('', clean).strip()
-                payload_msgs.append({"role": m.role, "content": clean})
-            return payload_msgs
-
-        ollama_msgs = build_ollama_payload(session, messages)
+        ollama_msgs = build_replay_messages(sys_prompt, session, messages)
+        needs_compression = estimate_payload_tokens(ollama_msgs, session_tools, model) > compaction_threshold(cfg["num_ctx"])
 
         if needs_compression:
             session.compressing = True
@@ -732,26 +705,16 @@ async def _run_generation_task(
             db.commit()
             await _emit(f"data: {json.dumps({'compressing': True})}\n\n")
 
-            new_context = start_compression(db, session, messages, cfg, lang=req.lang, trigger_msg_id=user_msg_id)
+            new_context = await start_compression(db, session, messages, cfg, lang=req.lang, trigger_msg_id=user_msg_id)
             db.refresh(session)
 
             updated_messages = db.query(ChatMessage).filter(
                 ChatMessage.session_id == session_id
             ).order_by(ChatMessage.timestamp.asc()).all()
-            ollama_msgs = build_ollama_payload(session, updated_messages)
+            ollama_msgs = build_replay_messages(sys_prompt, session, updated_messages)
+            usage_post = context_usage(sys_prompt, session, updated_messages, session_tools, cfg)
 
-            tools_tokens_post = estimate_tokens(json.dumps(session_tools))
-            used_post = estimate_tokens(sys_prompt) + tools_tokens_post + 500
-            if session.compressed_context:
-                used_post += estimate_tokens(session.compressed_context)
-            if session.last_compressed_message_id:
-                post_msgs = [m for m in updated_messages if m.id > session.last_compressed_message_id]
-            else:
-                post_msgs = updated_messages
-            for m in post_msgs:
-                used_post += estimate_tokens(m.content)
-
-            await _emit(f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': {'used': used_post, 'limit': cfg['num_ctx']}})}\n\n")
+            await _emit(f"data: {json.dumps({'compressing': False, 'compressed_context': new_context or '', 'last_compressed_message_id': session.last_compressed_message_id, 'bubble_after_id': session.bubble_after_id, 'compression_stack': session.compression_stack, 'token_usage': usage_post})}\n\n")
 
         init_status = "Consultation de l'assistant IA..." if req.lang == "fr" else "Consulting AI assistant..."
         await _emit(f"data: {json.dumps({'status': init_status})}\n\n")
@@ -846,6 +809,7 @@ async def _run_generation_task(
                 collected_tool_calls = []
                 in_thinking = False
                 done_reason = None
+                prompt_tokens = None
 
                 async with client.stream("POST", f"{url}/api/chat", json=payload_data, timeout=httpx.Timeout(300.0, connect=15.0)) as stream_resp:
                     if stream_resp.status_code != 200:
@@ -893,6 +857,7 @@ async def _run_generation_task(
 
                         if json_chunk.get("done"):
                             done_reason = json_chunk.get("done_reason")
+                            prompt_tokens = json_chunk.get("prompt_eval_count")
                             if done_reason == "length":
                                 logger.warning("[Chat] Génération Ollama interrompue par la limite de contexte (done_reason=length)")
 
@@ -900,7 +865,7 @@ async def _run_generation_task(
                     collected_text += "\n</think>\n\n"
                     yield f"data: {json.dumps({'content': chr(10) + '</think>' + chr(10) + chr(10)})}\n\n"
 
-                yield {"_result": collected_text, "_tool_calls": collected_tool_calls, "_done_reason": done_reason}
+                yield {"_result": collected_text, "_tool_calls": collected_tool_calls, "_done_reason": done_reason, "_prompt_tokens": prompt_tokens}
 
             _WRITE_TOOLS = WRITE_TOOLS
             _CACHEABLE_READ_TOOLS = {
@@ -928,7 +893,7 @@ async def _run_generation_task(
             session_can_write = any(t["function"]["name"] in _WRITE_TOOLS for t in session_tools)
             while iteration < MAX_TOOL_ITERATIONS + (1 if nudge_pending else 0):
                 # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
-                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=session_tools)
+                budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=session_tools, model=model)
                 payload = {
                     "model": model,
                     "messages": budgeted_msgs,
@@ -947,6 +912,9 @@ async def _run_generation_task(
                         last_iteration_phase_text = phase_text
                         if chunk.get("_done_reason") == "length":
                             context_length_reached = True
+                        if iteration == 0:
+                            # Décompte exact d'Ollama pour le premier envoi (historique + question) : corrige l'estimation
+                            record_real_usage(model, budgeted_msgs, session_tools, chunk.get("_prompt_tokens"))
                     else:
                         is_content = False
                         if isinstance(chunk, str) and chunk.startswith('data: '):
@@ -1279,7 +1247,7 @@ async def _run_generation_task(
                     "Synthesize now a clear, complete and helpful final answer for the user based on all the financial data collected above. Do not call any tools."
                 )
                 ollama_msgs.append({"role": "user", "content": synth_instruction})
-                budgeted_synth = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=None)
+                budgeted_synth = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=None, model=model)
                 synth_payload = {
                     "model": model,
                     "messages": budgeted_synth,
@@ -1402,18 +1370,8 @@ async def _run_generation_task(
             _response_saved = True
 
         final_messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.timestamp.asc()).all()
-        tools_tokens_final = estimate_tokens(json.dumps(session_tools))
-        used_tokens = estimate_tokens(sys_prompt) + tools_tokens_final + 500
-        if session.compressed_context:
-            used_tokens += estimate_tokens(session.compressed_context)
-        if session.last_compressed_message_id:
-            final_msgs_filtered = [m for m in final_messages if m.id > session.last_compressed_message_id]
-        else:
-            final_msgs_filtered = final_messages
-        for m in final_msgs_filtered:
-            used_tokens += estimate_tokens(m.content)
-
-        await _emit(f"data: {json.dumps({'token_usage': {'used': used_tokens, 'limit': cfg['num_ctx']}})}\n\n")
+        usage = context_usage(sys_prompt, session, final_messages, session_tools, cfg)
+        await _emit(f"data: {json.dumps({'token_usage': usage})}\n\n")
 
         if needs_auto_title:
             context_hint = None
@@ -1586,10 +1544,7 @@ async def autocategorize_transaction(db: Session, description: str, amount: Opti
 
     url = ollama_url_conf.value.rstrip("/")
     model = ollama_model_conf.value
-    try:
-        ctx = int(ollama_ctx_conf.value) if ollama_ctx_conf and ollama_ctx_conf.value else 4096
-    except (ValueError, TypeError):
-        ctx = 4096
+    ctx = normalize_num_ctx(ollama_ctx_conf.value if ollama_ctx_conf else None)
 
     cat_query = db.query(Category).filter(
         (Category.is_closed == False) | (Category.is_closed == None)

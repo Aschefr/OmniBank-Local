@@ -54,13 +54,13 @@ def test_schema_target_version():
 
 
 def test_estimate_tokens_french_and_json():
-    """Vérifie que estimate_tokens reflète fidèlement la densité du français et du JSON (ratio ~3.2)."""
+    """Vérifie que estimate_tokens reflète la densité mesurée du texte (ratio ~3.6 caractères par token)."""
     empty_res = estimate_tokens("")
     assert empty_res == 0
 
-    text_320_chars = "a" * 320
-    tokens = estimate_tokens(text_320_chars)
-    assert tokens == 100  # 320 / 3.2 = 100
+    text_360_chars = "a" * 360
+    tokens = estimate_tokens(text_360_chars)
+    assert tokens == 100  # 360 / 3.6 = 100
 
 
 def test_budget_messages_for_context_accounts_for_tools():

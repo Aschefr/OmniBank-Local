@@ -32,6 +32,25 @@ def strip_thinking(text: str) -> str:
     return cleaned.strip()
 
 
+# Taille de contexte : les consignes et les outils de l'assistant occupent déjà ~9 000 tokens.
+# Tous les appels doivent envoyer la même valeur : un num_ctx différent décharge puis recharge le modèle.
+MIN_NUM_CTX = 16384
+DEFAULT_NUM_CTX = 32768
+
+
+def normalize_num_ctx(value) -> int:
+    try:
+        ctx = int(value) if value not in (None, "") else DEFAULT_NUM_CTX
+    except (ValueError, TypeError):
+        ctx = DEFAULT_NUM_CTX
+    return max(MIN_NUM_CTX, ctx)
+
+
+def get_num_ctx(db: Session) -> int:
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_context").first()
+    return normalize_num_ctx(row.value if row else None)
+
+
 def get_ollama_config(db: Session) -> dict:
     """Return Ollama config dict with keys: enabled, url, model, temperature, num_ctx."""
     def _val(key):
@@ -44,7 +63,7 @@ def get_ollama_config(db: Session) -> dict:
         "url": _val("ollama_url"),
         "model": _val("ollama_model"),
         "temperature": float(_val("ollama_temperature") or 0.3),
-        "num_ctx": int(_val("ollama_context") or 4096),
+        "num_ctx": normalize_num_ctx(_val("ollama_context")),
     }
 
 
@@ -55,10 +74,7 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
     model = cfg.get("model") or ""
     if not url or not model:
         raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
-    try:
-        default_ctx = int(cfg.get("num_ctx", 4096) or 4096)
-    except (ValueError, TypeError):
-        default_ctx = 4096
+    default_ctx = normalize_num_ctx(cfg.get("num_ctx"))
     options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
     if extra_options:
@@ -108,10 +124,7 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
     model = cfg.get("model") or ""
     if not url or not model:
         raise HTTPException(status_code=400, detail="Ollama URL ou modèle non configuré dans les paramètres.")
-    try:
-        default_ctx = int(cfg.get("num_ctx", 4096) or 4096)
-    except (ValueError, TypeError):
-        default_ctx = 4096
+    default_ctx = normalize_num_ctx(cfg.get("num_ctx"))
     options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
     if extra_options:
@@ -436,7 +449,7 @@ def call_ollama_batch(
     if not url or not model:
         return fallback_empty
 
-    ctx_val = int(cfg.get("num_ctx", 4096) or 4096)
+    ctx_val = normalize_num_ctx(cfg.get("num_ctx"))
     options = {
         "temperature": 0.1,  # Déterminisme maximal pour la classification
         "num_ctx": ctx_val,
@@ -516,7 +529,7 @@ async def call_ollama_batch_async(
     if not url or not model:
         return fallback_empty
 
-    ctx_val = int(cfg.get("num_ctx", 4096) or 4096)
+    ctx_val = normalize_num_ctx(cfg.get("num_ctx"))
     options = {
         "temperature": 0.1,
         "num_ctx": ctx_val,

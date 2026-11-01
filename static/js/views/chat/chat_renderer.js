@@ -479,14 +479,15 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         // Stack entries are read-only (historical)
         stackEntries.forEach((entry, idx) => {
-            const tokenEstimate = Math.ceil((entry.context || '').length / 4);
+            // Même ratio que le serveur (TEXT_CHARS_PER_TOKEN)
+            const tokenEstimate = Math.ceil((entry.context || '').length / 3.6);
             bubbles.push({
                 after_id: entry.after_id,
                 html: `
                     <div class="context-bubble context-bubble-stack" id="context-bubble-stack-${idx}">
                         <div class="context-bubble-header" onclick="event.stopPropagation();">
                             <div class="context-bubble-title">
-                                <span>▶ 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens)</span>
+                                <span>▶ 🗜️ ${window.i18n.t('chat_context_collapsed')} (${tokenEstimate} tokens) · ${window.i18n.t('chat_context_superseded')}</span>
                             </div>
                         </div>
                         <div class="context-bubble-body open">
@@ -499,7 +500,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         // Current context (latest, editable)
         if (this.compressedContext !== null && this.compressedContext !== undefined) {
-            const tokenEstimate = Math.ceil(this.compressedContext.length / 4);
+            const tokenEstimate = Math.ceil(this.compressedContext.length / 3.6);
             const bubbleOpen = this.contextBubbleOpen || this.editingContext;
             const anchorId = this.bubbleAfterMsgId || this.lastCompressedMessageId;
             bubbles.push({

@@ -1,10 +1,13 @@
 """
 app/services/chat/chat_compression.py — Moteur de compression de contexte et de génération automatique de titre de session.
 """
+import re
 import json
 import time
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+
+import httpx
 from sqlalchemy.orm import Session
 
 from app.models import ChatSession, ChatMessage
@@ -12,104 +15,212 @@ from app.services.chat.ollama_client import call_ollama_sync
 
 logger = logging.getLogger(__name__)
 
+# Ratios mesurés avec Ollama (prompt_eval_count) sur le prompt système et les schémas d'outils réels :
+# ~3,6 caractères par token pour du texte français/anglais, ~4,8 pour le JSON des outils.
+TEXT_CHARS_PER_TOKEN = 3.6
+TOOLS_CHARS_PER_TOKEN = 4.8
+MESSAGE_OVERHEAD_TOKENS = 4  # balises de rôle du gabarit de chat
+
+# Seuil de compaction : 75 % du contexte, plafonné. Le contexte (num_ctx) envoyé à Ollama, lui, ne change
+# jamais : le modifier déchargerait puis rechargerait le modèle. Au-delà de ~32K, un petit modèle local
+# répond plus lentement et moins bien ; mieux vaut résumer les anciens échanges.
+COMPACTION_RATIO = 0.75
+COMPACTION_CAP_TOKENS = 32768
+# Derniers échanges (question + réponse) gardés mot pour mot lors d'une compaction
+KEEP_RECENT_EXCHANGES = 2
+SUMMARY_MIN_TOKENS = 500
+SUMMARY_MAX_TOKENS = 3000
+
+_THINK_RE = re.compile(r'<think>[\s\S]*?</think>\s*')
+_TOOLS_META_RE = re.compile(r'<!--\s*TOOLS_USED:[^>]*-->\n?')
+_ACTION_BLOCK_RE = re.compile(r'```action\s*[\s\S]*?```\n?')
+
+# Correction de l'estimation par la dernière mesure réelle d'Ollama, par modèle (les tokenizers diffèrent)
+_calibration: Dict[str, float] = {}
+
+
 def estimate_tokens(text: str) -> int:
     if not text:
         return 0
-    # En français et JSON structuré (accents utf-8, ponctuation, guillemets, indentation),
-    # le ratio moyen mesuré est d'environ 3.0 à 3.2 caractères par token.
-    return max(1, int(len(text) / 3.2))
+    return max(1, int(len(text) / TEXT_CHARS_PER_TOKEN))
 
-def start_compression(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict, lang: str = "fr", custom_instruction: str = None, trigger_msg_id: int = None) -> str | None:
-    """Compress conversation history into compressed_context without deleting any messages.
-    
-    Compresses from the last compression point (or beginning) up to the last AI message
-    before the trigger. The trigger message and the future AI response remain uncompressed.
-    Uses dedicated LLM parameters (temperature=0.1, num_predict=2048) for faithful, concise summaries.
-    Returns the new compressed_context string, or None on failure.
-    """
-    # Compress all messages from the last boundary (or beginning) up to (not including) the trigger
-    if trigger_msg_id:
-        if session.last_compressed_message_id:
-            to_compress = [m for m in messages if m.id > session.last_compressed_message_id and m.id < trigger_msg_id]
-        else:
-            to_compress = [m for m in messages if m.id < trigger_msg_id]
-    else:
-        # Fallback (regenerate without trigger): use existing last_compressed_message_id or compress all
-        if session.last_compressed_message_id:
-            to_compress = [m for m in messages if m.id > session.last_compressed_message_id]
-        else:
-            to_compress = messages
-    
-    if not to_compress:
-        return None  # Nothing new to compress
 
-    formatted_history = []
+def _raw_payload_tokens(messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None) -> int:
+    total = sum(estimate_tokens(m.get("content") or "") + MESSAGE_OVERHEAD_TOKENS for m in messages)
+    for m in messages:
+        if m.get("tool_calls"):
+            total += estimate_tokens(json.dumps(m["tool_calls"], ensure_ascii=False))
+    if tools:
+        total += int(len(json.dumps(tools, ensure_ascii=False)) / TOOLS_CHARS_PER_TOKEN)
+    return total
+
+
+def estimate_payload_tokens(messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]] = None, model: Optional[str] = None) -> int:
+    """Estimation du nombre de tokens d'un envoi à Ollama, corrigée par la dernière mesure réelle du modèle."""
+    return int(_raw_payload_tokens(messages, tools) * _calibration.get(model or "", 1.0))
+
+
+def record_real_usage(model: str, messages: List[Dict[str, Any]], tools: Optional[List[Dict[str, Any]]], real_prompt_tokens: Optional[int]) -> None:
+    """Met à jour la correction de l'estimation à partir du prompt_eval_count renvoyé par Ollama."""
+    if not model or not real_prompt_tokens:
+        return
+    raw = _raw_payload_tokens(messages, tools)
+    if raw <= 0:
+        return
+    factor = min(2.0, max(0.5, real_prompt_tokens / raw))
+    prev = _calibration.get(model)
+    _calibration[model] = factor if prev is None else round(0.5 * prev + 0.5 * factor, 4)
+
+
+def compaction_threshold(num_ctx: int) -> int:
+    return min(COMPACTION_CAP_TOKENS, int(num_ctx * COMPACTION_RATIO))
+
+
+def clean_for_replay(content: str) -> str:
+    """Contenu d'un message tel que renvoyé au modèle : sans raisonnement, cartes d'action ni métadonnées."""
+    clean = _TOOLS_META_RE.sub('', content or '')
+    clean = _ACTION_BLOCK_RE.sub('', clean)
+    return _THINK_RE.sub('', clean).strip()
+
+
+def build_replay_messages(sys_prompt: str, session: ChatSession, messages: List[ChatMessage]) -> List[Dict[str, Any]]:
+    """Messages envoyés à Ollama : prompt système + dernier résumé + échanges postérieurs au résumé.
+    Le dernier résumé couvre déjà les précédents (chaque compaction les fusionne) : la pile
+    compression_stack ne sert qu'à l'affichage et n'est pas renvoyée au modèle."""
+    sys_content = sys_prompt
     if session.compressed_context:
-        formatted_history.append(f"[Previously compressed summary]\n{session.compressed_context}\n\n[New messages to add to summary]")
-    for msg in to_compress:
-        role_prefix = "U" if msg.role == "user" else "A"
-        formatted_history.append(f"{role_prefix}: {msg.content}")
-    history_text = "\n".join(formatted_history)
+        sys_content += f"\n\n[CONTEXT SUMMARY — earlier conversation]\n{session.compressed_context}"
+    payload = [{"role": "system", "content": sys_content}]
+    boundary = session.last_compressed_message_id
+    for m in messages:
+        if boundary and m.id <= boundary:
+            continue
+        payload.append({"role": m.role, "content": clean_for_replay(m.content)})
+    return payload
 
-    # Prompt in English, with language instruction for the response
-    lang_instruction = ""
-    if lang and lang.lower() == "fr":
-        lang_instruction = "\nIMPORTANT: Write the summary in French."
-    elif lang and lang.lower() != "en":
-        lang_instruction = f"\nIMPORTANT: Write the summary in {lang}."
-    else:
-        lang_instruction = "\nIMPORTANT: Write the summary in English."
 
-    custom_instr_block = ""
-    if custom_instruction:
-        custom_instr_block = f"\nAdditional user instruction for this summary: {custom_instruction}"
+def context_usage(sys_prompt: str, session: ChatSession, messages: List[ChatMessage], tools, cfg: dict) -> Dict[str, int]:
+    """Jauge « Mémoire » : taille de la conversation au prochain envoi, rapportée au seuil de compaction."""
+    used = estimate_payload_tokens(build_replay_messages(sys_prompt, session, messages), tools, cfg.get("model"))
+    return {"used": used, "limit": compaction_threshold(cfg["num_ctx"]), "num_ctx": cfg["num_ctx"]}
 
-    prompt = f"""{history_text}
 
-=== COMPRESSION INSTRUCTIONS (CRITICAL — READ CAREFULLY) ===
-You are a memory compactor for a financial AI assistant. Summarize the conversation ABOVE.
+def _select_messages_to_compress(session: ChatSession, messages: List[ChatMessage], trigger_msg_id: Optional[int]) -> List[ChatMessage]:
+    """Messages à résumer : depuis le dernier résumé jusqu'avant le message déclencheur,
+    en gardant intacts les KEEP_RECENT_EXCHANGES derniers échanges si cela laisse quelque chose à résumer."""
+    boundary = session.last_compressed_message_id
+    candidates = [m for m in messages
+                  if (not boundary or m.id > boundary) and (not trigger_msg_id or m.id < trigger_msg_id)]
+    user_idx = [i for i, m in enumerate(candidates) if m.role == "user"]
+    for keep in range(KEEP_RECENT_EXCHANGES, 0, -1):
+        if len(user_idx) > keep:
+            return candidates[:user_idx[-keep]]
+    return candidates
+
+
+def _summary_prompt(previous_summary: Optional[str], chunk: List[ChatMessage], target_words: int, lang: str, custom_instruction: Optional[str]) -> str:
+    parts = []
+    if previous_summary:
+        parts.append(f"[Previous summary]\n{previous_summary}\n\n[New messages to merge into the summary]")
+    for msg in chunk:
+        parts.append(f"{'U' if msg.role == 'user' else 'A'}: {clean_for_replay(msg.content)}")
+    language = {"fr": "French", "en": "English"}.get((lang or "fr").lower(), lang)
+    custom = f"\nAdditional user instruction for this summary: {custom_instruction}" if custom_instruction else ""
+    return f"""{chr(10).join(parts)}
+
+=== COMPRESSION INSTRUCTIONS ===
+You are the memory of a personal finance assistant. Write ONE summary of the whole conversation above
+(previous summary included) so the assistant can continue it without the original messages.
 
 RULES:
-1. Output ONLY the summary. No intro, no commentary, no titles.
-2. Use bullet points for key facts. Keep it dense and informative.
-3. U: = user said, A: = assistant said.
-4. Remove ALL greetings, politeness, filler, repetitions.
-5. KEEP ALL financial data: amounts, dates, account names, categories, decisions made.
-6. KEEP conversation flow (who asked what, what was decided).
-7. Target: 30-50% of original size.{lang_instruction}{custom_instr_block}
+1. Output ONLY the summary: no intro, no commentary, no title.
+2. Dense bullet points. U: = user, A: = assistant.
+3. Drop greetings, politeness, filler and repetitions.
+4. KEEP every financial fact: amounts, dates, account names, categories, figures computed.
+5. KEEP what the user asked, what was decided or done (operations recorded, validated or refused), and open questions.
+6. At most about {target_words} words.
+7. Write the summary in {language}.{custom}
 
-NOW WRITE THE SUMMARY BELOW:"""
+SUMMARY:"""
 
-    # Use dedicated compression parameters: lower temperature for faithfulness, limited output length
-    compression_cfg = dict(cfg)
-    compression_cfg["temperature"] = 0.1
-    compression_options = {"temperature": 0.1, "num_ctx": cfg["num_ctx"], "num_predict": 2048}
 
+async def _summarize(prompt: str, cfg: dict, num_predict: int) -> tuple:
+    """Appel Ollama non bloquant, sans raisonnement (think=false) pour un résumé direct.
+    Même num_ctx que le chat : aucun rechargement du modèle."""
+    url = (cfg.get("url") or "").rstrip("/")
+    payload = {
+        "model": cfg.get("model"),
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "think": False,
+        "options": {"temperature": 0.1, "num_ctx": cfg["num_ctx"], "num_predict": num_predict},
+        "keep_alive": "30m",
+    }
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
+        resp = await client.post(f"{url}/api/chat", json=payload)
+        if resp.status_code == 400 and "think" in resp.text.lower():
+            # Modèle sans mode raisonnement : même appel sans le paramètre
+            payload.pop("think")
+            resp = await client.post(f"{url}/api/chat", json=payload)
+    resp.raise_for_status()
+    data = resp.json()
+    content = _THINK_RE.sub('', (data.get("message") or {}).get("content") or "").strip()
+    return content, data.get("done_reason")
+
+
+async def start_compression(db: Session, session: ChatSession, messages: List[ChatMessage], cfg: dict, lang: str = "fr", custom_instruction: str = None, trigger_msg_id: int = None) -> str | None:
+    """Résume l'historique dans compressed_context sans supprimer de message.
+
+    Le nouveau résumé fusionne le précédent et les messages depuis la dernière compaction, en gardant
+    intacts les derniers échanges et le message déclencheur. Un historique trop long pour une seule
+    requête est résumé par morceaux successifs. Retourne le nouveau résumé, ou None en cas d'échec.
+    """
+    to_compress = _select_messages_to_compress(session, messages, trigger_msg_id)
+    if not to_compress:
+        return None
+
+    num_ctx = int(cfg["num_ctx"])
     try:
-        compacted = call_ollama_sync(prompt, compression_cfg, extra_options={"num_predict": 2048})
-        if compacted:
-            compacted = compacted.strip()
-            # If this is a subsequent compression, push the old context onto the stack
-            if session.bubble_after_id and session.compressed_context:
-                import json
-                stack = json.loads(session.compression_stack) if session.compression_stack else []
-                stack.append({
-                    "context": session.compressed_context,
-                    "after_id": session.bubble_after_id
-                })
-                session.compression_stack = json.dumps(stack)
+        summary = session.compressed_context or None
+        pending = list(to_compress)
+        while pending:
+            # Morceau le plus long tenant dans le contexte avec le résumé courant et la réponse attendue
+            reserve = SUMMARY_MAX_TOKENS * 2 + 1500
+            room = num_ctx - reserve - estimate_tokens(summary or "")
+            chunk, size = [], 0
+            for m in pending:
+                t = estimate_tokens(clean_for_replay(m.content)) + MESSAGE_OVERHEAD_TOKENS
+                if chunk and size + t > room:
+                    break
+                chunk.append(m)
+                size += t
+            pending = pending[len(chunk):]
 
-            session.compressed_context = compacted
-            # Track the last message ID that is now covered by the compressed context
-            session.last_compressed_message_id = to_compress[-1].id
-            # Place bubble after the last compressed message (not after the trigger)
-            session.bubble_after_id = to_compress[-1].id
-            session.compressing = False
-            session.buffered_message = None
-            session.compression_started_at = None
-            db.commit()
-            db.refresh(session)
-            return compacted
+            input_tokens = size + estimate_tokens(summary or "")
+            target = min(SUMMARY_MAX_TOKENS, max(SUMMARY_MIN_TOKENS, input_tokens // 4))
+            prompt = _summary_prompt(summary, chunk, int(target * 0.7), lang, custom_instruction)
+            content, done_reason = await _summarize(prompt, cfg, num_predict=target * 2)
+            if done_reason == "length":
+                logger.warning(f"[Compression] Résumé tronqué par la limite de longueur ({target * 2} tokens)")
+            if not content:
+                raise ValueError("résumé vide")
+            summary = content
+
+        # Les résumés précédents restent visibles dans l'interface (pile), le modèle ne reçoit que le dernier
+        if session.bubble_after_id and session.compressed_context:
+            stack = json.loads(session.compression_stack) if session.compression_stack else []
+            stack.append({"context": session.compressed_context, "after_id": session.bubble_after_id})
+            session.compression_stack = json.dumps(stack)
+
+        session.compressed_context = summary
+        session.last_compressed_message_id = to_compress[-1].id
+        session.bubble_after_id = to_compress[-1].id
+        session.compressing = False
+        session.buffered_message = None
+        session.compression_started_at = None
+        db.commit()
+        db.refresh(session)
+        return summary
     except Exception as e:
         logger.error(f"[Compression] Error during start_compression: {e}")
         session.compressing = False

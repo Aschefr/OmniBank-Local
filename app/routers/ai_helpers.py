@@ -7,6 +7,7 @@ from datetime import date
 
 from app.database import get_db
 from app.models import GlobalConfig, Category, Transaction, Account
+from app.services.chat.ollama_client import normalize_num_ctx
 from app.services.csv_parser import check_import_alerts, extract_account_block
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -52,10 +53,8 @@ async def call_ollama(db: Session, prompt: str, sys_prompt: str, format_json: bo
     url = url_conf.value.rstrip("/")
     model = model_conf.value
     
-    options = {"temperature": 0.1} # low temp for strict parsing
-    if ctx_conf and ctx_conf.value:
-        try: options["num_ctx"] = int(ctx_conf.value)
-        except Exception: pass
+    # Même num_ctx que le chat, même si non configuré : sinon Ollama recharge le modèle
+    options = {"temperature": 0.1, "num_ctx": normalize_num_ctx(ctx_conf.value if ctx_conf else None)}  # low temp for strict parsing
 
     payload = {
         "model": model,
