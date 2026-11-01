@@ -190,6 +190,8 @@ def test_cockpit_forecast_anchoring_and_outgoing_transfers():
     # Définir une paie de base de 2500€
     db.add(GlobalConfig(key="override_paycheck_amount", value="2500.0"))
     db.add(GlobalConfig(key="override_paycheck_date", value=str(today)))
+    # The app always stores the logical period an override applies to; without it the result depended on the day of the month
+    db.add(GlobalConfig(key="override_paycheck_period", value=f"{today.year:04d}-{today.month:02d}"))
 
     # Ajouter une récurrence de recette active de 150€ (Aide de Marine)
     rec_aide = RecurrenceTemplate(
