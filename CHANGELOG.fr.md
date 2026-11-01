@@ -2,6 +2,11 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Ajouts & améliorations
+- **Assistant IA plus léger et plus ciblé 🪶** : les descriptions d'outils envoyées au modèle à chaque message sont environ un tiers plus courtes, et le rôle par défaut « Conseiller financier » ne garde que les outils du quotidien (environ moitié moins lourd) : les réponses démarrent plus vite et le bon outil est choisi plus sûrement. Pour une simulation détaillée de projet ou de prêt, un audit complet des données ou la suppression de catégories, d'enveloppes ou de récurrences, l'assistant indique désormais le rôle de conversation à choisir. Le bouton « Générer les cartes d'actions » demande au modèle l'action qu'il a annoncée au lieu de la deviner dans le texte : il ne produit plus de carte erronée.
+
 ## [1.3.0] - 2026-11-01
 
 ### Ajouts & améliorations

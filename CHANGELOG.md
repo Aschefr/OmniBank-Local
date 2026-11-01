@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **Lighter, More Focused AI Assistant 🪶**: The tool descriptions sent to the model with every message are about a third shorter, and the default "Conseiller financier" role keeps only everyday tools (about half the previous size), so answers start faster and the right tool is picked more reliably. For a detailed project or loan simulation, a full data audit or deleting categories, envelopes or recurrences, the assistant now tells you which conversation role to choose. The "Generate the action cards" button asks the model for the action it announced instead of guessing it from the text, so it no longer produces a wrong card.
+
 ## [1.3.0] - 2026-11-01
 
 ### Added & Improved
