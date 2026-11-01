@@ -714,6 +714,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             html += insertions[this.messages.length].join('');
         }
 
+        if (!this.messages.length && !html.trim()) {
+            html = this._renderStarterQuestions();
+        }
+
         // Snapshot scroll position before re-rendering
         const savedScrollTop = container.scrollTop;
         const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 80;
@@ -2196,6 +2200,27 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             }
             window.app.loadView('all_operations');
         }
+    },
+
+    // Starter questions shown on an empty conversation, adapted to its role (click = send)
+    _renderStarterQuestions() {
+        const session = (this.sessions || []).find(s => s.id === this.activeSessionId);
+        const roles = ['advisor', 'simulator', 'alerts', 'optimizer', 'budget_planner', 'forecaster', 'auditor'];
+        const role = roles.includes(session && session.role) ? session.role : 'advisor';
+        const chips = [1, 2, 3, 4].map(n => {
+            const key = `chat_starter_${role}_${n}`;
+            const text = window.i18n.t(key);
+            if (!text || text === key) return '';
+            return `<button type="button" class="chat-suggestion-chip chat-starter-chip" data-prompt="${window.escapeHtml(text)}">
+                        <span class="chat-suggestion-chip-text">${window.escapeHtml(text)}</span>
+                    </button>`;
+        }).join('');
+        return `
+            <div class="chat-starters">
+                <p class="chat-starters-title">${window.escapeHtml(window.i18n.t('chat_starters_title'))}</p>
+                <p class="chat-starters-hint">${window.escapeHtml(window.i18n.t('chat_starters_hint'))}</p>
+                <div class="chat-starters-list">${chips}</div>
+            </div>`;
     },
 
     _formatToolFallback(t) {

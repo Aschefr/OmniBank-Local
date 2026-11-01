@@ -724,6 +724,39 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     font-weight: 600;
                 }
 
+                /* Starter questions on an empty conversation */
+                .chat-starters {
+                    max-width: 640px;
+                    margin: 48px auto 24px;
+                    padding: 0 16px;
+                    text-align: center;
+                }
+                .chat-starters-title {
+                    margin: 0 0 4px;
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: var(--text-main);
+                }
+                .chat-starters-hint {
+                    margin: 0 0 18px;
+                    font-size: 13px;
+                    color: var(--text-muted);
+                }
+                .chat-starters-list {
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 10px;
+                }
+                .chat-starters-list .chat-starter-chip {
+                    width: 100%;
+                    min-height: 48px;
+                    justify-content: flex-start;
+                }
+                @media (max-width: 600px) {
+                    .chat-starters { margin-top: 24px; }
+                    .chat-starters-list { grid-template-columns: 1fr; }
+                }
+
                 /* 1-click follow-up suggestions */
                 .chat-suggestions-container {
                     margin-top: 20px;
