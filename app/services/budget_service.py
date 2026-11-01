@@ -695,10 +695,15 @@ def get_budget_status_data(year: int = None, month: int = None, date_start: str 
         }
     return response_data
 
-def get_budget_transactions_data(budget_id: int, year: int = None, month: int = None, db: Session = None):
+def get_budget_transactions_data(budget_id: int, year: int = None, month: int = None, db: Session = None,
+                                 date_start: str = None, date_end: str = None):
+    """Opérations d'une enveloppe sur sa période ; date_start/date_end (cycle de paie) remplacent le mois
+    calendaire pour les enveloppes mensuelles."""
     today = date.today()
     y = year or today.year
     m = month or today.month
+    period_start = safe_parse_budget_date(date_start, "date_start") if date_start else None
+    period_end = safe_parse_budget_date(date_end, "date_end") if date_end else None
 
     b = db.query(Budget).filter(Budget.id == budget_id).first()
     if not b:
@@ -719,6 +724,8 @@ def get_budget_transactions_data(budget_id: int, year: int = None, month: int = 
         q = db.query(Transaction).filter(Transaction.budget_id == budget_id)
         q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
+    elif not cats:
+        txs = []
     elif b.period == "indefinite":
         q = db.query(Transaction).filter(
             Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
@@ -747,11 +754,18 @@ def get_budget_transactions_data(budget_id: int, year: int = None, month: int = 
         q = _apply_account_filter(q)
         txs = q.order_by(Transaction.date_operation.desc()).all()
     else:
-        q = db.query(Transaction).filter(
-            extract('year', Transaction.date_operation) == y,
-            extract('month', Transaction.date_operation) == m,
-            Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
-        )
+        if period_start and period_end:
+            q = db.query(Transaction).filter(
+                Transaction.date_operation >= period_start,
+                Transaction.date_operation <= period_end,
+                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+            )
+        else:
+            q = db.query(Transaction).filter(
+                extract('year', Transaction.date_operation) == y,
+                extract('month', Transaction.date_operation) == m,
+                Transaction.type.in_(["expense_fixed", "expense_var", "income"]),
+            )
         if cats:
             q = q.filter(Transaction.category.in_(cats))
         q = _apply_account_filter(q)

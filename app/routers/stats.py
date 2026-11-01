@@ -156,7 +156,8 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     # Calculate global budget summary grouped by period type for sidebar bars
     from app.routers.budgets import get_budget_status, _parse_account_ids
     from app.models import Account
-    budget_data = get_budget_status(today.year, today.month, db=db)
+    # Même période que la page Budgets (cycle de paie en mode personnel) et même « dépensé à date »
+    budget_data = get_budget_status(cycle_offset=0, db=db)
     period_groups = {}
     savings_summary = {"funded": 0, "goal": 0, "balance": 0, "count": 0}
     savings_list = []
@@ -180,9 +181,11 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         p = b.get("period", "monthly")
         if p not in period_groups:
             period_groups[p] = {"target": 0, "expenses": 0, "reconciled_expenses": 0, "accounts": {}}
-        period_groups[p]["target"] += b["budget_amount"] + b.get("income", 0)
-        period_groups[p]["expenses"] += b.get("expenses", 0)
-        period_groups[p]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
+        spent_now = b.get("spent_to_date", b.get("reconciled_expenses", 0))
+        spent_total = spent_now + b.get("planned", 0)
+        period_groups[p]["target"] += b["budget_amount"]
+        period_groups[p]["expenses"] += spent_total
+        period_groups[p]["reconciled_expenses"] += spent_now
 
         # Improvement_04: Sub-group by account scope
         acc_ids = b.get("account_ids") or []
@@ -192,9 +195,9 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
                 "target": 0, "expenses": 0, "reconciled_expenses": 0,
                 "account_ids": acc_ids
             }
-        period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"] + b.get("income", 0)
-        period_groups[p]["accounts"][acc_key]["expenses"] += b.get("expenses", 0)
-        period_groups[p]["accounts"][acc_key]["reconciled_expenses"] += b.get("reconciled_expenses", 0)
+        period_groups[p]["accounts"][acc_key]["target"] += b["budget_amount"]
+        period_groups[p]["accounts"][acc_key]["expenses"] += spent_total
+        period_groups[p]["accounts"][acc_key]["reconciled_expenses"] += spent_now
 
     # Resolve account names for sidebar display
     all_acc_ids = set()

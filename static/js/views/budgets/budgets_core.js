@@ -12,8 +12,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     selectedCategories: [], // Persistent state for category selection during edits
     statusByType: { monthly: null, yearly: null, indefinite: null, custom: null },
     savingsOverflow: null,
+    // Période des enveloppes mensuelles : cycle de paie (mode personnel) ou mois (mode organisation).
+    // 0 = période en cours, -1 = précédente… Renvoyée par le serveur dans periodInfo.
+    cycleOffset: 0,
+    periodInfo: null,
 
     async init() {
+        this.cycleOffset = 0; // chaque visite s'ouvre sur la période en cours
         const now = new Date();
         // Per-type date state from localStorage (or defaults)
         this.monthlyMonth = ProfileStorage.get('budget_monthly_month') || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -78,21 +83,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     // ── Per-type navigation ────────────────────────────────────────────
     stepMonthly(delta) {
-        const [y, m] = this.monthlyMonth.split('-').map(Number);
-        const d = new Date(y, m - 1 + delta, 1);
-        this.monthlyMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        ProfileStorage.set('budget_monthly_month', this.monthlyMonth);
-        this.loadStatusForType('monthly');
+        // Pas de période future : on ne dépense pas encore dans le prochain cycle
+        this.cycleOffset = Math.min(0, (this.cycleOffset || 0) + delta);
+        this.loadStatusForType('all');
     },
 
     goTodayMonthly() {
-        const now = new Date();
-        this.monthlyMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        ProfileStorage.set('budget_monthly_month', this.monthlyMonth);
-        // Reset custom period
+        this.cycleOffset = 0;
         this.customPeriod.enabled = false;
         ProfileStorage.set('budget_custom_enabled', 'false');
-        this.loadStatusForType('monthly');
+        this.loadStatusForType('all');
     },
 
     stepYearly(delta) {
@@ -110,6 +110,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     onCustomPeriodToggle(enabled) {
         this.customPeriod.enabled = enabled;
         ProfileStorage.set('budget_custom_enabled', enabled);
+        const inputs = document.getElementById('budgetCustomPeriodInputs');
+        if (inputs) inputs.toggleAttribute('hidden', !enabled);
 
         if (enabled && !this.customPeriod.start) {
             const now = new Date();
@@ -234,8 +236,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (this.customPeriod.enabled && this.customPeriod.start && this.customPeriod.end) {
                 url += `&date_start=${this.customPeriod.start}&date_end=${this.customPeriod.end}`;
             } else {
-                const [y, m] = this.monthlyMonth.split('-');
-                url += `&year=${y}&month=${m}`;
+                url += `&cycle_offset=${this.cycleOffset || 0}`;
             }
         } else if (type === 'yearly') {
             url += `&year=${this.yearlyYear}`;
@@ -250,6 +251,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 API.get('/api/budgets/capacity'),
             ]);
 
+            if (statusRes?.period !== undefined) this.periodInfo = statusRes.period;
             if (statusRes?.statusByType) {
                 this.statusByType = statusRes.statusByType;
             } else {
@@ -273,7 +275,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 API.get(this._buildStatusUrl(type)),
                 API.get('/api/budgets/capacity')
             ]);
-            this.statusByType[type] = status;
+            if (status?.period !== undefined) this.periodInfo = status.period;
+            if (type === 'all' && status?.statusByType) {
+                this.statusByType = status.statusByType;
+            } else {
+                this.statusByType[type] = status;
+            }
             this.capacityData = capacity;
             this.savingsOverflow = capacity?.savings_overflow || null;
             this._mergeStatusData();
