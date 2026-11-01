@@ -1295,7 +1295,7 @@
     }
 
     .gantt-row, .gantt-header {
-        grid-template-columns: 150px 1fr !important;
+        grid-template-columns: 118px 1fr !important;
     }
 }
 

@@ -647,3 +647,30 @@
     overflow: visible;
     text-overflow: clip;
 }
+
+/* Phones: dense Analytics tables (small type, minimal side padding, narrow category column) */
+@media (max-width: 768px) {
+    .analytics-table-scroll-container .data-table td,
+    .analytics-table-scroll-container .data-table th,
+    .analytics-table-scroll-container .data-table td span {
+        font-size: 10.5px !important;
+        padding-left: 3px !important;
+        padding-right: 3px !important;
+        letter-spacing: -0.2px;
+    }
+
+    .analytics-table-scroll-container .data-table td,
+    .analytics-table-scroll-container .data-table th {
+        padding-top: 7px !important;
+        padding-bottom: 7px !important;
+    }
+
+    .analytics-table-scroll-container .data-table th[data-col-type="cat"],
+    .analytics-table-scroll-container .data-table td:first-child {
+        width: 104px !important;
+        min-width: 104px !important;
+        max-width: 104px !important;
+        white-space: normal !important;
+        line-height: 1.15;
+    }
+}
