@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - **Auto-Pilot Review Cards**: The Validate / Edit buttons stay right-aligned on narrow screens.
 - **Vault Message**: The "vault unlocked" notice now shows the remaining days instead of a raw placeholder.
 - **Readability & Touch Targets 👆**: Text in the Auto-Pilot and badges is no longer smaller than 12 px, Auto-Pilot buttons are easier to tap on phones, the Categories list on mobile uses larger edit/close/delete buttons (the redundant status column is hidden), and the Auto-Pilot decision journal on desktop has aligned columns and no longer shows badges touching labels.
+- **Floating Table Headers in Analytics 📊**: The column headers of the Analytics tables now stay visible at the top of the page while you scroll, and follow the horizontal scroll on phones.
 - **Journal Opens on What Needs Reconciling 📒**: The Journal now scrolls to the oldest operation still to be reconciled instead of staying at the top, like the History page.
 - **Denser Tables on Phones 📱**: The Recurrences timeline and the Analytics tables use smaller type and tighter side padding on phones so more months and columns fit on screen (the 12 px minimum is kept everywhere else).
 - **Recurrences Timeline on Phones 📅**: Each month of the timeline is wide enough to show its full amount (no more cut-off "1800,00 €"), and the description column stays pinned while you scroll sideways.
