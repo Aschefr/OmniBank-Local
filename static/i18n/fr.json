@@ -3895,7 +3895,7 @@
   "config_ai_role_forecaster": "Prévisions de trésorerie",
   "config_ai_role_auditor": "Audit des opérations",
   "config_ai_guide_label": "Guide de l'interface",
-  "config_ai_guide_help": "Indique à l'assistant où se trouve chaque fonction, pour qu'il puisse vous guider dans l'application. À adapter si vous renommez ou masquez des pages.",
+  "config_ai_guide_help": "Indique à l'assistant où se trouve chaque fonction, avec les libellés affichés à l'écran. Ce guide est propre à la langue de l'interface : vous modifiez ici la version française. À adapter si vous renommez ou masquez des pages.",
   "config_ai_guide_saved": "Guide de l'interface enregistré",
   "config_ai_layer_guide": "4. Guide de l'interface (modifiable)",
   "chat_starters_title": "Par où commencer ?",
