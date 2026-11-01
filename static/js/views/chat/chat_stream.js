@@ -156,11 +156,12 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             return;
         }
 
+        // limit = seuil de compaction (les anciens échanges sont résumés au-delà), pas la taille du contexte
         const percent = Math.min(100, Math.round((this.tokenUsage.used / this.tokenUsage.limit) * 100));
         let color = '#10b981'; // Green
-        if (percent >= 75) {
+        if (percent >= 90) {
             color = '#ef4444'; // Red
-        } else if (percent >= 50) {
+        } else if (percent >= 70) {
             color = '#f59e0b'; // Orange
         }
 
@@ -171,6 +172,9 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             .replace('{used}', this.tokenUsage.used.toLocaleString())
             .replace('{limit}', this.tokenUsage.limit.toLocaleString())
             .replace('{percent}', percent);
+        indicator.title = (window.i18n.t('chat_context_tokens_hint') || '')
+            .replace('{limit}', this.tokenUsage.limit.toLocaleString())
+            .replace('{num_ctx}', (this.tokenUsage.num_ctx || this.tokenUsage.limit).toLocaleString());
     },
 
     async deleteCompressedContext() {
@@ -213,7 +217,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         submitBtn.disabled = true;
         submitBtn.textContent = window.i18n.t('chat_context_regenerating');
         try {
-            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate-compressed-context`, {
+            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/regenerate-compressed-context?lang=${encodeURIComponent(window.i18n.lang || 'fr')}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ instruction })

@@ -778,7 +778,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     async loadMessages(isRestore = false) {
         if (!this.activeSessionId) return;
         try {
-            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/messages`);
+            const resp = await fetch(`/api/chat/sessions/${this.activeSessionId}/messages?lang=${encodeURIComponent(window.i18n.lang || 'fr')}`);
             if (resp.ok) {
                 const data = await resp.json();
                 this.messages = data.messages;

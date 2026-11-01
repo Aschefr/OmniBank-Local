@@ -293,11 +293,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 </div>
                                 <div class="config-field">
                                     <label class="config-label" for="conf_ollama_ctx" data-i18n="config_ai_ctx">Taille du Contexte</label>
-                                    <input type="number" id="conf_ollama_ctx" class="inline-input" value="4096" onchange="window.ConfigView.save()">
+                                    <input type="number" id="conf_ollama_ctx" class="inline-input" value="32768" min="16384" step="1024" onchange="if (+this.value < 16384) this.value = '16384'; window.ConfigView.save()">
                                     <div class="config-chip-row">
-                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='2048'; window.ConfigView.save()">2K</button>
-                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='4096'; window.ConfigView.save()">4K</button>
-                                        <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='8192'; window.ConfigView.save()">8K</button>
                                         <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='16384'; window.ConfigView.save()">16K</button>
                                         <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='32768'; window.ConfigView.save()">32K</button>
                                         <button type="button" class="btn btn-secondary config-chip" onclick="document.getElementById('conf_ollama_ctx').value='65536'; window.ConfigView.save()">64K</button>
@@ -689,7 +686,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 document.getElementById('conf_ollama_temp_slider').value = this.configData.ollama_temperature;
             }
             if (this.configData.ollama_context) {
-                document.getElementById('conf_ollama_ctx').value = this.configData.ollama_context;
+                // Le serveur n'utilise jamais moins de 16K (consignes + outils de l'assistant)
+                document.getElementById('conf_ollama_ctx').value = Math.max(16384, parseInt(this.configData.ollama_context, 10) || 32768);
             }
             
             this.loadAiPersonality();

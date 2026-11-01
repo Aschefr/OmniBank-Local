@@ -1822,7 +1822,7 @@
   "col_type": "Type",
   "config_ai_advanced": "Advanced settings (creativity, memory)",
   "config_ai_ctx": "Context Size",
-  "config_ai_ctx_hint": "Minimum 8192 (8K) recommended for tool-enabled Chat (to prevent early history loss), and 32K required for large imports.",
+  "config_ai_ctx_hint": "Minimum 16K: the assistant's instructions and tools already take about 9,000. 32K recommended (and required for large imports). Changing this value reloads the model.",
   "config_ai_ctx_hint_detail": "A context size of 16384 (16K) or more is highly recommended to fit all tool descriptions and chat history. Note: changing these settings forces Ollama to reload the model, causing a delay on the first query.",
   "config_ai_desc": "Enter the URL of your local Ollama server (e.g.: http://localhost:11434 or http://192.168.1.50:11434).",
   "config_ai_enable": "Enable AI",
@@ -3927,5 +3927,7 @@
   "chat_starter_auditor_1": "Which old operations still need reconciling?",
   "chat_starter_auditor_2": "Which operations have no category?",
   "chat_starter_auditor_3": "Are there duplicates or entry mistakes?",
-  "chat_starter_auditor_4": "Which recurring charges are missing?"
+  "chat_starter_auditor_4": "Which recurring charges are missing?",
+  "chat_context_tokens_hint": "Beyond {limit} tokens, the oldest exchanges are summarized automatically; the last two stay intact. Model context: {num_ctx} tokens.",
+  "chat_context_superseded": "included in the next summary"
 }

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db, SessionLocal
 from app.models import Notification, GlobalConfig
+from app.services.chat.ollama_client import get_num_ctx
 from datetime import datetime, date, timezone
 import json
 import httpx
@@ -349,7 +350,7 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
             "format": "json",
             "options": {
                 "temperature": 0.4,
-                "num_ctx": int(get_config_val(db, "ollama_context", "4096"))
+                "num_ctx": get_num_ctx(db)
             }
         }
         

@@ -16,7 +16,7 @@ from sqlalchemy import or_
 from fastapi import HTTPException
 
 from app.models import Budget, BudgetCategory, Transaction, Category, RecurrenceTemplate, GlobalConfig
-from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync, call_ollama_async, strip_thinking
+from app.services.chat.ollama_client import get_ollama_config, call_ollama_sync, call_ollama_async, normalize_num_ctx, strip_thinking
 from app.services.finance_engine import predict_next_paycheck
 
 import asyncio
@@ -702,14 +702,8 @@ Response format (JSON object with key "envelopes"):
         logger.info("[AI Budget] Moteur déterministe sélectionné. Contournement d'Ollama et regroupement thématique déterministe immédiat.")
         is_fallback = True
     else:
-        # Respecter scrupuleusement le paramètre de contexte configuré par l'utilisateur !
-        cfg_ctx_raw = cfg.get("num_ctx")
-        try:
-            ollama_ctx = int(cfg_ctx_raw) if cfg_ctx_raw else 8192
-            if ollama_ctx < 4096:
-                ollama_ctx = 4096
-        except (ValueError, TypeError):
-            ollama_ctx = 8192
+        # Respecter le paramètre de contexte configuré (le même partout : pas de rechargement du modèle)
+        ollama_ctx = normalize_num_ctx(cfg.get("num_ctx"))
 
         # Définir un num_predict généreux (au moins 4096 tokens) pour garantir que le JSON ne sera jamais tronqué
         ollama_num_predict = min(8192, max(4096, ollama_ctx // 4))
