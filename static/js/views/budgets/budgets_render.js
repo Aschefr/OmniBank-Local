@@ -465,22 +465,56 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const cfg = window.app?.config || {};
         let pinned = [];
         try { pinned = JSON.parse(cfg.budget_pinned_ids || '[]').map(Number).filter(Boolean); } catch (e) { pinned = []; }
+        let labels = {};
+        try { labels = JSON.parse(cfg.budget_sidebar_labels || '{}') || {}; } catch (e) { labels = {}; }
         return {
             pinned,
+            labels,
             sidebarTotals: cfg.budget_sidebar_totals !== 'false',
             excludeFixed: cfg.budget_totals_exclude_fixed !== 'false',
         };
     },
 
-    async saveBudgetPrefs(patch) {
+    async saveBudgetPrefs(patch, { keepNames = false } = {}) {
         try {
             await API.post('/api/config/', patch);
             if (window.app) window.app.config = { ...(window.app.config || {}), ...patch };
             this.renderStatus();
-            window.app?.refreshSidebar();
+            await window.app?.refreshSidebar();
+            // La liste des noms suit ce que montre la barre latérale (épinglage, totaux affichés ou non)
+            const names = document.getElementById('bvPrefsNames');
+            if (names && !keepNames) names.innerHTML = this._prefsNamesHtml();
         } catch (e) {
             showInlineMessage(window.i18n.t('title_error'), e.message);
         }
+    },
+
+    async setSidebarLabel(key, value) {
+        const labels = { ...this._budgetPrefs().labels };
+        const v = (value || '').trim();
+        if (v) labels[key] = v; else delete labels[key];
+        await this.saveBudgetPrefs({ budget_sidebar_labels: JSON.stringify(labels) }, { keepNames: true });
+    },
+
+    // Noms affichés dans la barre latérale : une ligne par élément visible, dans le même ordre
+    _prefsNamesHtml() {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const items = window.app?.sidebarBudgetItems || [];
+        const labels = this._budgetPrefs().labels;
+        const rows = items.map(it => `
+            <label class="bv-pref-name">
+                <span class="bv-pref-name-default">${esc(it.label)}</span>
+                <input type="text" class="inline-input" maxlength="40" value="${esc(labels[it.key] || '')}" placeholder="${esc(it.label)}"
+                       aria-label="${esc(t('bv_prefs_name_for', 'Nom affiché pour {name}').split('{name}').join(it.label))}"
+                       data-label-key="${esc(it.key)}" onchange="window.BudgetsView.setSidebarLabel(this.dataset.labelKey, this.value)">
+            </label>`).join('');
+        return `
+            <h4>${t('bv_prefs_names', 'Noms dans la barre latérale')}</h4>
+            ${items.length
+                ? `<p class="bv-pref-hint">${t('bv_prefs_names_hint', "Un nom plus court ou plus parlant, visible uniquement dans la barre latérale. Laissez vide pour garder le nom d'origine.")}</p>
+                   <div class="bv-pref-names">${rows}</div>`
+                : `<p class="bv-pref-hint">${t('bv_prefs_names_empty', "Rien n'est affiché dans la barre latérale pour l'instant.")}</p>`}`;
     },
 
     isPinned(id) {
@@ -533,6 +567,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <span>${t('bv_prefs_show_totals', 'Afficher aussi les totaux par période')}</span>
                     </label>
                 </section>
+                <section class="bv-pref-group" id="bvPrefsNames">${this._prefsNamesHtml()}</section>
                 ${isOrg ? '' : `
                 <section class="bv-pref-group">
                     <h4>${t('bv_prefs_totals', 'Totaux')}</h4>

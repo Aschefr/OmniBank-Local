@@ -3997,5 +3997,9 @@
   "bv_pin_hint": "Show this envelope in the sidebar",
   "bv_pinned": "Pinned to the sidebar",
   "bv_total_without_fixed": "excluding planned charges",
-  "sb_envelopes": "Envelopes"
+  "sb_envelopes": "Envelopes",
+  "bv_prefs_names": "Names in the sidebar",
+  "bv_prefs_names_hint": "A shorter or clearer name, shown only in the sidebar. Leave empty to keep the original name.",
+  "bv_prefs_names_empty": "Nothing is shown in the sidebar yet.",
+  "bv_prefs_name_for": "Name shown for {name}"
 }

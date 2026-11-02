@@ -49,6 +49,7 @@ CONFIG_DEFAULTS = {
     "budget_pinned_ids": "[]",
     "budget_sidebar_totals": "true",
     "budget_totals_exclude_fixed": "true",
+    "budget_sidebar_labels": "{}",
 }
 
 @router.get("/")
