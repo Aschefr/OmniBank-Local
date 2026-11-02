@@ -738,6 +738,7 @@
 .bv-fold > summary::-webkit-details-marker { display: none; }
 .bv-fold > summary h3 { display: inline-flex; align-items: center; gap: 8px; }
 .bv-fold-sum { margin-bottom: 8px; }
+.bv-fold-hint { max-width: 90ch; margin: 0 0 10px; line-height: 1.5; }
 .bv-fold-right { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
 .bv-fold-period { display: flex; flex-direction: column; gap: 5px; }
 .bv-fold-period + .bv-fold-period { margin-top: 4px; }

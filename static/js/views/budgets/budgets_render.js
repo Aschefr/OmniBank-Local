@@ -736,7 +736,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                      ontoggle="ProfileStorage.set('budget_fixed_open', this.open ? 'true' : 'false')">
                 <summary class="bv-total bv-total--head bv-fold-sum bv-tone-${foldTone}">
                     <div class="bv-total-head">
-                        <span class="bv-total-label"><h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3></span>
+                        <span class="bv-total-label"><h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3><span class="bv-total-period">${t('bv_section_fixed_sub', 'liées à vos récurrences')}</span></span>
                         <span class="bv-fold-right">${single ? figures(single) : ''}<span class="bv-fold-chevron">${this._bvIcon('chevronDown', 18)}</span></span>
                     </div>
                     ${single ? barBlock(single) : fixedBars.map(f => `
@@ -745,7 +745,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${barBlock(f)}
                     </div>`).join('')}
                 </summary>
-                <p class="bv-section-hint">${t('bv_section_fixed_hint', 'Suivies par les récurrences : seul un dépassement est signalé.')}</p>
+                <p class="bv-section-hint bv-fold-hint">${t('bv_section_fixed_hint', "Rangées ici automatiquement : l'essentiel de leurs dépenses vient de vos récurrences (prêt, assurance, abonnements…). Quand une récurrence apparaît, change de montant ou s'arrête, leur plafond suit, si l'Auto-Pilote applique seul les recalibrages et que l'enveloppe n'est pas verrouillée. Seul un dépassement est signalé.")}</p>
                 <div class="bv-env-list">${groups.fixed.map(renderRow).join('')}</div>
             </details>`;
         }
