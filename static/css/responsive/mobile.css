@@ -3162,22 +3162,6 @@ select.inline-input:focus option:checked {
         border-radius: 12px !important;
     }
 
-    .budget-type-row {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 6px !important;
-    }
-
-    .budget-type-toggle-group {
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-
-    .budget-type-toggle-group label {
-        padding: 6px 4px !important;
-        font-size: 11.5px !important;
-    }
-
     /* ── Fallback Import Modal Mobile Viewport ── */
     #importDataModal .modal {
         width: calc(100vw - 16px) !important;
