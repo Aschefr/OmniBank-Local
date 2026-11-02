@@ -2317,7 +2317,7 @@
   "import_status_new": "New",
   "import_status_reconciled": "Already reconciled",
   "import_status_to_reconcile": "To reconcile",
-  "import_tab_unassigned_hint": "⚠️ OmniBank account unassigned. Select an account above.",
+  "import_tab_unassigned_hint": "OmniBank account unassigned. Select an account above.",
   "label_account": "Account",
   "label_actions": "Actions",
   "label_active": "Active",

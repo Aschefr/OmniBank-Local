@@ -2317,7 +2317,7 @@
   "import_status_new": "Nouveau",
   "import_status_reconciled": "Déjà rapproché",
   "import_status_to_reconcile": "À rapprocher",
-  "import_tab_unassigned_hint": "⚠️ Compte OmniBank non associé. Sélectionnez le compte ci-dessus.",
+  "import_tab_unassigned_hint": "Compte OmniBank non associé. Sélectionnez le compte ci-dessus.",
   "label_account": "Compte",
   "label_actions": "Actions",
   "label_active": "Actif",

@@ -1228,7 +1228,7 @@ Object.assign(window.BankSyncView, {
                 : (typeof tx.raw_amount !== 'undefined' ? Math.abs(parseFloat(tx.raw_amount) || 0) : 0);
             const amountColor = isDebit ? 'var(--text-main)' : '#10b981';
             const amountInput = isRec 
-                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${amtVal.toFixed(2)} €</span>`
+                ? `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${formatCurrency(amtVal)}</span>`
                 : `<input type="number" step="0.01" class="input-styled review-amount-input" value="${amtVal.toFixed(2)}" style="width: 80px; text-align: right; padding: 4px; font-weight: 700; color: ${amountColor};" onchange="window.BankSyncView.updateTxAmount(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">`;
 
             const directionPillHtml = `
@@ -1304,7 +1304,7 @@ Object.assign(window.BankSyncView, {
                 descCellHtml = `${dbDesc}<span class="sync-desc" style="display: block; font-weight: 500; color: var(--text-main); padding: 4px 0;">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${descSublineHtml}`;
                 const displayCategory = tx.category || tx.audit_category || tx.db_category || '--';
                 catCellHtml = `<span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-main); font-size: 12px; padding: 3px 8px; border-radius: 6px;">${window.escapeHtml ? window.escapeHtml(displayCategory) : displayCategory}</span>`;
-                amountCellHtml = `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${amtVal.toFixed(2)} €</span>`;
+                amountCellHtml = `<span class="review-amount-text" style="font-weight: 700; color: ${amountColor};">${(isDebit ? '-' : '+')} ${formatCurrency(amtVal)}</span>`;
                 const inspectId = tx.audit_matched_id || tx.audit_created_id || tx.matched_db_id;
                 if (inspectId) {
                     actionBtnsHtml = `<button class="btn-action-icon" style="color: var(--accent); padding: 3px 6px; font-size: 13px;" onclick="window.BankSyncView.viewTransactionInApp(${inspectId})" title="${window.i18n ? window.i18n.t('bank_sync_view_tx_tooltip', 'Voir cette opération dans l\'historique') : 'Voir cette opération dans l\'historique'}"><span>👁️</span></button>`;
@@ -1554,7 +1554,7 @@ Object.assign(window.BankSyncView, {
             const rawAmt = typeof ghostLike.raw_amount !== 'undefined' ? parseFloat(ghostLike.raw_amount) : (parseFloat(ghostLike.amount) || 0);
             const isPositive = rawAmt >= 0;
             const absAmt = Math.abs(parseFloat(ghostLike.amount) || rawAmt || 0);
-            const amtFmt = (isPositive ? '+ ' : '- ') + absAmt.toFixed(2) + ' €';
+            const amtFmt = (isPositive ? '+ ' : '- ') + formatCurrency(absAmt);
             const amtColor = isPositive ? 'var(--accent-success, #10b981)' : 'var(--text-main, #f87171)';
             const dateStr = ghostLike.date_operation ? String(ghostLike.date_operation).substring(0, 10) : '';
 
@@ -1987,14 +1987,14 @@ Object.assign(window.BankSyncView, {
             // Mode Import CSV — badge solde fichier
             const fileBalance = this.previewData?._fileBalance;
             if (fileBalance != null) {
-                balanceBadgeHtml = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('import_file_balance_tooltip') || 'Solde détecté dans le fichier importé' : 'Solde détecté dans le fichier importé').replace(/"/g, '&quot;')}">📊 ${window.i18n ? window.i18n.t('import_file_balance') || 'Solde fichier' : 'Solde fichier'} : ${parseFloat(fileBalance).toFixed(2)} €</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('import_file_balance_tooltip') || 'Solde détecté dans le fichier importé' : 'Solde détecté dans le fichier importé').replace(/"/g, '&quot;')}">📊 ${window.i18n ? window.i18n.t('import_file_balance') || 'Solde fichier' : 'Solde fichier'} : ${formatCurrency(parseFloat(fileBalance))}</span>`;
             }
         } else if (currentAcc && typeof currentAcc.bank_balance === 'number' && typeof currentAcc.local_reconciled_balance === 'number') {
             const delta = Math.round((currentAcc.bank_balance - currentAcc.local_reconciled_balance) * 100) / 100;
             if (Math.abs(delta) < 0.005) {
-                balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${currentAcc.bank_balance.toFixed(2)} €)</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; padding: 2px 8px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_tooltip_synced') : 'Soldes conformes').replace(/"/g, '&quot;')}">🟢 ${window.i18n ? window.i18n.t('bank_sync_balance_synced') || 'Soldes conformes' : 'Soldes conformes'} (${formatCurrency(currentAcc.bank_balance)})</span>`;
             } else {
-                const diffFormatted = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' €';
+                const diffFormatted = (delta > 0 ? '+' : '') + formatCurrency(delta);
 
                 // Calculer l'impact net des opérations actives (non exclues) qui vont modifier le solde rapproché
                 let netSyncImpact = 0.0;
@@ -2039,7 +2039,7 @@ Object.assign(window.BankSyncView, {
 
                 const rawReconciled = window.i18n ? window.i18n.t('bank_sync_reconciled_word') : '';
                 const lblReconciled = (rawReconciled && rawReconciled !== 'bank_sync_reconciled_word') ? rawReconciled : 'Rapproché';
-                balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque: ${currentAcc.bank_balance.toFixed(2)} € • ${lblReconciled}: ${currentAcc.local_reconciled_balance.toFixed(2)} €)${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
+                balanceBadgeHtml = `<span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="${deltaTip}"><span>⚠️ ${window.i18n ? window.i18n.t('bank_sync_balance_diff') || 'Écart' : 'Écart'} : ${diffFormatted} (Banque : ${formatCurrency(currentAcc.bank_balance)} • ${lblReconciled} : ${formatCurrency(currentAcc.local_reconciled_balance)})${explanationText}</span>${shouldShowAdjustBtn ? adjustBtnHtml : ''}</span>`;
             }
         }
 
