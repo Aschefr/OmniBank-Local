@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -189,6 +189,22 @@ def get_budget_capacity(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"[Budgets Router] Erreur get_budget_capacity: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erreur serveur lors du calcul des capacités : {str(e)}")
+
+
+@router.get("/preview_transactions")
+def preview_budget_transactions(categories: List[str] = Query(default=[]), period: str = "monthly",
+                                account_ids: List[int] = Query(default=[]), year: int = None, month: int = None,
+                                date_start: str = None, date_end: str = None,
+                                start_date: str = None, end_date: str = None, db: Session = Depends(get_db)):
+    """Opérations des catégories choisies dans le formulaire, avant enregistrement de l'enveloppe."""
+    try:
+        return budget_service.preview_budget_transactions_data(
+            db, categories, period, account_ids, year, month, date_start, date_end, start_date, end_date)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Budgets Router] Erreur preview_budget_transactions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erreur serveur lors de la lecture des transactions : {str(e)}")
 
 
 @router.get("/{budget_id}/transactions")

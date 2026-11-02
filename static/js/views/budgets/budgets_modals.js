@@ -22,30 +22,48 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }).join('');
     },
 
+    // Catégories qu'une autre enveloppe ouverte suit déjà sur une période (et des comptes) qui recoupent
+    // ceux du formulaire : même règle que le serveur, qui refuserait l'enregistrement (double comptage)
+    _catConflicts() {
+        const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
+        const currentEditId = parseInt(document.getElementById('budgetEditId')?.value || 0);
+        const win = (p, s, e) => (p === 'custom' && s && e) ? [s, e] : ['0000-01-01', '9999-12-31'];
+        const [s1, e1] = win(period, document.getElementById('newBudgetStartDate')?.value, document.getElementById('newBudgetEndDate')?.value);
+        const isOrg = window.app?.config?.enable_org_mode === 'true';
+        const acc1 = new Set(isOrg ? this.getSelectedAccounts() : []);
+        const map = {};
+        for (const b of (this.budgets || [])) {
+            if (b.id === currentEditId || b.is_closed || b.is_project || (b.envelope_type || 'spending') !== 'spending') continue;
+            const [s2, e2] = win(b.period, b.start_date, b.end_date);
+            if (s1 > e2 || s2 > e1) continue;
+            const acc2 = new Set(b.account_ids || []);
+            if (acc1.size && acc2.size && ![...acc1].some(a => acc2.has(a))) continue;
+            for (const c of (b.categories || [])) (map[c] = map[c] || []).push(b.name);
+        }
+        return map;
+    },
+
     renderCatCheckboxes(selected = []) {
         const container = document.getElementById('budgetCatCheckboxes');
         if (!container) return;
         const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
         const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
-        const currentEditId = parseInt(document.getElementById('budgetEditId')?.value || 0);
+        const taken = this._catConflicts();
 
-        // Autres enveloppes ouvertes qui suivent déjà la catégorie : ses dépenses y seraient comptées deux fois
-        const catToBudget = {};
-        for (const b of (this.budgets || [])) {
-            if (b.id === currentEditId || b.is_closed) continue;
-            for (const c of (b.categories || [])) (catToBudget[c] = catToBudget[c] || []).push(b.name);
-        }
-
-        // Dépenses d'abord ; revenus, neutres et autres repliés tant qu'on ne les cherche pas
+        // Dépenses d'abord ; revenus, neutres et autres repliés tant qu'on ne les cherche pas ;
+        // les catégories déjà suivies ailleurs sont rassemblées à part, en fin de liste
         const order = ['expense_var', 'expense_fixed', 'income', 'neutral', 'other'];
         const isSpendType = (type) => type === 'expense_var' || type === 'expense_fixed';
+        const term = document.getElementById('budgetCatSearch')?.value || '';
+        const visible = (this.categories || []).filter(c => !term || window.permissiveMatch(c.name, term));
         const groups = {};
-        for (const c of (this.categories || [])) {
+        const takenList = [];
+        for (const c of visible) {
+            if (taken[c.name]) { takenList.push(c); continue; }
             const key = order.includes(c.type) ? c.type : 'other';
             (groups[key] = groups[key] || []).push(c);
         }
-        const term = document.getElementById('budgetCatSearch')?.value || '';
         const showOthers = this._showOtherCatTypes || !!term
             || selected.some(n => { const c = (this.categories || []).find(x => x.name === n); return c && !isSpendType(c.type); });
         const avgFor = (name) => {
@@ -53,35 +71,46 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             return period === 'yearly' ? a * 12 : a;
         };
         const unit = period === 'yearly' ? t('bv_form_per_year', '/an') : t('bv_form_per_month', '/mois');
+        const row = (c) => {
+            const on = selected.includes(c.name);
+            const owners = taken[c.name];
+            const avg = avgFor(c.name);
+            // Déjà suivie ailleurs : on ne peut que la retirer (si elle est cochée), pas l'ajouter
+            return `
+                <label class="bv-cat-opt${on ? ' is-checked' : ''}${owners ? ' is-taken' : ''}"${owners ? ` title="${esc(t('bv_form_cat_taken_hint', "Une dépense ne compte que dans une seule enveloppe : retirez d'abord cette catégorie de l'autre enveloppe."))}"` : ''}>
+                    <input type="checkbox" name="budgetCat" value="${esc(c.name)}" ${on ? 'checked' : ''} ${owners && !on ? 'disabled' : ''} onchange="window.BudgetsView.toggleCategorySelection(this)">
+                    <span class="bv-cat-text">
+                        <span class="bv-cat-name">${esc(c.name)}</span>
+                        ${owners ? `<span class="bv-cat-elsewhere">${esc(t('bv_form_cat_in', 'dans {names}').split('{names}').join(owners.join(', ')))}</span>` : ''}
+                    </span>
+                    ${avg > 0 ? `<span class="bv-cat-avg privacy-blur">~${formatCurrency(avg)}${unit}</span>` : ''}
+                </label>`;
+        };
 
         let html = '';
         let hidden = 0;
         for (const key of order) {
-            const cats = (groups[key] || []).filter(c => !term || window.permissiveMatch(c.name, term));
+            const cats = groups[key] || [];
             if (!cats.length) continue;
             if (!isSpendType(key) && !showOthers) { hidden += cats.length; continue; }
             const title = key === 'other' ? t('budget_cat_other', 'Autres') : window.app.getTypeLabel(key);
             html += `
                 <div class="bv-cat-group">
                     <div class="bv-cat-group-title">${esc(title)}</div>
-                    <div class="bv-cat-grid">${cats.map(c => {
-                        const on = selected.includes(c.name);
-                        const avg = avgFor(c.name);
-                        const elsewhere = catToBudget[c.name];
-                        return `
-                        <label class="bv-cat-opt${on ? ' is-checked' : ''}">
-                            <input type="checkbox" name="budgetCat" value="${esc(c.name)}" ${on ? 'checked' : ''} onchange="window.BudgetsView.toggleCategorySelection(this)">
-                            <span class="bv-cat-text">
-                                <span class="bv-cat-name">${esc(c.name)}</span>
-                                ${elsewhere ? `<span class="bv-cat-elsewhere" title="${esc(t('bv_form_cat_elsewhere_hint', 'Ses dépenses seront comptées dans les deux enveloppes'))}">${esc(t('bv_form_cat_elsewhere', 'aussi dans {names}').split('{names}').join(elsewhere.join(', ')))}</span>` : ''}
-                            </span>
-                            ${avg > 0 ? `<span class="bv-cat-avg privacy-blur">~${formatCurrency(avg)}${unit}</span>` : ''}
-                        </label>`;
-                    }).join('')}</div>
+                    <div class="bv-cat-grid">${cats.map(row).join('')}</div>
                 </div>`;
         }
         if (hidden) {
             html += `<button type="button" class="bv-link-btn" onclick="window.BudgetsView._showOtherCatTypes = true; window.BudgetsView.renderCatCheckboxes(window.BudgetsView.selectedCategories)">${t('bv_form_cat_more', 'Afficher les revenus et autres catégories ({count})').split('{count}').join(hidden)}</button>`;
+        }
+        if (takenList.length) {
+            // Regroupées par enveloppe qui les suit, pour les repérer d'un coup d'œil
+            takenList.sort((a, b) => taken[a.name][0].localeCompare(taken[b.name][0]) || a.name.localeCompare(b.name));
+            html += `
+                <div class="bv-cat-group bv-cat-group--taken">
+                    <div class="bv-cat-group-title">${esc(t('bv_form_cat_taken', 'Déjà suivies par une autre enveloppe'))} <span class="bv-fold-count">${takenList.length}</span></div>
+                    <div class="bv-cat-grid">${takenList.map(row).join('')}</div>
+                </div>`;
         }
         container.innerHTML = html || `<p class="bv-field-hint">${t('bv_form_cat_no_match', 'Aucune catégorie ne correspond.')}</p>`;
         this.renderSelectedCats();
@@ -94,23 +123,149 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
         const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const sel = this.selectedCategories || [];
+        this._schedulePreview();
         if (!sel.length) {
             box.innerHTML = `<p class="bv-field-hint">${t('bv_form_cat_required', "Choisissez au moins une catégorie : sans catégorie, l'enveloppe ne suit aucune dépense.")}</p>`;
             return;
         }
+        const taken = this._catConflicts();
         const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
-        const monthly = sel.reduce((s, n) => s + (this.catAverages?.[n]?.yearly_average || 0), 0);
+        // Une catégorie de recettes (remboursement, aide) vient en déduction des dépenses
+        const isIncomeCat = (n) => (this.categories || []).find(c => c.name === n)?.type === 'income';
+        const monthly = sel.reduce((s, n) => s + (isIncomeCat(n) ? -1 : 1) * (this.catAverages?.[n]?.yearly_average || 0), 0);
         const avg = period === 'yearly' ? monthly * 12 : monthly;
         const canUse = avg > 0 && (period === 'monthly' || period === 'yearly');
         const avgText = t(period === 'yearly' ? 'bv_form_cat_avg_year' : 'bv_form_cat_avg_month',
             period === 'yearly' ? 'Dépense habituelle : ~{amount} par an' : 'Dépense habituelle : ~{amount} par mois').split('{amount}').join(formatCurrency(avg));
         box.innerHTML = `
             <div class="bv-cat-chips">${sel.map(n => `
-                <button type="button" class="bv-cat-chip" data-cat="${esc(n)}" onclick="window.BudgetsView.removeSelectedCat(this.dataset.cat)"
+                <button type="button" class="bv-cat-chip${taken[n] ? ' is-taken' : ''}" data-cat="${esc(n)}" onclick="window.BudgetsView.removeSelectedCat(this.dataset.cat)"
+                        title="${taken[n] ? esc(t('bv_form_cat_in', 'dans {names}').split('{names}').join(taken[n].join(', '))) : ''}"
                         aria-label="${esc(t('bv_form_cat_remove', 'Retirer {name}').split('{name}').join(n))}">${esc(n)}${this._bvIcon('close', 12)}</button>`).join('')}
             </div>
-            ${avg > 0 ? `<p class="bv-cat-sum"><span class="privacy-blur" title="${esc(t('bv_form_cat_avg_hint', 'Moyenne sur les 12 derniers mois'))}">${avgText}</span>${canUse
+            ${avg > 0 ? `<p class="bv-cat-sum"><span class="privacy-blur" title="${esc(t('bv_form_cat_avg_hint', 'Moyenne des 12 derniers mois'))}">${avgText}</span>${canUse
                 ? `<button type="button" class="bv-link-btn" onclick="window.BudgetsView.useCatAverage(${Math.round(avg * 100) / 100})">${t('bv_form_use_avg', 'Reprendre comme plafond')}</button>` : ''}</p>` : ''}`;
+    },
+
+    // Libellé de la période dont on montre les opérations (détail et aperçu du formulaire)
+    _envPeriodLabel(period, { isProject = false, startDate = null, endDate = null, year = null } = {}) {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const lang = (window.i18n?.currentLang || window.i18n?.lang || 'fr') === 'en' ? 'en-US' : 'fr-FR';
+        const fmtDay = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'short' }) : '';
+        const fmtDate = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '?';
+        const range = (s, e) => t('bv_dated_range', 'Du {start} au {end}').split('{start}').join(fmtDate(s)).split('{end}').join(fmtDate(e));
+        if (isProject) return t('bv_form_type_project', 'Projet');
+        if (!period || period === 'monthly') {
+            const p = this.periodInfo;
+            if (this.customPeriod?.enabled) return range(this.customPeriod.start, this.customPeriod.end);
+            if (p?.kind === 'cycle') return t('bv_period_cycle', 'Cycle du {start} au {end}').split('{start}').join(fmtDay(p.start)).split('{end}').join(fmtDay(p.end));
+            return p ? new Date(p.start + 'T00:00:00').toLocaleDateString(lang, { month: 'long', year: 'numeric' }) : '';
+        }
+        if (period === 'yearly') return t('bv_detail_year', 'Année {year}').split('{year}').join(year || new Date().getFullYear());
+        if (period === 'custom') return range(startDate, endDate);
+        return t('bv_detail_all_time', 'Toutes périodes');
+    },
+
+    // Ligne d'opération (détail de l'enveloppe et aperçu du formulaire)
+    _opRowHtml(it) {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const lang = (window.i18n?.currentLang || window.i18n?.lang || 'fr') === 'en' ? 'en-US' : 'fr-FR';
+        const d = new Date(it.date + 'T00:00:00');
+        const dateText = d.toLocaleDateString(lang, d.getFullYear() === new Date().getFullYear()
+            ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+        const planned = it.date > new Date().toISOString().slice(0, 10);
+        return `
+                <li class="bv-op${planned ? ' bv-op--planned' : ''}${it.added ? ' bv-op--added' : ''}">
+                    <span class="bv-op-date">${dateText}</span>
+                    <span class="bv-op-desc">
+                        <span class="bv-op-label">${it.label}</span>
+                        ${planned ? `<span class="bv-op-tag">${t('bv_op_planned', 'prévue')}</span>` : ''}
+                    </span>
+                    ${it.category ? `<span class="bv-op-cat">${esc(it.category)}</span>` : '<span></span>'}
+                    <span class="bv-op-amount privacy-blur${it.isIncome ? ' bv-op-amount--in' : ''}">${it.isIncome ? '+' : (it.sign || '')}${formatCurrency(Math.abs(it.amount))}</span>
+                    ${it.action || ''}
+                </li>`;
+    },
+
+    // Aperçu du formulaire : opérations que suivraient les catégories cochées, mis à jour à chaque changement
+    _schedulePreview() {
+        clearTimeout(this._previewTimer);
+        this._previewTimer = setTimeout(() => this._renderFormPreview(), 250);
+    },
+
+    async _renderFormPreview() {
+        const box = document.getElementById('budgetFormPreview');
+        if (!box || box.hidden || document.getElementById('budgetFormSection')?.style.display !== 'block') return;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const cats = [...(this.selectedCategories || [])];
+        const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
+        const startDate = document.getElementById('newBudgetStartDate')?.value || '';
+        const endDate = document.getElementById('newBudgetEndDate')?.value || '';
+        const isOrg = window.app?.config?.enable_org_mode === 'true';
+        const accIds = isOrg ? this.getSelectedAccounts() : [];
+        const p = this.periodInfo;
+        const year = this._currentDetailYear || (p ? parseInt(p.start.slice(0, 4)) : new Date().getFullYear());
+        const month = this._currentDetailMonth || (p ? parseInt(p.start.slice(5, 7)) : new Date().getMonth() + 1);
+
+        const params = new URLSearchParams({ period, year, month });
+        cats.forEach(c => params.append('categories', c));
+        accIds.forEach(a => params.append('account_ids', a));
+        if (period === 'monthly') {
+            const s = this.customPeriod?.enabled ? this.customPeriod.start : p?.start;
+            const e = this.customPeriod?.enabled ? this.customPeriod.end : p?.end;
+            if (s && e) { params.set('date_start', s); params.set('date_end', e); }
+        } else if (period === 'custom' && startDate && endDate) {
+            params.set('start_date', startDate); params.set('end_date', endDate);
+        }
+        const key = params.toString();
+        if (key === this._previewKey) return;
+        this._previewKey = key;
+
+        const head = (sub) => `
+            <div class="bv-preview-head">
+                <h4 class="bv-ops-title">${t('bv_form_preview_title', 'Opérations suivies')}</h4>
+                <span class="bv-preview-period">${esc(this._envPeriodLabel(period, { startDate, endDate, year }))}</span>
+            </div>${sub || ''}`;
+        if (!cats.length) {
+            box.innerHTML = head(`<p class="bv-detail-empty">${t('bv_form_preview_empty', "Cochez des catégories pour voir les opérations qu'elles feraient entrer dans l'enveloppe.")}</p>`);
+            return;
+        }
+        if (period === 'custom' && !(startDate && endDate)) {
+            box.innerHTML = head(`<p class="bv-detail-empty">${t('bv_form_preview_dates', 'Indiquez les dates de l’enveloppe pour voir ses opérations.')}</p>`);
+            return;
+        }
+        box.classList.add('is-loading');
+        let txs;
+        try {
+            txs = await API.get(`/api/budgets/preview_transactions?${key}`);
+        } catch (e) {
+            if (key === this._previewKey) box.innerHTML = head(`<p class="bv-detail-error">${t('title_error', 'Erreur')} : ${esc(e.message)}</p>`);
+            return;
+        } finally {
+            if (key === this._previewKey) box.classList.remove('is-loading');
+        }
+        if (key !== this._previewKey) return;
+
+        // Opérations des catégories ajoutées depuis l'ouverture du formulaire : repérées par un liseré
+        const editId = parseInt(document.getElementById('budgetEditId')?.value || 0);
+        const saved = editId ? ((this.budgets || []).find(b => b.id === editId)?.categories || []) : null;
+        const total = txs.reduce((s, tx) => s + (tx.is_income ? -Math.abs(tx.amount) : Math.abs(tx.amount)), 0);
+        const MAX = 150;
+        const items = txs.slice(0, MAX).map(tx => ({
+            date: tx.date, label: esc(tx.description), amount: tx.amount, isIncome: tx.is_income, category: tx.category,
+            added: !!saved && !saved.includes(tx.category),
+        }));
+        const count = t(txs.length > 1 ? 'bv_form_preview_count_many' : 'bv_form_preview_count_one', txs.length > 1 ? '{count} opérations' : '{count} opération').split('{count}').join(txs.length);
+        const summary = txs.length
+            ? `<p class="bv-preview-sum"><span>${count}</span><strong class="privacy-blur">${formatCurrency(total)}</strong></p>`
+            : '';
+        box.innerHTML = head(summary + (txs.length
+            ? `<ul class="bv-ops">${items.map(it => this._opRowHtml(it)).join('')}</ul>
+               ${txs.length > MAX ? `<p class="bv-detail-empty">${t('bv_form_preview_more', '… et {count} de plus').split('{count}').join(txs.length - MAX)}</p>` : ''}
+               ${items.some(it => it.added) ? `<p class="bv-preview-legend"><span class="bv-preview-swatch" aria-hidden="true"></span>${t('bv_form_preview_added', 'Opérations apportées par les catégories ajoutées')}</p>` : ''}`
+            : `<p class="bv-detail-empty">${t('bv_form_preview_none', 'Aucune opération sur cette période.')}</p>`));
     },
 
     removeSelectedCat(name) {
@@ -141,6 +296,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         show('budgetPeriodField', !isSavings);
         show('budgetLockSection', !isSavings);
         if (isSavings) document.getElementById('newBudgetPeriod').value = 'indefinite';
+        const split = !isProject && !isSavings;
+        const preview = document.getElementById('budgetFormPreview');
+        if (preview) preview.hidden = !split;
+        document.querySelector('#budgetUnifiedModal .budget-unified-panel')?.classList.toggle('is-split', split);
+        this._previewKey = null;
+        if (split) this._schedulePreview();
         const amountLabel = document.getElementById('budgetAmountLabel');
         if (amountLabel) amountLabel.textContent = isSavings ? t('bv_form_goal', 'Objectif') : t('bv_detail_limit', 'Plafond');
         const hint = document.getElementById('budgetTypeHint');
@@ -180,6 +341,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         detailSec.style.display = 'block';
         formSec.style.display = 'none';
+        modal.querySelector('.budget-unified-panel')?.classList.remove('is-split');
 
         // Rechargement sur place (après un réglage) : on garde le contenu affiché jusqu'à la nouvelle version
         const isRefresh = modal.style.display === 'flex' && graph.dataset.budgetId === String(budgetId);
@@ -190,16 +352,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         graph.dataset.budgetId = String(budgetId);
         modal.style.display = 'flex';
         this._bindUnifiedKeys();
-
-        const lang = (window.i18n?.currentLang || window.i18n?.lang || 'fr') === 'en' ? 'en-US' : 'fr-FR';
-        const thisYear = new Date().getFullYear();
-        const todayIso = new Date().toISOString().slice(0, 10);
-        const fmtOpDate = (iso) => {
-            const d = new Date(iso + 'T00:00:00');
-            return d.toLocaleDateString(lang, d.getFullYear() === thisYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
-        };
-        const fmtDay = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'short' }) : '';
-        const fmtDate = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '?';
 
         try {
             const budget = this.statusData?.budgets.find(b => b.id === budgetId);
@@ -214,20 +366,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             }
             const txs = await API.get(txUrl);
 
-            const opRow = (it) => {
-                const planned = it.date > todayIso;
-                return `
-                <li class="bv-op${planned ? ' bv-op--planned' : ''}">
-                    <span class="bv-op-date">${fmtOpDate(it.date)}</span>
-                    <span class="bv-op-desc">
-                        <span class="bv-op-label">${it.label}</span>
-                        ${planned ? `<span class="bv-op-tag">${t('bv_op_planned', 'prévue')}</span>` : ''}
-                    </span>
-                    ${it.category ? `<span class="bv-op-cat">${esc(it.category)}</span>` : '<span></span>'}
-                    <span class="bv-op-amount privacy-blur${it.isIncome ? ' bv-op-amount--in' : ''}">${it.isIncome ? '+' : (it.sign || '')}${formatCurrency(Math.abs(it.amount))}</span>
-                    ${it.action || ''}
-                </li>`;
-            };
+            const opRow = (it) => this._opRowHtml(it);
             const opsHtml = (items) => items.length
                 ? `<h4 class="bv-ops-title">${window.i18n.tp('budget_operations_count', { count: items.length })}</h4>
                    <ul class="bv-ops">${items.map(opRow).join('')}</ul>`
@@ -304,23 +443,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             // Résumé : la même jauge et les mêmes mots que la carte de l'enveloppe
             const gauge = budget ? this._envGauge(budget) : null;
             const period = budget?.period || 'monthly';
-            let periodLabel = '';
-            if (budget?.is_project) {
-                periodLabel = t('bv_form_type_project', 'Projet');
-            } else if (period === 'monthly') {
-                const p = this.periodInfo;
-                periodLabel = this.customPeriod?.enabled
-                    ? tp('bv_dated_range', { start: fmtDate(this.customPeriod.start), end: fmtDate(this.customPeriod.end) }, 'Du {start} au {end}')
-                    : p?.kind === 'cycle'
-                        ? tp('bv_period_cycle', { start: fmtDay(p.start), end: fmtDay(p.end) }, 'Cycle du {start} au {end}')
-                        : p ? new Date(p.start + 'T00:00:00').toLocaleDateString(lang, { month: 'long', year: 'numeric' }) : '';
-            } else if (period === 'yearly') {
-                periodLabel = tp('bv_detail_year', { year }, 'Année {year}');
-            } else if (period === 'custom') {
-                periodLabel = tp('bv_dated_range', { start: fmtDate(budget.start_date), end: fmtDate(budget.end_date) }, 'Du {start} au {end}');
-            } else {
-                periodLabel = t('bv_detail_all_time', 'Toutes périodes');
-            }
+            const periodLabel = this._envPeriodLabel(period, { isProject: budget?.is_project, startDate: budget?.start_date, endDate: budget?.end_date, year });
             const cats = budget?.categories || [];
             const summary = gauge ? `
                 <div class="bv-detail-summary bv-tone-${gauge.tone}">
@@ -391,7 +514,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
         document.getElementById('budgetEditId').value = b.id;
         document.getElementById('newBudgetName').value = b.name;
-        document.getElementById('newBudgetAmount').value = b.monthly_amount;
+        document.getElementById('newBudgetAmount').value = Number(b.monthly_amount || 0).toFixed(2);
         document.getElementById('newBudgetPeriod').value = b.period;
         document.getElementById('newBudgetStartDate').value = b.start_date || '';
         document.getElementById('newBudgetEndDate').value = b.end_date || '';
@@ -437,6 +560,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetArchiveSection').style.display = 'none';
 
         document.getElementById('budgetFormSection').style.display = 'block';
+        this._previewKey = null;
+        this._schedulePreview();
         const modal = document.getElementById('budgetUnifiedModal');
         modal.style.display = 'flex';
         modal.scrollTop = 0;
@@ -445,6 +570,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     closeUnifiedModal() {
+        clearTimeout(this._previewTimer);
+        this._previewKey = null;
+        document.querySelector('#budgetUnifiedModal .budget-unified-panel')?.classList.remove('is-split');
         document.getElementById('budgetUnifiedModal').style.display = 'none';
         document.getElementById('budgetFormSection').style.display = 'none';
         document.getElementById('budgetDetailSection').style.display = 'none';
@@ -458,6 +586,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } else {
             document.getElementById('budgetFormSection').style.display = 'none';
             document.getElementById('budgetDetailSection').style.display = 'block';
+            document.querySelector('#budgetUnifiedModal .budget-unified-panel')?.classList.remove('is-split');
             if (this._detailArgs) document.getElementById('budgetUnifiedTitle').textContent = this._detailArgs[1];
             document.getElementById('budgetUnifiedEditBtn').hidden = false;
         }
@@ -474,6 +603,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetUnifiedEditBtn').hidden = true;
         document.getElementById('budgetDetailSection').style.display = 'none';
         document.getElementById('budgetFormSection').style.display = 'block';
+        this._previewKey = null;
+        this._schedulePreview();
         document.getElementById('budgetUnifiedModal').scrollTop = 0;
     },
 
@@ -486,6 +617,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetUnifiedEditBtn').hidden = true;
         document.getElementById('budgetDetailSection').style.display = 'none';
         document.getElementById('budgetFormSection').style.display = 'block';
+        this._previewKey = null;
+        this._schedulePreview();
         const modal = document.getElementById('budgetUnifiedModal');
         modal.style.display = 'flex';
         modal.scrollTop = 0;

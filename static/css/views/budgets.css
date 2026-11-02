@@ -126,37 +126,7 @@
 
 /* ── Capacity Panel ───────────────────────────────────────────────────────── */
 
-.bv-capacity-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 18px;
-}
-
 /* ── Account Impact Cards ─────────────────────────────────────────────────── */
-.bv-accounts-section {
-    margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;
-}
-.bv-accounts-section-label {
-    font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 8px;
-    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
-}
-.bv-accounts-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 10px;
-}
-.bv-account-card {
-    background: var(--bg-base); border: 1px solid var(--border-color);
-    border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px;
-}
-.bv-account-card-name {
-    display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px;
-}
-.bv-account-card-row {
-    display: flex; justify-content: space-between; font-size: 12px; margin-top: 2px;
-}
-.bv-account-card-total {
-    display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;
-    border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;
-}
 
 /* ── Period Section ───────────────────────────────────────────────────────── */
 
@@ -685,8 +655,10 @@
 .bv-icon-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); }
 .bv-icon-btn--danger:hover { color: var(--danger); }
 .bv-icon-btn:disabled { opacity: 0.35; cursor: default; background: transparent; }
-.bv-icon-btn:focus-visible, .bv-env:focus-visible, .bv-capacity-toggle-btn:focus-visible,
-.bv-fold > summary:focus-visible, .bv-env-sugg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bv-icon-btn:focus-visible,
+.bv-env:focus-visible,
+.bv-fold > summary:focus-visible,
+.bv-env-sugg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bv-btn-compact { min-height: 28px; padding: 3px 10px; font-size: 12px; }
 
 /* Tons d'état (sens avant décor) */
@@ -821,18 +793,6 @@
 }
 
 /* Couverture du budget : outil d'analyse, replié en fin de page */
-.bv-capacity-toggle-btn {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
-    padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;
-    background: var(--bg-surface); color: var(--text-main); font: inherit; font-size: 13px; font-weight: 600;
-    text-align: left; cursor: pointer;
-}
-.bv-capacity-body { margin-top: 10px; padding: 14px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-surface); }
-.bv-meter { display: flex; flex-direction: column; gap: 6px; }
-.bv-meter-head, .bv-meter-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
-.bv-meter-head strong { color: var(--tone); font-variant-numeric: tabular-nums; }
-.bv-meter-foot { color: var(--text-muted); }
-.bv-meter-foot strong { color: var(--text-main); font-variant-numeric: tabular-nums; }
 
 /* Fenêtre d'une enveloppe (détail, création, modification) : même voile flouté que les autres fenêtres */
 #budgetUnifiedModal {
@@ -971,8 +931,6 @@
 .bv-cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); }
 .bv-cat-opt.is-checked .bv-cat-name { font-weight: 700; }
 .bv-cat-elsewhere { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }
-/* Cochée et suivie ailleurs : ses dépenses compteraient deux fois */
-.bv-cat-opt.is-checked .bv-cat-elsewhere { color: var(--warning); }
 .bv-cat-avg { flex-shrink: 0; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bv-cat-list > .bv-link-btn { margin-top: 10px; }
 .bv-acc-picks {
@@ -985,6 +943,44 @@
     margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--border-color);
 }
 .bv-form-actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* Modification d'une enveloppe par catégories : champs à gauche, opérations suivies à droite */
+.budget-unified-panel.is-split { width: min(1240px, 100%); }
+.bv-form-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.is-split .bv-form-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.bv-form-preview {
+    position: sticky; top: 0; max-height: calc(100dvh - 10vh - 140px); overflow-y: auto; min-width: 0;
+    padding: 4px 14px 12px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px;
+    transition: opacity 0.15s;
+}
+.bv-form-preview[hidden] { display: none; }
+.bv-form-preview.is-loading { opacity: 0.6; }
+.bv-preview-head {
+    position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 2px 12px; padding: 10px 0 6px; background: var(--bg-base);
+}
+.bv-preview-head .bv-ops-title { margin: 0; }
+.bv-preview-period { font-size: 12px; color: var(--text-muted); }
+.bv-preview-sum { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 2px; font-size: 12.5px; color: var(--text-muted); }
+.bv-preview-sum strong { color: var(--text-main); font-variant-numeric: tabular-nums; }
+.bv-op--added { box-shadow: inset 3px 0 0 var(--accent); padding-left: 9px; }
+.bv-preview-legend { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }
+.bv-preview-swatch { width: 3px; height: 14px; border-radius: 2px; background: var(--accent); }
+
+/* Catégories déjà suivies par une autre enveloppe : rassemblées en fin de liste, non cochables */
+.bv-cat-group--taken { margin-top: 6px; }
+.bv-cat-group--taken .bv-cat-group-title { color: var(--warning); }
+.bv-cat-opt.is-taken { cursor: not-allowed; background: color-mix(in srgb, var(--warning) 7%, transparent); }
+.bv-cat-opt.is-taken .bv-cat-name { color: var(--text-muted); }
+.bv-cat-opt.is-taken .bv-cat-elsewhere { color: var(--warning); }
+.bv-cat-opt.is-taken.is-checked { cursor: pointer; }
+.bv-cat-opt.is-taken.is-checked .bv-cat-name { color: var(--text-main); }
+.bv-cat-chip.is-taken { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 14%, transparent); }
+
+@media (max-width: 960px) {
+    .is-split .bv-form-body { grid-template-columns: minmax(0, 1fr); }
+    .bv-form-preview { position: static; max-height: 420px; }
+}
 
 @media (max-width: 768px) {
     .bv-header-actions { width: 100%; }

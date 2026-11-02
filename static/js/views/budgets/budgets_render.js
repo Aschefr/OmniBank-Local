@@ -99,6 +99,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                     <!-- FORM SECTION : création et modification (remplace le détail, Annuler y revient) -->
                     <div id="budgetFormSection" class="bv-form" style="display:none;">
+                      <div class="bv-form-body">
+                       <div class="bv-form-main">
                         <input type="hidden" id="budgetEditId">
 
                         <div id="budgetTypeRow" class="bv-field">
@@ -138,9 +140,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <div id="budgetCustomDates" class="bv-field" style="display:none;">
                             <span class="bv-field-label">${window.i18n.t('bv_form_dates') || 'Dates'}</span>
                             <div class="bv-date-range">
-                                <input type="date" id="newBudgetStartDate" class="inline-input" aria-label="${window.i18n.t('bv_custom_start') || 'Début'}">
+                                <input type="date" id="newBudgetStartDate" class="inline-input" onchange="window.BudgetsView.onPeriodChange()" aria-label="${window.i18n.t('bv_custom_start') || 'Début'}">
                                 <span aria-hidden="true">→</span>
-                                <input type="date" id="newBudgetEndDate" class="inline-input" aria-label="${window.i18n.t('bv_custom_end') || 'Fin'}">
+                                <input type="date" id="newBudgetEndDate" class="inline-input" onchange="window.BudgetsView.onPeriodChange()" aria-label="${window.i18n.t('bv_custom_end') || 'Fin'}">
                             </div>
                         </div>
 
@@ -161,6 +163,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <input type="checkbox" id="budgetIsLocked">
                             <span>${window.i18n.t('bv_detail_lock') || 'Verrouiller'}<span class="bv-field-hint"> · ${window.i18n.t('bv_form_lock_hint') || "l'Auto-Pilote ne propose plus d'ajuster le plafond"}</span></span>
                         </label>
+
+                       </div>
+                       <aside id="budgetFormPreview" class="bv-form-preview" aria-live="polite" hidden></aside>
+                      </div>
 
                         <div class="bv-form-foot">
                             <div id="budgetArchiveSection" style="display:none;">
@@ -729,7 +735,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             html += `<p class="bv-empty">${t('budget_no_active', 'Aucune enveloppe budgétaire active.')}</p>`;
         }
 
-        html += this._renderCapacityPanel(isOrg);
 
         // En tête : suggestions en attente, période, totaux sans section à résumer, points d'attention
         const orphans = totalGroups.filter(g => !placedTotals.has(g));
@@ -755,56 +760,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             requestAnimationFrame(() => this._highlightSection(p, sub));
         }
 
-    },
-
-    // Panneau « Couverture du budget » : replié par défaut, en fin de page (outil d'analyse, pas de suivi)
-    _renderCapacityPanel(isOrg) {
-        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
-        const open = ProfileStorage.get('show_budget_capacity_panel') === 'true';
-        let body = '';
-        if (open && this.capacityData) {
-            const incomeLabel = isOrg ? t('budget_capacity_receipts', 'Recettes') : t('budget_capacity_income', 'Revenus');
-            const tone = (r) => r > 100 ? 'over' : r >= 85 ? 'near' : 'ok';
-            const lng = window.i18n?.currentLang || window.i18n?.lang || 'fr';
-            const meter = (titleKey, titleFb, data) => {
-                const ratio = data.engagement_ratio;
-                const labelKey = data.is_fallback ? 'budget_capacity_expenses' : 'budget_capacity_budgeted';
-                const details = (lng === 'en' ? data.details_en : data.details_fr) || '';
-                return `
-                <div class="bv-meter bv-tone-${tone(ratio)}">
-                    <div class="bv-meter-head"><span>${t(titleKey, titleFb)}</span><strong>${ratio} %</strong></div>
-                    <div class="bv-env-bar"><span class="bv-env-fill" style="width:${Math.min(ratio, 100)}%"></span></div>
-                    <div class="bv-meter-foot">
-                        <span>${t(labelKey, 'Budgétisé')} : <strong class="privacy-blur">${formatCurrency(data.budgeted)}</strong></span>
-                        <span title="${details}">${incomeLabel} : <strong class="privacy-blur">${formatCurrency(data.average_income)}</strong></span>
-                    </div>
-                </div>`;
-            };
-            const accounts = (this.capacityData.accounts || []).map(acc => `
-                <div class="bv-account-card">
-                    <div class="bv-account-card-name"><span class="bv-env-account" style="--acc:${acc.color || 'var(--accent)'}">${acc.name}</span></div>
-                    <div class="bv-account-card-row"><span>${t('budget_real_balance', 'Solde réel')}</span><span class="privacy-blur">${formatCurrency(acc.real_balance)}</span></div>
-                    ${acc.savings_allocated > 0 ? `<div class="bv-account-card-row"><span>${t('budget_savings_reserved', 'Épargne réservée')}</span><span class="privacy-blur">- ${formatCurrency(acc.savings_allocated)}</span></div>` : ''}
-                    <div class="bv-account-card-total"><span>${t('budget_available_balance', 'Disponible virtuel')}</span><span class="privacy-blur">${formatCurrency(acc.available_balance)}</span></div>
-                </div>`).join('');
-            // Mode organisation : pas d'engagement mensuel (recettes annuelles ou ponctuelles)
-            body = `
-                <div class="bv-capacity-body">
-                    <div class="bv-capacity-grid">
-                        ${isOrg ? '' : meter('budget_capacity_monthly', 'Engagement mensuel', this.capacityData.monthly)}
-                        ${meter('budget_capacity_yearly', "Projection d'engagement annuel", this.capacityData.yearly)}
-                    </div>
-                    ${accounts ? `<div class="bv-accounts-section"><strong class="bv-accounts-section-label">${t('budget_accounts_impact', 'Impact sur les comptes & livrets')}</strong><div class="bv-accounts-grid">${accounts}</div></div>` : ''}
-                </div>`;
-        }
-        return `
-            <section class="bv-section bv-capacity">
-                <button type="button" class="bv-capacity-toggle-btn" aria-expanded="${open}" onclick="window.BudgetsView.toggleCapacityPanel(${!open})">
-                    <span>${t('budget_capacity_panel_title', 'Couverture du budget & Solde disponible')}</span>
-                    <span class="bv-fold-chevron${open ? ' is-open' : ''}">${this._bvIcon('chevronDown', 18)}</span>
-                </button>
-                ${body}
-            </section>`;
     },
 
     _renderSavingsCard(b) {
