@@ -13,7 +13,7 @@ Object.assign(window.BankSyncView, {
     // connexions terminées + estimation douce (asymptotique) pour la connexion en cours.
     _updateSyncProgress(progress) {
         if (!progress || !progress.total) return;
-        const within = 0.9 * (1 - Math.exp(-(progress.current_elapsed || 0) / 20));
+        const within = 0.9 * (1 - Math.exp(-(progress.current_elapsed || 0) / 10));
         const pct = ((progress.done + within) / progress.total) * 100;
         this._syncProgressPct = Math.max(this._syncProgressPct, Math.min(97, Math.max(4, pct)));
         this._paintSyncProgress();
@@ -41,7 +41,7 @@ Object.assign(window.BankSyncView, {
                 btn.classList.add('is-syncing');
                 btn.disabled = true;
                 btn.style.setProperty('--sync-progress', this._syncProgressPct + '%');
-                btn.innerHTML = `<span>⚡</span> <span>${window.i18n ? window.i18n.t('bank_sync_progress_loading') || 'Relevé en cours...' : 'Relevé en cours...'}</span>`;
+                btn.innerHTML = `<span>⚡</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_loading') || 'Relevé en cours...' : 'Relevé en cours...')}</span>`;
             } else if (state === 'success') {
                 btn.classList.add('is-success');
                 btn.disabled = false;
@@ -100,38 +100,68 @@ Object.assign(window.BankSyncView, {
                     this.setButtonsState('syncing');
                     this._startSyncPollingTracker();
                 }
-            } else if (this._syncState === 'syncing') {
-                this._stopSyncPollingTracker();
-                let hasError = false;
-                let conn2FA = null;
-                try {
-                    const connsRes = await API.get('/api/bank-sync/connections', { silent: true });
-                    if (Array.isArray(connsRes)) {
-                        this.connections = connsRes;
-                        conn2FA = connsRes.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
-                        hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
-                    }
-                } catch (_) {}
-
-                if (conn2FA) {
-                    this.setButtonsState('idle');
-                    // Déclenchement automatique et direct de la modale 2FA pour cette banque
-                    await this.promptAndSync(conn2FA.id);
-                } else {
-                    this.setButtonsState(hasError ? 'error' : 'success');
-                    setTimeout(() => this.setButtonsState('idle'), 3500);
-                }
-                Promise.all([
-                    (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications(true) : Promise.resolve(),
-                    this.refreshActiveViews(),
-                    (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
-                ]).then(() => {
-                    window.dispatchEvent(new CustomEvent('bank_sync_completed'));
-                    window.dispatchEvent(new CustomEvent('autopilot_updated'));
-                    window.dispatchEvent(new CustomEvent('transactions_updated'));
-                });
+            } else if (this._syncState === 'syncing' && !this._syncFinishing) {
+                await this._onSyncFinished();
             }
         } catch (_) {}
+    },
+
+    // La barre va au bout pendant que les vues et les notifications se mettent à jour ; le bouton ne
+    // passe à « terminé » qu'une fois les nouvelles données affichées. Un échec partiel reste un succès,
+    // nommé comme tel : une banque mal configurée ne doit pas faire passer tout le relevé pour une erreur.
+    async _onSyncFinished() {
+        this._syncFinishing = true;
+        this._stopSyncPollingTracker();
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        this._syncProgressPct = 100;
+        this.setButtonsState('syncing', t('bank_sync_progress_processing', 'Mise à jour des données…'));
+        const shownAt = Date.now();
+
+        let conn2FA = null, active = 0, failed = 0;
+        try {
+            const connsRes = await API.get('/api/bank-sync/connections', { silent: true });
+            if (Array.isArray(connsRes)) {
+                this.connections = connsRes;
+                const actives = connsRes.filter(c => c.is_active);
+                active = actives.length;
+                conn2FA = actives.find(c => c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa')));
+                failed = actives.filter(c => c.last_sync_status === 'auto_error' || c.last_sync_status === 'error').length;
+            }
+        } catch (_) {}
+        if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
+            window.app.setFastNotificationsPolling(false);
+        }
+
+        try {
+            await Promise.all([
+                (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications(true) : Promise.resolve(),
+                this.refreshActiveViews(),
+                (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve(),
+            ]);
+        } catch (_) {}
+        window.dispatchEvent(new CustomEvent('bank_sync_completed'));
+        window.dispatchEvent(new CustomEvent('autopilot_updated'));
+        window.dispatchEvent(new CustomEvent('transactions_updated'));
+
+        // Laisser à la barre le temps d'atteindre le bout avant de passer à l'état final
+        const wait = 900 - (Date.now() - shownAt);
+        if (wait > 0) await new Promise(r => setTimeout(r, wait));
+        this._syncFinishing = false;
+
+        if (conn2FA) {
+            this.setButtonsState('idle');
+            await this.promptAndSync(conn2FA.id);
+            return;
+        }
+        const allFailed = failed > 0 && failed >= active;
+        const state = allFailed ? 'error' : 'success';
+        const label = !allFailed && failed > 0
+            ? (failed > 1
+                ? t('bank_sync_progress_done_partial_many', 'Relevé terminé · {n} banques en échec').replace('{n}', failed)
+                : t('bank_sync_progress_done_partial_one', 'Relevé terminé · 1 banque en échec'))
+            : null;
+        this.setButtonsState(state, label);
+        setTimeout(() => { if (this._syncState === state) this.setButtonsState('idle'); }, 4500);
     },
 
     _startSyncPollingTracker() {
@@ -142,39 +172,7 @@ Object.assign(window.BankSyncView, {
                 const isRunning = Boolean(statusRes && statusRes.is_running);
                 if (isRunning) this._updateSyncProgress(statusRes.progress);
                 if (!isRunning) {
-                    this._stopSyncPollingTracker();
-                    let hasError = false;
-                    let conn2FA = null;
-                    try {
-                        const connsRes = await API.get('/api/bank-sync/connections');
-                        if (Array.isArray(connsRes)) {
-                            this.connections = connsRes;
-                            conn2FA = connsRes.find(c => c.is_active && (c.last_sync_status === '2fa_required' || (c.last_error && c.last_error.toLowerCase().includes('2fa'))));
-                            hasError = connsRes.some(c => c.is_active && (c.last_sync_status === 'auto_error' || c.last_sync_status === 'error'));
-                        }
-                    } catch (_) {}
-
-                    if (conn2FA) {
-                        this.setButtonsState('idle');
-                        // Déclenchement automatique et direct de la modale 2FA pour cette banque
-                        await this.promptAndSync(conn2FA.id);
-                    } else {
-                        this.setButtonsState(hasError ? 'error' : 'success');
-                        setTimeout(() => this.setButtonsState('idle'), 3500);
-                    }
-
-                    if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
-                        window.app.setFastNotificationsPolling(false);
-                    }
-                    Promise.all([
-                        (window.app && typeof window.app.loadNotifications === 'function') ? window.app.loadNotifications() : Promise.resolve(),
-                        this.refreshActiveViews(),
-                        (this.connections && this.connections.length > 0) ? this.loadConnections() : Promise.resolve()
-                    ]).then(() => {
-                        window.dispatchEvent(new CustomEvent('bank_sync_completed'));
-                        window.dispatchEvent(new CustomEvent('autopilot_updated'));
-                        window.dispatchEvent(new CustomEvent('transactions_updated'));
-                    });
+                    if (!this._syncFinishing) await this._onSyncFinished();
                     return;
                 }
             } catch (e) {
