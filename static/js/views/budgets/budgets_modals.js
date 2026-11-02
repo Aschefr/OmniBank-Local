@@ -194,9 +194,66 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         this._previewTimer = setTimeout(() => this._renderFormPreview(), 250);
     },
 
+    // Projet et tirelire : opérations rattachées à la main (et dépôts / retraits), ou comment les rattacher
+    async _renderLinkedPreview(box) {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const isSavings = document.getElementById('budgetTypeSavings')?.checked;
+        const editId = parseInt(document.getElementById('budgetEditId')?.value || 0);
+        const key = `linked:${isSavings ? 'savings' : 'project'}:${editId}`;
+        if (key === this._previewKey) return;
+        this._previewKey = key;
+        const head = (sub) => `
+            <div class="bv-preview-head">
+                <h4 class="bv-ops-title">${isSavings ? t('bv_form_preview_savings_title', 'Dépôts et retraits') : t('bv_form_preview_project_title', 'Opérations rattachées')}</h4>
+            </div>${sub || ''}`;
+        const howTo = `<p class="bv-detail-empty">${isSavings
+            ? t('bv_form_preview_savings_how', "Alimentez la tirelire par le bouton « Dépôt » de sa fiche ou par le bouton + de sa carte. Une opération du Journal peut aussi y être rattachée, par le champ « Enveloppe projet » de sa fiche.")
+            : t('bv_form_preview_project_how', "Rattachez des opérations à ce projet depuis le Journal : ouvrez une opération et choisissez le projet dans le champ « Enveloppe projet ».")}</p>`;
+        if (!editId) {
+            box.innerHTML = head(`<p class="bv-detail-empty">${isSavings
+                ? t('bv_form_preview_savings_new', 'Aucun dépôt pour l’instant.')
+                : t('bv_form_preview_project_new', 'Aucune opération pour l’instant.')}</p>${howTo}`);
+            return;
+        }
+        box.classList.add('is-loading');
+        let txs = [], allocs = [];
+        try {
+            [txs, allocs] = await Promise.all([
+                API.get(`/api/budgets/${editId}/transactions`),
+                isSavings ? API.get(`/api/budgets/${editId}/allocations`).catch(() => []) : Promise.resolve([]),
+            ]);
+        } catch (e) {
+            if (key === this._previewKey) box.innerHTML = head(`<p class="bv-detail-error">${t('title_error', 'Erreur')} : ${esc(e.message)}</p>`);
+            return;
+        } finally {
+            if (key === this._previewKey) box.classList.remove('is-loading');
+        }
+        if (key !== this._previewKey) return;
+        const items = txs.map(tx => ({ date: tx.date, label: esc(tx.description), amount: tx.amount, isIncome: tx.is_income, category: tx.category }));
+        for (const a of allocs) {
+            const note = a.note || (a.amount > 0 ? t('budget_savings_deposit', 'Dépôt') : t('budget_savings_withdrawal', 'Retrait'));
+            items.push({ date: a.date, label: esc(note), amount: a.amount, isIncome: a.amount > 0, sign: '−' });
+        }
+        items.sort((a, b) => b.date.localeCompare(a.date));
+        if (!items.length) {
+            box.innerHTML = head(`<p class="bv-detail-empty">${t('bv_form_preview_none_linked', 'Aucune opération rattachée pour l’instant.')}</p>${howTo}`);
+            return;
+        }
+        // Projet : ce qui a été dépensé ; tirelire : ce qui y est mis de côté
+        const net = items.reduce((sum, it) => sum + (it.isIncome ? 1 : -1) * Math.abs(it.amount), 0);
+        const total = isSavings ? net : -net;
+        const count = t(items.length > 1 ? 'bv_form_preview_count_many' : 'bv_form_preview_count_one', items.length > 1 ? '{count} opérations' : '{count} opération').split('{count}').join(items.length);
+        box.innerHTML = head(`<p class="bv-preview-sum"><span>${count}</span><strong class="privacy-blur">${formatCurrency(total)}</strong></p>
+            <ul class="bv-ops">${items.slice(0, 150).map(it => this._opRowHtml(it)).join('')}</ul>`);
+    },
+
     async _renderFormPreview() {
         const box = document.getElementById('budgetFormPreview');
         if (!box || box.hidden || document.getElementById('budgetFormSection')?.style.display !== 'block') return;
+        if (document.getElementById('budgetTypeProject')?.checked || document.getElementById('budgetTypeSavings')?.checked) {
+            return this._renderLinkedPreview(box);
+        }
         const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
         const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const cats = [...(this.selectedCategories || [])];
@@ -295,13 +352,21 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         show('budgetCatSection', !isProject && !isSavings);
         show('budgetPeriodField', !isSavings);
         show('budgetLockSection', !isSavings);
-        if (isSavings) document.getElementById('newBudgetPeriod').value = 'indefinite';
-        const split = !isProject && !isSavings;
+        const periodSel = document.getElementById('newBudgetPeriod');
+        if (isSavings) {
+            if (periodSel.value !== 'indefinite') this._periodBeforeSavings = periodSel.value;
+            periodSel.value = 'indefinite';
+        } else if (this._periodBeforeSavings) {
+            periodSel.value = this._periodBeforeSavings;
+            this._periodBeforeSavings = null;
+        }
+        const customDates = document.getElementById('budgetCustomDates');
+        if (customDates) customDates.style.display = periodSel.value === 'custom' ? '' : 'none';
         const preview = document.getElementById('budgetFormPreview');
-        if (preview) preview.hidden = !split;
-        document.querySelector('#budgetUnifiedModal .budget-unified-panel')?.classList.toggle('is-split', split);
+        if (preview) preview.hidden = false;
+        document.querySelector('#budgetUnifiedModal .budget-unified-panel')?.classList.add('is-split');
         this._previewKey = null;
-        if (split) this._schedulePreview();
+        this._schedulePreview();
         const amountLabel = document.getElementById('budgetAmountLabel');
         if (amountLabel) amountLabel.textContent = isSavings ? t('bv_form_goal', 'Objectif') : t('bv_detail_limit', 'Plafond');
         const hint = document.getElementById('budgetTypeHint');
@@ -523,6 +588,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         else if ((b.envelope_type || 'spending') === 'savings') document.getElementById('budgetTypeSavings').checked = true;
         else document.getElementById('budgetTypeCategory').checked = true;
         document.getElementById('budgetTypeRow').style.display = 'none';
+        this._periodBeforeSavings = null;
         this.toggleType();
         this.renderAccountCheckboxes(b.account_ids || []);
         document.getElementById('budgetCatSearch').value = '';
@@ -550,6 +616,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetCustomDates').style.display = 'none';
         document.getElementById('budgetTypeCategory').checked = true;
         document.getElementById('budgetTypeRow').style.display = '';
+        this._periodBeforeSavings = null;
         this.toggleType();
         this.renderAccountCheckboxes([]);
         document.getElementById('budgetCatSearch').value = '';
