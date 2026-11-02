@@ -228,6 +228,10 @@ window.AppModules.sidebar = {
                 const display = stats.budget_display || {};
                 const summary = stats.budget_summary || {};
                 const pinned = stats.budget_pinned || [];
+                let customLabels = {};
+                try { customLabels = JSON.parse(this.config?.budget_sidebar_labels || '{}') || {}; } catch (e) { customLabels = {}; }
+                // Éléments affichés (clé + nom d'origine), repris par « Personnaliser l'affichage » pour les renommer
+                const items = [];
                 const todayIso = new Date().toISOString().slice(0, 10);
                 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
                 const toneOf = (pct) => pct > 100 ? 'over' : pct >= 90 ? 'near' : 'ok';
@@ -251,8 +255,8 @@ window.AppModules.sidebar = {
                     </button>`;
                 };
 
-                let envRows = pinned.map(b => row({
-                    label: esc(b.name),
+                let envRows = pinned.map(b => (items.push({ key: `env:${b.id}`, label: b.name }), row({
+                    label: esc(customLabels[`env:${b.id}`] || b.name),
                     spent: b.spent_to_date || 0,
                     planned: b.planned || 0,
                     limit: b.budget_amount || 0,
@@ -261,7 +265,7 @@ window.AppModules.sidebar = {
                         : (b.is_fixed_charges || (b.period === 'custom' && b.end_date && b.end_date < todayIso)) ? 'fixed'
                         : b.status === 'near' ? 'near' : 'ok',
                     onclick: `window.app.scrollToBudget(${b.id}, 'budgets')`,
-                })).join('');
+                }))).join('');
 
                 if (display.show_totals !== false) {
                     const totalLabel = (p) => p === 'monthly'
@@ -280,6 +284,9 @@ window.AppModules.sidebar = {
                                 label = (sub.account_names || []).map(n => `<span class="bv-env-account" style="--acc:${accent}">${esc(n)}</span>`).join(' ');
                                 subLabel = totalLabel(period);
                             }
+                            const itemKey = `total:${period}:${key}`;
+                            items.push({ key: itemKey, label: key === '__global__' ? totalLabel(period) : `${(sub.account_names || []).join(' + ')} · ${totalLabel(period)}` });
+                            if (customLabels[itemKey]) { label = esc(customLabels[itemKey]); subLabel = ''; }
                             const withoutFixed = (display.fixed_excluded || {})[period] > 0;
                             totalRows += row({
                                 label, sub: subLabel,
@@ -338,6 +345,7 @@ window.AppModules.sidebar = {
                 }
 
                 barsContainer.innerHTML = barsHtml;
+                this.sidebarBudgetItems = items;
             }
 
             

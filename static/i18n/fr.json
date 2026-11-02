@@ -3997,5 +3997,9 @@
   "bv_pin_hint": "Afficher cette enveloppe dans la barre latérale",
   "bv_pinned": "Épinglée dans la barre latérale",
   "bv_total_without_fixed": "hors charges prévues",
-  "sb_envelopes": "Enveloppes"
+  "sb_envelopes": "Enveloppes",
+  "bv_prefs_names": "Noms dans la barre latérale",
+  "bv_prefs_names_hint": "Un nom plus court ou plus parlant, visible uniquement dans la barre latérale. Laissez vide pour garder le nom d'origine.",
+  "bv_prefs_names_empty": "Rien n'est affiché dans la barre latérale pour l'instant.",
+  "bv_prefs_name_for": "Nom affiché pour {name}"
 }

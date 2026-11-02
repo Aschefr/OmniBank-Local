@@ -2290,7 +2290,13 @@
 .bv-pref-env-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bv-pref-env-period { font-size: 12px; color: var(--text-muted); }
 .bv-pref-switch { font-size: 13px; color: var(--text-main); min-height: 32px; }
+.bv-pref-names { display: flex; flex-direction: column; gap: 6px; }
+.bv-pref-name { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 10px; }
+.bv-pref-name-default { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); }
+.bv-pref-name input { width: 100%; min-height: 32px; font-size: 13px; box-sizing: border-box; }
 @media (pointer: coarse), (max-width: 768px) {
     .bv-pref-env { min-height: 44px; }
+    .bv-pref-name { grid-template-columns: 1fr; gap: 4px; }
+    .bv-pref-name input { min-height: 44px; font-size: 16px; }
     .bv-pref-hint, .sb-env-foot, .sb-env-sub { font-size: 13px; }
 }
