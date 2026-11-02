@@ -3974,5 +3974,13 @@
   "bv_detail_align": "Match actual spending",
   "bv_detail_lock": "Lock",
   "bv_detail_unlock": "Unlock",
-  "bv_status_ended": "Ended"
+  "bv_status_ended": "Ended",
+  "bv_total_cycle": "Cycle total",
+  "bv_total_month": "Month total",
+  "bv_total_yearly": "Yearly total",
+  "bv_total_dated": "Dated envelopes",
+  "bv_total_long": "Long term",
+  "bv_total_count_one": "{count} envelope",
+  "bv_total_count_many": "{count} envelopes",
+  "bv_totals_label": "Envelope totals"
 }

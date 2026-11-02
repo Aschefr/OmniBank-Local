@@ -2098,6 +2098,24 @@
 .bv-custom-dates[hidden] { display: none; }
 .bv-custom-dates .inline-input { width: 132px; font-size: 12px; }
 
+/* Totaux par période (même découpage que la barre latérale) */
+.bv-totals {
+    display: grid; gap: 8px; margin: 0 0 12px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.bv-total {
+    display: flex; flex-direction: column; gap: 6px; padding: 9px 12px; min-width: 0;
+    background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px;
+}
+.bv-total.bv-tone-over { border-color: color-mix(in srgb, var(--danger) 45%, var(--border-color)); }
+.bv-total-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+.bv-total-label { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; font-size: 13px; font-weight: 700; color: var(--text-main); }
+.bv-total-period { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.bv-total-figures { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bv-total-figures strong { font-weight: 700; color: var(--text-main); }
+.bv-total-figures span { color: var(--text-muted); }
+.bv-total .bv-env-meta { flex-shrink: 0; }
+
 /* Points d'attention */
 .bv-attn {
     display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;

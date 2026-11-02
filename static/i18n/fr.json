@@ -3974,5 +3974,13 @@
   "bv_detail_align": "Aligner sur le réalisé",
   "bv_detail_lock": "Verrouiller",
   "bv_detail_unlock": "Déverrouiller",
-  "bv_status_ended": "Terminée"
+  "bv_status_ended": "Terminée",
+  "bv_total_cycle": "Total du cycle",
+  "bv_total_month": "Total du mois",
+  "bv_total_yearly": "Total annuel",
+  "bv_total_dated": "Enveloppes datées",
+  "bv_total_long": "Long terme",
+  "bv_total_count_one": "{count} enveloppe",
+  "bv_total_count_many": "{count} enveloppes",
+  "bv_totals_label": "Totaux des enveloppes"
 }
