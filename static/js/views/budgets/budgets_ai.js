@@ -2506,9 +2506,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <strong style="color:var(--accent);font-size:13px;">
                         ${(window.i18n.t('ai_budget_unclassified_title') || '📌 Catégories non classées')} (${unclassified.length})
                     </strong>
-                    <button id="btnAiRefine" class="btn btn-secondary" onclick="window.BudgetsView.refineUnclassifiedWithAi()" style="padding:4px 12px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent);background:var(--bg-surface);">
+                    ${(window.app?.config?.enable_ai === 'true' || this.aiEnabled === true) ? `<button id="btnAiRefine" class="btn btn-secondary" onclick="window.BudgetsView.refineUnclassifiedWithAi()" style="padding:4px 12px;font-size:12px;font-weight:600;color:var(--accent);border-color:var(--accent);background:var(--bg-surface);">
                         ${window.i18n.t('ai_budget_btn_refine') || '🪄 Affiner les omises avec l\'IA'}
-                    </button>
+                    </button>` : ''}
                 </div>
                 <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px 0;">
                     ${window.i18n.t('ai_budget_unclassified_subtitle') || 'Ces catégories contiennent des dépenses réelles mais n\'ont pas été incluses dans les enveloppes proposées par l\'IA.'}
