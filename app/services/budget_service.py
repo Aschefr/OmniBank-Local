@@ -133,6 +133,21 @@ FIXED_SHARE_THRESHOLD = 0.8     # enveloppe de charges fixes : 80 % de ses dépe
 FIXED_LOOKBACK_DAYS = 90
 
 
+def budget_display_prefs(db: Session) -> dict:
+    """Préférences d'affichage des enveloppes (barre latérale et page Budgets), propres au profil."""
+    conf = {c.key: c.value for c in db.query(GlobalConfig).filter(GlobalConfig.key.in_(
+        ["budget_pinned_ids", "budget_sidebar_totals", "budget_totals_exclude_fixed"])).all()}
+    try:
+        pinned = [int(x) for x in json.loads(conf.get("budget_pinned_ids") or "[]")]
+    except (ValueError, TypeError):
+        pinned = []
+    return {
+        "pinned_ids": pinned,
+        "sidebar_totals": conf.get("budget_sidebar_totals", "true") != "false",
+        "totals_exclude_fixed": conf.get("budget_totals_exclude_fixed", "true") != "false",
+    }
+
+
 def is_org_mode(db: Session) -> bool:
     row = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
     return bool(row and str(row.value).strip().lower() == "true")

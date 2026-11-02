@@ -46,6 +46,9 @@ CONFIG_DEFAULTS = {
     "sim_table_open": "false",
     "sim_sources_open": "false",
     "sim_seasonality_profile_open": "false",
+    "budget_pinned_ids": "[]",
+    "budget_sidebar_totals": "true",
+    "budget_totals_exclude_fixed": "true",
 }
 
 @router.get("/")

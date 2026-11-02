@@ -298,6 +298,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <button type="button" class="btn btn-secondary bv-btn-compact" aria-pressed="${budget.is_locked ? 'true' : 'false'}" onclick="window.BudgetsView.toggleLock(${budgetId}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">
                         ${budget.is_locked ? t('bv_detail_unlock', 'Déverrouiller') : t('bv_detail_lock', 'Verrouiller')}
                     </button>
+                    ${(budget.envelope_type || 'spending') !== 'savings' ? `<button type="button" class="btn btn-secondary bv-btn-compact" aria-pressed="${this.isPinned(budgetId) ? 'true' : 'false'}" title="${t('bv_pin_hint', 'Afficher cette enveloppe dans la barre latérale')}" onclick="window.BudgetsView.togglePin(${budgetId}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">
+                        ${this.isPinned(budgetId) ? t('bv_unpin', 'Désépingler') : t('bv_pin', 'Épingler')}
+                    </button>` : ''}
                 </div>` : '';
 
             if (!txs.length) {

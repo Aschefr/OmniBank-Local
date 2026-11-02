@@ -3982,5 +3982,20 @@
   "bv_total_long": "Long term",
   "bv_total_count_one": "{count} envelope",
   "bv_total_count_many": "{count} envelopes",
-  "bv_totals_label": "Envelope totals"
+  "bv_totals_label": "Envelope totals",
+  "bv_prefs_menu": "Customize display",
+  "bv_prefs_title": "Customize display",
+  "bv_prefs_sidebar": "Sidebar",
+  "bv_prefs_pin_hint": "Pin the envelopes you want to keep an eye on: they appear at the top of the sidebar.",
+  "bv_prefs_show_totals": "Also show the totals per period",
+  "bv_prefs_totals": "Totals",
+  "bv_prefs_exclude_fixed": "Leave planned charges out of the totals",
+  "bv_prefs_exclude_fixed_hint": "Totals then only count discretionary spending; planned charges are still tracked in their own group.",
+  "bv_prefs_no_env": "No spending envelope.",
+  "bv_pin": "Pin",
+  "bv_unpin": "Unpin",
+  "bv_pin_hint": "Show this envelope in the sidebar",
+  "bv_pinned": "Pinned to the sidebar",
+  "bv_total_without_fixed": "excluding planned charges",
+  "sb_envelopes": "Envelopes"
 }

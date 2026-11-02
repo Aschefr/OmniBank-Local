@@ -221,141 +221,123 @@ window.AppModules.sidebar = {
                 }
             }
             
-            // Budget Summary — multiple bars per period type
+            // Enveloppes : épinglées puis totaux par période (mêmes libellés et mêmes règles que la page Budgets)
             const barsContainer = document.getElementById('sidebarBudgetBars');
             if (barsContainer) {
+                const t = (key, fallback) => window.i18n.t(key) || fallback;
+                const display = stats.budget_display || {};
                 const summary = stats.budget_summary || {};
-                const periodLabels = {
-                    'monthly': window.i18n.t('stat_budgets_monthly') || '🎯 Budgets (Mensuel)',
-                    'yearly': window.i18n.t('stat_budgets_yearly') || '🎯 Budgets (Annuel)',
-                    'indefinite': window.i18n.t('stat_budgets_indefinite') || '🎯 Budgets (Indéfini)',
-                    'custom': window.i18n.t('stat_budgets_custom') || '🎯 Budgets (Défini)'
-                };
-                const orderedPeriods = ['monthly', 'yearly', 'indefinite', 'custom'];
-                let barsHtml = '';
+                const pinned = stats.budget_pinned || [];
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+                const toneOf = (pct) => pct > 100 ? 'over' : pct >= 90 ? 'near' : 'ok';
 
-                // Helper: render a single sidebar budget bar
-                const renderBar = (label, targetVal, recSpent, totalSpent, accentColor, indent, period, accKey) => {
-                    const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
-                    const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
-                    const over = targetVal > 0 && recSpent > targetVal;
-                    const color = over ? '#ff5630' : recPct >= 90 ? '#f59e0b' : '#10b981';
-                    
-                    const periodColors = {
-                        'monthly': '#3b82f6',
-                        'yearly': '#8b5cf6',
-                        'indefinite': '#14b8a6',
-                        'custom': '#ec4899'
-                    };
-                    const pColor = periodColors[period] || '#3b82f6';
-                    const borderLeftColor = accentColor || pColor;
-                    const borderLeft = `border-left:3px solid ${borderLeftColor};`;
-                    const marginLeft = indent ? 'margin-left:8px;' : '';
-                    const clickAction = `window.app.scrollToBudgetSection('${period}', '${accKey || '__global__'}')`;
-
+                // Une ligne compacte : nom, barre (dépensé + prévu en hachuré), montants et pourcentage
+                const row = ({ label, sub, spent, planned, limit, tone, onclick, title }) => {
+                    const pct = limit > 0 ? (spent / limit) * 100 : 0;
+                    const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
+                    const tn = tone || toneOf(pct);
                     return `
-                    <div class="stat-box" style="display:block; border-color:${pColor}66; background-color:${pColor}1a; cursor:pointer; margin-bottom:6px; ${borderLeft}${marginLeft}" onclick="${clickAction}">
-                        <span class="stat-label" style="color:${pColor}; font-weight:600;">${label}</span>
-                        <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
-                            <div style="position:absolute;top:0;left:0;width:${totalPct}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;transition:width 0.3s;"></div>
-                            <div style="position:absolute;top:0;left:0;width:${recPct}%;height:100%;background:${color};border-radius:999px;transition:width 0.3s;"></div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:12px;">
-                            <span class="privacy-blur" style="color:${color}; font-weight:600;">${formatCurrency(recSpent)}</span>
-                            <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(targetVal)}</span>
-                        </div>
-                    </div>`;
+                    <button type="button" class="sb-env bv-tone-${tn}" onclick="${onclick}"${title ? ` title="${esc(title)}"` : ''}>
+                        <span class="sb-env-name">${label}${sub ? `<span class="sb-env-sub">${sub}</span>` : ''}</span>
+                        <span class="bv-env-bar">
+                            <span class="bv-env-fill" style="width:${Math.min(pct, 100)}%"></span>
+                            ${plannedPct > 0.5 && pct < 100 ? `<span class="bv-env-planned" style="left:${Math.min(pct, 100)}%;width:${Math.min(plannedPct, 100 - Math.min(pct, 100))}%"></span>` : ''}
+                        </span>
+                        <span class="sb-env-foot">
+                            <span class="privacy-blur"><strong>${formatCurrency(spent)}</strong> / ${formatCurrency(limit)}</span>
+                            <span class="sb-env-pct">${Math.round(pct)} %</span>
+                        </span>
+                    </button>`;
                 };
 
-                for (const period of orderedPeriods) {
-                    const data = summary[period];
-                    if (!data) continue;
+                let envRows = pinned.map(b => row({
+                    label: esc(b.name),
+                    spent: b.spent_to_date || 0,
+                    planned: b.planned || 0,
+                    limit: b.budget_amount || 0,
+                    // Charges prévues et enveloppes terminées ne signalent que le dépassement, comme sur la page
+                    tone: b.status === 'over' ? 'over'
+                        : (b.is_fixed_charges || (b.period === 'custom' && b.end_date && b.end_date < todayIso)) ? 'fixed'
+                        : b.status === 'near' ? 'near' : 'ok',
+                    onclick: `window.app.scrollToBudget(${b.id}, 'budgets')`,
+                })).join('');
 
-                    const accountSubs = data.accounts || {};
-                    const subKeys = Object.keys(accountSubs);
-                    const hasAccountScope = subKeys.some(k => k !== '__global__');
-
-                    if (hasAccountScope) {
-                        // Period header (no bar, just label) — only if multiple sub-groups
-                        if (subKeys.length > 1) {
-                            barsHtml += `<div style="margin-bottom:2px;">
-                                <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">${periodLabels[period] || period}</span>
-                            </div>`;
-                        }
-                        // One bar per account sub-group
-                        for (const [key, sub] of Object.entries(accountSubs)) {
-                            const accent = sub.accent_color || null;
-                            let subLabel;
-                            if (key === '__global__') {
-                                subLabel = window.i18n.t('budget_account_all') || 'Global';
-                            } else {
-                                // Build colorized account names with dots
-                                const names = sub.account_names || [];
-                                const periodSuffix = subKeys.length <= 1 ? ` <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">(${(periodLabels[period] || period).replace(/🎯\s*/, '')})</span>` : '';
-                                if (accent && names.length > 0) {
-                                    subLabel = names.map(n => `<span style="color:${accent};">● </span>${n}`).join(' + ') + periodSuffix;
-                                } else {
-                                    subLabel = (names.join(' + ') || key) + periodSuffix;
-                                }
+                if (display.show_totals !== false) {
+                    const totalLabel = (p) => p === 'monthly'
+                        ? (display.period_kind === 'cycle' ? t('bv_total_cycle', 'Total du cycle') : t('bv_total_month', 'Total du mois'))
+                        : p === 'yearly' ? t('bv_total_yearly', 'Total annuel')
+                        : p === 'custom' ? t('bv_total_dated', 'Enveloppes datées')
+                        : t('bv_total_long', 'Long terme');
+                    let totalRows = '';
+                    for (const period of ['monthly', 'yearly', 'indefinite', 'custom']) {
+                        const data = summary[period];
+                        if (!data) continue;
+                        for (const [key, sub] of Object.entries(data.accounts || { __global__: data })) {
+                            let label = totalLabel(period), subLabel = '';
+                            if (key !== '__global__') {
+                                const accent = sub.accent_color || 'var(--accent)';
+                                label = (sub.account_names || []).map(n => `<span class="bv-env-account" style="--acc:${accent}">${esc(n)}</span>`).join(' ');
+                                subLabel = totalLabel(period);
                             }
-                            barsHtml += renderBar(subLabel, sub.target, sub.reconciled_expenses, sub.expenses, accent, subKeys.length > 1, period, key);
+                            const withoutFixed = (display.fixed_excluded || {})[period] > 0;
+                            totalRows += row({
+                                label, sub: subLabel,
+                                spent: sub.reconciled_expenses || 0,
+                                planned: Math.max((sub.expenses || 0) - (sub.reconciled_expenses || 0), 0),
+                                limit: sub.target || 0,
+                                onclick: `window.app.scrollToBudgetSection('${period}', '${key}')`,
+                                title: withoutFixed ? t('bv_total_without_fixed', 'hors charges prévues') : '',
+                            });
                         }
-                    } else {
-                        // Single bar for the whole period (original behavior)
-                        barsHtml += renderBar(periodLabels[period] || period, data.target, data.reconciled_expenses, data.expenses, null, false, period, '__global__');
                     }
+                    if (envRows && totalRows) totalRows = `<hr class="sb-env-sep">${totalRows}`;
+                    envRows += totalRows;
+                }
+
+                let barsHtml = envRows ? `
+                <div class="stat-box sb-envs">
+                    <span class="stat-label">${t('sb_envelopes', 'Enveloppes')}</span>
+                    ${envRows}
+                </div>` : '';
+
+                // Tirelires : solde face à l'objectif (part provisoirement retirée en clair)
+                const savingsDetails = (stats.savings_details || []).filter(s => !s.is_closed);
+                const overflow = stats.savings_overflow;
+                if (savingsDetails.length > 0) {
+                    const savRows = savingsDetails.map(sav => {
+                        const balance = sav.balance || 0;
+                        const goal = sav.goal || 0;
+                        let tempWithdrawn = 0;
+                        if (overflow && overflow.total_savings > 0) {
+                            tempWithdrawn = Math.min(balance, overflow.overflow_amount * (balance / overflow.total_savings));
+                        }
+                        const effective = balance - tempWithdrawn;
+                        const pct = goal > 0 ? Math.min(Math.max(effective / goal, 0) * 100, 100) : 0;
+                        const ghostPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
+                        return `
+                        <button type="button" class="sb-env bv-tone-ok" data-sidebar-budget-id="${sav.id}" onclick="window.app.scrollToBudget(${sav.id}, 'budgets')">
+                            <span class="sb-env-name">${esc(sav.name)}</span>
+                            <span class="bv-env-bar">
+                                ${tempWithdrawn > 0 ? `<span class="bv-env-fill sb-env-ghost" style="width:${ghostPct}%"></span>` : ''}
+                                <span class="bv-env-fill" style="width:${pct}%"></span>
+                            </span>
+                            <span class="sb-env-foot">
+                                <span class="privacy-blur"><strong>${formatCurrency(effective)}</strong> / ${formatCurrency(goal)}</span>
+                                ${tempWithdrawn > 0
+                                    ? `<span class="sb-env-pct sb-env-withdrawn privacy-blur" title="${esc(t('savings_temp_withdrawn', 'Provisoirement retiré'))}">−${formatCurrency(tempWithdrawn)}</span>`
+                                    : `<span class="sb-env-pct">${Math.round(pct)} %</span>`}
+                            </span>
+                        </button>`;
+                    }).join('');
+                    barsHtml += `
+                    <div class="stat-box sb-envs">
+                        <span class="stat-label">${t('budget_savings_section', 'Tirelires')}</span>
+                        ${savRows}
+                    </div>`;
                 }
 
                 barsContainer.innerHTML = barsHtml;
-
-                // ── Savings (Tirelire) sidebar bars ──
-                const savingsDetails = stats.savings_details || [];
-                const overflow = stats.savings_overflow;
-                if (savingsDetails && savingsDetails.length > 0) {
-                    let savingsHtml = `<div style="margin-top:12px; margin-bottom:4px;">
-                        <span class="stat-label" style="color:var(--text-muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.03em;">🏦 ${window.i18n.t('budget_savings_summary')}</span>
-                    </div>`;
-                    
-                    savingsDetails.forEach(sav => {
-                        if (sav.is_closed) return;
-                        const balance = sav.balance || 0;
-                        const goal = sav.goal || 0;
-                        
-                        // Calculate temporary withdrawal
-                        let tempWithdrawn = 0;
-                        if (overflow && overflow.total_savings > 0) {
-                            // Proportional share of the overflow
-                            const proportion = balance / overflow.total_savings;
-                            tempWithdrawn = Math.min(balance, overflow.overflow_amount * proportion);
-                        }
-                        
-                        const effectiveBalance = balance - tempWithdrawn;
-                        const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
-                        const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
-                        
-                        const goalReached = balance >= goal && goal > 0;
-                        const savColor = goalReached ? '#f59e0b' : '#10b981';
-
-                        savingsHtml += `
-                        <div class="stat-box" data-sidebar-budget-id="${sav.id}" style="display:block; border-color:#f59e0b66; background-color:#f59e0b1a; cursor:pointer; margin-bottom:6px; border-left:3px solid #f59e0b;" onclick="window.app.scrollToBudget(${sav.id}, 'budgets')">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span class="stat-label" style="color:#f59e0b; font-weight:600;">${sav.name}</span>
-                                ${tempWithdrawn > 0 ? `<span style="color:#ef4444; font-size:11px; font-weight:600; background:rgba(239,68,68,0.1); padding:1px 4px; border-radius:4px;" title="${window.i18n.t('savings_temp_withdrawn') || 'Provisoirement retiré'}">-${formatCurrency(tempWithdrawn)}</span>` : ''}
-                            </div>
-                            <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:6px;overflow:hidden;margin:8px 0;border:1px solid rgba(255,255,255,0.05);">
-                                <!-- Ghost (theoretical) fill -->
-                                ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${savColor};opacity:0.25;border-radius:999px;"></div>` : ''}
-                                <!-- Actual (effective) fill -->
-                                <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${savColor};border-radius:999px;transition:width 0.3s;"></div>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; font-size:12px;">
-                                <span class="privacy-blur" style="color:${savColor}; font-weight:600;">${formatCurrency(effectiveBalance)}</span>
-                                <span class="privacy-blur" style="color:var(--text-muted);">/ ${formatCurrency(goal)}</span>
-                            </div>
-                        </div>`;
-                    });
-                    barsContainer.innerHTML += savingsHtml;
-                }
             }
 
             

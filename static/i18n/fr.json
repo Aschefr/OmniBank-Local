@@ -3982,5 +3982,20 @@
   "bv_total_long": "Long terme",
   "bv_total_count_one": "{count} enveloppe",
   "bv_total_count_many": "{count} enveloppes",
-  "bv_totals_label": "Totaux des enveloppes"
+  "bv_totals_label": "Totaux des enveloppes",
+  "bv_prefs_menu": "Personnaliser l'affichage",
+  "bv_prefs_title": "Personnaliser l'affichage",
+  "bv_prefs_sidebar": "Barre latérale",
+  "bv_prefs_pin_hint": "Épinglez les enveloppes à garder sous les yeux : elles s'affichent en tête de la barre latérale.",
+  "bv_prefs_show_totals": "Afficher aussi les totaux par période",
+  "bv_prefs_totals": "Totaux",
+  "bv_prefs_exclude_fixed": "Exclure les charges prévues des totaux",
+  "bv_prefs_exclude_fixed_hint": "Les totaux ne comptent alors que les dépenses libres ; les charges prévues restent suivies dans leur propre groupe.",
+  "bv_prefs_no_env": "Aucune enveloppe de dépenses.",
+  "bv_pin": "Épingler",
+  "bv_unpin": "Désépingler",
+  "bv_pin_hint": "Afficher cette enveloppe dans la barre latérale",
+  "bv_pinned": "Épinglée dans la barre latérale",
+  "bv_total_without_fixed": "hors charges prévues",
+  "sb_envelopes": "Enveloppes"
 }
