@@ -687,7 +687,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (panel && (!this.aiProposals || !this.aiProposals.length)) {
                 panel.style.display = 'none';
             }
-            const isInfoMsg = msg.includes('non activ') || msg.includes('déjà couvertes') || msg.includes('400');
+            const isInfoMsg = msg.includes('non activ') || msg.includes('déjà couvertes') || msg.includes('déjà suivies') || msg.includes('already tracked') || msg.includes('400');
             if (!isInfoMsg && (msg.includes('Internal Server Error') || !msg.trim() || msg.startsWith('<'))) {
                 msg = (window.i18n && window.i18n.t) ? window.i18n.t('budget_ai_error') : "Impossible de contacter l'IA locale. Vérifiez l'adresse et le port dans les paramètres.";
             }
@@ -2224,13 +2224,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             
                             <div style="display:flex;flex-direction:column;gap:2px;">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                    <input type="text" 
+                                    ${p.target_budget_id ? `<span class="bv-ai-target">${window.i18n.t('bv_ai_add_to') || 'Ajouter à'} <strong>${String(p.target_budget_name || p.name).replace(/</g, '&lt;')}</strong></span>
+                                    <span class="bv-ai-target-hint">${(window.i18n.t('bv_ai_add_to_hint') || 'enveloppe existante, plafond {amount} + ajout').split('{amount}').join(formatCurrency(p.current_amount || 0))}</span>` : `<input type="text" 
                                            value="${String(p.name || p.category || (p.categories && p.categories[0]) || 'Enveloppe').replace(/"/g, '&quot;')}" 
                                            style="font-size:13px;font-weight:700;color:var(--text-main);background:transparent;border:1px solid transparent;border-radius:4px;padding:1px 4px;outline:none;transition:all 0.2s ease;max-width:280px;" 
                                            onfocus="this.style.background='var(--bg-surface)'; this.style.borderColor='var(--accent)';"
                                            onblur="this.style.background='transparent'; this.style.borderColor='transparent';"
                                            onchange="window.BudgetsView.updateAiProposalName(${proposalRealIndex}, this.value)"
-                                           title="Cliquer pour modifier le nom de l'enveloppe">
+                                           title="Cliquer pour modifier le nom de l'enveloppe">`}
                                     ${periodBadge}
                                     ${p.is_fixed ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Charge fixe contractuelle non modifiable">${window.i18n.t('ai_budget_fixed_badge') || 'Fixe'}</span>` : ''}
                                     ${p.has_fixed_mix ? `<span style="font-size:12px;background:#1e293b;color:#38bdf8;padding:1px 6px;border-radius:4px;border:1px solid #0284c7;" title="Inclut ${p.fixed_sum}€/mois de charges fixes contractuelles">Inclut ${p.fixed_sum}€ fixe</span>` : ''}
@@ -2428,6 +2429,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         html += this.renderAiUnclassifiedPanelHtml();
+
+        const fixedCats = (this.aiSuggestMeta && this.aiSuggestMeta.fixed_categories) || [];
+        if (fixedCats.length) {
+            const names = fixedCats.slice(0, 4).map(c => c.name).join(', ') + (fixedCats.length > 4 ? '…' : '');
+            html += `<p class="bv-ai-fixed-note">${(window.i18n.t('bv_ai_fixed_note') || '{count} catégorie(s) de charges prévues ({names}) ne reçoivent pas d\'enveloppe : vos récurrences les suivent déjà.')
+                .split('{count}').join(fixedCats.length).split('{names}').join(names)}</p>`;
+        }
 
         if (container) {
             container.innerHTML = html;
@@ -2637,6 +2645,15 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
+    // Ajout proposé à une enveloppe existante : ses catégories s'ajoutent, le montant s'ajoute au plafond
+    async _addAiProposalToExisting(p) {
+        const b = (this.budgets || []).find(x => x.id === p.target_budget_id);
+        if (!b) throw new Error(window.i18n.t('bv_ai_target_missing') || "L'enveloppe visée n'existe plus.");
+        const categories = [...new Set([...(b.categories || []), ...(p.categories || [])])];
+        const amount = Math.round(((b.monthly_amount || 0) + (parseFloat(p.suggested_amount) || 0)) * 100) / 100;
+        await API.put(`/api/budgets/${b.id}`, { categories, monthly_amount: amount });
+    },
+
     async acceptSelectedProposals() {
         const btn = document.getElementById('budgetAiAcceptSelectedBtn');
         const proposals = (this.aiProposals || []).filter(p => p.selected);
@@ -2655,6 +2672,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const createdNames = new Set();
         try {
             for (const p of proposals) {
+                if (p.target_budget_id) {
+                    await this._addAiProposalToExisting(p);
+                    count++;
+                    createdNames.add(p.name);
+                    continue;
+                }
                 if (p.decision_id) {
                     try {
                         await API.post(`/api/budgets/autopilot/suggestions/${p.decision_id}/approve`);
@@ -2709,7 +2732,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         try {
-            if (proposal.decision_id) {
+            if (proposal.target_budget_id) {
+                await this._addAiProposalToExisting(proposal);
+            } else if (proposal.decision_id) {
                 try {
                     await API.post(`/api/budgets/autopilot/suggestions/${proposal.decision_id}/approve`);
                 } catch (err) {
