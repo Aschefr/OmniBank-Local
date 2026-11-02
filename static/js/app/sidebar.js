@@ -239,7 +239,7 @@ window.AppModules.sidebar = {
                     const totalPct = targetVal > 0 ? Math.min((totalSpent / targetVal) * 100, 100) : 0;
                     const recPct = targetVal > 0 ? Math.min((recSpent / targetVal) * 100, 100) : 0;
                     const over = targetVal > 0 && recSpent > targetVal;
-                    const color = over ? '#ff5630' : recPct >= 80 ? '#f59e0b' : '#10b981';
+                    const color = over ? '#ff5630' : recPct >= 90 ? '#f59e0b' : '#10b981';
                     
                     const periodColors = {
                         'monthly': '#3b82f6',

@@ -573,6 +573,61 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ? attnParts.join('<span class="bv-attn-sep" aria-hidden="true">·</span>')
             : `<span class="bv-attn-item bv-tone-ok">${t('bv_attn_ok', 'Toutes les enveloppes sont dans les clous')}</span>`}</p>`;
 
+        // ── Totaux par période : mêmes regroupements et mêmes chiffres que la barre latérale ──
+        const totalGroups = [];
+        for (const p of ['monthly', 'yearly', 'indefinite', 'custom']) {
+            const list = spending.filter(b => (b.period || 'monthly') === p);
+            if (!list.length) continue;
+            const byAcc = {};
+            for (const b of list) {
+                const key = (b.account_ids && b.account_ids.length) ? [...b.account_ids].sort((a, c) => a - c).join(',') : '__global__';
+                (byAcc[key] = byAcc[key] || []).push(b);
+            }
+            for (const [key, sub] of Object.entries(byAcc)) totalGroups.push({ period: p, key, list: sub });
+        }
+        const totalLabel = (p) => p === 'monthly'
+            ? (period?.kind === 'cycle' ? t('bv_total_cycle', 'Total du cycle') : t('bv_total_month', 'Total du mois'))
+            : p === 'yearly' ? t('bv_total_yearly', 'Total annuel')
+            : p === 'custom' ? t('bv_total_dated', 'Enveloppes datées')
+            : t('bv_total_long', 'Long terme');
+        const renderTotal = ({ period: p, key, list }) => {
+            const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
+            const spent = list.reduce((s, b) => s + (b.spent_to_date ?? b.spent ?? 0), 0);
+            const planned = list.reduce((s, b) => s + (b.planned || 0), 0);
+            const pct = limit > 0 ? (spent / limit) * 100 : 0;
+            const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
+            const tone = pct > 100 ? 'over' : pct >= 90 ? 'near' : 'ok';
+            let label = totalLabel(p);
+            if (key !== '__global__') {
+                const names = key.split(',').map(id => this.accounts?.find(a => a.id === parseInt(id))).filter(Boolean)
+                    .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
+                label = `${names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ')}<span class="bv-total-period">${label}</span>`;
+            }
+            let status = spent > limit
+                ? tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}')
+                : tp('bv_status_left', { amount: formatCurrency(limit - spent) }, 'Reste {amount}');
+            if (planned > 0.005) status += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
+            const countText = (list.length > 1 ? t('bv_total_count_many', '{count} enveloppes') : t('bv_total_count_one', '{count} enveloppe')).split('{count}').join(list.length);
+            return `
+            <div class="bv-total bv-tone-${tone}" data-budget-period-sub="${p}-${key}">
+                <div class="bv-total-head">
+                    <span class="bv-total-label">${label}</span>
+                    <span class="bv-total-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span> / ${formatCurrency(limit)}</span></span>
+                </div>
+                <div class="bv-env-bar" role="img" aria-label="${tp('bv_bar_label', { pct: Math.round(pct) }, '{pct} % utilisés')}">
+                    <span class="bv-env-fill" style="width:${Math.min(pct, 100)}%"></span>
+                    ${plannedPct > 0.5 && pct < 100 ? `<span class="bv-env-planned" style="left:${Math.min(pct, 100)}%;width:${Math.min(plannedPct, 100 - Math.min(pct, 100))}%"></span>` : ''}
+                </div>
+                <div class="bv-env-foot">
+                    <span class="bv-env-status privacy-blur">${status}</span>
+                    <span class="bv-env-meta">${countText}</span>
+                </div>
+            </div>`;
+        };
+        const totalsHtml = totalGroups.length
+            ? `<section class="bv-totals" aria-label="${t('bv_totals_label', 'Totaux des enveloppes')}">${totalGroups.map(renderTotal).join('')}</section>`
+            : '';
+
         // ── Ligne d'enveloppe ──
         const renderRow = (b) => {
             const limit = b.budget_amount || 0;
@@ -658,13 +713,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (!list.length) return '';
             return `
             <section class="bv-section" data-budget-period="${key}">
-                <header class="bv-section-head"><h3>${title}</h3>${sectionTotals(list)}</header>
+                <header class="bv-section-head"><h3>${title}</h3>${key === 'org' ? '' : sectionTotals(list)}</header>
                 ${extra}
                 <div class="bv-env-list">${list.map(renderRow).join('')}</div>
             </section>`;
         };
 
-        let html = periodHtml + attnHtml;
+        let html = periodHtml + totalsHtml + attnHtml;
 
         if (isOrg) {
             // Mode organisation : pas de cycle de paie ; enveloppes regroupées par compte
