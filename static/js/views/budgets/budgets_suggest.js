@@ -21,8 +21,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     _sgMonthly(p) {
-        const amount = parseFloat(p.amount) || 0;
+        let amount = parseFloat(p.amount) || 0;
+        if (p.kind === 'recalibration') amount -= p.currentAmount || 0;
         return p.period === 'yearly' ? amount / 12 : amount;
+    },
+
+    _sgKeep(p) {
+        return p.selected && (p.categories.length || p.kind === 'recalibration');
     },
 
     // Proposition du serveur → état local (le brut est gardé pour le recalcul des montants)
@@ -42,9 +47,67 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             exceptional: !!raw.is_exceptional,
             reason: raw.justification || '',
             decisionId: raw.decision_id || null,
+            kind: raw.target_budget_id ? 'addition' : 'creation',
             selected: true,
             edited: false,
         };
+    },
+
+    // Suggestions de l'Auto-Pilote (créations, rattachements, recalibrages) : examinées dans le même panneau
+    async openAutopilotSuggestions() {
+        if (this.loadAutopilotSuggestions) await this.loadAutopilotSuggestions();
+        const items = this.autopilotSuggestions || [];
+        const t = (k, fb, params) => this._sgT(k, fb, params);
+        const proposals = items.map(s => {
+            if (s.type === 'recalibration') {
+                const up = (s.suggested_amount || 0) > (s.current_amount || 0);
+                const avg = formatCurrency(s.avg_spending || 0);
+                return {
+                    raw: s, kind: 'recalibration', name: s.budget_name || s.name || '',
+                    targetId: s.budget_id || s.entity_id, targetName: s.budget_name || s.name || '',
+                    currentAmount: s.current_amount || 0, categories: [], catAmounts: {}, catDetails: {},
+                    amount: Math.round((s.suggested_amount || 0) * 100) / 100, original: Math.round((s.suggested_amount || 0) * 100) / 100,
+                    period: s.period || 'monthly', exceptional: false,
+                    reason: up
+                        ? t('sg_recalib_up', 'Dépassée {n} périodes de suite : vous dépensez en moyenne {avg}.', { n: s.observed_months || 3, avg })
+                        : t('sg_recalib_down', 'Sous-utilisée {n} périodes de suite : vous dépensez en moyenne {avg}.', { n: s.observed_months || 3, avg }),
+                    decisionId: s.decision_id, selected: true, edited: false,
+                };
+            }
+            const cats = (s.categories && s.categories.length) ? [...s.categories] : (s.category ? [s.category] : []);
+            if (s.type === 'enrichment') {
+                const add = s.additional_amount || 0;
+                return this._sgNormalize({
+                    name: s.target_budget_name || s.name, target_budget_id: s.target_budget_id,
+                    target_budget_name: s.target_budget_name || s.name, current_amount: s.current_amount || 0,
+                    categories: cats, cat_amounts: Object.fromEntries(cats.map(c => [c, add])),
+                    suggested_amount: add, suggested_period: s.period || 'monthly',
+                    justification: '', decision_id: s.decision_id,
+                });
+            }
+            const catAmounts = s.cat_amounts ? { ...s.cat_amounts } : Object.fromEntries(cats.map(c => [c, Math.round((s.suggested_amount / cats.length) * 100) / 100]));
+            return this._sgNormalize({
+                name: (s.name || s.category || cats[0] || '').trim(), categories: cats, cat_amounts: catAmounts,
+                cat_details: s.cat_details || {}, suggested_amount: s.suggested_amount,
+                suggested_period: s.suggested_period || 'monthly', justification: '', decision_id: s.decision_id,
+            });
+        });
+        await this.openSuggestions(proposals);
+    },
+
+    // « Écarter » : l'Auto-Pilote ne la propose plus (mêmes règles que le bandeau)
+    async dismissSuggestion(i) {
+        const p = this.sg?.proposals[i];
+        if (!p || !p.decisionId) return;
+        try {
+            await API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/dismiss`);
+            this.sg.proposals.splice(i, 1);
+            this._sgRender();
+            if (this.loadAutopilotSuggestions) await this.loadAutopilotSuggestions();
+            this.renderStatus();
+        } catch (e) {
+            showToast((typeof e.detail === 'string' && e.detail) || e.message || 'Erreur', 'error');
+        }
     },
 
     // ── Ouverture et fermeture ──
@@ -309,7 +372,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         // Sous-titre : période d'analyse (le moteur répond selon l'historique choisi)
         if (sub) {
             sub.innerHTML = sg.source === 'autopilot'
-                ? t('sg_sub_autopilot', "Proposées par l'Auto-Pilote d'après vos dernières dépenses")
+                ? t('sg_sub_autopilot', "Proposées par l'Auto-Pilote d'après vos dernières dépenses. Une proposition décochée reste en attente ; « Écarter » la retire.")
                 : `<label class="sg-window">${t('sg_sub_window', "D'après vos dépenses des")}
                     <select onchange="window.BudgetsView.setSuggestionWindow(this.value)" ${busy ? 'disabled' : ''}>
                         ${[3, 6, 12].map(m => `<option value="${m}" ${sg.windowMonths === m ? 'selected' : ''}>${t('sg_months', '{n} derniers mois', { n: m })}</option>`).join('')}
@@ -332,7 +395,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (sg.error) html += `<p class="sg-note sg-note--error" role="alert">${this._sgEsc(sg.error)}</p>`;
 
         const props = sg.proposals;
-        const selected = props.filter(p => p.selected && p.categories.length);
+        const selected = props.filter(p => this._sgKeep(p));
 
         if (!busy && !props.length && !sg.unclassified.length) {
             html += `<div class="sg-empty">
@@ -379,13 +442,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 const cats = p.categories.map(c => {
                     const share = parseFloat(p.catAmounts[c]) || 0;
                     return `<li class="sg-cat"><span>${this._sgEsc(c)}</span><span class="sg-cat-amt privacy-blur">${formatCurrency(share)}</span>
-                        <button type="button" class="sg-cat-x" aria-label="${this._sgEsc(t('sg_remove_cat', 'Retirer {cat}', { cat: c }))}" onclick="window.BudgetsView.removeSuggestionCategory(${i}, ${this._sgEsc(JSON.stringify(c))})">${this._bvIcon('close', 12)}</button></li>`;
+                        ${p.decisionId ? '' : `<button type="button" class="sg-cat-x" aria-label="${this._sgEsc(t('sg_remove_cat', 'Retirer {cat}', { cat: c }))}" onclick="window.BudgetsView.removeSuggestionCategory(${i}, ${this._sgEsc(JSON.stringify(c))})">${this._bvIcon('close', 12)}</button>`}</li>`;
                 }).join('');
                 const examples = [...new Set(p.categories.flatMap(c => (p.catDetails[c]?.top_descs || [])))].slice(0, 3);
                 const aiReason = p.reason && !/^(Basé sur|Based on|Même type|Same kind|Dépense ponctuelle|One-off)/.test(p.reason) ? p.reason : '';
                 const hint = aiReason || (examples.length ? t('sg_examples', 'Ex. : {list}', { list: examples.join(', ') }) : '');
                 let meta;
-                if (p.targetId) {
+                if (p.kind === 'recalibration') {
+                    meta = t('sg_meta_recalib', 'Plafond actuel {from} → {to}', {
+                        from: formatCurrency(p.currentAmount), to: formatCurrency(parseFloat(p.amount) || 0) });
+                } else if (p.targetId) {
                     meta = t('sg_meta_addition', 'Enveloppe existante · plafond {from} → {to}', {
                         from: formatCurrency(p.currentAmount), to: formatCurrency(p.currentAmount + (parseFloat(p.amount) || 0)) });
                 } else {
@@ -396,33 +462,39 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 if (p.exceptional) meta += ` · ${t('sg_meta_oneoff', 'dépenses ponctuelles')}`;
                 const label = p.targetId ? this._sgEsc(p.targetName || p.name) : this._sgEsc(p.name);
                 return `
-                <li class="sg-item ${p.selected ? '' : 'is-off'}">
+                <li class="sg-item ${p.selected ? '' : 'is-off'}"${p.targetId ? ` data-sg-target="${p.targetId}"` : ''}>
                     <input type="checkbox" class="sg-check" ${p.selected ? 'checked' : ''} aria-label="${this._sgEsc(t('sg_keep', 'Retenir {name}', { name: p.targetName || p.name }))}"
                            onchange="window.BudgetsView.toggleSuggestion(${i}, this.checked)">
                     <div class="sg-main">
                         <div class="sg-line">
-                            ${p.targetId
+                            ${p.targetId || p.decisionId && p.kind !== 'creation'
                                 ? `<span class="sg-name">${label}</span>`
                                 : `<input type="text" class="sg-name-input" value="${label}" maxlength="60" aria-label="${t('sg_name', "Nom de l'enveloppe")}" onchange="window.BudgetsView.renameSuggestion(${i}, this.value)">`}
                             <label class="sg-amount privacy-blur">
-                                <span class="sr-only">${p.targetId ? t('sg_amount_added', 'Montant ajouté') : t('sg_amount', 'Plafond')}</span>
-                                ${p.targetId ? '<span aria-hidden="true">+</span>' : ''}
+                                <span class="sr-only">${p.kind === 'recalibration' ? t('sg_amount_new', 'Nouveau plafond') : p.targetId ? t('sg_amount_added', 'Montant ajouté') : t('sg_amount', 'Plafond')}</span>
+                                ${p.kind === 'addition' ? '<span aria-hidden="true">+</span>' : ''}
                                 <input type="number" inputmode="decimal" min="0" step="1" value="${p.amount}" onchange="window.BudgetsView.setSuggestionAmount(${i}, this.value)">
                                 <span class="sg-unit">${unit}</span>
                             </label>
                         </div>
                         <div class="sg-meta privacy-blur">${meta}</div>
-                        <ul class="sg-cats">${cats}</ul>
-                        ${hint ? `<p class="sg-hint">${this._sgEsc(hint)}</p>` : ''}
+                        ${cats ? `<ul class="sg-cats">${cats}</ul>` : ''}
+                        ${(p.kind === 'recalibration' ? p.reason : hint) ? `<p class="sg-hint">${this._sgEsc(p.kind === 'recalibration' ? p.reason : hint)}</p>` : ''}
+                        ${p.decisionId ? `<button type="button" class="sg-link sg-dismiss" onclick="window.BudgetsView.dismissSuggestion(${i})">${t('sg_dismiss', 'Écarter')}</button>` : ''}
                     </div>
                 </li>`;
             };
             const indexed = props.map((p, i) => [p, i]);
-            const additions = indexed.filter(([p]) => p.targetId);
-            const creations = indexed.filter(([p]) => !p.targetId);
+            const additions = indexed.filter(([p]) => p.kind === 'addition');
+            const recalibs = indexed.filter(([p]) => p.kind === 'recalibration');
+            const creations = indexed.filter(([p]) => p.kind === 'creation');
             if (additions.length) {
                 html += `<section class="sg-group"><h4>${t('sg_group_additions', 'À ajouter à vos enveloppes')}</h4>
                     <ul class="sg-list">${additions.map(([p, i]) => row(p, i)).join('')}</ul></section>`;
+            }
+            if (recalibs.length) {
+                html += `<section class="sg-group"><h4>${t('sg_group_recalibs', 'Plafonds à revoir')}</h4>
+                    <ul class="sg-list">${recalibs.map(([p, i]) => row(p, i)).join('')}</ul></section>`;
             }
             if (creations.length) {
                 html += `<section class="sg-group"><h4>${t('sg_group_creations', 'Nouvelles enveloppes')}</h4>
@@ -451,10 +523,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         body.innerHTML = html;
 
         // Pied : une seule action principale, nommée par ce qu'elle fait
-        const nCreate = selected.filter(p => !p.targetId).length;
-        const nAdd = selected.filter(p => p.targetId).length;
+        const nCreate = selected.filter(p => p.kind === 'creation').length;
+        const nAdd = selected.filter(p => p.kind === 'addition').length;
+        const nRecalib = selected.filter(p => p.kind === 'recalibration').length;
         let primary;
-        if (nCreate && nAdd) primary = t('sg_apply_both', 'Créer {c} et compléter {a}', { c: nCreate, a: nAdd });
+        if (nRecalib && (nCreate || nAdd)) primary = t('sg_apply_many', 'Appliquer {n} propositions', { n: selected.length });
+        else if (nRecalib) primary = nRecalib > 1 ? t('sg_apply_recalib_many', 'Ajuster {n} plafonds', { n: nRecalib }) : t('sg_apply_recalib_one', 'Ajuster le plafond');
+        else if (nCreate && nAdd) primary = t('sg_apply_both', 'Créer {c} et compléter {a}', { c: nCreate, a: nAdd });
         else if (nAdd) primary = nAdd > 1 ? t('sg_apply_add_many', 'Compléter {n} enveloppes', { n: nAdd }) : t('sg_apply_add_one', "Compléter l'enveloppe");
         else primary = nCreate > 1 ? t('sg_apply_create_many', 'Créer {n} enveloppes', { n: nCreate }) : t('sg_apply_create_one', "Créer l'enveloppe");
         foot.innerHTML = `
@@ -467,17 +542,30 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     async applySuggestions() {
         const sg = this.sg;
         if (!sg || sg.loading) return;
-        const chosen = sg.proposals.filter(p => p.selected && p.categories.length);
+        const chosen = sg.proposals.filter(p => this._sgKeep(p));
         if (!chosen.length) return;
         const btn = document.getElementById('sgApply');
         if (btn) btn.disabled = true;
-        let created = 0, completed = 0;
+        let created = 0, completed = 0, adjusted = 0;
         const failed = [];
         const beforeIds = new Set((this.budgets || []).map(b => b.id));
         const changes = [];
         for (const p of chosen) {
             try {
-                if (p.targetId) {
+                if (p.decisionId && p.kind !== 'creation') {
+                    const b = (this.budgets || []).find(x => x.id === p.targetId);
+                    const from = b ? (b.monthly_amount || 0) : p.currentAmount;
+                    const to = p.kind === 'recalibration'
+                        ? Math.round((parseFloat(p.amount) || 0) * 100) / 100
+                        : Math.round((from + (parseFloat(p.amount) || 0)) * 100) / 100;
+                    await API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/approve`, { custom_amount: to });
+                    changes.push({ id: p.targetId, kind: p.kind === 'recalibration' ? 'adjusted' : 'completed', added: p.kind === 'addition' ? p.categories : [], from, to });
+                    if (p.kind === 'recalibration') adjusted++; else completed++;
+                } else if (p.decisionId) {
+                    const res = await API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/approve`, { custom_amount: parseFloat(p.amount) || null });
+                    if (res && res.budget_id && p.name && p.name !== res.name) await API.put(`/api/budgets/${res.budget_id}`, { name: p.name });
+                    created++;
+                } else if (p.targetId) {
                     const b = (this.budgets || []).find(x => x.id === p.targetId);
                     if (!b) throw new Error(this._sgT('bv_ai_target_missing', "L'enveloppe visée n'existe plus."));
                     const categories = [...new Set([...(b.categories || []), ...p.categories])];
@@ -485,15 +573,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     await API.put(`/api/budgets/${b.id}`, { categories, monthly_amount: amount });
                     changes.push({ id: b.id, kind: 'completed', added: p.categories.filter(c => !(b.categories || []).includes(c)), from: b.monthly_amount || 0, to: amount });
                     completed++;
-                } else if (p.decisionId && !p.edited && p.categories.join('|') === (p.raw.categories || []).join('|') && p.name === p.raw.name) {
-                    await API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/approve`);
-                    created++;
                 } else {
                     await API.post('/api/budgets/', {
                         name: p.name, monthly_amount: parseFloat(p.amount) || 0, period: p.period,
                         is_project: false, categories: p.categories,
                     });
-                    if (p.decisionId) API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/dismiss`).catch(() => {});
                     created++;
                 }
                 p.applied = true;
@@ -504,7 +588,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         sg.proposals = sg.proposals.filter(p => !p.applied);
         await this.loadBudgets();
         (this.budgets || []).filter(b => !beforeIds.has(b.id)).forEach(b => changes.push({ id: b.id, kind: 'created' }));
-        this._rememberChanges(changes);
+        // Une enveloppe complétée deux fois garde un seul repère : du plafond de départ au dernier
+        const merged = {};
+        changes.forEach(c => {
+            const m = merged[c.id];
+            merged[c.id] = m ? { ...m, to: c.to, added: [...(m.added || []), ...(c.added || [])] } : c;
+        });
+        this._rememberChanges(Object.values(merged));
         if (this.loadAutopilotSuggestions) await this.loadAutopilotSuggestions();
         await this.loadStatus();
         window.app?.refreshSidebar();
@@ -512,6 +602,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const parts = [];
         if (created) parts.push(created > 1 ? this._sgT('sg_done_created_many', '{n} enveloppes créées', { n: created }) : this._sgT('sg_done_created_one', '1 enveloppe créée'));
         if (completed) parts.push(completed > 1 ? this._sgT('sg_done_completed_many', '{n} enveloppes complétées', { n: completed }) : this._sgT('sg_done_completed_one', '1 enveloppe complétée'));
+        if (adjusted) parts.push(adjusted > 1 ? this._sgT('sg_done_adjusted_many', '{n} plafonds ajustés', { n: adjusted }) : this._sgT('sg_done_adjusted_one', '1 plafond ajusté'));
         if (failed.length) {
             sg.error = this._sgT('sg_apply_failed', 'Certaines propositions n\'ont pas pu être appliquées : {list}', { list: failed.join(' ; ') });
             this._sgRender();
@@ -521,7 +612,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (parts.length) showToast(parts.join(', '), 'success');
         this.sg = null;
         this.closeSuggestions();
-        this._flashChanges(changes.map(c => c.id));
+        this._flashChanges(Object.keys(merged).map(Number));
     },
 
     // Changements appliqués : repérés sur la page pendant deux minutes, le temps de les vérifier
