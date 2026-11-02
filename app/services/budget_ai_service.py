@@ -400,6 +400,111 @@ def compute_monthly_averages_for_ai(db: Session, already_used_cats: set, anchor_
 
     return result
 
+def _name_key(s: str) -> str:
+    """Clé de comparaison d'un nom (accents, casse, ponctuation et pluriels ignorés)."""
+    if not s:
+        return ""
+    s = unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('utf-8')
+    s = re.sub(r'[^a-z0-9]', ' ', s.lower())
+    return ''.join(re.sub(r's$', '', w) for w in s.split() if w)
+
+
+def extract_json_additions(raw_text: str) -> list[dict]:
+    """Ajouts à des enveloppes existantes dans la réponse du modèle : [{"envelope": ..., "categories": [...]}]."""
+    if not raw_text or not raw_text.strip():
+        return []
+    cleaned = re.sub(r'```(?:json)?', '', strip_thinking(raw_text)).strip()
+    data = None
+    try:
+        data = json.loads(cleaned)
+    except Exception:
+        # Réponse tronquée ou entourée de texte : on isole le tableau "additions"
+        m = re.search(r'"additions"\s*:\s*\[', cleaned)
+        if m:
+            depth, in_str, esc = 0, False, False
+            for i in range(m.end() - 1, len(cleaned)):
+                ch = cleaned[i]
+                if esc:
+                    esc = False
+                elif ch == '\\':
+                    esc = True
+                elif ch == '"':
+                    in_str = not in_str
+                elif not in_str and ch == '[':
+                    depth += 1
+                elif not in_str and ch == ']':
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            data = {"additions": json.loads(cleaned[m.end() - 1:i + 1])}
+                        except Exception:
+                            data = None
+                        break
+    if not isinstance(data, dict):
+        return []
+    items = data.get("additions") or data.get("ajouts") or []
+    result = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        env = item.get("envelope") or item.get("enveloppe") or item.get("name")
+        cats = item.get("categories") or []
+        if isinstance(cats, str):
+            cats = [c.strip() for c in cats.split(",") if c.strip()]
+        if env and isinstance(cats, list) and cats:
+            result.append({"envelope": str(env), "categories": [str(c) for c in cats]})
+    return result
+
+
+def build_grouping_prompt(cat_lines: list[str], targets: list[dict], lang: Optional[str]) -> str:
+    """Prompt de regroupement : les catégories de dépenses libres à placer, et les enveloppes existantes qui
+    peuvent les accueillir (pour ne pas créer de doublon)."""
+    target_lang = "English" if lang == "en" else "French"
+    examples = '"Groceries & meals", "Leisure & outings"' if lang == "en" else '"Courses & repas", "Loisirs & sorties"'
+    nb = len(cat_lines)
+    if targets:
+        existing = "\n".join(
+            f'- "{t["name"]}" ({t["period"]}): {", ".join(t["categories"]) or "no category yet"}' for t in targets)
+        existing_block = f"\nEXISTING ENVELOPES ({len(targets)}):\n{existing}\n"
+        options = (
+            "For each category, choose ONE option:\n"
+            "A. Add it to an existing envelope when it is clearly the same kind of spending.\n"
+            "B. Otherwise put it in a new envelope. Group 2 to 4 categories of the same kind; "
+            "leave a category alone only when nothing is similar.")
+        name_rule = "Never reuse or paraphrase an existing envelope's name: use option A instead."
+    else:
+        existing_block = ""
+        options = ("Put the categories in new envelopes. Group 2 to 4 categories of the same kind; "
+                   "leave a category alone only when nothing is similar.")
+        name_rule = ""
+    return f"""You organise a household's day-to-day spending into budget envelopes. An envelope is a spending limit the user keeps an eye on during the period; it groups a few categories of the same kind of spending. Fixed charges (rent, loans, insurance, subscriptions) are already tracked by recurring payments and are not listed here.
+{existing_block}
+CATEGORIES TO PLACE ({nb}), with their usual spending:
+{chr(10).join(cat_lines)}
+
+{options}
+
+RULES:
+1. Use category and envelope names exactly as written above. Each category appears exactly once in your answer.
+2. Never mix "monthly" and "yearly" categories in the same new envelope.
+3. New envelope names: short (2 to 4 words), in {target_lang}, describing the spending (for example {examples}). {name_rule}
+4. "reason": one short sentence in {target_lang} explaining the grouping.
+
+Answer with JSON only, in this shape:
+{{
+  "additions": [{{"envelope": "Existing envelope name", "categories": ["Category"]}}],
+  "envelopes": [{{"name": "New envelope name", "categories": ["Category", "Category"], "reason": "..."}}]
+}}"""
+
+
+def _category_prompt_line(cat: str, info: dict, lang: Optional[str]) -> str:
+    yearly = info.get("suggested_period") == "yearly"
+    amount = info.get("total_year", 0.0) if yearly else info.get("sens_monthly_var", info.get("avg", 0.0))
+    unit = "year" if yearly else "month"
+    examples = f" | e.g. {', '.join(info['top_descs'][:3])}" if info.get("top_descs") else ""
+    return f'- "{cat}" | {"yearly" if yearly else "monthly"} | about {round(amount or 0)} €/{unit}{examples}'
+
+
 def extract_json_envelopes(raw_text: str) -> list[dict]:
     """
     Extrait les propositions d'enveloppes d'une réponse LLM de manière ultra-résiliente.
@@ -609,25 +714,47 @@ async def _ai_suggest_budgets_service_impl(
     if not is_deterministic_engine and not cfg.get("enabled"):
         raise HTTPException(status_code=400, detail="IA non activée dans les paramètres.")
 
-    paycheck_info = predict_next_paycheck(db)
-    regular_salary = paycheck_info.get("amount", 0.0) if paycheck_info else 0.0
+    from app.services.budget_service import (
+        tracked_categories, recurring_charge_categories, envelopes_open_to_new_categories, free_categories,
+        is_org_mode, get_budget_capacity_data)
+    today = date.today()
+
+    # Revenu de référence : la paie en mode personnel ; en mode organisation, les recettes des 12 derniers
+    # mois ramenées au mois (subventions et dotations arrivent souvent une fois par an)
+    regular_salary = 0.0
+    if not is_org_mode(db):
+        paycheck_info = predict_next_paycheck(db)
+        regular_salary = paycheck_info.get("amount", 0.0) if paycheck_info else 0.0
+    else:
+        from sqlalchemy import func
+        year_income = db.query(func.sum(Transaction.amount)).filter(
+            Transaction.type == "income",
+            Transaction.date_operation > today - relativedelta(years=1),
+            Transaction.date_operation <= today,
+        ).scalar() or 0.0
+        regular_salary = round(abs(year_income) / 12.0, 2)
     if regular_salary <= 0.0:
-        from app.services.budget_service import get_budget_capacity_data
         cap_data = get_budget_capacity_data(db)
         regular_salary = (cap_data.get("monthly", {}).get("average_income", 0.0) if cap_data else 0.0) or 0.0
 
-    existing_budgets = db.query(Budget).filter(Budget.is_closed == False).all()
-    already_used_cats = set()
+    # Engagements mensuels des enveloppes en cours (une enveloppe datée est répartie sur sa durée ;
+    # une enveloppe sans période n'a pas de rythme mensuel)
     already_engaged_monthly = 0.0
-
-    for b in existing_budgets:
-        if (b.envelope_type or "spending") != "savings":
-            if b.period == "yearly":
-                already_engaged_monthly += (b.monthly_amount / 12.0)
-            else:
-                already_engaged_monthly += b.monthly_amount
-        for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all():
-            already_used_cats.add(c.category_name)
+    for b in db.query(Budget).filter(Budget.is_closed == False).all():
+        if (b.envelope_type or "spending") == "savings" or b.period == "indefinite":
+            continue
+        amount = b.monthly_amount or 0.0
+        if b.period == "yearly":
+            already_engaged_monthly += amount / 12.0
+        elif b.period == "custom":
+            if b.end_date and b.end_date < today:
+                continue
+            if b.start_date and b.end_date:
+                months = max(1, round((b.end_date - b.start_date).days / 30.44))
+                already_engaged_monthly += amount / months
+        else:
+            already_engaged_monthly += amount
+    already_used_cats = tracked_categories(db)
 
     available_monthly_budget = max(0.0, regular_salary - already_engaged_monthly)
 
@@ -652,44 +779,29 @@ async def _ai_suggest_budgets_service_impl(
                     logger.info(f"[AI Budget] Auto-extended analysis window to {effective_window} months")
                     break
 
+    # Seules les dépenses libres reçoivent une enveloppe : les charges prévues sont suivies par les récurrences
+    cat_data = {c: v for c, v in cat_data.items() if v.get("avg", 0) > 0 or v.get("total_year", 0) > 0}
+    fixed_cats = recurring_charge_categories(db, list(cat_data.keys()), today)
+    fixed_categories = [
+        {"name": c, "monthly": round(cat_data[c].get("fixed_amount") or cat_data[c].get("avg", 0.0), 2)}
+        for c in sorted(fixed_cats)
+    ]
+    cat_data = {c: v for c, v in cat_data.items() if c not in fixed_cats}
+
     if not cat_data:
-        raise HTTPException(status_code=400, detail="Toutes vos dépenses sont déjà couvertes par vos enveloppes actuelles.")
+        raise HTTPException(status_code=400, detail=(
+            "All your discretionary spending is already tracked by your envelopes (planned charges are tracked by your recurring payments)."
+            if lang == "en" else
+            "Toutes vos dépenses libres sont déjà suivies par vos enveloppes (les charges prévues le sont par vos récurrences)."))
+
+    # Enveloppes existantes qui peuvent accueillir une nouvelle catégorie (au lieu d'un doublon)
+    targets = envelopes_open_to_new_categories(db)
+    targets_by_key = {_name_key(t["name"]): t for t in targets}
 
     nb_cats = len(cat_data)
-    cat_lines = []
-    for cat, info in sorted(cat_data.items(), key=lambda x: -x[1]["avg"]):
-        period_str = "ANNUAL" if info.get("suggested_period") == "yearly" else "MONTHLY"
-        fix_str = "FIXED" if info["is_fixed"] else "VARIABLE"
-        desc_str = f" | Examples: {', '.join(info['top_descs'][:3])}" if info["top_descs"] else ""
-        cat_lines.append(f'- Category: "{cat}" | Recurrence: {period_str} | Type: {fix_str}{desc_str}')
-    formatted_cats = "\n".join(cat_lines)
-
-    target_lang = "English" if lang == "en" else "French"
-
-    prompt = f"""You are an expert personal financial advisor. Analyze these {nb_cats} real financial spending categories:
-
-{formatted_cats}
-
-TASK: Group these {nb_cats} categories into cohesive, thematic budget envelopes (aim for 4 to 8 high-quality envelopes, grouping 2 to 4 related categories together whenever logical, such as Food & Groceries, Transport & Fuel, Housing, Health & Wellness, Leisure & Entertainment, Tech).
-
-RULES:
-1. Create cohesive envelopes by grouping related categories together. Do not isolate each category into its own envelope unless it is truly unique.
-2. Separate loans/mortgages from insurance, telecom from cloud services, and vehicle maintenance from toll fees.
-3. In the "categories" list for each envelope, include ONLY the exact category names from the input list.
-4. EVERY input category MUST be assigned to an envelope.
-5. Respect the Recurrence (ANNUAL vs MONTHLY) specified for each category. NEVER mix ANNUAL categories and MONTHLY categories together in the same envelope. Create separate envelopes for ANNUAL expenses.
-6. Budget envelopes are strictly for EXPENSE categories. Never group or suggest income, salary, or transfer categories.
-
-LANGUAGE REQUIREMENT:
-Write all envelope names and reason justifications in {target_lang}.
-
-Response format (JSON object with key "envelopes"):
-{{
-  "envelopes": [
-    {{"name": "Envelope Name in {target_lang}", "categories": ["ExactCatName1", "ExactCatName2"], "reason": "Justification in {target_lang}"}},
-    ...
-  ]
-}}"""
+    cat_lines = [_category_prompt_line(cat, info, lang)
+                 for cat, info in sorted(cat_data.items(), key=lambda x: -x[1]["avg"])]
+    prompt = build_grouping_prompt(cat_lines, targets, lang)
 
     if not is_deterministic_engine:
         _update_ai_status(profile_id=pid, state="SENDING", step_key="ai_status_sending")
@@ -757,6 +869,7 @@ Response format (JSON object with key "envelopes"):
         _update_ai_status(profile_id=pid, state="PARSING", step_key="ai_status_parsing")
 
     parsed_objs = extract_json_envelopes(raw or "") if (raw and raw.strip()) else []
+    parsed_additions = extract_json_additions(raw or "") if (raw and raw.strip()) else []
 
     def _normalize_cat_key(s: str) -> str:
         if not s:
@@ -986,6 +1099,55 @@ Response format (JSON object with key "envelopes"):
 
         return False
 
+    def _target_for(name):
+        return targets_by_key.get(_name_key(name or ""))
+
+    def _add_to_existing(target, cats):
+        """Proposition d'ajout de catégories à une enveloppe existante (montant ajouté à son plafond)."""
+        cats = [c for c in cats if c not in used_in_proposals]
+        cats = free_categories(db, cats, target["period"], None, None, target["account_ids"], exclude_id=target["id"])
+        if not cats:
+            return
+        used_in_proposals.update(cats)
+        for p in proposals:
+            if p.get("target_budget_id") == target["id"]:
+                merged = list(dict.fromkeys(p["categories"] + cats))
+                p.update(_build_proposal(target["name"], merged, None, period_override=target["period"]))
+                break
+        else:
+            p = _build_proposal(target["name"], cats, None, period_override=target["period"])
+            proposals.append(p)
+        prefix = (f'Same kind of spending as "{target["name"]}". ' if lang == "en"
+                  else f"Même type de dépenses que « {target['name']} ». ")
+        p.update({
+            "target_budget_id": target["id"],
+            "target_budget_name": target["name"],
+            "current_amount": target["amount"],
+            "justification": prefix + p["justification"],
+        })
+
+    def _deterministic_additions(cats):
+        """Sans IA : rattache une catégorie à une enveloppe existante du même thème."""
+        from app.services.budget_service import _detect_envelope_enrichments
+        target_ids = {t["id"]: t for t in targets}
+        stats = {c: {"suggested_amount": 0.0, "observed_months": 0} for c in cats if c not in used_in_proposals}
+        if not stats or not target_ids:
+            return
+        enrichments, _ = _detect_envelope_enrichments(db, stats)
+        by_target = defaultdict(list)
+        for e in enrichments:
+            if e["target_budget_id"] in target_ids and not _is_exceptional_or_project(e["category"]):
+                by_target[e["target_budget_id"]].append(e["category"])
+        for tid, tcats in by_target.items():
+            _add_to_existing(target_ids[tid], tcats)
+
+    for add in parsed_additions:
+        target = _target_for(add["envelope"])
+        if not target:
+            continue
+        resolved = [r for r in (_resolve_cat_name(c) for c in add["categories"]) if r and not _is_exceptional_or_project(r)]
+        _add_to_existing(target, list(dict.fromkeys(resolved)))
+
     for obj in parsed_objs:
         if isinstance(obj, dict):
             name = obj.get("name") or obj.get("title") or obj.get("enveloppe") or obj.get("label") or obj.get("nom")
@@ -1011,7 +1173,10 @@ Response format (JSON object with key "envelopes"):
                     resolved_cats.append(real)
             clean_cats = resolved_cats
 
-            if clean_cats:
+            if clean_cats and _target_for(name):
+                # Le modèle a repris le nom d'une enveloppe existante : c'est un ajout, pas un doublon
+                _add_to_existing(_target_for(name), clean_cats)
+            elif clean_cats:
                 clean_name = re.sub(r'\s*\((?:Mensuel|Mensuels|Annuel|Annuels|Monthly|Yearly)\)', '', name, flags=re.IGNORECASE).strip()
 
                 monthly_cats = [c for c in clean_cats if cat_data[c].get("suggested_period", "monthly") == "monthly"]
@@ -1108,9 +1273,11 @@ Response format (JSON object with key "envelopes"):
     if not proposals and cat_data:
         is_fallback = True
         logger.info("[AI Budget] Génération des propositions thématiques déterministes...")
+        _deterministic_additions(list(cat_data.keys()))
         _cluster_categories_thematically(cat_data.keys(), is_orphan_fallback=False)
     elif orphan_cats:
         logger.info(f"[AI Budget] Regroupement thématique complémentaire des {len(orphan_cats)} catégories orphelines...")
+        _deterministic_additions(orphan_cats)
         _cluster_categories_thematically(orphan_cats, is_orphan_fallback=True)
 
     orphan_cats = [c for c in cat_data.keys() if c not in used_in_proposals]
@@ -1207,6 +1374,7 @@ Response format (JSON object with key "envelopes"):
         "effective_window_months": effective_window,
         "outlier_sensitivity": outlier_sensitivity,
         "engine": "deterministic" if is_deterministic_engine else "ai",
+        "fixed_categories": fixed_categories,
     }
     return result_payload
 
@@ -1237,37 +1405,23 @@ async def ai_refine_budgets_service(window_months: int, lang: Optional[str], exi
     if not unclassified_cats:
         return {"proposals": existing_proposals, "unclassified_categories": []}
 
-    existing_names = [p.get("name") for p in existing_proposals if p.get("name")]
-    
-    cat_lines = []
-    for cat in unclassified_cats:
-        info = cat_data[cat]
-        period_str = "ANNUAL" if info.get("suggested_period") == "yearly" else "MONTHLY"
-        desc_str = f" | Examples: {', '.join(info['top_descs'][:3])}" if info["top_descs"] else ""
-        cat_lines.append(f'- Category: "{cat}" | Recurrence: {period_str}{desc_str}')
-    formatted_cats = "\n".join(cat_lines)
+    from app.services.budget_service import envelopes_open_to_new_categories, free_categories
 
-    existing_env_str = ", ".join(f'"{n}"' for n in existing_names)
-    target_lang = "English" if lang == "en" else "French"
+    # Les catégories peuvent rejoindre une enveloppe en préparation ou une enveloppe existante
+    real_targets = {_name_key(t["name"]): t for t in envelopes_open_to_new_categories(db)}
+    prompt_targets, seen_keys = [], set()
+    for p in existing_proposals:
+        if p.get("name") and _name_key(p["name"]) not in seen_keys:
+            seen_keys.add(_name_key(p["name"]))
+            prompt_targets.append({"name": p["name"], "period": p.get("suggested_period") or p.get("period") or "monthly",
+                                   "categories": p.get("categories") or []})
+    for key, t in real_targets.items():
+        if key not in seen_keys:
+            seen_keys.add(key)
+            prompt_targets.append(t)
 
-    prompt = f"""You are an expert personal financial advisor. Here are {len(unclassified_cats)} unclassified financial categories:
-
-{formatted_cats}
-
-Current budget envelopes: [{existing_env_str}]
-
-TASK: Assign EVERY unclassified category above to the most appropriate existing envelope OR create a new dedicated envelope for it.
-
-LANGUAGE REQUIREMENT:
-Write envelope names and reason justifications in {target_lang}.
-
-Response format (JSON object with key "envelopes"):
-{{
-  "envelopes": [
-    {{"name": "Existing or New Envelope Name in {target_lang}", "categories": ["ExactCatName1"], "reason": "Justification in {target_lang}"}},
-    ...
-  ]
-}}"""
+    cat_lines = [_category_prompt_line(cat, cat_data[cat], lang) for cat in unclassified_cats]
+    prompt = build_grouping_prompt(cat_lines, prompt_targets, lang)
 
     raw = ""
     try:
@@ -1285,7 +1439,9 @@ Response format (JSON object with key "envelopes"):
         return {"proposals": existing_proposals, "unclassified_categories": unclassified_categories}
 
     cleaned_raw = re.sub(r'```(?:json)?', '', raw).strip()
-    parsed_objs = extract_json_envelopes(cleaned_raw)
+    # Les ajouts sont traités comme des enveloppes nommées : rattachés à la proposition ou à l'enveloppe de ce nom
+    parsed_objs = [{"name": a["envelope"], "categories": a["categories"]} for a in extract_json_additions(cleaned_raw)]
+    parsed_objs += extract_json_envelopes(cleaned_raw)
 
     updated_proposals = list(existing_proposals)
     placed_cats = set()
@@ -1305,9 +1461,28 @@ Response format (JSON object with key "envelopes"):
 
             matched_prop = None
             for p in updated_proposals:
-                if (p.get("name") or "").strip().lower() == name.strip().lower():
+                if _name_key(p.get("name") or "") == _name_key(name):
                     matched_prop = p
                     break
+
+            real_target = real_targets.get(_name_key(name))
+            if real_target:
+                valid_cats = free_categories(db, valid_cats, real_target["period"], None, None,
+                                             real_target["account_ids"], exclude_id=real_target["id"])
+                if not valid_cats:
+                    continue
+            if not matched_prop and real_target:
+                # Nouvelle proposition d'ajout à une enveloppe existante
+                matched_prop = {
+                    "name": real_target["name"], "categories": [], "cat_amounts": {}, "cat_details": {},
+                    "suggested_period": real_target["period"], "is_fixed": False, "has_fixed_mix": False,
+                    "fixed_sum": 0.0, "is_exceptional": False,
+                    "target_budget_id": real_target["id"], "target_budget_name": real_target["name"],
+                    "current_amount": real_target["amount"],
+                    "justification": (f'Same kind of spending as "{real_target["name"]}".' if lang == "en"
+                                      else f"Même type de dépenses que « {real_target['name']} »."),
+                }
+                updated_proposals.append(matched_prop)
 
             if matched_prop:
                 if "categories" not in matched_prop or matched_prop["categories"] is None:
@@ -1335,6 +1510,9 @@ Response format (JSON object with key "envelopes"):
                         "recent_3m_avg": cat_data[c].get("recent_3m_avg", 0.0),
                     }
                 matched_prop["suggested_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2)
+                if prop_period == "yearly":
+                    # Plafond annuel : montants annuels des catégories
+                    matched_prop["suggested_amount"] = round(sum(d["amount"] for d in matched_prop["cat_details"].values()), 2)
                 matched_prop["current_month_spent"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
                 matched_prop["recent_3m_avg"] = round(sum(cat_data[c].get("current_month_spent", 0.0) for c in sub_cats if c in cat_data), 2)
                 matched_prop["historical_actual_amount"] = round(sum(matched_prop["cat_amounts"].values()), 2) if prop_period != "yearly" else round(sum(matched_prop["cat_amounts"].values()) * 12.0, 2)

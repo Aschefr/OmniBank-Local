@@ -2290,6 +2290,12 @@
 .bv-pref-env-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bv-pref-env-period { font-size: 12px; color: var(--text-muted); }
 .bv-pref-switch { font-size: 13px; color: var(--text-main); min-height: 32px; }
+
+/* Suggestions : ajout à une enveloppe existante, charges prévues écartées */
+.bv-ai-target { font-size: 13px; color: var(--text-muted); }
+.bv-ai-target strong { color: var(--text-main); font-weight: 700; }
+.bv-ai-target-hint { font-size: 12px; color: var(--text-muted); }
+.bv-ai-fixed-note { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }
 .bv-pref-names { display: flex; flex-direction: column; gap: 6px; }
 .bv-pref-name { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 10px; }
 .bv-pref-name-default { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); }

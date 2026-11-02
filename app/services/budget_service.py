@@ -187,6 +187,84 @@ def _period_dict(kind: str, start: date, end: date, offset: int, today: date) ->
             "days_total": total, "days_elapsed": elapsed, "days_left": total - elapsed}
 
 
+def _recurring_share(db: Session, categories, today: date) -> dict:
+    """Par catégorie : (dépenses rattachées à une récurrence, dépenses totales) sur les 90 derniers jours."""
+    share = {}
+    if not categories:
+        return share
+    rows = db.query(Transaction.category, Transaction.recurrence_id, Transaction.amount).filter(
+        Transaction.category.in_(list(categories)),
+        Transaction.type.in_(["expense_fixed", "expense_var"]),
+        Transaction.date_operation >= today - timedelta(days=FIXED_LOOKBACK_DAYS),
+        Transaction.date_operation <= today,
+    ).all()
+    for cat, rec_id, amount in rows:
+        fixed, total = share.get(cat, (0.0, 0.0))
+        amt = abs(amount or 0.0)
+        share[cat] = (fixed + (amt if rec_id else 0.0), total + amt)
+    return share
+
+
+def recurring_charge_categories(db: Session, categories, today: Optional[date] = None) -> set:
+    """Catégories de charges prévues : l'essentiel de leurs dépenses récentes vient de récurrences ou, sans
+    dépense récente, elles sont de type fixe. Les récurrences les suivent déjà : pas besoin d'enveloppe."""
+    from app.models import Category
+    categories = [c for c in categories or [] if c]
+    if not categories:
+        return set()
+    share = _recurring_share(db, categories, today or date.today())
+    cat_types = dict(db.query(Category.name, Category.type).filter(Category.name.in_(categories)).all())
+    result = set()
+    for c in categories:
+        fixed, total = share.get(c, (0.0, 0.0))
+        if total > 0:
+            if fixed / total >= FIXED_SHARE_THRESHOLD:
+                result.add(c)
+        elif cat_types.get(c) == "expense_fixed":
+            result.add(c)
+    return result
+
+
+def tracked_categories(db: Session) -> set:
+    """Catégories déjà suivies par une enveloppe de dépenses ouverte : une enveloppe mensuelle ou annuelle ne
+    peut pas les reprendre (même règle que la création d'enveloppe)."""
+    rows = (
+        db.query(BudgetCategory.category_name, Budget.envelope_type, Budget.is_project)
+        .join(Budget, Budget.id == BudgetCategory.budget_id)
+        .filter(Budget.is_closed == False)
+        .all()
+    )
+    return {cat for cat, env_type, is_project in rows if _tracks_by_category(env_type, is_project)}
+
+
+def envelopes_open_to_new_categories(db: Session) -> List[dict]:
+    """Enveloppes mensuelles ou annuelles de dépenses libres ouvertes, qui peuvent accueillir une nouvelle
+    catégorie au lieu d'en créer une en double (suggestions d'enveloppes). Les enveloppes de charges prévues
+    n'en font pas partie : une dépense libre n'a rien à y faire."""
+    budgets = [
+        b for b in db.query(Budget)
+        .filter(Budget.is_closed == False, Budget.period.in_(["monthly", "yearly"]))
+        .order_by(Budget.name)
+        .all()
+        if _tracks_by_category(b.envelope_type, b.is_project)
+    ]
+    cats_by_budget = {
+        b.id: [bc.category_name for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()]
+        for b in budgets
+    }
+    fixed_ids = _fixed_envelope_ids(db, budgets, cats_by_budget, date.today())
+    result = []
+    for b in budgets:
+        if b.id in fixed_ids:
+            continue
+        cats = cats_by_budget[b.id]
+        result.append({
+            "id": b.id, "name": b.name, "period": b.period, "categories": cats,
+            "amount": b.monthly_amount or 0.0, "account_ids": parse_account_ids(b.account_ids),
+        })
+    return result
+
+
 def _fixed_envelope_ids(db: Session, budgets: List[Budget], cats_by_budget: dict, today: date) -> set:
     """Enveloppes de charges fixes : l'essentiel de leurs dépenses récentes vient de récurrences (prêts,
     assurances, énergie…). Sans opération récurrente récente : toutes leurs catégories sont de type fixe."""
@@ -194,17 +272,7 @@ def _fixed_envelope_ids(db: Session, budgets: List[Budget], cats_by_budget: dict
     all_cats = {c for b in budgets for c in cats_by_budget.get(b.id, [])}
     if not all_cats:
         return set()
-    share = {}
-    rows = db.query(Transaction.category, Transaction.type, Transaction.recurrence_id, Transaction.amount).filter(
-        Transaction.category.in_(list(all_cats)),
-        Transaction.type.in_(["expense_fixed", "expense_var"]),
-        Transaction.date_operation >= today - timedelta(days=FIXED_LOOKBACK_DAYS),
-        Transaction.date_operation <= today,
-    ).all()
-    for cat, typ, rec_id, amount in rows:
-        fixed, total = share.get(cat, (0.0, 0.0))
-        amt = abs(amount or 0.0)
-        share[cat] = (fixed + (amt if rec_id else 0.0), total + amt)
+    share = _recurring_share(db, all_cats, today)
     cat_types = dict(db.query(Category.name, Category.type).filter(Category.name.in_(list(all_cats))).all())
     fixed_ids = set()
     for b in budgets:
@@ -1190,82 +1258,63 @@ def _get_monthly_spending_for_category(db: Session, category: str, lookback_mont
     return result
 
 
-def _call_ollama_for_budget_grouping(cats: List[str], cat_stats: dict, ollama_cfg: dict) -> List[dict]:
-    """Demande à Ollama de regrouper sémantiquement les catégories orphelines."""
+def _call_ollama_for_budget_grouping(cats: List[str], cat_stats: dict, ollama_cfg: dict,
+                                     targets: Optional[List[dict]] = None, lang: str = "fr") -> tuple:
+    """Demande à Ollama de placer les catégories orphelines : dans une enveloppe existante du même type de
+    dépenses (ajout) ou dans une nouvelle enveloppe thématique. Retourne (nouvelles enveloppes, ajouts)."""
     from app.services.chat.ollama_client import call_ollama_sync
-    import json as _json
-    import re as _re
+    from app.services.budget_ai_service import build_grouping_prompt, extract_json_additions, extract_json_envelopes
 
+    targets = targets or []
     cat_lines = []
     for c in cats:
-        hint_str = ""
-        if cat_stats[c].get("context_hint"):
-            hint_str = f" [achats fréquents : {cat_stats[c]['context_hint']}]"
-        cat_lines.append(f'- "{c}" ({cat_stats[c]["avg_monthly"]} €/mois){hint_str}')
-    formatted = "\n".join(cat_lines)
-    nb_cats = len(cats)
-
-    prompt = f"""You are an expert personal finance assistant.
-Group these {nb_cats} expense categories into cohesive, thematic budget envelopes (aim for 4 to 8 envelopes, grouping 2 to 4 related categories together whenever logical, such as Food & Groceries, Transport & Fuel, Housing, Health & Wellness, Leisure, Tech):
-
-{formatted}
-
-RULES:
-1. Group related categories together into cohesive envelopes. Do not isolate each category into its own envelope unless it is truly unique.
-2. CRITICAL: Do NOT place general e-commerce platforms (such as Amazon, Cdiscount, AliExpress) or generic/miscellaneous categories into Food & Groceries or Health & Wellness envelopes unless their frequent purchases hint explicitly lists food or medical items. If their items are varied or non-food, place them in an envelope like "Achats & Shopping", "Maison & Équipement", "Autres", or their own dedicated envelope.
-3. Use the context hints [achats fréquents : ...] when provided to understand what is actually purchased in ambiguous categories and place them in the most relevant envelope.
-4. Every category from the input list must belong to exactly one envelope. Use exact category names.
-5. Response MUST be a JSON object with a single key "envelopes":
-{{
-  "envelopes": [
-    {{"name": "Envelope Name in French", "categories": ["Cat1", "Cat2"], "justification": "Short justification in French"}},
-    ...
-  ]
-}}"""
+        hint = f" | e.g. {cat_stats[c]['context_hint']}" if cat_stats[c].get("context_hint") else ""
+        cat_lines.append(f'- "{c}" | monthly | about {round(cat_stats[c]["avg_monthly"])} €/month{hint}')
+    prompt = build_grouping_prompt(cat_lines, targets, lang)
 
     raw = call_ollama_sync(prompt, ollama_cfg, extra_options={"format": "json"})
     if not raw or not raw.strip():
-        return []
-
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = _re.sub(r"^```(?:json)?\s*", "", cleaned)
-        cleaned = _re.sub(r"\s*```$", "", cleaned)
-
-    data = _json.loads(cleaned)
-    raw_envelopes = []
-    if isinstance(data, dict) and "envelopes" in data and isinstance(data["envelopes"], list):
-        raw_envelopes = data["envelopes"]
-    elif isinstance(data, list):
-        raw_envelopes = data
+        return [], []
 
     cat_lower_map = {c.strip().lower(): c for c in cats}
-    grouped_proposals = []
     assigned_cats = set()
 
-    for item in raw_envelopes:
-        if not isinstance(item, dict):
-            continue
-        env_name = (item.get("name") or "").strip()
-        env_cats_raw = item.get("categories") or []
-        if isinstance(env_cats_raw, str):
-            env_cats_raw = [x.strip() for x in env_cats_raw.split(",") if x.strip()]
-        
-        valid_cats = []
-        for rc in env_cats_raw:
-            clean_rc = rc.strip().lower()
-            if clean_rc in cat_lower_map:
-                actual_cat = cat_lower_map[clean_rc]
-                if actual_cat not in assigned_cats:
-                    valid_cats.append(actual_cat)
-                    assigned_cats.add(actual_cat)
+    def _valid(names):
+        out = []
+        for rc in names or []:
+            actual = cat_lower_map.get(str(rc).strip().lower())
+            if actual and actual not in assigned_cats:
+                out.append(actual)
+                assigned_cats.add(actual)
+        return out
 
-        if valid_cats:
-            grouped_proposals.append({
-                "name": env_name or valid_cats[0],
-                "categories": valid_cats,
-                "justification": item.get("justification") or f"Regroupement sémantique IA de {len(valid_cats)} catégorie(s)",
-            })
+    target_by_name = {t["name"].strip().lower(): t for t in targets}
+    additions = []
+    for add in extract_json_additions(raw):
+        target = target_by_name.get(add["envelope"].strip().lower())
+        valid = _valid(add["categories"]) if target else []
+        if valid:
+            additions.append({"target": target, "categories": valid})
+
+    grouped_proposals = []
+    for item in extract_json_envelopes(raw):
+        env_name = (item.get("name") or "").strip()
+        env_cats = item.get("categories") or []
+        if isinstance(env_cats, str):
+            env_cats = [x.strip() for x in env_cats.split(",") if x.strip()]
+        target = target_by_name.get(env_name.lower())
+        valid = _valid(env_cats)
+        if not valid:
+            continue
+        if target:
+            # Nom d'une enveloppe existante : c'est un ajout, pas un doublon
+            additions.append({"target": target, "categories": valid})
+            continue
+        grouped_proposals.append({
+            "name": env_name or valid[0],
+            "categories": valid,
+            "justification": item.get("reason") or item.get("justification") or f"Regroupement sémantique IA de {len(valid)} catégorie(s)",
+        })
 
     # Compléter les catégories éventuellement oubliées par le LLM
     for c in cats:
@@ -1276,7 +1325,7 @@ RULES:
                 "justification": "Catégorie non regroupée par l'IA",
             })
 
-    return grouped_proposals
+    return grouped_proposals, additions
 
 
 DETERMINISTIC_BUDGET_THEMES = [
@@ -1697,6 +1746,9 @@ def suggest_new_envelopes(
                 pass
 
     eligible_cats = [c for c in orphan_cats if c not in dismissed and c not in already_suggested]
+    # Les charges prévues sont suivies par les récurrences : pas d'enveloppe à proposer
+    recurring = recurring_charge_categories(db, eligible_cats)
+    eligible_cats = [c for c in eligible_cats if c not in recurring]
     if not eligible_cats:
         return []
 
@@ -1760,8 +1812,32 @@ def suggest_new_envelopes(
             ai_success = False
             if ollama_cfg.get("enabled") and ollama_cfg.get("url") and ollama_cfg.get("model"):
                 try:
-                    ai_groups = _call_ollama_for_budget_grouping(list(remaining_cat_stats.keys()), remaining_cat_stats, ollama_cfg)
-                    if ai_groups:
+                    targets = envelopes_open_to_new_categories(db)
+                    ai_groups, ai_additions = _call_ollama_for_budget_grouping(
+                        list(remaining_cat_stats.keys()), remaining_cat_stats, ollama_cfg, targets)
+                    for add in ai_additions:
+                        t = add["target"]
+                        for cat in add["categories"]:
+                            st = remaining_cat_stats[cat]
+                            enrichment_proposals.append({
+                                "type": "enrichment",
+                                "target_budget_id": t["id"],
+                                "target_budget_name": t["name"],
+                                "name": t["name"],
+                                "category": cat,
+                                "new_category": cat,
+                                "categories": [cat],
+                                "additional_amount": st["suggested_amount"],
+                                "current_amount": t["amount"],
+                                "suggested_amount": round(t["amount"] + st["suggested_amount"] * (12 if t["period"] == "yearly" else 1), 2),
+                                "avg_monthly": st["suggested_amount"],
+                                "observed_months": st["observed_months"],
+                                "monthly_values": st.get("monthly_values", []),
+                                "engine": "ai",
+                                "justification": f"Rattachement de '{cat}' à l'enveloppe existante '{t['name']}' (même type de dépenses)",
+                                "is_one_off": False,
+                            })
+                    if ai_groups or ai_additions:
                         for grp in ai_groups:
                             grp_cats = [c for c in grp.get("categories", []) if c in remaining_cat_stats]
                             if not grp_cats:
