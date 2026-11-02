@@ -642,7 +642,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </div>
                 ${change ? `<p class="bv-env-change privacy-blur">${change.kind === 'created'
                     ? t('bv_change_created', 'Nouvelle enveloppe')
-                    : tp('bv_change_completed', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Complétée : plafond {from} → {to}')}</p>` : ''}
+                    : change.kind === 'adjusted'
+                        ? tp('bv_change_adjusted', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Plafond ajusté : {from} → {to}')
+                        : tp('bv_change_completed', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Complétée : plafond {from} → {to}')}</p>` : ''}
                 ${suggHtml}
             </article>`;
         };
