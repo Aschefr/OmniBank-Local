@@ -200,9 +200,10 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    async loadLocalAccounts() {
+    async loadLocalAccounts(fresh = false) {
         try {
-            const accs = (window.app && window.app.accounts && window.app.accounts.length > 0)
+            // Après une création, la liste en mémoire de l'application n'a pas encore le nouveau compte
+            const accs = (!fresh && window.app && window.app.accounts && window.app.accounts.length > 0)
                 ? window.app.accounts
                 : await API.get('/api/accounts/');
             this.localAccounts = (accs || []).filter(a => !a.is_closed);
@@ -649,6 +650,7 @@ Object.assign(window.BankSyncView, {
 
     // ── MAPPING DES COMPTES ──────────────────────────────────────────
     async openMappingModal(connId, forceRefresh = false) {
+        this._justLinked = null;
         this.activeConnId = connId;
         const conn = this.connections.find(c => c.id === connId);
         if (!conn) return;
@@ -800,6 +802,7 @@ Object.assign(window.BankSyncView, {
     },
 
     closeMappingModal() {
+        this._justLinked = null;
         if (this.mappingEventSource) {
             this.mappingEventSource.close();
             this.mappingEventSource = null;
@@ -859,14 +862,17 @@ Object.assign(window.BankSyncView, {
         const btnCreateTitle = window.i18n ? window.i18n.t('bank_sync_btn_create_account_tooltip') || 'Personnaliser et créer ce compte dans OmniBank' : 'Personnaliser et créer ce compte dans OmniBank';
         const btnCreateText = window.i18n ? window.i18n.t('bank_sync_btn_create_account') || 'Créer dans OmniBank' : 'Créer dans OmniBank';
 
+        const justLinked = this._justLinked;
+        const linkedText = window.i18n ? window.i18n.t('bank_sync_qc_linked_row') || 'Créé et associé : « {name} ». Association enregistrée.' : 'Créé et associé : « {name} ». Association enregistrée.';
         container.innerHTML = remoteAccounts.map(r => {
             const mappedLocalId = currentMapping[r.id] || '';
+            const isJustLinked = justLinked && justLinked.remoteId === String(r.id);
             const balStr = `${r.balance >= 0 ? '+' : ''}${r.balance.toFixed(2)} ${r.currency || '€'}`;
             const balColor = r.balance < 0 ? '#ef4444' : '#10b981';
             const detectedType = detectType(r);
 
             return `
-            <div class="mapping-card-item" style="background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
+            <div class="mapping-card-item" style="background: var(--bg-base); border: 1px solid ${isJustLinked ? 'var(--success, #10b981)' : 'var(--border-color)'}; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
                 <div class="mapping-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div class="mapping-account-info">
                         <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${r.label}</div>
@@ -887,6 +893,8 @@ Object.assign(window.BankSyncView, {
                         </button>
                     </div>
                 </div>
+
+                ${isJustLinked ? `<div role="status" style="font-size: 12.5px; font-weight: 600; color: var(--success, #10b981);">✓ ${linkedText.replace('{name}', justLinked.name.replace(/</g, '&lt;'))}</div>` : ''}
 
                 <!-- Mini-formulaire in-line de création personnalisée -->
                 <div id="qcBox_${r.id}" class="mapping-quick-create-box" style="display: none; padding: 12px 14px; background: var(--bg-card); border: 1px dashed var(--accent-border, var(--border-color)); border-radius: 10px; margin-top: 4px;">
@@ -972,7 +980,8 @@ Object.assign(window.BankSyncView, {
                 currency: currency || 'EUR'
             });
 
-            await this.loadLocalAccounts();
+            await this.loadLocalAccounts(true);
+            if (!this.localAccounts.some(a => a.id === newAcc.id)) this.localAccounts.push(newAcc);
             if (window.app && window.app.refreshSidebar) {
                 window.app.refreshSidebar();
             }
@@ -980,30 +989,46 @@ Object.assign(window.BankSyncView, {
                 window.AccountsView.loadData();
             }
 
-            // Récupérer le mapping courant depuis le DOM
-            const currentMapping = {};
-            document.querySelectorAll('.mapping-select').forEach(sel => {
-                const remId = sel.getAttribute('data-remote-id');
-                if (sel.value) currentMapping[remId] = parseInt(sel.value);
-            });
-            currentMapping[remoteId] = newAcc.id;
-
-            const conn = this.connections.find(c => c.id === this.activeConnId);
-            if (conn) {
-                conn.account_mapping = JSON.stringify(currentMapping);
+            // Le compte vient d'être créé pour cette ligne : l'association est enregistrée tout de suite
+            // (avec les autres choix de la fenêtre), sans attendre un clic sur « Enregistrer »
+            const mapping = this._readMappingFromDom();
+            mapping[remoteId] = newAcc.id;
+            const connId = this.activeConnId;
+            try {
+                await API.put(`/api/bank-sync/connections/${connId}`, { account_mapping: mapping });
+            } catch (linkErr) {
+                // Le compte existe : on le présélectionne pour que « Enregistrer » suffise à réessayer
+                const c = this.connections.find(x => x.id === connId);
+                if (c) c.account_mapping = JSON.stringify(mapping);
+                this.renderMappingRows(c, this.currentRemoteAccounts || []);
+                this.showToast(`Compte « ${newAcc.name} » créé, mais l'association n'a pas pu être enregistrée : ${linkErr.detail || linkErr.message}. Cliquez sur « Enregistrer » pour réessayer.`, 'warning');
+                return;
             }
+            await this.loadConnections();
+            const conn = this.connections.find(c => c.id === connId);
+            if (conn) conn.account_mapping = JSON.stringify(mapping);
 
-            this.renderMappingRows(conn, this.currentRemoteAccounts || []);
-            this.showToast(`Compte "${newAcc.name}" (${finalType}) créé et associé avec succès !`, 'success');
+            const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+            const remote = this.currentRemoteAccounts || [];
+            const remaining = remote.filter(r => !mapping[r.id]).length;
+            const done = t('bank_sync_qc_done', 'Compte « {name} » créé et associé.').replace('{name}', newAcc.name);
+            if (!remaining) {
+                this.closeMappingModal();
+                this.showToast(done, 'success');
+                return;
+            }
+            // D'autres comptes distants restent à traiter : la fenêtre reste ouverte, la ligne dit ce qui a été fait
+            this._justLinked = { remoteId: String(remoteId), name: newAcc.name };
+            this.renderMappingRows(conn, remote);
+            this.showToast(done + ' ' + (remaining > 1
+                ? t('bank_sync_qc_remaining_many', '{n} autres comptes de cette banque restent à associer ou à laisser hors synchronisation.').replace('{n}', remaining)
+                : t('bank_sync_qc_remaining_one', 'Un autre compte de cette banque reste à associer ou à laisser hors synchronisation.')), 'success');
         } catch (err) {
             this.showToast('Erreur création compte : ' + (err.detail || err.message), 'error');
         }
     },
 
-    async saveMapping() {
-        const connId = this.activeConnId;
-        if (!connId) return;
-
+    _readMappingFromDom() {
         const mapping = {};
         document.querySelectorAll('.mapping-select').forEach(sel => {
             const remoteId = sel.getAttribute('data-remote-id');
@@ -1012,6 +1037,14 @@ Object.assign(window.BankSyncView, {
                 mapping[remoteId] = localId;
             }
         });
+        return mapping;
+    },
+
+    async saveMapping() {
+        const connId = this.activeConnId;
+        if (!connId) return;
+
+        const mapping = this._readMappingFromDom();
 
         try {
             await API.put(`/api/bank-sync/connections/${connId}`, {
