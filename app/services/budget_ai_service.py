@@ -652,6 +652,9 @@ async def ai_suggest_budgets_service(
     cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
     configured_engine = (cfg_engine.value if cfg_engine and cfg_engine.value else "deterministic").strip().lower()
     chosen_engine = (engine or configured_engine).strip().lower()
+    # Sans IA configurée, le moteur déterministe prend le relais (l'IA reste optionnelle)
+    if chosen_engine != "deterministic" and not get_ollama_config(db).get("enabled"):
+        chosen_engine = "deterministic"
     is_deterministic_engine = (chosen_engine == "deterministic")
 
     if not is_deterministic_engine:
@@ -708,6 +711,9 @@ async def _ai_suggest_budgets_service_impl(
     cfg_engine = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
     configured_engine = (cfg_engine.value if cfg_engine and cfg_engine.value else "deterministic").strip().lower()
     chosen_engine = (engine or configured_engine).strip().lower()
+    # Sans IA configurée, le moteur déterministe prend le relais (l'IA reste optionnelle)
+    if chosen_engine != "deterministic" and not get_ollama_config(db).get("enabled"):
+        chosen_engine = "deterministic"
     is_deterministic_engine = (chosen_engine == "deterministic")
 
     cfg = get_ollama_config(db)

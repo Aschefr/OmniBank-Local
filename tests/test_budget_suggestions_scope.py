@@ -127,3 +127,34 @@ def test_ai_additions_and_reused_names_never_create_a_duplicate(db, monkeypatch)
     assert by_name["Alimentation Quotidienne"]["target_budget_id"] == alim.id
     assert sorted(by_name["Alimentation Quotidienne"]["categories"]) == ["Boulangerie", "Primeur"]
     assert sorted(by_name["Sorties"]["categories"]) == ["Cinéma", "Concerts"] and not by_name["Sorties"].get("target_budget_id")
+
+
+# ── Sans IA configurée (l'IA reste optionnelle) : les moteurs déterministes prennent le relais ──
+
+def test_without_ai_the_assistant_falls_back_to_the_deterministic_engine(db):
+    from app.models import GlobalConfig
+    db.add(GlobalConfig(key="budget_suggestion_engine", value="ai"))  # réglage resté sur « IA », IA désactivée
+    db.commit()
+    _spend(db, "Boulangerie", 40.0)
+    _spend(db, "Cinéma", 30.0)
+    _spend(db, "Netflix", 15.0, recurrence_id=2)
+
+    res = asyncio.run(ai.ai_suggest_budgets_service(window_months=3, lang="fr", db=db, profile_id="t"))
+    assert res["engine"] == "deterministic"
+    cats = {c for p in res["proposals"] for c in p["categories"]}
+    assert {"Boulangerie", "Cinéma"} <= cats and "Netflix" not in cats
+
+
+def test_without_ai_autopilot_still_suggests_envelopes_for_discretionary_spending(db):
+    from app.models import GlobalConfig
+    db.add_all([GlobalConfig(key="budget_suggestion_engine", value="ai"),
+                GlobalConfig(key="auto_create_budget_envelopes", value="false")])
+    db.commit()
+    _spend(db, "Boulangerie", 40.0)
+    _spend(db, "Cinéma", 30.0)
+    _spend(db, "Netflix", 15.0, recurrence_id=2)
+
+    suggestions = bs.suggest_new_envelopes(db, force=True)
+    cats = {c for s in suggestions for c in s["categories"]}
+    assert {"Boulangerie", "Cinéma"} <= cats and "Netflix" not in cats
+    assert all(s["engine"].startswith("deterministic") for s in suggestions)
