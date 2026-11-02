@@ -708,13 +708,42 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (groups.fixed.length) {
             const fixedOver = groups.fixed.filter(b => b.status === 'over').length;
             const open = fixedOver > 0 || ProfileStorage.get('budget_fixed_open') === 'true';
+            // Barre de progression par période (un plafond annuel ne s'additionne pas à un mensuel),
+            // visible même groupe replié ; ton neutre tant qu'aucune charge ne dépasse
+            const fixedBars = ['monthly', 'yearly'].map(p => {
+                const list = groups.fixed.filter(b => (b.period || 'monthly') === p);
+                if (!list.length) return null;
+                const limit = list.reduce((sum, b) => sum + (b.budget_amount || 0), 0);
+                const spent = list.reduce((sum, b) => sum + (b.spent_to_date ?? b.spent ?? 0), 0);
+                const planned = list.reduce((sum, b) => sum + (b.planned || 0), 0);
+                let status = spent > limit
+                    ? tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}')
+                    : tp('bv_status_left', { amount: formatCurrency(limit - spent) }, 'Reste {amount}');
+                if (planned > 0.005) status += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
+                return {
+                    label: p === 'yearly' ? t('bv_fixed_yearly', 'Annuelles') : t('bv_fixed_monthly', 'Mensuelles'),
+                    gauge: { pct: limit > 0 ? (spent / limit) * 100 : 0, plannedPct: limit > 0 ? (planned / limit) * 100 : 0, showPace: false },
+                    tone: spent > limit + 0.005 ? 'over' : 'fixed', limit, spent, status,
+                };
+            }).filter(Boolean);
+            const figures = (f) => `<span class="bv-total-figures privacy-blur"><strong>${formatCurrency(f.spent)}</strong><span> / ${formatCurrency(f.limit)}</span></span>`;
+            const barBlock = (f) => `${this._envBarHtml(f.gauge)}
+                    <div class="bv-env-foot"><span class="bv-env-status privacy-blur">${f.status}</span></div>`;
+            const single = fixedBars.length === 1 ? fixedBars[0] : null;
+            const foldTone = fixedBars.some(f => f.tone === 'over') ? 'over' : 'fixed';
             html += `
             <details class="bv-section bv-fold" data-budget-period="fixed" ${open ? 'open' : ''}
                      ontoggle="ProfileStorage.set('budget_fixed_open', this.open ? 'true' : 'false')">
-                <summary class="bv-section-head">
-                    <h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3>
-                    ${sectionTotals(groups.fixed)}
-                    <span class="bv-fold-chevron">${this._bvIcon('chevronDown', 18)}</span>
+                <summary class="bv-total bv-total--head bv-fold-sum bv-tone-${foldTone}">
+                    <div class="bv-total-head">
+                        <span class="bv-total-label"><h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3></span>
+                        <span class="bv-fold-right">${single ? figures(single) : ''}<span class="bv-fold-chevron">${this._bvIcon('chevronDown', 18)}</span></span>
+                    </div>
+                    ${single ? barBlock(single) : fixedBars.map(f => `
+                    <div class="bv-fold-period bv-tone-${f.tone}">
+                        <div class="bv-total-head"><span class="bv-total-period">${f.label}</span>${figures(f)}</div>
+                        ${barBlock(f)}
+                    </div>`).join('')}
                 </summary>
                 <p class="bv-section-hint">${t('bv_section_fixed_hint', 'Suivies par les récurrences : seul un dépassement est signalé.')}</p>
                 <div class="bv-env-list">${groups.fixed.map(renderRow).join('')}</div>
