@@ -137,9 +137,11 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
     default_ctx = normalize_num_ctx(cfg.get("num_ctx"))
     options = {"temperature": cfg.get("temperature", 0.3), "num_ctx": default_ctx}
     format_opt = None
+    think_opt = None
     if extra_options:
         opts_copy = dict(extra_options)
         format_opt = opts_copy.pop("format", None)
+        think_opt = opts_copy.pop("think", None)
         options.update(opts_copy)
 
     payload = {
@@ -150,10 +152,16 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
     }
     if format_opt:
         payload["format"] = format_opt
+    if think_opt is not None:
+        payload["think"] = think_opt
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
             resp = await client.post(f"{url}/api/chat", json=payload)
+            if resp.status_code == 400 and "think" in payload and "think" in resp.text.lower():
+                # Modèle sans mode raisonnement : même appel sans le paramètre
+                payload.pop("think")
+                resp = await client.post(f"{url}/api/chat", json=payload)
         if resp.status_code != 200:
             err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")

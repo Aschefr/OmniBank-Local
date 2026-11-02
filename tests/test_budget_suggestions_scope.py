@@ -158,3 +158,63 @@ def test_without_ai_autopilot_still_suggests_envelopes_for_discretionary_spendin
     cats = {c for s in suggestions for c in s["categories"]}
     assert {"Boulangerie", "Cinéma"} <= cats and "Netflix" not in cats
     assert all(s["engine"].startswith("deterministic") for s in suggestions)
+
+
+# ── Pertinence des propositions du moteur intégré ──
+
+def _spend_once(db, cat, amount, months_ago):
+    when = TODAY.replace(day=1) - relativedelta(months=months_ago)
+    db.add(Transaction(date_operation=when, date_saisie=when, description=cat, amount=amount,
+                       type="expense_var", category=cat, from_account_id=1))
+    db.commit()
+
+
+def test_single_category_envelopes_keep_the_category_name_and_honest_reasons(db):
+    _spend(db, "Transport & Carburant", 30.0)
+    _spend(db, "Animaux & Vétérinaire", 55.0)
+    res = _suggest(db)
+    names = {p["name"] for p in res["proposals"]}
+    assert {"Transport & Carburant", "Animaux & Vétérinaire"} <= names
+    assert "Charges Fixes & Contrats" not in names
+    assert all("catégories)" not in p["justification"] for p in res["proposals"])
+
+
+def test_identical_amounts_no_longer_make_a_fixed_charge(db):
+    _spend(db, "Dépenses diverses", 120.0)  # mêmes montants, mais aucune récurrence : dépense libre
+    res = _suggest(db)
+    prop = next(p for p in res["proposals"] if "Dépenses diverses" in p["categories"])
+    assert not prop["is_fixed"] and prop["name"] != "Charges Fixes & Contrats"
+
+
+def test_deterministic_engine_joins_an_existing_envelope_of_the_same_theme(db):
+    loisirs = _envelope(db, "Loisirs & Culture", ["Loisirs"], amount=200.0)
+    _spend(db, "Cinéma", 30.0)
+    res = _suggest(db)
+    addition = next(p for p in res["proposals"] if "Cinéma" in p["categories"])
+    assert addition["target_budget_id"] == loisirs.id
+
+
+def test_a_yearly_category_added_to_a_monthly_envelope_counts_per_month(db, monkeypatch):
+    _envelope(db, "Loisirs & Culture", ["Loisirs"], amount=200.0)
+    _spend_once(db, "Concerts", 240.0, 5)  # une seule dépense, hors de la fenêtre de 3 mois
+    _spend(db, "Cinéma", 20.0)
+    answer = json.dumps({"additions": [{"envelope": "Loisirs & Culture", "categories": ["Concerts", "Cinéma"]}], "envelopes": []})
+
+    async def fake_call(prompt, cfg, extra_options=None):
+        assert extra_options.get("think") is False  # pas de raisonnement : réponse rapide et jamais vide
+        return answer
+
+    monkeypatch.setattr(ai, "get_ollama_config", lambda db: {"enabled": True, "url": "http://x", "model": "m"})
+    monkeypatch.setattr(ai, "call_ollama_async", fake_call)
+    res = _suggest(db, engine="ai")
+    addition = next(p for p in res["proposals"] if p.get("target_budget_id"))
+    assert "Concerts" in addition["categories"]
+    assert addition["cat_amounts"]["Concerts"] == pytest.approx(20.0, abs=0.5)  # 240 € par an → 20 € par mois
+
+
+def test_no_reference_income_means_no_reduction(db, monkeypatch):
+    monkeypatch.setattr(ai, "predict_next_paycheck", lambda db: {"amount": 0.0})
+    _spend(db, "Courses", 400.0)
+    res = _suggest(db)
+    assert res["is_capped"] is False
+    assert next(p for p in res["proposals"] if "Courses" in p["categories"])["suggested_amount"] >= 400.0
