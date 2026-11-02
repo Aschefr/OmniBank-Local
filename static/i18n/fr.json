@@ -3819,6 +3819,8 @@
   "bv_section_yearly": "Enveloppes annuelles",
   "bv_section_dated": "Enveloppes datées",
   "bv_section_fixed": "Charges prévues",
+  "bv_fixed_monthly": "Mensuelles",
+  "bv_fixed_yearly": "Annuelles",
   "bv_section_fixed_hint": "Suivies par les récurrences : seul un dépassement est signalé.",
   "bv_section_long": "Suivis long terme",
   "bv_section_projects": "Projets",
