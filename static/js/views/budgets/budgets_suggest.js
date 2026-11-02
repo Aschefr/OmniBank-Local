@@ -116,6 +116,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     resetAiState() {
         this.closeSuggestions();
         this.sg = null;
+        this._sgChanges = null;
     },
 
     // ── Calcul des propositions ──
@@ -472,6 +473,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (btn) btn.disabled = true;
         let created = 0, completed = 0;
         const failed = [];
+        const beforeIds = new Set((this.budgets || []).map(b => b.id));
+        const changes = [];
         for (const p of chosen) {
             try {
                 if (p.targetId) {
@@ -480,6 +483,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     const categories = [...new Set([...(b.categories || []), ...p.categories])];
                     const amount = Math.round(((b.monthly_amount || 0) + (parseFloat(p.amount) || 0)) * 100) / 100;
                     await API.put(`/api/budgets/${b.id}`, { categories, monthly_amount: amount });
+                    changes.push({ id: b.id, kind: 'completed', added: p.categories.filter(c => !(b.categories || []).includes(c)), from: b.monthly_amount || 0, to: amount });
                     completed++;
                 } else if (p.decisionId && !p.edited && p.categories.join('|') === (p.raw.categories || []).join('|') && p.name === p.raw.name) {
                     await API.post(`/api/budgets/autopilot/suggestions/${p.decisionId}/approve`);
@@ -499,6 +503,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
         sg.proposals = sg.proposals.filter(p => !p.applied);
         await this.loadBudgets();
+        (this.budgets || []).filter(b => !beforeIds.has(b.id)).forEach(b => changes.push({ id: b.id, kind: 'created' }));
+        this._rememberChanges(changes);
         if (this.loadAutopilotSuggestions) await this.loadAutopilotSuggestions();
         await this.loadStatus();
         window.app?.refreshSidebar();
@@ -515,5 +521,30 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (parts.length) showToast(parts.join(', '), 'success');
         this.sg = null;
         this.closeSuggestions();
+        this._flashChanges(changes.map(c => c.id));
+    },
+
+    // Changements appliqués : repérés sur la page pendant deux minutes, le temps de les vérifier
+    _rememberChanges(changes) {
+        this._sgChanges = changes.length
+            ? { until: Date.now() + 120000, byId: Object.fromEntries(changes.map(c => [c.id, c])) }
+            : null;
+    },
+
+    recentChange(id) {
+        const c = this._sgChanges;
+        return c && Date.now() < c.until ? c.byId[id] || null : null;
+    },
+
+    _flashChanges(ids) {
+        const rows = ids.map(id => document.querySelector(`.bv-env[data-budget-id="${id}"]`)).filter(Boolean);
+        rows.forEach(row => {
+            const fold = row.closest('details');
+            if (fold && !fold.open) fold.open = true;
+            row.classList.add('bv-env--flash');
+            row.addEventListener('animationend', () => row.classList.remove('bv-env--flash'), { once: true });
+        });
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (rows[0]) rows[0].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
     },
 });

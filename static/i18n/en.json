@@ -3999,6 +3999,8 @@
   "bv_pinned": "Pinned to the sidebar",
   "bv_total_without_fixed": "excluding planned charges",
   "sb_envelopes": "Envelopes",
+  "bv_change_created": "New envelope",
+  "bv_change_completed": "Completed: limit {from} → {to}",
   "sg_menu": "Envelope suggestions",
   "sg_title": "Envelope suggestions",
   "sg_sub_autopilot": "Suggested by Auto-Pilot from your recent spending",
