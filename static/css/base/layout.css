@@ -1086,7 +1086,7 @@ h3 {
     left: 0;
     height: 100%;
     width: var(--sync-progress, 4%);
-    transition: width 1.2s linear;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     background: linear-gradient(90deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.55), rgba(99, 102, 241, 0.4));
     background-size: 200% 100%;
     animation: bankSyncShimmer 1.8s linear infinite;
@@ -1123,6 +1123,22 @@ h3 {
     background: rgba(16, 185, 129, 0.22);
     animation: bankSyncCompleteSnap 0.35s ease-out forwards;
     z-index: 0;
+}
+
+.overview-bank-sync-btn.is-success,
+.overview-bank-sync-btn.is-error {
+    animation: bankSyncDoneFlash 1.1s cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+
+@keyframes bankSyncDoneFlash {
+    0% { transform: scale(1); }
+    18% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overview-bank-sync-btn.is-success,
+    .overview-bank-sync-btn.is-error { animation: none; }
 }
 
 .overview-bank-sync-btn.is-success > * {
