@@ -25,131 +25,138 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     renderCatCheckboxes(selected = []) {
         const container = document.getElementById('budgetCatCheckboxes');
         if (!container) return;
-
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
         const currentEditId = parseInt(document.getElementById('budgetEditId')?.value || 0);
 
+        // Autres enveloppes ouvertes qui suivent déjà la catégorie : ses dépenses y seraient comptées deux fois
         const catToBudget = {};
-        if (this.budgets) {
-            for (const b of this.budgets) {
-                if (b.id === currentEditId) continue;
-                for (const c of (b.categories || [])) {
-                    if (!catToBudget[c]) catToBudget[c] = [];
-                    catToBudget[c].push(b.name);
-                }
-            }
+        for (const b of (this.budgets || [])) {
+            if (b.id === currentEditId || b.is_closed) continue;
+            for (const c of (b.categories || [])) (catToBudget[c] = catToBudget[c] || []).push(b.name);
         }
 
-        const groups = {
-            'expense_fixed': { title: window.app.getTypeLabel('expense_fixed'), cats: [] },
-            'expense_var': { title: window.app.getTypeLabel('expense_var'), cats: [] },
-            'income': { title: window.app.getTypeLabel('income'), cats: [] },
-            'neutral': { title: window.app.getTypeLabel('neutral'), cats: [] },
-            'other': { title: window.i18n.t('budget_cat_other'), cats: [] }
-        };
-
+        // Dépenses d'abord ; revenus, neutres et autres repliés tant qu'on ne les cherche pas
+        const order = ['expense_var', 'expense_fixed', 'income', 'neutral', 'other'];
+        const isSpendType = (type) => type === 'expense_var' || type === 'expense_fixed';
+        const groups = {};
         for (const c of (this.categories || [])) {
-            if (groups[c.type]) groups[c.type].cats.push(c);
-            else groups['other'].cats.push(c);
+            const key = order.includes(c.type) ? c.type : 'other';
+            (groups[key] = groups[key] || []).push(c);
         }
+        const term = document.getElementById('budgetCatSearch')?.value || '';
+        const showOthers = this._showOtherCatTypes || !!term
+            || selected.some(n => { const c = (this.categories || []).find(x => x.name === n); return c && !isSpendType(c.type); });
+        const avgFor = (name) => {
+            const a = this.catAverages?.[name]?.yearly_average || 0;
+            return period === 'yearly' ? a * 12 : a;
+        };
+        const unit = period === 'yearly' ? t('bv_form_per_year', '/an') : t('bv_form_per_month', '/mois');
 
         let html = '';
-        const searchTerm = document.getElementById('budgetCatSearch')?.value || '';
-        const cleanTerm = window.cleanStringForSearch(searchTerm);
-
-        for (const key of ['expense_fixed', 'expense_var', 'income', 'neutral', 'other']) {
-            const visibleCats = searchTerm
-                ? groups[key].cats.filter(c => window.permissiveMatch(c.name, searchTerm))
-                : groups[key].cats;
-            if (visibleCats.length === 0) continue;
-
-            html += `<div style="margin-bottom:12px;">
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;">
-                    ${groups[key].title}
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:6px;">`;
-
-            for (const c of visibleCats) {
-                const isSelected = selected.includes(c.name);
-                const overlap = catToBudget[c.name] ? catToBudget[c.name].join(', ') : null;
-
-                let avgValue = 0;
-                let avgLabel = '';
-                const catAvg = this.catAverages ? this.catAverages[c.name] : null;
-
-                if (catAvg) {
-                    if (period === 'monthly' || period === 'indefinite') {
-                        avgValue = catAvg.yearly_average;
-                        avgLabel = window.i18n.t('budget_cat_this_month');
-                    } else if (period === 'yearly') {
-                        avgValue = catAvg.yearly_average * 12;
-                        avgLabel = window.i18n.t('budget_cat_per_year');
-                    }
-                }
-
-                const avgText = avgValue > 0 ? `<span style="font-size:12px;color:var(--text-muted);background:rgba(128,128,128,0.1);padding:1px 4px;border-radius:4px;">~${formatCurrency(avgValue)} ${avgLabel}</span>` : '';
-                const overlapText = overlap ? `<span style="font-size:12px;color:#f59e0b;background:rgba(245,158,11,0.15);padding:1px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.i18n.t('budget_cat_used_in')}: ${overlap}">⚠️ ${overlap}</span>` : '';
-
-                html += `
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;background:var(--bg-surface);padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};transition:all 0.2s;">
-                        <input type="checkbox" name="budgetCat" value="${c.name}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.toggleCategorySelection(this)">
-                        <div style="display:flex;flex-direction:column;gap:2px;overflow:hidden;flex:1;">
-                            <span style="font-weight:${isSelected ? '600' : 'normal'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.name}">${c.name}</span>
-                            <div style="display:flex;gap:4px;">
-                                ${avgText}
-                                ${overlapText}
-                            </div>
-                        </div>
-                    </label>
-                `;
-            }
-            html += `</div></div>`;
+        let hidden = 0;
+        for (const key of order) {
+            const cats = (groups[key] || []).filter(c => !term || window.permissiveMatch(c.name, term));
+            if (!cats.length) continue;
+            if (!isSpendType(key) && !showOthers) { hidden += cats.length; continue; }
+            const title = key === 'other' ? t('budget_cat_other', 'Autres') : window.app.getTypeLabel(key);
+            html += `
+                <div class="bv-cat-group">
+                    <div class="bv-cat-group-title">${esc(title)}</div>
+                    <div class="bv-cat-grid">${cats.map(c => {
+                        const on = selected.includes(c.name);
+                        const avg = avgFor(c.name);
+                        const elsewhere = catToBudget[c.name];
+                        return `
+                        <label class="bv-cat-opt${on ? ' is-checked' : ''}">
+                            <input type="checkbox" name="budgetCat" value="${esc(c.name)}" ${on ? 'checked' : ''} onchange="window.BudgetsView.toggleCategorySelection(this)">
+                            <span class="bv-cat-text">
+                                <span class="bv-cat-name">${esc(c.name)}</span>
+                                ${elsewhere ? `<span class="bv-cat-elsewhere" title="${esc(t('bv_form_cat_elsewhere_hint', 'Ses dépenses seront comptées dans les deux enveloppes'))}">${esc(t('bv_form_cat_elsewhere', 'aussi dans {names}').split('{names}').join(elsewhere.join(', ')))}</span>` : ''}
+                            </span>
+                            ${avg > 0 ? `<span class="bv-cat-avg privacy-blur">~${formatCurrency(avg)}${unit}</span>` : ''}
+                        </label>`;
+                    }).join('')}</div>
+                </div>`;
         }
+        if (hidden) {
+            html += `<button type="button" class="bv-link-btn" onclick="window.BudgetsView._showOtherCatTypes = true; window.BudgetsView.renderCatCheckboxes(window.BudgetsView.selectedCategories)">${t('bv_form_cat_more', 'Afficher les revenus et autres catégories ({count})').split('{count}').join(hidden)}</button>`;
+        }
+        container.innerHTML = html || `<p class="bv-field-hint">${t('bv_form_cat_no_match', 'Aucune catégorie ne correspond.')}</p>`;
+        this.renderSelectedCats();
+    },
 
-        container.innerHTML = html;
+    // Catégories choisies en tête du sélecteur, avec leur dépense habituelle pour fixer le plafond
+    renderSelectedCats() {
+        const box = document.getElementById('budgetCatSelected');
+        if (!box) return;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const sel = this.selectedCategories || [];
+        if (!sel.length) {
+            box.innerHTML = `<p class="bv-field-hint">${t('bv_form_cat_required', "Choisissez au moins une catégorie : sans catégorie, l'enveloppe ne suit aucune dépense.")}</p>`;
+            return;
+        }
+        const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
+        const monthly = sel.reduce((s, n) => s + (this.catAverages?.[n]?.yearly_average || 0), 0);
+        const avg = period === 'yearly' ? monthly * 12 : monthly;
+        const canUse = avg > 0 && (period === 'monthly' || period === 'yearly');
+        const avgText = t(period === 'yearly' ? 'bv_form_cat_avg_year' : 'bv_form_cat_avg_month',
+            period === 'yearly' ? 'Dépense habituelle : ~{amount} par an' : 'Dépense habituelle : ~{amount} par mois').split('{amount}').join(formatCurrency(avg));
+        box.innerHTML = `
+            <div class="bv-cat-chips">${sel.map(n => `
+                <button type="button" class="bv-cat-chip" data-cat="${esc(n)}" onclick="window.BudgetsView.removeSelectedCat(this.dataset.cat)"
+                        aria-label="${esc(t('bv_form_cat_remove', 'Retirer {name}').split('{name}').join(n))}">${esc(n)}${this._bvIcon('close', 12)}</button>`).join('')}
+            </div>
+            ${avg > 0 ? `<p class="bv-cat-sum"><span class="privacy-blur" title="${esc(t('bv_form_cat_avg_hint', 'Moyenne sur les 12 derniers mois'))}">${avgText}</span>${canUse
+                ? `<button type="button" class="bv-link-btn" onclick="window.BudgetsView.useCatAverage(${Math.round(avg * 100) / 100})">${t('bv_form_use_avg', 'Reprendre comme plafond')}</button>` : ''}</p>` : ''}`;
+    },
+
+    removeSelectedCat(name) {
+        this.selectedCategories = (this.selectedCategories || []).filter(c => c !== name);
+        this.renderCatCheckboxes(this.selectedCategories);
+    },
+
+    useCatAverage(value) {
+        const input = document.getElementById('newBudgetAmount');
+        if (!input) return;
+        input.value = value.toFixed(2);
+        input.focus();
     },
 
     onPeriodChange() {
         const period = document.getElementById('newBudgetPeriod')?.value;
         const customDates = document.getElementById('budgetCustomDates');
-        if (customDates) customDates.style.display = period === 'custom' ? 'block' : 'none';
+        if (customDates) customDates.style.display = period === 'custom' ? '' : 'none';
         this.renderCatCheckboxes(this.selectedCategories);
     },
 
     toggleType() {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
         const isProject = document.getElementById('budgetTypeProject')?.checked;
         const isSavings = document.getElementById('budgetTypeSavings')?.checked;
-        const catSection = document.getElementById('budgetCatSection');
-        const periodRow = document.getElementById('newBudgetPeriod')?.closest('div');
-        if (catSection) catSection.style.display = (isProject || isSavings) ? 'none' : 'block';
-        if (periodRow) periodRow.style.display = isSavings ? 'none' : '';
-        if (isSavings) {
-            document.getElementById('newBudgetPeriod').value = 'indefinite';
-        }
-
-        const tabCat = document.getElementById('tabLabelCat');
-        const tabProj = document.getElementById('tabLabelProj');
-        const tabSavings = document.getElementById('tabLabelSavings');
-        const allTabs = [tabCat, tabProj, tabSavings].filter(Boolean);
-        const activeTab = isSavings ? tabSavings : isProject ? tabProj : tabCat;
-        for (const tab of allTabs) {
-            if (tab === activeTab) {
-                tab.style.background = 'var(--bg-surface)';
-                tab.style.fontWeight = '700';
-                tab.style.color = 'var(--accent)';
-                tab.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-            } else {
-                tab.style.background = 'transparent';
-                tab.style.fontWeight = 'normal';
-                tab.style.color = 'inherit';
-                tab.style.boxShadow = 'none';
-            }
+        const show = (id, visible) => { const el = document.getElementById(id); if (el) el.style.display = visible ? '' : 'none'; };
+        show('budgetCatSection', !isProject && !isSavings);
+        show('budgetPeriodField', !isSavings);
+        show('budgetLockSection', !isSavings);
+        if (isSavings) document.getElementById('newBudgetPeriod').value = 'indefinite';
+        const amountLabel = document.getElementById('budgetAmountLabel');
+        if (amountLabel) amountLabel.textContent = isSavings ? t('bv_form_goal', 'Objectif') : t('bv_detail_limit', 'Plafond');
+        const hint = document.getElementById('budgetTypeHint');
+        if (hint) {
+            hint.textContent = isSavings
+                ? t('bv_form_type_savings_hint', "Met de l'argent de côté vers un objectif, par dépôts et retraits.")
+                : isProject
+                    ? t('bv_form_type_project_hint', 'Suit les opérations que vous rattachez vous-même à ce projet.')
+                    : t('bv_form_type_cat_hint', 'Suit automatiquement les dépenses des catégories choisies.');
         }
     },
 
     async showDetail(budgetId, budgetName, year, month) {
         this._currentDetailYear = year;
         this._currentDetailMonth = month;
+        this._detailArgs = [budgetId, budgetName, year, month];
         const modal = document.getElementById('budgetUnifiedModal');
         const title = document.getElementById('budgetUnifiedTitle');
         const graph = document.getElementById('budgetDetailGraph');
@@ -159,17 +166,40 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const formSec = document.getElementById('budgetFormSection');
 
         if (!modal) return;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const tp = (k, params, fb) => {
+            let s = t(k, fb);
+            for (const [key, v] of Object.entries(params || {})) s = s.split(`{${key}}`).join(v);
+            return s;
+        };
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-        title.textContent = `📊 ${budgetName}`;
+        title.textContent = budgetName;
         document.getElementById('budgetEditId').value = budgetId;
-        editBtn.style.display = 'block';
+        editBtn.hidden = false;
 
         detailSec.style.display = 'block';
         formSec.style.display = 'none';
 
-        graph.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_loading')}</p>`;
-        list.innerHTML = '';
+        // Rechargement sur place (après un réglage) : on garde le contenu affiché jusqu'à la nouvelle version
+        const isRefresh = modal.style.display === 'flex' && graph.dataset.budgetId === String(budgetId);
+        if (!isRefresh) {
+            graph.innerHTML = `<p class="bv-detail-loading">${t('budget_loading', 'Chargement…')}</p>`;
+            list.innerHTML = '';
+        }
+        graph.dataset.budgetId = String(budgetId);
         modal.style.display = 'flex';
+        this._bindUnifiedKeys();
+
+        const lang = (window.i18n?.currentLang || window.i18n?.lang || 'fr') === 'en' ? 'en-US' : 'fr-FR';
+        const thisYear = new Date().getFullYear();
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const fmtOpDate = (iso) => {
+            const d = new Date(iso + 'T00:00:00');
+            return d.toLocaleDateString(lang, d.getFullYear() === thisYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        const fmtDay = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: 'numeric', month: 'short' }) : '';
+        const fmtDate = (iso) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '?';
 
         try {
             const budget = this.statusData?.budgets.find(b => b.id === budgetId);
@@ -183,6 +213,25 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 txUrl += `&date_start=${this.periodInfo.start}&date_end=${this.periodInfo.end}`;
             }
             const txs = await API.get(txUrl);
+
+            const opRow = (it) => {
+                const planned = it.date > todayIso;
+                return `
+                <li class="bv-op${planned ? ' bv-op--planned' : ''}">
+                    <span class="bv-op-date">${fmtOpDate(it.date)}</span>
+                    <span class="bv-op-desc">
+                        <span class="bv-op-label">${it.label}</span>
+                        ${planned ? `<span class="bv-op-tag">${t('bv_op_planned', 'prévue')}</span>` : ''}
+                    </span>
+                    ${it.category ? `<span class="bv-op-cat">${esc(it.category)}</span>` : '<span></span>'}
+                    <span class="bv-op-amount privacy-blur${it.isIncome ? ' bv-op-amount--in' : ''}">${it.isIncome ? '+' : (it.sign || '')}${formatCurrency(Math.abs(it.amount))}</span>
+                    ${it.action || ''}
+                </li>`;
+            };
+            const opsHtml = (items) => items.length
+                ? `<h4 class="bv-ops-title">${window.i18n.tp('budget_operations_count', { count: items.length })}</h4>
+                   <ul class="bv-ops">${items.map(opRow).join('')}</ul>`
+                : `<p class="bv-detail-empty">${t('budget_no_operations', 'Aucune opération sur cette période.')}</p>`;
 
             if (isSavings) {
                 let allocs = [];
@@ -202,10 +251,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                 const effectiveBalance = balance - tempWithdrawn;
                 const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
-                const theoreticalPct = goal > 0 ? Math.min((balance / goal) * 100, 100) : 0;
                 const goalReached = balance >= goal && goal > 0;
-                const barColor = goalReached ? '#f59e0b' : '#10b981';
-
                 const safeName = budgetName.replace(/'/g, "\\'");
 
                 const hostedPerAccount = {};
@@ -213,176 +259,189 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     const key = a.account_id || 'main';
                     hostedPerAccount[key] = (hostedPerAccount[key] || 0.0) + a.amount;
                 }
-
                 const accountSelectDetail = this._buildAccountSelect('detailAllocAccountId', hostedPerAccount);
 
-                graph.innerHTML = `<div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;">
-                        <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(goal)}</span> ${window.i18n.t('budget_savings_goal')}</span>
-                        <span class="privacy-blur">
-                            <span style="color:#10b981;font-weight:600;">↑ ${formatCurrency(funded)}</span> ${window.i18n.t('budget_savings_funded')}
-                            ${withdrawn > 0 ? ` · <span style="color:#ff5630;font-weight:600;">↓ ${formatCurrency(withdrawn)}</span> ${window.i18n.t('budget_savings_withdrawn')}` : ''}
-                        </span>
+                graph.innerHTML = `
+                <div class="bv-detail-summary ${goalReached ? 'bv-tone-near' : 'bv-tone-ok'}">
+                    <div class="bv-detail-top">
+                        <span class="bv-detail-period">${(s => s.charAt(0).toUpperCase() + s.slice(1))(t('budget_savings_goal', 'Objectif'))}</span>
+                        <span class="bv-env-figures privacy-blur"><strong>${formatCurrency(effectiveBalance)}</strong><span> / ${formatCurrency(goal)}</span></span>
                     </div>
-                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
-                        ${tempWithdrawn > 0 ? `<div style="position:absolute;top:0;left:0;width:${theoreticalPct}%;height:100%;background:${barColor};opacity:0.25;border-radius:999px;"></div>` : ''}
-                        <div style="position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${barColor};border-radius:999px;transition:width 0.5s ease;"></div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
-                        <span class="privacy-blur" style="color:${barColor};font-weight:600;">${formatCurrency(effectiveBalance)} ${window.i18n.t('budget_savings_balance')}</span>
-                        <span style="color:${goalReached ? '#f59e0b' : 'var(--text-muted)'};font-weight:600;">${goalReached ? '🎯 ' : ''}<span class="privacy-blur">${formatCurrency(Math.abs(goal - balance))}</span> ${goalReached ? window.i18n.t('budget_savings_goal_reached') : window.i18n.t('budget_savings_remaining')}</span>
+                    <div class="bv-env-bar"><span class="bv-env-fill" style="width:${pct}%"></span></div>
+                    <div class="bv-env-foot">
+                        <span class="bv-env-meta privacy-blur">${formatCurrency(funded)} ${t('budget_savings_funded', 'versés')}${withdrawn > 0 ? ` · ${formatCurrency(withdrawn)} ${t('budget_savings_withdrawn', 'retirés')}` : ''}</span>
+                        <span class="bv-env-status privacy-blur">${goalReached ? t('budget_savings_goal_reached', 'Objectif atteint') : `${formatCurrency(Math.max(goal - balance, 0))} ${t('budget_savings_remaining', 'restants')}`}</span>
                     </div>
                 </div>
-                <div style="display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--bg-surface);border:1px solid rgba(245,158,11,0.3);border-radius:8px;margin-bottom:12px;">
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                        <input type="number" id="detailAllocAmount" class="inline-input" placeholder="${window.i18n.t('budget_savings_add_placeholder')}" step="0.01" style="width:110px;font-size:12px;padding:6px 10px;border-radius:6px;">
-                        ${accountSelectDetail}
-                        <input type="text" id="detailAllocNote" class="inline-input" placeholder="${window.i18n.t('budget_savings_note_placeholder')}" style="flex:1;min-width:140px;font-size:12px;padding:6px 10px;border-radius:6px;">
-                    </div>
-                    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
-                        <button class="btn btn-primary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">↑ ${window.i18n.t('budget_savings_deposit')}</button>
-                        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">↓ ${window.i18n.t('budget_savings_withdrawal')}</button>
+                <div class="bv-detail-alloc">
+                    <input type="number" id="detailAllocAmount" class="inline-input" placeholder="${t('budget_savings_add_placeholder', 'Montant')}" step="0.01">
+                    ${accountSelectDetail}
+                    <input type="text" id="detailAllocNote" class="inline-input bv-detail-alloc-note" placeholder="${t('budget_savings_note_placeholder', 'Note')}">
+                    <div class="bv-detail-alloc-actions">
+                        <button type="button" class="btn btn-primary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">${t('budget_savings_deposit', 'Déposer')}</button>
+                        <button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">${t('budget_savings_withdrawal', 'Retirer')}</button>
                     </div>
                 </div>`;
 
-                const items = [];
-                for (const tx of txs) {
-                    items.push({
-                        type: 'tx', date: tx.date, description: tx.description, amount: tx.amount,
-                        isIncome: tx.is_income, category: tx.category, isReconciled: tx.is_reconciled
-                    });
-                }
+                const items = txs.map(tx => ({
+                    date: tx.date, label: esc(tx.description), amount: tx.amount,
+                    isIncome: tx.is_income, category: tx.category,
+                }));
                 for (const a of allocs) {
                     const acc = this.accounts?.find(ac => ac.id === a.account_id);
-                    const accLabel = acc ? ` <span style="font-size:12px;color:var(--accent);background:var(--bg-base);padding:1px 4px;border-radius:4px;margin-left:4px;">🏦 ${acc.name}</span>` : '';
+                    const note = a.note || (a.amount > 0 ? t('budget_savings_deposit', 'Dépôt') : t('budget_savings_withdrawal', 'Retrait'));
                     items.push({
-                        type: 'alloc', id: a.id, date: a.date, description: (a.note || (a.amount > 0 ? window.i18n.t('budget_savings_deposit') : window.i18n.t('budget_savings_withdrawal'))) + accLabel,
-                        amount: Math.abs(a.amount), isIncome: a.amount > 0
+                        date: a.date, amount: a.amount, isIncome: a.amount > 0, sign: '−',
+                        label: `${esc(note)}${acc ? ` <span class="bv-env-account" style="--acc:${acc.color || 'var(--accent)'}">${esc(acc.name)}</span>` : ''}`,
+                        action: `<button type="button" class="bv-icon-btn bv-icon-btn--danger" aria-label="${t('tooltip_delete', 'Supprimer')}" title="${t('tooltip_delete', 'Supprimer')}" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${a.id},'${safeName}',${year},${month})">${this._bvIcon('close', 14)}</button>`,
                     });
                 }
                 items.sort((a, b) => b.date.localeCompare(a.date));
-
-                if (items.length === 0) {
-                    list.innerHTML = `<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
-                } else {
-                    list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: items.length})}</h4>` +
-                        items.map(it => `
-                        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${it.isReconciled ? 'opacity:0.55;' : ''}">
-                            <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${it.date}</span>
-                            <span style="flex:1;font-size:12px;min-width:100px;">
-                                ${it.type === 'alloc' ? '💰 ' : ''}${it.description}
-                                ${it.isReconciled ? `<span style="font-size:12px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
-                            </span>
-                            ${it.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--text-muted);">${it.category}</span>` : ''}
-                            <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${it.isIncome ? '#10b981' : '#ff5630'};white-space:nowrap;">
-                                ${it.isIncome ? '↑ +' : '↓ -'}${formatCurrency(it.amount)}
-                            </span>
-                            ${it.type === 'alloc' ? `<button class="btn btn-secondary" style="padding:2px 6px;font-size:12px;" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${it.id},'${budgetName}',${year},${month})">✕</button>` : ''}
-                        </div>`).join('');
-                }
+                list.innerHTML = opsHtml(items);
                 return;
             }
 
-            // Réglages de l'enveloppe (retirés de la liste pour la garder lisible)
-            const t = (k, fb) => window.i18n.t(k) || fb;
-            const engaged = budget?.expenses || 0;
-            const canAlign = budget && engaged > 0 && Math.abs(engaged - (budget.budget_amount || 0)) > 0.009;
-            const limitControls = budget ? `
-                <div class="bv-detail-controls" onclick="event.stopPropagation()">
-                    <label class="bv-detail-limit">
-                        <span>${t('bv_detail_limit', 'Plafond')}</span>
-                        <input type="number" class="inline-input" value="${budget.budget_amount}" min="0" step="0.01"
-                               onchange="window.BudgetsView.updateAmount(${budgetId}, this.value)"> €
-                    </label>
-                    ${canAlign ? `<button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.updateAmount(${budgetId}, ${engaged}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">${t('bv_detail_align', 'Aligner sur le réalisé')} (${formatCurrency(engaged)})</button>` : ''}
-                    <button type="button" class="btn btn-secondary bv-btn-compact" aria-pressed="${budget.is_locked ? 'true' : 'false'}" onclick="window.BudgetsView.toggleLock(${budgetId}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">
-                        ${budget.is_locked ? t('bv_detail_unlock', 'Déverrouiller') : t('bv_detail_lock', 'Verrouiller')}
-                    </button>
-                    ${(budget.envelope_type || 'spending') !== 'savings' ? `<button type="button" class="btn btn-secondary bv-btn-compact" aria-pressed="${this.isPinned(budgetId) ? 'true' : 'false'}" title="${t('bv_pin_hint', 'Afficher cette enveloppe dans la barre latérale')}" onclick="window.BudgetsView.togglePin(${budgetId}).then(() => window.BudgetsView.showDetail(${budgetId}, ${JSON.stringify(budgetName).replace(/"/g, '&quot;')}, ${year}, ${month}))">
-                        ${this.isPinned(budgetId) ? t('bv_unpin', 'Désépingler') : t('bv_pin', 'Épingler')}
-                    </button>` : ''}
+            // Résumé : la même jauge et les mêmes mots que la carte de l'enveloppe
+            const gauge = budget ? this._envGauge(budget) : null;
+            const period = budget?.period || 'monthly';
+            let periodLabel = '';
+            if (budget?.is_project) {
+                periodLabel = t('bv_form_type_project', 'Projet');
+            } else if (period === 'monthly') {
+                const p = this.periodInfo;
+                periodLabel = this.customPeriod?.enabled
+                    ? tp('bv_dated_range', { start: fmtDate(this.customPeriod.start), end: fmtDate(this.customPeriod.end) }, 'Du {start} au {end}')
+                    : p?.kind === 'cycle'
+                        ? tp('bv_period_cycle', { start: fmtDay(p.start), end: fmtDay(p.end) }, 'Cycle du {start} au {end}')
+                        : p ? new Date(p.start + 'T00:00:00').toLocaleDateString(lang, { month: 'long', year: 'numeric' }) : '';
+            } else if (period === 'yearly') {
+                periodLabel = tp('bv_detail_year', { year }, 'Année {year}');
+            } else if (period === 'custom') {
+                periodLabel = tp('bv_dated_range', { start: fmtDate(budget.start_date), end: fmtDate(budget.end_date) }, 'Du {start} au {end}');
+            } else {
+                periodLabel = t('bv_detail_all_time', 'Toutes périodes');
+            }
+            const cats = budget?.categories || [];
+            const summary = gauge ? `
+                <div class="bv-detail-summary bv-tone-${gauge.tone}">
+                    <div class="bv-detail-top">
+                        <span class="bv-detail-period">${periodLabel}</span>
+                        <span class="bv-env-figures privacy-blur"><strong>${formatCurrency(gauge.spent)}</strong><span> / ${formatCurrency(gauge.limit)}</span></span>
+                    </div>
+                    ${this._envBarHtml(gauge)}
+                    <div class="bv-env-foot">
+                        <span class="bv-env-meta">${cats.length ? esc(cats.join(', ')) : t('bv_detail_no_cats', 'Aucune catégorie suivie')}</span>
+                        <span class="bv-env-status privacy-blur">${gauge.statusText}</span>
+                    </div>
                 </div>` : '';
 
-            if (!txs.length) {
-                graph.innerHTML = `${limitControls}<p style="color:var(--text-muted);font-size:12px;">${window.i18n.t('budget_no_operations')}</p>`;
-                return;
-            }
-
-            const expenses = txs.filter(t => !t.is_income);
-            const incomes  = txs.filter(t =>  t.is_income);
-            const totalExp = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
-            const totalRecExp = expenses.filter(t => t.is_reconciled).reduce((s, t) => s + Math.abs(t.amount), 0);
-            const totalInc = incomes.reduce((s,  t) => s + Math.abs(t.amount), 0);
-            const target   = budget?.budget_amount || 0;
-            const maxVal   = Math.max(totalExp, totalInc, target, 1);
-
-            const pct = target > 0 ? (totalRecExp / target) * 100 : 0;
-            const recExpColor = pct > 100 ? '#ff5630' : pct >= 80 ? '#f59e0b' : '#10b981';
-
-            let expSublabel = `${formatCurrency(totalRecExp)} ${window.i18n.t('budget_reconciled')} / ${formatCurrency(totalExp)} ${window.i18n.t('budget_committed')}`;
-            if (totalInc > 0) {
-                expSublabel += ` · ↑ ${formatCurrency(totalInc)} ${window.i18n.t('budget_received')}`;
-            }
-
-            const expW = Math.max(0, Math.min(totalExp / maxVal * 100, 100));
-            const recW = Math.max(0, Math.min(totalRecExp / maxVal * 100, 100));
-
-            graph.innerHTML = `${limitControls}<div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;">
-                        <span>${window.i18n.t('budget_expenses')} · <span class="privacy-blur" style="font-weight:600;">${formatCurrency(target)}</span> ${window.i18n.t('budget_objective')}</span><span class="privacy-blur">${expSublabel}</span>
-                    </div>
-                    <div style="position:relative;background:rgba(128,128,128,0.15);border-radius:999px;height:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.05);">
-                        <div style="position:absolute;top:0;left:0;width:${expW}%;height:100%;background:rgba(128,128,128,0.4);border-radius:999px;"></div>
-                        <div style="position:absolute;top:0;left:0;width:${recW}%;height:100%;background:${recExpColor};border-radius:999px;"></div>
-                    </div>
-                </div>`;
-
-            list.innerHTML = `<h4 style="margin:0 0 10px;font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">${window.i18n.tp('budget_operations_count', {count: txs.length})}</h4>` +
-                txs.map(tx => `
-                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-color);flex-wrap:wrap;${tx.is_reconciled ? 'opacity:0.55;' : ''}">
-                    <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${tx.date}</span>
-                    <span style="flex:1;font-size:12px;min-width:100px;">
-                        ${tx.description}
-                        ${tx.is_reconciled ? `<span style="font-size:12px;color:var(--text-muted);font-style:italic;margin-left:8px;">${window.i18n.t('budget_reconciled_label')}</span>` : ''}
+            // Réglages rapides : plafond, épinglage, verrouillage
+            const committed = budget?.spent || 0;
+            const canRaise = budget && committed - (budget.budget_amount || 0) > 0.009;
+            const pinned = this.isPinned(budgetId);
+            const controls = budget ? `
+                <div class="bv-detail-controls">
+                    <label class="bv-detail-limit">
+                        <span>${t('bv_detail_limit', 'Plafond')}</span>
+                        <input type="number" class="inline-input privacy-blur" value="${budget.budget_amount}" min="0" step="0.01"
+                               onchange="window.BudgetsView.updateAmount(${budgetId}, this.value).then(() => window.BudgetsView.refreshDetail())">
+                        <span aria-hidden="true">€</span>
+                    </label>
+                    ${canRaise ? `<button type="button" class="btn btn-secondary bv-btn-compact" title="${t('bv_detail_raise_hint', 'Le plafond couvre alors les dépenses de la période, prévues comprises')}" onclick="window.BudgetsView.updateAmount(${budgetId}, ${committed}).then(() => window.BudgetsView.refreshDetail())">${tp('bv_detail_raise', { amount: formatCurrency(committed) }, 'Relever à {amount}')}</button>` : ''}
+                    <span class="bv-detail-toggles">
+                        <button type="button" class="bv-toggle" aria-pressed="${pinned}" title="${t('bv_pin_hint', 'Afficher cette enveloppe dans la barre latérale')}"
+                                onclick="window.BudgetsView.togglePin(${budgetId}).then(() => window.BudgetsView.refreshDetail())">${this._bvIcon('pin', 14)}<span>${pinned ? t('bv_pinned_short', 'Épinglée') : t('bv_pin', 'Épingler')}</span></button>
+                        <button type="button" class="bv-toggle" aria-pressed="${!!budget.is_locked}" title="${t('bv_locked', "Verrouillée : pas d'ajustement automatique")}"
+                                onclick="window.BudgetsView.toggleLock(${budgetId}).then(() => window.BudgetsView.refreshDetail())">${this._bvIcon('lock', 14)}<span>${budget.is_locked ? t('bv_locked_short', 'Verrouillée') : t('bv_detail_lock', 'Verrouiller')}</span></button>
                     </span>
-                    ${tx.category ? `<span style="background:var(--bg-base);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--text-muted);">${tx.category}</span>` : ''}
-                    <span class="privacy-blur" style="font-size:13px;font-weight:600;color:${tx.is_income ? '#10b981' : '#ff5630'};white-space:nowrap;">
-                        ${tx.is_income ? '+' : ''}${formatCurrency(tx.amount)}
-                    </span>
-                </div>`).join('');
+                </div>` : '';
+
+            graph.innerHTML = summary + controls;
+            const items = [...txs]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map(tx => ({ date: tx.date, label: esc(tx.description), amount: tx.amount, isIncome: tx.is_income, category: tx.category }));
+            list.innerHTML = opsHtml(items);
         } catch(e) {
-            graph.innerHTML = `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+            graph.innerHTML = `<p class="bv-detail-error">${t('title_error', 'Erreur')} : ${esc(e.message)}</p>`;
         }
     },
 
+    refreshDetail() {
+        if (this._detailArgs && document.getElementById('budgetDetailSection')?.style.display === 'block') {
+            return this.showDetail(...this._detailArgs);
+        }
+    },
+
+    // Échap ferme la fenêtre (ou revient au détail depuis la modification)
+    _bindUnifiedKeys() {
+        if (this._unifiedKeyHandler) return;
+        this._unifiedKeyHandler = (e) => {
+            if (e.key !== 'Escape') return;
+            const modal = document.getElementById('budgetUnifiedModal');
+            if (!modal || modal.style.display !== 'flex') return;
+            if (document.getElementById('inlineConfirm')?.style.display === 'flex') return;
+            if (document.getElementById('budgetFormSection')?.style.display === 'block') this.hideEditSection();
+            else this.closeUnifiedModal();
+        };
+        document.addEventListener('keydown', this._unifiedKeyHandler);
+    },
+
+    // Remplit le formulaire avec une enveloppe existante (le type ne se change plus après la création)
+    _fillForm(b) {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        document.getElementById('budgetEditId').value = b.id;
+        document.getElementById('newBudgetName').value = b.name;
+        document.getElementById('newBudgetAmount').value = b.monthly_amount;
+        document.getElementById('newBudgetPeriod').value = b.period;
+        document.getElementById('newBudgetStartDate').value = b.start_date || '';
+        document.getElementById('newBudgetEndDate').value = b.end_date || '';
+        document.getElementById('budgetCustomDates').style.display = b.period === 'custom' ? '' : 'none';
+        if (b.is_project) document.getElementById('budgetTypeProject').checked = true;
+        else if ((b.envelope_type || 'spending') === 'savings') document.getElementById('budgetTypeSavings').checked = true;
+        else document.getElementById('budgetTypeCategory').checked = true;
+        document.getElementById('budgetTypeRow').style.display = 'none';
+        this.toggleType();
+        this.renderAccountCheckboxes(b.account_ids || []);
+        document.getElementById('budgetCatSearch').value = '';
+        this._showOtherCatTypes = false;
+        this.selectedCategories = [...(b.categories || [])];
+        this.renderCatCheckboxes(this.selectedCategories);
+        document.getElementById('budgetIsLocked').checked = !!b.is_locked;
+        document.getElementById('budgetArchiveSection').style.display = '';
+        document.getElementById('budgetToggleCloseText').textContent = b.is_closed
+            ? t('bv_form_reopen', "Rouvrir l'enveloppe")
+            : t('bv_form_archive', "Archiver l'enveloppe");
+    },
+
     showAddForm() {
-        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_new');
-        document.getElementById('budgetUnifiedEditBtn').style.display = 'none';
+        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_new') || 'Nouvelle enveloppe';
+        document.getElementById('budgetUnifiedEditBtn').hidden = true;
         document.getElementById('budgetDetailSection').style.display = 'none';
-        
+
         document.getElementById('budgetEditId').value = '';
         document.getElementById('newBudgetName').value = '';
         document.getElementById('newBudgetAmount').value = '';
         document.getElementById('newBudgetPeriod').value = 'monthly';
         document.getElementById('newBudgetStartDate').value = '';
         document.getElementById('newBudgetEndDate').value = '';
-        const customDates = document.getElementById('budgetCustomDates');
-        if (customDates) customDates.style.display = 'none';
+        document.getElementById('budgetCustomDates').style.display = 'none';
         document.getElementById('budgetTypeCategory').checked = true;
+        document.getElementById('budgetTypeRow').style.display = '';
         this.toggleType();
         this.renderAccountCheckboxes([]);
-        
-        const catSearch = document.getElementById('budgetCatSearch');
-        if (catSearch) catSearch.value = '';
+        document.getElementById('budgetCatSearch').value = '';
+        this._showOtherCatTypes = false;
         this.selectedCategories = [];
         this.renderCatCheckboxes(this.selectedCategories);
-        const lockChk = document.getElementById('budgetIsLocked');
-        if (lockChk) lockChk.checked = false;
-        const archiveSec = document.getElementById('budgetArchiveSection');
-        if (archiveSec) archiveSec.style.display = 'none';
-        
+        document.getElementById('budgetIsLocked').checked = false;
+        document.getElementById('budgetArchiveSection').style.display = 'none';
+
         document.getElementById('budgetFormSection').style.display = 'block';
-        document.getElementById('budgetUnifiedModal').style.display = 'flex';
+        const modal = document.getElementById('budgetUnifiedModal');
+        modal.style.display = 'flex';
+        modal.scrollTop = 0;
+        this._bindUnifiedKeys();
+        document.getElementById('newBudgetName').focus();
     },
 
     closeUnifiedModal() {
@@ -391,110 +450,46 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         document.getElementById('budgetDetailSection').style.display = 'none';
         this._directEdit = false;
     },
-    
+
+    // Annuler : retour au détail si on venait de lui, sinon fermeture
     hideEditSection() {
         if (!document.getElementById('budgetEditId').value || this._directEdit) {
             this.closeUnifiedModal();
         } else {
             document.getElementById('budgetFormSection').style.display = 'none';
             document.getElementById('budgetDetailSection').style.display = 'block';
+            if (this._detailArgs) document.getElementById('budgetUnifiedTitle').textContent = this._detailArgs[1];
+            document.getElementById('budgetUnifiedEditBtn').hidden = false;
         }
     },
 
+    // Depuis le détail : le formulaire prend sa place
     showEditSection() {
         this._directEdit = false;
         const id = document.getElementById('budgetEditId').value;
         const b = this.budgets.find(x => x.id == id);
         if (!b) return;
-
-        document.getElementById('newBudgetName').value = b.name;
-        document.getElementById('newBudgetAmount').value = b.monthly_amount;
-        document.getElementById('newBudgetPeriod').value = b.period;
-        document.getElementById('newBudgetStartDate').value = b.start_date || '';
-        document.getElementById('newBudgetEndDate').value = b.end_date || '';
-        const customDates = document.getElementById('budgetCustomDates');
-        if (customDates) customDates.style.display = b.period === 'custom' ? 'block' : 'none';
-
-        if (b.is_project) {
-            document.getElementById('budgetTypeProject').checked = true;
-        } else if ((b.envelope_type || 'spending') === 'savings') {
-            document.getElementById('budgetTypeSavings').checked = true;
-        } else {
-            document.getElementById('budgetTypeCategory').checked = true;
-        }
-        this.toggleType();
-        this.renderAccountCheckboxes(b.account_ids || []);
-        
-        const catSearch = document.getElementById('budgetCatSearch');
-        if (catSearch) catSearch.value = '';
-        this.selectedCategories = b.categories || [];
-        this.renderCatCheckboxes(this.selectedCategories);
-        const lockChk = document.getElementById('budgetIsLocked');
-        if (lockChk) lockChk.checked = !!b.is_locked;
-        const archiveSec = document.getElementById('budgetArchiveSection');
-        const closeText = document.getElementById('budgetToggleCloseText');
-        const closeIcon = document.getElementById('budgetToggleCloseIcon');
-        if (archiveSec && closeText && closeIcon) {
-            archiveSec.style.display = 'block';
-            closeIcon.textContent = b.is_closed ? '↩️' : '📦';
-            closeText.textContent = b.is_closed ? (window.i18n.t('budget_reopen_action') || 'Rouvrir cette enveloppe') : (window.i18n.t('budget_close_action') || 'Clôturer / Archiver cette enveloppe');
-        }
-
+        this._fillForm(b);
+        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope') || "Modifier l'enveloppe";
+        document.getElementById('budgetUnifiedEditBtn').hidden = true;
+        document.getElementById('budgetDetailSection').style.display = 'none';
         document.getElementById('budgetFormSection').style.display = 'block';
-        
-        setTimeout(() => {
-            const modalContent = document.querySelector('#budgetUnifiedModal .modal');
-            if (modalContent) {
-                modalContent.scrollTo({ top: modalContent.scrollHeight, behavior: 'smooth' });
-            }
-        }, 50);
+        document.getElementById('budgetUnifiedModal').scrollTop = 0;
     },
 
     editBudget(id) {
         const b = this.budgets.find(x => x.id === id);
         if (!b) return;
-
         this._directEdit = true;
-        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope');
-        document.getElementById('budgetUnifiedEditBtn').style.display = 'none';
+        this._fillForm(b);
+        document.getElementById('budgetUnifiedTitle').textContent = window.i18n.t('budget_edit_envelope') || "Modifier l'enveloppe";
+        document.getElementById('budgetUnifiedEditBtn').hidden = true;
         document.getElementById('budgetDetailSection').style.display = 'none';
-        document.getElementById('budgetEditId').value = id;
-        
-        document.getElementById('newBudgetName').value = b.name;
-        document.getElementById('newBudgetAmount').value = b.monthly_amount;
-        document.getElementById('newBudgetPeriod').value = b.period;
-        document.getElementById('newBudgetStartDate').value = b.start_date || '';
-        document.getElementById('newBudgetEndDate').value = b.end_date || '';
-        const customDates2 = document.getElementById('budgetCustomDates');
-        if (customDates2) customDates2.style.display = b.period === 'custom' ? 'block' : 'none';
-
-        if (b.is_project) {
-            document.getElementById('budgetTypeProject').checked = true;
-        } else if ((b.envelope_type || 'spending') === 'savings') {
-            document.getElementById('budgetTypeSavings').checked = true;
-        } else {
-            document.getElementById('budgetTypeCategory').checked = true;
-        }
-        this.toggleType();
-        this.renderAccountCheckboxes(b.account_ids || []);
-        
-        const catSearch = document.getElementById('budgetCatSearch');
-        if (catSearch) catSearch.value = '';
-        this.selectedCategories = b.categories || [];
-        this.renderCatCheckboxes(this.selectedCategories);
-        const lockChk = document.getElementById('budgetIsLocked');
-        if (lockChk) lockChk.checked = !!b.is_locked;
-        const archiveSec = document.getElementById('budgetArchiveSection');
-        const closeText = document.getElementById('budgetToggleCloseText');
-        const closeIcon = document.getElementById('budgetToggleCloseIcon');
-        if (archiveSec && closeText && closeIcon) {
-            archiveSec.style.display = 'block';
-            closeIcon.textContent = b.is_closed ? '↩️' : '📦';
-            closeText.textContent = b.is_closed ? (window.i18n.t('budget_reopen_action') || 'Rouvrir cette enveloppe') : (window.i18n.t('budget_close_action') || 'Clôturer / Archiver cette enveloppe');
-        }
-
         document.getElementById('budgetFormSection').style.display = 'block';
-        document.getElementById('budgetUnifiedModal').style.display = 'flex';
+        const modal = document.getElementById('budgetUnifiedModal');
+        modal.style.display = 'flex';
+        modal.scrollTop = 0;
+        this._bindUnifiedKeys();
     },
 
     async saveForm(triggerBtn) {
@@ -509,6 +504,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const categories = (isProject || isSavings) ? [] : this.selectedCategories;
 
             if (!name) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('budget_name_required'));
+            // Sans catégorie, une enveloppe de dépenses ne suivrait rien
+            if (!isProject && !isSavings && !categories.length) {
+                return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('bv_form_cat_required') || "Choisissez au moins une catégorie : sans catégorie, l'enveloppe ne suit aucune dépense.");
+            }
             if (isNaN(amount) || amount < 0) return showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
 
             const startDate = period === 'custom' ? (document.getElementById('newBudgetStartDate')?.value || null) : null;

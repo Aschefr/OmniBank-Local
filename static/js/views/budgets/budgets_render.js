@@ -78,127 +78,97 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             <div id="budgetStatusContainer" style="margin-bottom:30px;"></div>
 
             <!-- Unified Modal (Details + Add/Edit Form) -->
-            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;z-index:10000;align-items:flex-start;padding-top:5vh;padding-bottom:5vh;overflow-y:auto;" onclick="if(event.target===this) window.BudgetsView.closeUnifiedModal()">
-                <div class="modal budget-unified-panel" style="width: min(1100px, calc(100vw - 24px)); max-width: 95vw; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); padding: 24px; background: var(--bg-surface); border: 1px solid var(--accent); height: max-content;">
+            <div id="budgetUnifiedModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this) window.BudgetsView.closeUnifiedModal()">
+                <div class="modal budget-unified-panel" role="dialog" aria-modal="true" aria-labelledby="budgetUnifiedTitle">
                     
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
-                        <h4 id="budgetUnifiedTitle" style="margin:0;font-size:16px;" data-i18n="budget_modal_title">${window.i18n.t('budget_modal_title')}</h4>
-                        <div style="display:flex;gap:8px;">
-                            <button id="budgetUnifiedEditBtn" class="btn btn-secondary" style="display:none;padding:4px 8px;font-size:12px;" onclick="window.BudgetsView.showEditSection()" data-i18n="budget_btn_edit">${window.i18n.t('budget_btn_edit')}</button>
-                            <button class="btn btn-secondary" onclick="window.BudgetsView.closeUnifiedModal()" style="padding:4px 8px;font-size:12px;">✕</button>
+                    <div class="bv-unified-head">
+                        <h3 id="budgetUnifiedTitle">${window.i18n.t('budget_modal_title')}</h3>
+                        <div class="bv-unified-head-actions">
+                            <button type="button" id="budgetUnifiedEditBtn" class="btn btn-secondary bv-btn-compact" hidden onclick="window.BudgetsView.showEditSection()">
+                                ${this._bvIcon('pencil', 14)}<span>${window.i18n.t('tooltip_edit') || 'Modifier'}</span>
+                            </button>
+                            <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.closeUnifiedModal()" aria-label="${window.i18n.t('btn_close') || 'Fermer'}" title="${window.i18n.t('btn_close') || 'Fermer'}">${this._bvIcon('close', 18)}</button>
                         </div>
                     </div>
 
                     <!-- DETAIL SECTION -->
-                    <div id="budgetDetailSection" style="display:none;margin-bottom:24px;">
-                        <div id="budgetDetailGraph" style="margin-bottom:16px;"></div>
-                        <div id="budgetDetailList" style="display:flex;flex-direction:column;gap:6px;"></div>
+                    <div id="budgetDetailSection" style="display:none;">
+                        <div id="budgetDetailGraph"></div>
+                        <div id="budgetDetailList"></div>
                     </div>
 
-                    <!-- FORM SECTION -->
-                    <div id="budgetFormSection" style="display:none;">
+                    <!-- FORM SECTION : création et modification (remplace le détail, Annuler y revient) -->
+                    <div id="budgetFormSection" class="bv-form" style="display:none;">
                         <input type="hidden" id="budgetEditId">
 
-                        <div style="display:flex;flex-direction:column;gap:14px;">
-                            <!-- Name -->
-                            <div>
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_label_name">${window.i18n.t('budget_label_name')}</label>
-                                <input type="text" id="newBudgetName" class="inline-input" placeholder="Ex: Courses, Vacances St Malo..." style="width:100%;margin-top:4px;">
+                        <div id="budgetTypeRow" class="bv-field">
+                            <span class="bv-field-label">${window.i18n.t('bv_form_type') || "Type d'enveloppe"}</span>
+                            <div class="bv-seg">
+                                <label class="bv-seg-opt"><input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()"><span>${window.i18n.t('bv_form_type_cat') || 'Dépenses par catégories'}</span></label>
+                                <label class="bv-seg-opt"><input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()"><span>${window.i18n.t('bv_form_type_project') || 'Projet'}</span></label>
+                                <label class="bv-seg-opt"><input type="radio" name="budgetType" value="savings" id="budgetTypeSavings" onchange="window.BudgetsView.toggleType()"><span>${window.i18n.t('bv_form_type_savings') || 'Tirelire'}</span></label>
                             </div>
+                            <p id="budgetTypeHint" class="bv-field-hint"></p>
+                        </div>
 
-                            <!-- Type toggle -->
-                            <div class="budget-type-row" style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap;">
-                                <label style="font-size:12px;color:var(--text-muted);white-space:nowrap;" data-i18n="budget_type_label">${window.i18n.t('budget_type_label')}</label>
-                                <div class="budget-type-toggle-group" style="display:flex; flex:1; min-width: 240px; background:var(--bg-base); padding:4px; border-radius:8px; border:1px solid var(--border-color); flex-wrap: wrap; gap: 4px;">
-                                    <label id="tabLabelCat" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
-                                        <input type="radio" name="budgetType" value="category" id="budgetTypeCategory" checked onchange="window.BudgetsView.toggleType()" style="display:none;">
-                                        <span data-i18n="budget_type_category">${window.i18n.t('budget_type_category')}</span>
-                                    </label>
-                                    <label id="tabLabelProj" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
-                                        <input type="radio" name="budgetType" value="project" id="budgetTypeProject" onchange="window.BudgetsView.toggleType()" style="display:none;">
-                                        <span data-i18n="budget_type_project">${window.i18n.t('budget_type_project')}</span>
-                                    </label>
-                                    <label id="tabLabelSavings" style="flex:1; min-width: 70px; text-align:center; cursor:pointer; padding:8px 8px; font-size:12.5px; border-radius:6px; transition:all 0.2s;">
-                                        <input type="radio" name="budgetType" value="savings" id="budgetTypeSavings" onchange="window.BudgetsView.toggleType()" style="display:none;">
-                                        <span data-i18n="budget_type_savings">${window.i18n.t('budget_type_savings')}</span>
-                                    </label>
-                                </div>
+                        <label class="bv-field">
+                            <span class="bv-field-label">${window.i18n.t('budget_label_name') || "Nom de l'enveloppe"}</span>
+                            <input type="text" id="newBudgetName" class="inline-input" maxlength="80" placeholder="${window.i18n.t('bv_form_name_ph') || 'Ex. : Courses, Vacances à Saint-Malo…'}">
+                        </label>
+
+                        <div class="bv-field-row">
+                            <label class="bv-field">
+                                <span class="bv-field-label" id="budgetAmountLabel">${window.i18n.t('bv_detail_limit') || 'Plafond'}</span>
+                                <span class="bv-input-suffix">
+                                    <input type="number" id="newBudgetAmount" class="inline-input" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+                                    <span aria-hidden="true">€</span>
+                                </span>
+                            </label>
+                            <label class="bv-field" id="budgetPeriodField">
+                                <span class="bv-field-label">${window.i18n.t('budget_label_period') || 'Période'}</span>
+                                <select id="newBudgetPeriod" class="inline-input" onchange="window.BudgetsView.onPeriodChange()">
+                                    <option value="monthly">${window.i18n.t('budget_opt_monthly') || 'Mensuel'}</option>
+                                    <option value="yearly">${window.i18n.t('budget_opt_yearly') || 'Annuel'}</option>
+                                    <option value="indefinite">${window.i18n.t('bv_form_period_long') || 'Long terme, sans échéance'}</option>
+                                    ${(window.app?.config?.enable_org_mode === 'true') ? `<option value="custom">${window.i18n.t('budget_opt_custom') || 'Défini dans le temps'}</option>` : ''}
+                                </select>
+                            </label>
+                        </div>
+
+                        <div id="budgetCustomDates" class="bv-field" style="display:none;">
+                            <span class="bv-field-label">${window.i18n.t('bv_form_dates') || 'Dates'}</span>
+                            <div class="bv-date-range">
+                                <input type="date" id="newBudgetStartDate" class="inline-input" aria-label="${window.i18n.t('bv_custom_start') || 'Début'}">
+                                <span aria-hidden="true">→</span>
+                                <input type="date" id="newBudgetEndDate" class="inline-input" aria-label="${window.i18n.t('bv_custom_end') || 'Fin'}">
                             </div>
+                        </div>
 
-                            <!-- Improvement_04: Account Selector (Org Mode only) -->
-                            <div id="budgetAccountSection" style="${(window.app?.config?.enable_org_mode === 'true') ? '' : 'display:none;'}">
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_account_filter">${window.i18n.t('budget_account_filter') || 'Account scope'}</label>
-                                <div id="budgetAccountCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:6px;margin-top:6px;max-height:150px;overflow-y:auto;padding:10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
-                                    <!-- Filled dynamically -->
-                                </div>
+                        <div id="budgetAccountSection" class="bv-field" style="${(window.app?.config?.enable_org_mode === 'true') ? '' : 'display:none;'}">
+                            <span class="bv-field-label">${window.i18n.t('budget_account_filter') || 'Périmètre comptes'}</span>
+                            <div id="budgetAccountCheckboxes" class="bv-acc-picks"></div>
+                        </div>
+
+                        <div id="budgetCatSection" class="bv-field">
+                            <span class="bv-field-label">${window.i18n.t('bv_form_cats') || 'Catégories suivies'}</span>
+                            <div id="budgetCatSelected" class="bv-cat-selected"></div>
+                            <input type="search" id="budgetCatSearch" class="inline-input" placeholder="${window.i18n.t('bv_form_cat_search') || 'Ajouter une catégorie…'}"
+                                   oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.selectedCategories)">
+                            <div id="budgetCatCheckboxes" class="bv-cat-list"></div>
+                        </div>
+
+                        <label id="budgetLockSection" class="bv-switch bv-form-lock">
+                            <input type="checkbox" id="budgetIsLocked">
+                            <span>${window.i18n.t('bv_detail_lock') || 'Verrouiller'}<span class="bv-field-hint"> · ${window.i18n.t('bv_form_lock_hint') || "l'Auto-Pilote ne propose plus d'ajuster le plafond"}</span></span>
+                        </label>
+
+                        <div class="bv-form-foot">
+                            <div id="budgetArchiveSection" style="display:none;">
+                                <button type="button" id="budgetToggleCloseBtn" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.toggleCloseFromModal()"><span id="budgetToggleCloseText"></span></button>
                             </div>
-
-                            <!-- Category selector (hidden for project type) -->
-                            <div id="budgetCatSection">
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_cat_included">${window.i18n.t('budget_cat_included')}</label>
-                                <input type="text" id="budgetCatSearch" class="inline-input" 
-                                    data-i18n-placeholder="budget_cat_search_placeholder"
-                                    placeholder="${window.i18n.t('budget_cat_search_placeholder') || 'Search category...'}"
-                                    style="width:100%;margin-top:6px;margin-bottom:4px;font-size:12px;padding:6px 10px;border-radius:6px;"
-                                    oninput="window.BudgetsView.renderCatCheckboxes(window.BudgetsView.selectedCategories)">
-                                <div id="budgetCatCheckboxes" style="display:block;margin-top:8px;max-height:450px;overflow-y:auto;padding:12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
-                                    <!-- Filled dynamically -->
-                                </div>
-                            </div>
-
-                            <!-- Amount + period -->
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                                <div>
-                                    <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_target_amount">${window.i18n.t('budget_target_amount')}</label>
-                                    <input type="number" id="newBudgetAmount" class="inline-input" placeholder="0.00" style="width:100%;margin-top:4px;" min="0" step="0.01">
-                                </div>
-                                <div>
-                                    <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</label>
-                                    <select id="newBudgetPeriod" class="inline-input" style="width:100%;margin-top:4px;" onchange="window.BudgetsView.onPeriodChange()">
-                                        <option value="monthly" data-i18n="budget_opt_monthly">${window.i18n.t('budget_opt_monthly')}</option>
-                                        <option value="yearly" data-i18n="budget_opt_yearly">${window.i18n.t('budget_opt_yearly')}</option>
-                                        <option value="indefinite" data-i18n="budget_opt_indefinite">${window.i18n.t('budget_opt_indefinite')}</option>
-                                        ${(window.app?.config?.enable_org_mode === 'true') ? `<option value="custom" data-i18n="budget_opt_custom">${window.i18n.t('budget_opt_custom') || 'Time-bound'}</option>` : ''}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Custom period date pickers (hidden by default) -->
-                            <div id="budgetCustomDates" style="display:none;">
-                                <label style="font-size:12px;color:var(--text-muted);" data-i18n="budget_custom_dates_label">${window.i18n.t('budget_custom_dates_label') || 'Custom period'}</label>
-                                <div style="display:flex;gap:10px;align-items:center;margin-top:4px;">
-                                    <input type="date" id="newBudgetStartDate" class="inline-input" style="flex:1;">
-                                    <span style="color:var(--text-muted);">→</span>
-                                    <input type="date" id="newBudgetEndDate" class="inline-input" style="flex:1;">
-                                </div>
-                            </div>
-
-                            <!-- Lock toggle (is_locked) -->
-                            <div id="budgetLockSection" style="padding:10px 12px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);">
-                                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0;">
-                                    <input type="checkbox" id="budgetIsLocked" style="margin-top:2px;cursor:pointer;width:16px;height:16px;accent-color:var(--accent);">
-                                    <div>
-                                        <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;" data-i18n="budget_is_locked_label">
-                                            🔒 ${window.i18n.t('budget_is_locked_label') || 'Verrouiller cette enveloppe'}
-                                        </span>
-                                        <small style="color:var(--text-muted);display:block;font-size:12px;margin-top:2px;" data-i18n="budget_is_locked_sublabel">
-                                            ${window.i18n.t('budget_is_locked_sublabel') || 'Exclut cette enveloppe du recalcul et des ajustements automatiques.'}
-                                        </small>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <!-- Archive/Close secondary button (edit mode only) -->
-                            <div id="budgetArchiveSection" style="display:none;margin-top:2px;">
-                                <button type="button" id="budgetToggleCloseBtn" class="btn btn-secondary" style="font-size:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 12px;" onclick="window.BudgetsView.toggleCloseFromModal()">
-                                    <span id="budgetToggleCloseIcon">📦</span> <span id="budgetToggleCloseText">${window.i18n.t('budget_close_action')}</span>
-                                </button>
-                            </div>
-
-                            <!-- Buttons -->
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-                                <button id="budgetSaveBtn" class="btn btn-primary" style="flex:1;" onclick="window.BudgetsView.saveForm(this)" data-i18n="budget_btn_save">${window.i18n.t('budget_btn_save')}</button>
-                                <button class="btn btn-secondary" style="flex:1;" onclick="window.BudgetsView.hideEditSection()" data-i18n="budget_btn_cancel">${window.i18n.t('budget_btn_cancel')}</button>
+                            <div class="bv-form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.BudgetsView.hideEditSection()">${window.i18n.t('budget_btn_cancel') || 'Annuler'}</button>
+                                <button type="button" id="budgetSaveBtn" class="btn btn-primary" onclick="window.BudgetsView.saveForm(this)">${window.i18n.t('budget_btn_save') || 'Enregistrer'}</button>
                             </div>
                         </div>
                     </div>
@@ -251,6 +221,57 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             close: '<path d="M18 6 6 18M6 6l12 12"/>',
         };
         return `<svg class="bv-ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
+    },
+
+    // État d'une enveloppe de dépenses : mêmes chiffres et mêmes mots sur la carte et dans sa fenêtre
+    _envGauge(b) {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const tp = (key, params, fallback) => {
+            let s = t(key, fallback);
+            for (const [k, v] of Object.entries(params || {})) s = s.split(`{${k}}`).join(v);
+            return s;
+        };
+        const isOrg = window.app?.config?.enable_org_mode === 'true';
+        const isCurrentPeriod = !this.customPeriod?.enabled && (this.cycleOffset || 0) === 0;
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const limit = b.budget_amount || 0;
+        const spent = b.spent_to_date ?? b.spent ?? 0;
+        const planned = b.planned || 0;
+        const pct = limit > 0 ? (spent / limit) * 100 : 0;
+        const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
+        const status = b.status || 'ok';
+        const fixed = !isOrg && b.is_fixed_charges;
+        const ended = b.period === 'custom' && b.end_date && b.end_date < todayIso;
+        const tone = (fixed && status === 'ok') || (ended && status !== 'over') ? 'fixed' : status;
+        const remaining = limit - spent;
+        // Même règle que le serveur : pas de repère de rythme avant 15 % de la période
+        const showPace = b.expected_percent !== null && b.expected_percent !== undefined && b.expected_percent >= 15 && !fixed && isCurrentPeriod;
+
+        let statusText;
+        if (status === 'over') {
+            statusText = tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}');
+        } else if (status === 'near' && remaining <= 0.5) {
+            statusText = t('bv_status_empty', 'Épuisée');
+        } else {
+            statusText = tp('bv_status_left', { amount: formatCurrency(Math.max(remaining, 0)) }, 'Reste {amount}');
+            if (status === 'ahead') statusText = `${t('bv_status_ahead', 'En avance sur le rythme')} · ${statusText}`;
+        }
+        if (planned > 0.005) {
+            statusText += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
+        }
+        if (ended && status !== 'over') statusText = t('bv_status_ended', 'Terminée');
+        return { limit, spent, planned, pct, plannedPct, tone, showPace, statusText, expected: b.expected_percent };
+    },
+
+    _envBarHtml(g) {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const fill = Math.min(g.pct, 100);
+        return `
+                <div class="bv-env-bar" role="img" aria-label="${t('bv_bar_label', '{pct} % utilisés').split('{pct}').join(Math.round(g.pct))}">
+                    <span class="bv-env-fill" style="width:${fill}%"></span>
+                    ${g.plannedPct > 0.5 && g.pct < 100 ? `<span class="bv-env-planned" style="left:${fill}%;width:${Math.min(g.plannedPct, 100 - fill)}%"></span>` : ''}
+                    ${g.showPace ? `<span class="bv-env-pace" style="left:${Math.min(g.expected, 100)}%" title="${t('bv_pace_marker', "Rythme attendu aujourd'hui : {pct} %").split('{pct}').join(Math.round(g.expected))}"></span>` : ''}
+                </div>`;
     },
 
     _stripEmoji(label) {
@@ -525,27 +546,32 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             : p === 'yearly' ? t('bv_total_yearly', 'Total annuel')
             : p === 'custom' ? t('bv_total_dated', 'Enveloppes datées')
             : t('bv_total_long', 'Long terme');
-        const renderTotal = ({ period: p, key, list, withoutFixed }) => {
+        // title : le total sert d'en-tête à sa section ; withAccounts : false quand la section porte déjà le nom du compte
+        const renderTotal = ({ period: p, key, list, withoutFixed }, { title = null, withAccounts = true } = {}) => {
             const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
             const spent = list.reduce((s, b) => s + (b.spent_to_date ?? b.spent ?? 0), 0);
             const planned = list.reduce((s, b) => s + (b.planned || 0), 0);
             const pct = limit > 0 ? (spent / limit) * 100 : 0;
             const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
             const tone = pct > 100 ? 'over' : pct >= 90 ? 'near' : 'ok';
-            let label = totalLabel(p);
-            if (key !== '__global__') {
+            let label = title ? `<h3>${title}</h3>` : totalLabel(p);
+            if (key !== '__global__' && withAccounts) {
                 const names = key.split(',').map(id => this.accounts?.find(a => a.id === parseInt(id))).filter(Boolean)
                     .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
-                label = `${names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ')}<span class="bv-total-period">${label}</span>`;
+                const accHtml = names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ');
+                label = title ? `${label}${accHtml}` : `${accHtml}<span class="bv-total-period">${label}</span>`;
+            } else if (title && isOrg) {
+                label += `<span class="bv-total-period">${totalLabel(p)}</span>`;
             }
             if (withoutFixed) label += `<span class="bv-total-period">${t('bv_total_without_fixed', 'hors charges prévues')}</span>`;
+            else if (title && list.some(b => groups.fixed.includes(b))) label += `<span class="bv-total-period">${t('bv_total_with_fixed', 'charges prévues comprises')}</span>`;
             let status = spent > limit
                 ? tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}')
                 : tp('bv_status_left', { amount: formatCurrency(limit - spent) }, 'Reste {amount}');
             if (planned > 0.005) status += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
             const countText = (list.length > 1 ? t('bv_total_count_many', '{count} enveloppes') : t('bv_total_count_one', '{count} enveloppe')).split('{count}').join(list.length);
             return `
-            <div class="bv-total bv-tone-${tone}" data-budget-period-sub="${p}-${key}">
+            <${title ? 'header' : 'div'} class="bv-total${title ? ' bv-total--head' : ''} bv-tone-${tone}" data-budget-period-sub="${p}-${key}">
                 <div class="bv-total-head">
                     <span class="bv-total-label">${label}</span>
                     <span class="bv-total-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span> / ${formatCurrency(limit)}</span></span>
@@ -556,42 +582,18 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </div>
                 <div class="bv-env-foot">
                     <span class="bv-env-status privacy-blur">${status}</span>
-                    <span class="bv-env-meta">${countText}</span>
+                    ${title ? '' : `<span class="bv-env-meta">${countText}</span>`}
                 </div>
-            </div>`;
+            </${title ? 'header' : 'div'}>`;
         };
-        const totalsHtml = totalGroups.length
-            ? `<section class="bv-totals" aria-label="${t('bv_totals_label', 'Totaux des enveloppes')}">${totalGroups.map(renderTotal).join('')}</section>`
-            : '';
+        // Chaque total s'affiche en tête de la section qu'il résume (par compte en mode organisation)
+        const totalSection = (g) => (isOrg && g.period !== 'indefinite') ? `org-${g.key}` : g.period;
+        const placedTotals = new Set();
 
         // ── Ligne d'enveloppe ──
         const renderRow = (b) => {
-            const limit = b.budget_amount || 0;
-            const spent = b.spent_to_date ?? b.spent ?? 0;
-            const planned = b.planned || 0;
-            const pct = limit > 0 ? (spent / limit) * 100 : 0;
-            const plannedPct = limit > 0 ? (planned / limit) * 100 : 0;
-            const status = b.status || 'ok';
-            const fixed = isFixed(b);
-            const ended = isEnded(b);
-            const tone = (fixed && status === 'ok') || (ended && status !== 'over') ? 'fixed' : status;
-            const remaining = limit - spent;
-            // Même règle que le serveur : pas de repère de rythme avant 15 % de la période
-            const showPace = b.expected_percent !== null && b.expected_percent !== undefined && b.expected_percent >= 15 && !fixed && isCurrentPeriod;
-
-            let statusText;
-            if (status === 'over') {
-                statusText = tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}');
-            } else if (status === 'near' && remaining <= 0.5) {
-                statusText = t('bv_status_empty', 'Épuisée');
-            } else {
-                statusText = tp('bv_status_left', { amount: formatCurrency(Math.max(remaining, 0)) }, 'Reste {amount}');
-                if (status === 'ahead') statusText = `${t('bv_status_ahead', 'En avance sur le rythme')} · ${statusText}`;
-            }
-            if (planned > 0.005) {
-                statusText += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
-            }
-            if (ended && status !== 'over') statusText = t('bv_status_ended', 'Terminée');
+            const gauge = this._envGauge(b);
+            const { limit, spent, tone, statusText } = gauge;
 
             const cats = b.categories || [];
             // Changement tout juste appliqué depuis les suggestions : catégories ajoutées en tête et marquées
@@ -614,7 +616,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const y = period ? parseInt(period.start.slice(0, 4)) : new Date().getFullYear();
             const m = period ? parseInt(period.start.slice(5, 7)) : new Date().getMonth() + 1;
-            const barLabel = tp('bv_bar_label', { pct: Math.round(pct) }, '{pct} % utilisés');
             return `
             <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}${change ? ' bv-env--changed' : ''}" data-budget-id="${b.id}" tabindex="0"
                      onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})"
@@ -631,11 +632,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')} ${safeName}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
                     </div>
                 </div>
-                <div class="bv-env-bar" role="img" aria-label="${barLabel}">
-                    <span class="bv-env-fill" style="width:${Math.min(pct, 100)}%"></span>
-                    ${plannedPct > 0.5 && pct < 100 ? `<span class="bv-env-planned" style="left:${Math.min(pct, 100)}%;width:${Math.min(plannedPct, 100 - Math.min(pct, 100))}%"></span>` : ''}
-                    ${showPace ? `<span class="bv-env-pace" style="left:${Math.min(b.expected_percent, 100)}%" title="${tp('bv_pace_marker', { pct: Math.round(b.expected_percent) }, "Rythme attendu aujourd'hui : {pct} %")}"></span>` : ''}
-                </div>
+                ${this._envBarHtml(gauge)}
                 <div class="bv-env-foot">
                     <span class="bv-env-meta">${meta}</span>
                     <span class="bv-env-status privacy-blur">${statusText}</span>
@@ -656,19 +653,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
             return `<span class="bv-section-total privacy-blur">${tp('bv_total_spent', { spent: formatCurrency(spent), limit: formatCurrency(limit) }, '{spent} sur {limit}')}</span>`;
         };
-        const totalsSets = totalGroups.filter(g => g.key === '__global__').map(g => g.list);
-        const repeatsTotals = (list) => totalsSets.some(l => l.length === list.length && list.every(b => l.includes(b)));
-        const renderSection = (key, title, list, extra = '') => {
+        const renderSection = (key, title, list, sectionId = key) => {
             if (!list.length) return '';
+            const mine = totalGroups.filter(g => totalSection(g) === sectionId);
+            mine.forEach(g => placedTotals.add(g));
+            let head;
+            if (mine.length === 1) {
+                head = renderTotal(mine[0], { title, withAccounts: !isOrg });
+            } else if (mine.length) {
+                head = `<header class="bv-section-head"><h3>${title}</h3></header>
+                <div class="bv-totals">${mine.map(g => renderTotal(g, { withAccounts: !isOrg })).join('')}</div>`;
+            } else {
+                head = `<header class="bv-section-head"><h3>${title}</h3>${key === 'org' ? '' : sectionTotals(list)}</header>`;
+            }
             return `
             <section class="bv-section" data-budget-period="${key}">
-                <header class="bv-section-head"><h3>${title}</h3>${key === 'org' || repeatsTotals(list) ? '' : sectionTotals(list)}</header>
-                ${extra}
+                ${head}
                 <div class="bv-env-list">${list.map(renderRow).join('')}</div>
             </section>`;
         };
 
-        let html = periodHtml + totalsHtml + attnHtml;
+        let html = '';
 
         if (isOrg) {
             // Mode organisation : pas de cycle de paie ; enveloppes regroupées par compte
@@ -685,7 +690,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
                     title = names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ');
                 }
-                html += `<div data-budget-period-sub="org-${key}">${renderSection('org', title, list)}</div>`;
+                html += renderSection('org', title, list, `org-${key}`);
             }
         } else {
             const cycleTitle = period?.kind === 'cycle' ? t('bv_section_cycle', 'Dépenses du cycle') : t('bv_section_month', 'Dépenses du mois');
@@ -693,9 +698,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             html += renderSection('yearly', t('bv_section_yearly', 'Enveloppes annuelles'), groups.yearly);
             html += renderSection('custom', t('bv_section_dated', 'Enveloppes datées'), groups.dated);
         }
-
-        const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
-        if (bannerHtml) html += `<div class="bv-sugg-zone">${bannerHtml}</div>`;
 
         if (groups.fixed.length) {
             const fixedOver = groups.fixed.filter(b => b.status === 'over').length;
@@ -728,6 +730,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         html += this._renderCapacityPanel(isOrg);
+
+        // En tête : suggestions en attente, période, totaux sans section à résumer, points d'attention
+        const orphans = totalGroups.filter(g => !placedTotals.has(g));
+        const orphansHtml = orphans.length
+            ? `<section class="bv-totals" aria-label="${t('bv_totals_label', 'Totaux des enveloppes')}">${orphans.map(g => renderTotal(g)).join('')}</section>`
+            : '';
+        const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
+        html = (bannerHtml ? `<div class="bv-sugg-zone">${bannerHtml}</div>` : '') + periodHtml + orphansHtml + attnHtml + html;
 
         if (container) container.innerHTML = html;
 

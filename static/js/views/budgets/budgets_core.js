@@ -214,11 +214,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     toggleCategorySelection(el) {
-        el.parentElement.style.borderColor = el.checked ? 'var(--accent)' : 'var(--border-color)';
-        const textSpan = el.parentElement.querySelector('span');
-        if (textSpan) {
-            textSpan.style.fontWeight = el.checked ? '600' : 'normal';
-        }
+        el.closest('.bv-cat-opt')?.classList.toggle('is-checked', el.checked);
         const catName = el.value;
         if (el.checked) {
             if (!this.selectedCategories.includes(catName)) {
@@ -227,6 +223,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } else {
             this.selectedCategories = this.selectedCategories.filter(c => c !== catName);
         }
+        if (typeof this.renderSelectedCats === 'function') this.renderSelectedCats();
     },
 
     _buildStatusUrl(type) {
