@@ -416,119 +416,33 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     // ─── Passerelle Vers la Présentation Visuelle Riche & Wizard ──────────────
-    async openSuggestionsInAiView(openWizard = false) {
+    // Les créations proposées par l'Auto-Pilote s'examinent dans le panneau de suggestions
+    async openSuggestionsInAiView() {
         if (!this.autopilotSuggestions || !this.autopilotSuggestions.length) return;
-
         const creations = this.autopilotSuggestions.filter(s => s.type === 'creation');
         if (!creations.length) {
             this.openSuggestionsReviewModal();
             return;
         }
-
-        // Fermer la modale tabulaire si déjà ouverte
-        const existing = document.getElementById('budgetSuggestionsReviewModal');
-        if (existing) existing.remove();
-
-        // Conversion des suggestions déterministes / IA vers le format aiProposals
-        this.aiProposals = creations.map(s => {
-            const cats = (s.categories && s.categories.length > 0) ? [...s.categories] : (s.category ? [s.category] : []);
-            const cat_amounts = s.cat_amounts ? { ...s.cat_amounts } : {};
-            if (Object.keys(cat_amounts).length === 0 && cats.length > 0) {
-                if (cats.length === 1) {
-                    cat_amounts[cats[0]] = s.suggested_amount;
-                } else {
-                    const splitVal = Math.round((s.suggested_amount / cats.length) * 100) / 100;
-                    cats.forEach(c => { cat_amounts[c] = splitVal; });
-                }
+        document.getElementById('budgetSuggestionsReviewModal')?.remove();
+        const proposals = creations.map(s => {
+            const cats = (s.categories && s.categories.length) ? [...s.categories] : (s.category ? [s.category] : []);
+            const catAmounts = s.cat_amounts ? { ...s.cat_amounts } : {};
+            if (!Object.keys(catAmounts).length && cats.length) {
+                cats.forEach(c => { catAmounts[c] = Math.round((s.suggested_amount / cats.length) * 100) / 100; });
             }
-            const nameVal = (s.name || s.category || (cats && cats[0]) || 'Enveloppe').trim();
-            return {
-                name: nameVal,
-                category: s.category || nameVal,
+            return this._sgNormalize({
+                name: (s.name || s.category || cats[0] || '').trim(),
                 categories: cats,
-                cat_amounts: cat_amounts,
-                original_cat_amounts: { ...cat_amounts },
+                cat_amounts: catAmounts,
                 cat_details: s.cat_details || {},
                 suggested_amount: s.suggested_amount,
-                original_amount: s.suggested_amount,
-                historical_actual_amount: s.historical_actual_amount !== undefined ? s.historical_actual_amount : (s.avg_monthly || s.suggested_amount),
-                avg_monthly: s.avg_monthly || s.suggested_amount,
                 suggested_period: s.suggested_period || 'monthly',
-                period: s.suggested_period || 'monthly',
-                is_fixed: s.is_fixed || false,
-                justification: s.justification || (s.engine === 'deterministic' ? `Moyenne constatée sur ${s.observed_months || 3} mois` : 'Suggestion automatique'),
-                selected: true,
+                justification: s.justification || '',
                 decision_id: s.decision_id,
-                engine: s.engine || 'deterministic'
-            };
+            });
         });
-
-        // Débloquer l'affichage du panneau
-        if (typeof this.removeProfileSessionItem === 'function') {
-            this.removeProfileSessionItem('budget_ai_panel_closed');
-            this.removeProfileSessionItem('budget_ai_panel_hidden');
-        } else if (window.ProfileSessionStorage) {
-            window.ProfileSessionStorage.removeItem('budget_ai_panel_closed');
-            window.ProfileSessionStorage.removeItem('budget_ai_panel_hidden');
-        } else {
-            sessionStorage.removeItem('budget_ai_panel_closed');
-            sessionStorage.removeItem('budget_ai_panel_hidden');
-        }
-
-        // S'assurer de la disponibilité des données de capacité si non encore chargées
-        if (!this.capacityData && window.API) {
-            try {
-                this.capacityData = await window.API.get('/api/budgets/capacity');
-            } catch (e) {}
-        }
-
-        const refSalary = (typeof this.getEffectiveReferenceSalary === 'function')
-            ? this.getEffectiveReferenceSalary()
-            : ((this.capacityData && this.capacityData.monthly) ? (this.capacityData.monthly.average_income || this.capacityData.monthly.income_ref || 0) : 0);
-
-        if (refSalary > 0 && (this.customSalaryOverride === undefined || this.customSalaryOverride === null)) {
-            this.customSalaryOverride = refSalary;
-        }
-
-        // Initialisation des métadonnées requises par le simulateur d'impact
-        this.aiSuggestMeta = {
-            window_months: 3,
-            effective_window_months: 3,
-            is_fallback: false,
-            engine: creations[0]?.engine || 'deterministic',
-            lang: (window.i18n && window.i18n.currentLang) || 'fr',
-            proposals: this.aiProposals,
-            unclassified_categories: [],
-            regular_salary: refSalary,
-            monthly_income_reference: refSalary
-        };
-        this.unclassifiedCategories = [];
-
-        const salaryInputMain = document.getElementById('aiSimSalaryInput') || document.getElementById('aiRefSalaryInput');
-        if (salaryInputMain && refSalary > 0) {
-            salaryInputMain.value = refSalary.toFixed(2);
-        }
-
-        // Rendu dans le panneau riche interactif et persistance en session
-        this.renderAiProposalsList();
-        if (typeof this.saveAiStateToSession === 'function') {
-            this.saveAiStateToSession();
-        }
-
-        // Rendre visible le panneau
-        if (this.showAiPanel) {
-            this.showAiPanel();
-        } else {
-            const panel = document.getElementById('budgetAiPanel');
-            if (panel) {
-                panel.style.display = 'block';
-            }
-        }
-
-        // Lancer l'assistant wizard
-        if (openWizard) {
-            this.startAiWizard();
-        }
+        await this.openSuggestions(proposals);
     },
 
     closeSuggestionsReviewModal() {
