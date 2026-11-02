@@ -311,10 +311,5 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 this.savingsOverflow = null;
             }
         }
-    },
-
-    toggleCapacityPanel(checked) {
-        ProfileStorage.set('show_budget_capacity_panel', checked ? 'true' : 'false');
-        this.renderStatus();
     }
 });
