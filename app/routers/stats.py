@@ -155,9 +155,15 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             
     # Calculate global budget summary grouped by period type for sidebar bars
     from app.routers.budgets import get_budget_status, _parse_account_ids
+    from app.services.budget_service import budget_display_prefs, is_org_mode
     from app.models import Account
     # Même période que la page Budgets (cycle de paie en mode personnel) et même « dépensé à date »
     budget_data = get_budget_status(cycle_offset=0, db=db)
+    budget_prefs = budget_display_prefs(db)
+    exclude_fixed = budget_prefs["totals_exclude_fixed"] and not is_org_mode(db)
+    pinned_ids = budget_prefs["pinned_ids"]
+    budget_pinned = []
+    fixed_excluded = {}
     period_groups = {}
     savings_summary = {"funded": 0, "goal": 0, "balance": 0, "count": 0}
     savings_list = []
@@ -176,6 +182,16 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
                 "percent": b.get("percent", 0),
                 "is_closed": b.get("is_closed", False)
             })
+            continue
+
+        if b.get("id") in pinned_ids and not b.get("is_closed"):
+            budget_pinned.append({k: b.get(k) for k in (
+                "id", "name", "period", "budget_amount", "spent_to_date", "planned", "status",
+                "expected_percent", "is_fixed_charges", "account_ids", "end_date")})
+        # Seules les enveloppes du groupe « Charges prévues » (mensuelles ou annuelles, hors projets) sont écartées
+        if (exclude_fixed and b.get("is_fixed_charges") and not b.get("is_project")
+                and b.get("period", "monthly") in ("monthly", "yearly")):
+            fixed_excluded[b.get("period", "monthly")] = fixed_excluded.get(b.get("period", "monthly"), 0) + 1
             continue
 
         p = b.get("period", "monthly")
@@ -244,6 +260,12 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "main_account_id": main_acc.id if main_acc else None,
         "anticipated_recurrences": get_anticipated_candidate_charges(db, main_acc.id if main_acc else None, today, next_pay_date),
         "budget_summary": period_groups,
+        "budget_pinned": sorted(budget_pinned, key=lambda x: pinned_ids.index(x["id"])),
+        "budget_display": {
+            "show_totals": budget_prefs["sidebar_totals"],
+            "fixed_excluded": fixed_excluded,
+            "period_kind": (budget_data.get("period") or {}).get("kind"),
+        },
         "savings_summary": savings_summary,
         "savings_details": savings_list,
         "savings_overflow": savings_overflow,

@@ -58,6 +58,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <button type="button" role="menuitem" id="budgetAiBtn" class="${btnExtraClass.trim()}" onclick="window.BudgetsView.handleHeaderSuggestionsBtnClick()" title="${btnSuggestionsTitle}">
                                 ${this._bvIcon('bulb')}<span>${this._stripEmoji(btnSuggestionsText)}</span>
                             </button>
+                            <button type="button" role="menuitem" onclick="window.BudgetsView.openDisplayPrefs()">
+                                ${this._bvIcon('pin')}<span>${window.i18n.t('bv_prefs_menu') || "Personnaliser l'affichage"}</span>
+                            </button>
                             <button type="button" role="menuitem" class="bv-tools-danger" onclick="window.BudgetsView.showBulkDeleteModal()">
                                 ${this._bvIcon('trash')}<span>${this._stripEmoji(window.i18n.t('budget_btn_bulk_delete') || 'Nettoyer')}</span>
                             </button>
@@ -447,12 +450,108 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
             bulb: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/>',
             plus: '<path d="M12 5v14M5 12h14"/>',
+            pin: '<path d="M12 17v5"/><path d="M9 10.76V4h6v6.76a2 2 0 0 0 1.11 1.79l1.78.9A2 2 0 0 1 19 15.24V17H5v-1.76a2 2 0 0 1 1.11-1.79l1.78-.9A2 2 0 0 0 9 10.76Z"/>',
+            close: '<path d="M18 6 6 18M6 6l12 12"/>',
         };
         return `<svg class="bv-ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
     },
 
     _stripEmoji(label) {
         return (label || '').replace(/^[\s\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]+/u, '').trim();
+    },
+
+    // Préférences d'affichage (propres au profil, enregistrées côté serveur)
+    _budgetPrefs() {
+        const cfg = window.app?.config || {};
+        let pinned = [];
+        try { pinned = JSON.parse(cfg.budget_pinned_ids || '[]').map(Number).filter(Boolean); } catch (e) { pinned = []; }
+        return {
+            pinned,
+            sidebarTotals: cfg.budget_sidebar_totals !== 'false',
+            excludeFixed: cfg.budget_totals_exclude_fixed !== 'false',
+        };
+    },
+
+    async saveBudgetPrefs(patch) {
+        try {
+            await API.post('/api/config/', patch);
+            if (window.app) window.app.config = { ...(window.app.config || {}), ...patch };
+            this.renderStatus();
+            window.app?.refreshSidebar();
+        } catch (e) {
+            showInlineMessage(window.i18n.t('title_error'), e.message);
+        }
+    },
+
+    isPinned(id) {
+        return this._budgetPrefs().pinned.includes(id);
+    },
+
+    async togglePin(id) {
+        const pinned = this._budgetPrefs().pinned;
+        const next = pinned.includes(id) ? pinned.filter(x => x !== id) : [...pinned, id];
+        await this.saveBudgetPrefs({ budget_pinned_ids: JSON.stringify(next) });
+    },
+
+    openDisplayPrefs() {
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const isOrg = window.app?.config?.enable_org_mode === 'true';
+        const prefs = this._budgetPrefs();
+        const periodName = { monthly: t('period_monthly', 'Mensuel'), yearly: t('period_yearly', 'Annuel'),
+            custom: t('budget_period_custom', 'Datée'), indefinite: t('period_undefined', 'Indéfini') };
+        const envs = (this.statusData?.budgets || [])
+            .filter(b => (b.envelope_type || 'spending') !== 'savings' && !b.is_closed)
+            .sort((a, b) => {
+                const pa = prefs.pinned.indexOf(a.id), pb = prefs.pinned.indexOf(b.id);
+                if (pa !== -1 || pb !== -1) return (pa === -1 ? 1e9 : pa) - (pb === -1 ? 1e9 : pb);
+                return a.name.localeCompare(b.name);
+            });
+        const envList = envs.length ? envs.map(b => `
+            <label class="bv-pref-env">
+                <input type="checkbox" ${prefs.pinned.includes(b.id) ? 'checked' : ''} onchange="window.BudgetsView.togglePin(${b.id})">
+                <span class="bv-pref-env-name">${b.name}</span>
+                <span class="bv-pref-env-period">${periodName[b.period || 'monthly'] || ''}</span>
+            </label>`).join('') : `<p class="bv-pref-hint">${t('bv_prefs_no_env', 'Aucune enveloppe de dépenses.')}</p>`;
+
+        document.getElementById('bvPrefsModal')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'bvPrefsModal';
+        overlay.className = 'bv-modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+            <div class="bv-modal-panel bv-prefs" role="dialog" aria-modal="true" aria-labelledby="bvPrefsTitle">
+                <div class="bv-modal-header">
+                    <h3 id="bvPrefsTitle">${t('bv_prefs_title', "Personnaliser l'affichage")}</h3>
+                    <button type="button" class="bv-icon-btn" data-close aria-label="${t('btn_close', 'Fermer')}">${this._bvIcon('close', 18)}</button>
+                </div>
+                <section class="bv-pref-group">
+                    <h4>${t('bv_prefs_sidebar', 'Barre latérale')}</h4>
+                    <p class="bv-pref-hint">${t('bv_prefs_pin_hint', "Épinglez les enveloppes à garder sous les yeux : elles s'affichent en tête de la barre latérale.")}</p>
+                    <div class="bv-pref-envs">${envList}</div>
+                    <label class="bv-switch bv-pref-switch">
+                        <input type="checkbox" ${prefs.sidebarTotals ? 'checked' : ''} onchange="window.BudgetsView.saveBudgetPrefs({ budget_sidebar_totals: this.checked ? 'true' : 'false' })">
+                        <span>${t('bv_prefs_show_totals', 'Afficher aussi les totaux par période')}</span>
+                    </label>
+                </section>
+                ${isOrg ? '' : `
+                <section class="bv-pref-group">
+                    <h4>${t('bv_prefs_totals', 'Totaux')}</h4>
+                    <label class="bv-switch bv-pref-switch">
+                        <input type="checkbox" ${prefs.excludeFixed ? 'checked' : ''} onchange="window.BudgetsView.saveBudgetPrefs({ budget_totals_exclude_fixed: this.checked ? 'true' : 'false' })">
+                        <span>${t('bv_prefs_exclude_fixed', 'Exclure les charges prévues des totaux')}</span>
+                    </label>
+                    <p class="bv-pref-hint">${t('bv_prefs_exclude_fixed_hint', 'Les totaux ne comptent alors que les dépenses libres ; les charges prévues restent suivies dans leur propre groupe.')}</p>
+                </section>`}
+                <div class="bv-modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close>${t('btn_close', 'Fermer')}</button>
+                </div>
+            </div>`;
+        const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.closest('[data-close]')) close(); });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-close]')?.focus();
     },
 
     toggleToolsMenu(event) {
@@ -574,23 +673,27 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             : `<span class="bv-attn-item bv-tone-ok">${t('bv_attn_ok', 'Toutes les enveloppes sont dans les clous')}</span>`}</p>`;
 
         // ── Totaux par période : mêmes regroupements et mêmes chiffres que la barre latérale ──
+        const prefs = this._budgetPrefs();
+        const excludeFixed = prefs.excludeFixed && !isOrg;
         const totalGroups = [];
         for (const p of ['monthly', 'yearly', 'indefinite', 'custom']) {
-            const list = spending.filter(b => (b.period || 'monthly') === p);
+            const inPeriod = spending.filter(b => (b.period || 'monthly') === p);
+            const list = excludeFixed ? inPeriod.filter(b => !(groups.fixed.includes(b))) : inPeriod;
             if (!list.length) continue;
+            const withoutFixed = list.length < inPeriod.length;
             const byAcc = {};
             for (const b of list) {
                 const key = (b.account_ids && b.account_ids.length) ? [...b.account_ids].sort((a, c) => a - c).join(',') : '__global__';
                 (byAcc[key] = byAcc[key] || []).push(b);
             }
-            for (const [key, sub] of Object.entries(byAcc)) totalGroups.push({ period: p, key, list: sub });
+            for (const [key, sub] of Object.entries(byAcc)) totalGroups.push({ period: p, key, list: sub, withoutFixed });
         }
         const totalLabel = (p) => p === 'monthly'
             ? (period?.kind === 'cycle' ? t('bv_total_cycle', 'Total du cycle') : t('bv_total_month', 'Total du mois'))
             : p === 'yearly' ? t('bv_total_yearly', 'Total annuel')
             : p === 'custom' ? t('bv_total_dated', 'Enveloppes datées')
             : t('bv_total_long', 'Long terme');
-        const renderTotal = ({ period: p, key, list }) => {
+        const renderTotal = ({ period: p, key, list, withoutFixed }) => {
             const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
             const spent = list.reduce((s, b) => s + (b.spent_to_date ?? b.spent ?? 0), 0);
             const planned = list.reduce((s, b) => s + (b.planned || 0), 0);
@@ -603,6 +706,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
                 label = `${names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ')}<span class="bv-total-period">${label}</span>`;
             }
+            if (withoutFixed) label += `<span class="bv-total-period">${t('bv_total_without_fixed', 'hors charges prévues')}</span>`;
             let status = spent > limit
                 ? tp('bv_status_over', { amount: formatCurrency(spent - limit) }, 'Dépassée de {amount}')
                 : tp('bv_status_left', { amount: formatCurrency(limit - spent) }, 'Reste {amount}');
@@ -682,6 +786,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <div class="bv-env-name">
                         <strong>${b.name}</strong>
                         ${b.is_locked ? `<span class="bv-env-lock" title="${t('bv_locked', "Verrouillée : pas d'ajustement automatique")}">${this._bvIcon('lock', 13)}</span>` : ''}
+                        ${prefs.pinned.includes(b.id) ? `<span class="bv-env-lock" title="${t('bv_pinned', 'Épinglée dans la barre latérale')}">${this._bvIcon('pin', 13)}</span>` : ''}
                     </div>
                     <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span> / ${formatCurrency(limit)}</span></div>
                     <div class="bv-env-actions" onclick="event.stopPropagation()">
@@ -709,11 +814,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const limit = list.reduce((s, b) => s + (b.budget_amount || 0), 0);
             return `<span class="bv-section-total privacy-blur">${tp('bv_total_spent', { spent: formatCurrency(spent), limit: formatCurrency(limit) }, '{spent} sur {limit}')}</span>`;
         };
+        const totalsSets = totalGroups.filter(g => g.key === '__global__').map(g => g.list);
+        const repeatsTotals = (list) => totalsSets.some(l => l.length === list.length && list.every(b => l.includes(b)));
         const renderSection = (key, title, list, extra = '') => {
             if (!list.length) return '';
             return `
             <section class="bv-section" data-budget-period="${key}">
-                <header class="bv-section-head"><h3>${title}</h3>${key === 'org' ? '' : sectionTotals(list)}</header>
+                <header class="bv-section-head"><h3>${title}</h3>${key === 'org' || repeatsTotals(list) ? '' : sectionTotals(list)}</header>
                 ${extra}
                 <div class="bv-env-list">${list.map(renderRow).join('')}</div>
             </section>`;
