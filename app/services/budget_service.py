@@ -2586,6 +2586,17 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
             "confidence_score": d.confidence_score,
             **snap,
         }
+        if entry_type in ("enrichment", "recalibration"):
+            live = db.query(Budget).filter(Budget.id == (d.entity_id or snap.get("target_budget_id") or snap.get("budget_id"))).first()
+            if live:
+                entry["current_amount"] = live.monthly_amount or 0.0
+                entry["period"] = live.period
+                if entry_type == "enrichment":
+                    entry["additional_amount"] = _enrichment_increment(snap, live)
+                    entry["suggested_amount"] = round(entry["current_amount"] + entry["additional_amount"], 2)
+                    entry["name"] = entry["target_budget_name"] = live.name
+                else:
+                    entry["budget_name"] = live.name
         results.append(entry)
 
     return results
@@ -2647,6 +2658,15 @@ def dismiss_all_budget_suggestions(db: Session, decision_ids: Optional[List[int]
         "count": len(results),
         "items": results,
     }
+
+
+def _enrichment_increment(snap: dict, budget: Budget) -> float:
+    """Montant qu'un rattachement de catégorie ajoute au plafond, dans la période de l'enveloppe. Le total
+    du moment de la suggestion n'est pas réutilisé : le plafond a pu changer depuis (autre ajout, édition)."""
+    monthly = float(snap.get("additional_amount") or 0.0)
+    if not monthly:
+        monthly = max(float(snap.get("suggested_amount") or 0.0) - float(snap.get("current_amount") or 0.0), 0.0)
+    return round(monthly * 12 if budget.period == "yearly" else monthly, 2)
 
 
 def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Optional[float] = None) -> dict:
@@ -2746,7 +2766,8 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         if not existing_bc:
             db.add(BudgetCategory(budget_id=b.id, category_name=new_cat))
             db.flush()
-        new_amount = round(float(snap.get("suggested_amount", b.monthly_amount)), 2)
+        old_amount = b.monthly_amount or 0.0
+        new_amount = round(old_amount + _enrichment_increment(snap, b), 2)
         if custom_amount is not None and float(custom_amount) > 0:
             new_amount = round(float(custom_amount), 2)
 
@@ -2765,7 +2786,7 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
             "budget_id": b.id,
             "name": b.name,
             "new_category": new_cat,
-            "old_amount": snap.get("current_amount", b.monthly_amount),
+            "old_amount": old_amount,
             "new_amount": new_amount,
             "amount": new_amount,
             "custom_amount": custom_amount,

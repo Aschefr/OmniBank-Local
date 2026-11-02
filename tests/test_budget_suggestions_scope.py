@@ -218,3 +218,33 @@ def test_no_reference_income_means_no_reduction(db, monkeypatch):
     res = _suggest(db)
     assert res["is_capped"] is False
     assert next(p for p in res["proposals"] if "Courses" in p["categories"])["suggested_amount"] >= 400.0
+
+
+def _enrichment(db, budget, cat, current, add):
+    from app.models import AutopilotDecisionLog
+    d = AutopilotDecisionLog(batch_id="t", decision_type="budget_enrichment_suggestion", action="SUGGESTED",
+                             entity_type="budget", entity_id=budget.id, conn_id=-1,
+                             raw_snapshot=json.dumps({"target_budget_id": budget.id, "target_budget_name": budget.name,
+                                                      "new_category": cat, "category": cat, "categories": [cat],
+                                                      "current_amount": current, "additional_amount": add,
+                                                      "suggested_amount": current + add}))
+    db.add(d)
+    db.commit()
+    return d
+
+
+def test_category_additions_build_on_the_current_limit(db):
+    loisirs = _envelope(db, "Loisirs & Culture", ["Loisirs"], amount=200.0)
+    first = _enrichment(db, loisirs, "Café & Bar", 200.0, 40.0)
+    second = _enrichment(db, loisirs, "Jeux vidéo", 200.0, 30.0)
+    loisirs.monthly_amount = 250.0  # plafond modifié à la main depuis les suggestions
+    db.commit()
+
+    pending = {s["decision_id"]: s for s in bs.get_all_pending_budget_suggestions(db)}
+    assert pending[first.id]["current_amount"] == 250.0 and pending[first.id]["suggested_amount"] == 290.0
+
+    bs.apply_budget_suggestion(db, first.id)
+    bs.apply_budget_suggestion(db, second.id)
+    db.refresh(loisirs)
+    assert loisirs.monthly_amount == 320.0  # 250 + 40 + 30 : aucun ajout n'écrase l'autre
+    assert sorted(bc.category_name for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == loisirs.id)) == ["Café & Bar", "Jeux vidéo", "Loisirs"]
