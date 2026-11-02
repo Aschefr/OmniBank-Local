@@ -3999,6 +3999,8 @@
   "bv_pinned": "Épinglée dans la barre latérale",
   "bv_total_without_fixed": "hors charges prévues",
   "sb_envelopes": "Enveloppes",
+  "bv_change_created": "Nouvelle enveloppe",
+  "bv_change_completed": "Complétée : plafond {from} → {to}",
   "sg_menu": "Suggestions d'enveloppes",
   "sg_title": "Suggestions d'enveloppes",
   "sg_sub_autopilot": "Proposées par l'Auto-Pilote d'après vos dernières dépenses",

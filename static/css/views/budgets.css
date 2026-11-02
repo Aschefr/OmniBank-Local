@@ -2442,3 +2442,16 @@
     .sg-loose li { flex-wrap: wrap; }
     .sg-loose select { max-width: 100%; }
 }
+
+/* Enveloppes tout juste créées ou complétées depuis les suggestions */
+.bv-env.bv-env--changed { border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color)); }
+.bv-env--flash { animation: bv-env-flash 2.4s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes bv-env-flash {
+    0%, 25% { background: var(--accent-subtle); box-shadow: 0 0 0 2px var(--accent); }
+    100% { background: var(--bg-surface); box-shadow: 0 0 0 0 transparent; }
+}
+.bv-env-figures .bv-changed-value { color: var(--accent); font-weight: 600; }
+.bv-changed-cat { padding: 0 3px; border-radius: 4px; color: var(--text-main); background: var(--accent-subtle); }
+.bv-env-change { margin: 0; font-size: 12px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .bv-env--flash { animation: none; } }
+@media (max-width: 768px) { .bv-env-change { font-size: 13px; } }

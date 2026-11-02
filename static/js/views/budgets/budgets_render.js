@@ -594,7 +594,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             if (ended && status !== 'over') statusText = t('bv_status_ended', 'Terminée');
 
             const cats = b.categories || [];
-            const catText = cats.length > 3 ? `${cats.slice(0, 3).join(', ')} +${cats.length - 3}` : cats.join(', ');
+            // Changement tout juste appliqué depuis les suggestions : catégories ajoutées en tête et marquées
+            const change = this.recentChange ? this.recentChange(b.id) : null;
+            const added = change?.added || [];
+            const ordered = [...cats.filter(c => added.includes(c)), ...cats.filter(c => !added.includes(c))];
+            const shown = ordered.slice(0, 3).map(c => added.includes(c) ? `<mark class="bv-changed-cat">${c}</mark>` : c);
+            const catText = ordered.length > 3 ? `${shown.join(', ')} +${ordered.length - 3}` : shown.join(', ');
             const meta = b.period === 'custom'
                 ? tp('bv_dated_range', { start: fmtDate(b.start_date), end: fmtDate(b.end_date) }, 'Du {start} au {end}')
                 : catText;
@@ -611,7 +616,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const m = period ? parseInt(period.start.slice(5, 7)) : new Date().getMonth() + 1;
             const barLabel = tp('bv_bar_label', { pct: Math.round(pct) }, '{pct} % utilisés');
             return `
-            <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}" data-budget-id="${b.id}" tabindex="0"
+            <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}${change ? ' bv-env--changed' : ''}" data-budget-id="${b.id}" tabindex="0"
                      onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})"
                      onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})}">
                 <div class="bv-env-head">
@@ -620,7 +625,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                         ${b.is_locked ? `<span class="bv-env-lock" title="${t('bv_locked', "Verrouillée : pas d'ajustement automatique")}">${this._bvIcon('lock', 13)}</span>` : ''}
                         ${prefs.pinned.includes(b.id) ? `<span class="bv-env-lock" title="${t('bv_pinned', 'Épinglée dans la barre latérale')}">${this._bvIcon('pin', 13)}</span>` : ''}
                     </div>
-                    <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span> / ${formatCurrency(limit)}</span></div>
+                    <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span${change ? ' class="bv-changed-value"' : ''}> / ${formatCurrency(limit)}</span></div>
                     <div class="bv-env-actions" onclick="event.stopPropagation()">
                         <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.editBudget(${b.id})" aria-label="${t('tooltip_edit', 'Modifier')} ${safeName}" title="${t('tooltip_edit', 'Modifier')}">${this._bvIcon('pencil')}</button>
                         <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')} ${safeName}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
@@ -635,6 +640,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <span class="bv-env-meta">${meta}</span>
                     <span class="bv-env-status privacy-blur">${statusText}</span>
                 </div>
+                ${change ? `<p class="bv-env-change privacy-blur">${change.kind === 'created'
+                    ? t('bv_change_created', 'Nouvelle enveloppe')
+                    : tp('bv_change_completed', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Complétée : plafond {from} → {to}')}</p>` : ''}
                 ${suggHtml}
             </article>`;
         };
