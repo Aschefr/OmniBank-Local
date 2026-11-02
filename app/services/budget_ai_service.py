@@ -1145,7 +1145,7 @@ async def _ai_suggest_budgets_service_impl(
         ("Housing & Home" if lang == "en" else "Logement & Maison",
          ["loyer", "bail", "electr", "energie", "edf", "engie", "gaz", "eau", "charges", "copro", "syndic", "brico", "bricolage", "bricole", "meuble", "deco", "ikea", "castorama", "leroy merlin", "habitat", "jardin"]),
         ("Food & Groceries" if lang == "en" else "Alimentation & Courses",
-         ["course", "alim", "super", "resto", "restau", "restaurant", "boulang", "boulangerie", "repas", "nourriture", "drive", "carrefour", "leclerc", "auchan", "lidl", "monoprix", "intermarche", "casino", "picard", "biocoop", "cafe", "brasserie", "traiteur", "cantine"]),
+         ["course", "alim", "super", "resto", "restau", "restaurant", "boulang", "boulangerie", "repas", "primeur", "marche", "epicerie", "nourriture", "drive", "carrefour", "leclerc", "auchan", "lidl", "monoprix", "intermarche", "casino", "picard", "biocoop", "cafe", "brasserie", "traiteur", "cantine"]),
         ("Transport & Vehicle" if lang == "en" else "Transport & Véhicule",
          ["transp", "carburant", "essence", "diesel", "station", "total", "peage", "parking", "train", "sncf", "ratp", "ter", "tgv", "uber", "taxi", "covoiturage", "blablacar", "auto", "garage", "moto", "velo", "cycl", "reparation auto", "controle technique", "routi"]),
         ("Health & Wellness" if lang == "en" else "Santé & Bien-être",
