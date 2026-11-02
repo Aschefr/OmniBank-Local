@@ -1272,7 +1272,7 @@ def _call_ollama_for_budget_grouping(cats: List[str], cat_stats: dict, ollama_cf
         cat_lines.append(f'- "{c}" | monthly | about {round(cat_stats[c]["avg_monthly"])} €/month{hint}')
     prompt = build_grouping_prompt(cat_lines, targets, lang)
 
-    raw = call_ollama_sync(prompt, ollama_cfg, extra_options={"format": "json"})
+    raw = call_ollama_sync(prompt, ollama_cfg, extra_options={"format": "json", "think": False})
     if not raw or not raw.strip():
         return [], []
 

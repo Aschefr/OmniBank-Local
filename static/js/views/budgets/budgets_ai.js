@@ -3000,7 +3000,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             const isFallback = (this.aiSuggestMeta && this.aiSuggestMeta.is_fallback && !isDeterministic);
 
             if (titleEl) {
-                titleEl.innerHTML = `<span>${isDeterministic ? (t('budget_wizard_step1_title_deterministic', '💡 Recommandations d\'enveloppes prêtes')) : t('ai_wizard_step1_title', '🔮 Suggestions IA prêtes')}</span>`;
+                titleEl.innerHTML = `<span>${isDeterministic ? (t('budget_wizard_step1_title_deterministic', '💡 Recommandations d\'enveloppes prêtes'))
+                    : isFallback ? t('ai_wizard_step1_title_fallback', 'Propositions du moteur intégré')
+                    : t('ai_wizard_step1_title', '🔮 Suggestions IA prêtes')}</span>`;
             }
 
             let msgText = t('ai_wizard_step1_msg', '{suggested_count} enveloppes ont été suggérées et {omitted_count} catégorie(s) de dépenses ont été omises.')

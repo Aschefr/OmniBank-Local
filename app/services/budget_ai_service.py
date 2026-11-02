@@ -470,12 +470,12 @@ def build_grouping_prompt(cat_lines: list[str], targets: list[dict], lang: Optio
             "For each category, choose ONE option:\n"
             "A. Add it to an existing envelope when it is clearly the same kind of spending.\n"
             "B. Otherwise put it in a new envelope. Group 2 to 4 categories of the same kind; "
-            "leave a category alone only when nothing is similar.")
+            "a category with nothing similar gets its own envelope (better alone than in an odd pair).")
         name_rule = "Never reuse or paraphrase an existing envelope's name: use option A instead."
     else:
         existing_block = ""
         options = ("Put the categories in new envelopes. Group 2 to 4 categories of the same kind; "
-                   "leave a category alone only when nothing is similar.")
+                   "a category with nothing similar gets its own envelope (better alone than in an odd pair).")
         name_rule = ""
     return f"""You organise a household's day-to-day spending into budget envelopes. An envelope is a spending limit the user keeps an eye on during the period; it groups a few categories of the same kind of spending. Fixed charges (rent, loans, insurance, subscriptions) are already tracked by recurring payments and are not listed here.
 {existing_block}
@@ -793,6 +793,10 @@ async def _ai_suggest_budgets_service_impl(
         for c in sorted(fixed_cats)
     ]
     cat_data = {c: v for c, v in cat_data.items() if c not in fixed_cats}
+    # Ce qui reste est de la dépense libre : des montants identiques ne font pas une charge fixe
+    for v in cat_data.values():
+        v["is_fixed"] = False
+        v["type"] = "expense_var"
 
     if not cat_data:
         raise HTTPException(status_code=400, detail=(
@@ -829,13 +833,14 @@ async def _ai_suggest_budgets_service_impl(
         if is_ai_suggest_cancelled(pid):
             raise asyncio.CancelledError()
 
-        # Tentative 1 : Appel Ollama standard (sans contrainte grammaticale rigide)
-        # Permet aux modèles de raisonnement (thinking models) de dérouler leur réflexion naturellement
-        # sans que le parser de grammaire Ollama ne supprime les tokens ou ne renvoie une chaîne vide.
+        # Tentative 1 : appel standard, sans contrainte de format. Le raisonnement est désactivé (think=False) :
+        # un modèle à raisonnement dépensait sinon tout son budget de jetons à réfléchir et renvoyait une
+        # réponse vide, après plusieurs minutes. Le regroupement de catégories n'en a pas besoin.
         try:
             raw = await call_ollama_async(prompt, cfg, extra_options={
                 "num_ctx": ollama_ctx,
-                "num_predict": ollama_num_predict
+                "num_predict": ollama_num_predict,
+                "think": False,
             })
         except HTTPException as e:
             last_error_msg = e.detail
@@ -848,14 +853,15 @@ async def _ai_suggest_budgets_service_impl(
             raise asyncio.CancelledError()
 
         # Si le premier essai n'a rien renvoyé ou si aucun JSON n'a pu en être extrait, tentative 2 avec format="json"
-        parsed_test = extract_json_envelopes(raw or "") if (raw and raw.strip()) else []
+        parsed_test = (extract_json_envelopes(raw) or extract_json_additions(raw)) if (raw and raw.strip()) else []
         if not parsed_test:
             try:
                 logger.info("[AI Budget] Tentative 2 avec format='json' strict...")
                 raw = await call_ollama_async(prompt, cfg, extra_options={
                     "format": "json",
                     "num_ctx": ollama_ctx,
-                    "num_predict": ollama_num_predict
+                    "num_predict": ollama_num_predict,
+                    "think": False,
                 })
             except HTTPException as e2:
                 last_error_msg = e2.detail
@@ -951,6 +957,8 @@ async def _ai_suggest_budgets_service_impl(
 
             if suggested_period == "yearly":
                 val = c_yearly
+            elif c_period == "yearly":
+                val = round(c_yearly / 12.0, 2)
             else:
                 val = c_monthly
             
@@ -1132,20 +1140,66 @@ async def _ai_suggest_budgets_service_impl(
             "justification": prefix + p["justification"],
         })
 
+    # Grille de thèmes commune au regroupement et au rattachement aux enveloppes existantes
+    theme_clusters = [
+        ("Housing & Home" if lang == "en" else "Logement & Maison",
+         ["loyer", "bail", "electr", "energie", "edf", "engie", "gaz", "eau", "charges", "copro", "syndic", "brico", "bricolage", "bricole", "meuble", "deco", "ikea", "castorama", "leroy merlin", "habitat", "jardin"]),
+        ("Food & Groceries" if lang == "en" else "Alimentation & Courses",
+         ["course", "alim", "super", "resto", "restau", "restaurant", "boulang", "boulangerie", "repas", "nourriture", "drive", "carrefour", "leclerc", "auchan", "lidl", "monoprix", "intermarche", "casino", "picard", "biocoop", "cafe", "brasserie", "traiteur", "cantine"]),
+        ("Transport & Vehicle" if lang == "en" else "Transport & Véhicule",
+         ["transp", "carburant", "essence", "diesel", "station", "total", "peage", "parking", "train", "sncf", "ratp", "ter", "tgv", "uber", "taxi", "covoiturage", "blablacar", "auto", "garage", "moto", "velo", "cycl", "reparation auto", "controle technique", "routi"]),
+        ("Health & Wellness" if lang == "en" else "Santé & Bien-être",
+         ["sante", "medical", "pharm", "medecin", "docteur", "dentiste", "mutuelle", "optique", "lunettes", "kine", "osteo", "laboratoire", "analyse", "soin", "hopital", "clinique"]),
+        ("Subscriptions & Telecom" if lang == "en" else "Abonnements & Multimédia",
+         ["abonnement", "media", "netflix", "spotify", "deezer", "canal", "disney", "prime", "youtube", "internet", "telephon", "mobile", "fibre", "free", "orange", "sfr", "bouygues", "sosh", "red"]),
+        ("Technology & Digital" if lang == "en" else "Technologie & Numérique",
+         ["tech", "informatique", "ordinateur", "logiciel", "software", "saas", "cloud", "ia", "ai", "chatgpt", "steam", "gaming", "distrokid", "ovh", "ehd", "reseaux it", "electronique", "musique", "hardware", "apple", "google", "microsoft"]),
+        ("Finance & Banking" if lang == "en" else "Finances & Crédits",
+         ["emprunt", "credit", "pret", "remboursement", "virement", "transfert", "avance", "banque", "frais de compte", "frais bancaire", "cotisation compte", "cotisation carte", "agios", "courtier", "interet"]),
+        ("Services & Administration" if lang == "en" else "Services & Administratif",
+         ["poste", "envoi", "colis", "timbre", "chronopost", "mondial relay", "impot", "taxe", "fisc", "amende", "juridique", "notaire", "avocat", "cotisation", "association"]),
+        ("Insurance" if lang == "en" else "Assurances & Prévoyance",
+         ["assurance", "prevoyance", "sinistre", "axa", "macif", "allianz", "maif", "matmut", "mma", "gmf", "direct assurance"]),
+        ("Leisure & Entertainment" if lang == "en" else "Loisirs & Sorties",
+         ["loisir", "sport", "cinema", "theatre", "concert", "spectacle", "musee", "culture", "livre", "lecture", "vacance", "voyage", "hotel", "camping", "airsoft", "hobby", "club", "fitness", "piscine", "fdj"]),
+        ("Shopping & Discretionary" if lang == "en" else "Achats & Shopping",
+         ["shopping", "vetement", "habillement", "fringues", "mode", "chaussure", "accessoire", "beaute", "coiffure", "esthetique", "cadeau", "amazon", "fnac", "chinoiseries"])
+    ]
+
+    def _theme_of(text):
+        t = _clean_for_match(text)
+        for idx, (_, keywords) in enumerate(theme_clusters):
+            if any(_matches_keyword(t, kw) for kw in keywords):
+                return idx
+        return None
+
+    def _group_name(theme_name, cats, period):
+        """Une enveloppe d'une seule catégorie porte le nom de cette catégorie."""
+        if len(cats) == 1:
+            return cats[0]
+        if period == "yearly":
+            return f"{theme_name} (yearly)" if lang == "en" else f"{theme_name} (annuel)"
+        return theme_name
+
     def _deterministic_additions(cats):
         """Sans IA : rattache une catégorie à une enveloppe existante du même thème."""
-        from app.services.budget_service import _detect_envelope_enrichments
-        target_ids = {t["id"]: t for t in targets}
-        stats = {c: {"suggested_amount": 0.0, "observed_months": 0} for c in cats if c not in used_in_proposals}
-        if not stats or not target_ids:
-            return
-        enrichments, _ = _detect_envelope_enrichments(db, stats)
+        target_theme = {}
+        for t in targets:
+            theme = _theme_of(t["name"])
+            if theme is None:
+                theme = next((th for th in (_theme_of(c) for c in t["categories"]) if th is not None), None)
+            if theme is not None and theme not in target_theme:
+                target_theme[theme] = t
         by_target = defaultdict(list)
-        for e in enrichments:
-            if e["target_budget_id"] in target_ids and not _is_exceptional_or_project(e["category"]):
-                by_target[e["target_budget_id"]].append(e["category"])
-        for tid, tcats in by_target.items():
-            _add_to_existing(target_ids[tid], tcats)
+        for c in cats:
+            if c in used_in_proposals or _is_exceptional_or_project(c):
+                continue
+            t = target_theme.get(_theme_of(c))
+            if t:
+                by_target[t["id"]].append(c)
+        for t in target_theme.values():
+            if by_target.get(t["id"]):
+                _add_to_existing(t, by_target[t["id"]])
 
     for add in parsed_additions:
         target = _target_for(add["envelope"])
@@ -1191,7 +1245,7 @@ async def _ai_suggest_budgets_service_impl(
                 if monthly_cats and yearly_cats:
                     used_in_proposals.update(clean_cats)
                     proposals.append(_build_proposal(f"{clean_name}", monthly_cats, reason, period_override="monthly"))
-                    proposals.append(_build_proposal(f"{clean_name} (Annuels)", yearly_cats, reason, period_override="yearly"))
+                    proposals.append(_build_proposal(_group_name(clean_name, yearly_cats, "yearly") if len(yearly_cats) > 1 else yearly_cats[0], yearly_cats, reason, period_override="yearly"))
                 else:
                     used_in_proposals.update(clean_cats)
                     proposals.append(_build_proposal(clean_name, clean_cats, reason))
@@ -1204,77 +1258,28 @@ async def _ai_suggest_budgets_service_impl(
         if not remaining:
             return
 
-        clusters = [
-            ("Housing & Home" if lang == "en" else "Logement & Maison",
-             ["loyer", "bail", "electr", "energie", "edf", "engie", "gaz", "eau", "charges", "copro", "syndic", "brico", "bricolage", "bricole", "meuble", "deco", "ikea", "castorama", "leroy merlin", "habitat", "jardin"]),
-            ("Food & Groceries" if lang == "en" else "Alimentation & Courses",
-             ["course", "alim", "super", "resto", "restau", "restaurant", "boulang", "boulangerie", "repas", "nourriture", "drive", "carrefour", "leclerc", "auchan", "lidl", "monoprix", "intermarche", "casino", "picard", "biocoop", "cafe", "brasserie", "traiteur", "cantine"]),
-            ("Transport & Vehicle" if lang == "en" else "Transport & Véhicule",
-             ["transp", "carburant", "essence", "diesel", "station", "total", "peage", "parking", "train", "sncf", "ratp", "ter", "tgv", "uber", "taxi", "covoiturage", "blablacar", "auto", "garage", "moto", "velo", "cycl", "reparation auto", "controle technique", "routi"]),
-            ("Health & Wellness" if lang == "en" else "Santé & Bien-être",
-             ["sante", "medical", "pharm", "medecin", "docteur", "dentiste", "mutuelle", "optique", "lunettes", "kine", "osteo", "laboratoire", "analyse", "soin", "hopital", "clinique"]),
-            ("Subscriptions & Telecom" if lang == "en" else "Abonnements & Multimédia",
-             ["abonnement", "media", "netflix", "spotify", "deezer", "canal", "disney", "prime", "youtube", "internet", "telephon", "mobile", "fibre", "free", "orange", "sfr", "bouygues", "sosh", "red"]),
-            ("Technology & Digital" if lang == "en" else "Technologie & Numérique",
-             ["tech", "informatique", "ordinateur", "logiciel", "software", "saas", "cloud", "ia", "ai", "chatgpt", "steam", "gaming", "distrokid", "ovh", "ehd", "reseaux it", "electronique", "musique", "hardware", "apple", "google", "microsoft"]),
-            ("Finance & Banking" if lang == "en" else "Finances & Crédits",
-             ["emprunt", "credit", "pret", "remboursement", "virement", "transfert", "avance", "banque", "frais de compte", "frais bancaire", "cotisation compte", "cotisation carte", "agios", "courtier", "interet"]),
-            ("Services & Administration" if lang == "en" else "Services & Administratif",
-             ["poste", "envoi", "colis", "timbre", "chronopost", "mondial relay", "impot", "taxe", "fisc", "amende", "juridique", "notaire", "avocat", "cotisation", "association"]),
-            ("Insurance" if lang == "en" else "Assurances & Prévoyance",
-             ["assurance", "prevoyance", "sinistre", "axa", "macif", "allianz", "maif", "matmut", "mma", "gmf", "direct assurance"]),
-            ("Leisure & Entertainment" if lang == "en" else "Loisirs & Sorties",
-             ["loisir", "sport", "cinema", "theatre", "concert", "spectacle", "musee", "culture", "livre", "lecture", "vacance", "voyage", "hotel", "camping", "airsoft", "hobby", "club", "fitness", "piscine", "fdj"]),
-            ("Shopping & Discretionary" if lang == "en" else "Achats & Shopping",
-             ["shopping", "vetement", "habillement", "fringues", "mode", "chaussure", "accessoire", "beaute", "coiffure", "esthetique", "cadeau", "amazon", "fnac", "chinoiseries"])
-        ]
+        def _propose(theme_name, cats):
+            monthly_cats = [c for c in cats if cat_data[c].get("suggested_period", "monthly") == "monthly"]
+            yearly_cats = [c for c in cats if cat_data[c].get("suggested_period") == "yearly"]
+            used_in_proposals.update(cats)
+            # Justification par défaut : la période observée, les catégories et des exemples d'opérations
+            if monthly_cats:
+                proposals.append(_build_proposal(_group_name(theme_name, monthly_cats, "monthly"), monthly_cats, None, period_override="monthly"))
+            if yearly_cats:
+                proposals.append(_build_proposal(_group_name(theme_name, yearly_cats, "yearly"), yearly_cats, None, period_override="yearly"))
 
-        for cluster_name, keywords in clusters:
-            matched = []
-            for c in remaining:
-                c_clean = _clean_for_match(c)
-                if any(_matches_keyword(c_clean, kw) for kw in keywords):
-                    matched.append(c)
-            if matched:
-                used_in_proposals.update(matched)
-                remaining = [c for c in remaining if c not in matched]
-                monthly_cats = [c for c in matched if cat_data[c].get("suggested_period", "monthly") == "monthly"]
-                yearly_cats = [c for c in matched if cat_data[c].get("suggested_period") == "yearly"]
-                justif = (f"Regroupement thématique ({len(matched)} catégories)." if lang != "en" else f"Thematic grouping ({len(matched)} categories).")
-                if is_orphan_fallback:
-                    justif = (f"Regroupement thématique complémentaire ({len(matched)} catégories)." if lang != "en" else f"Complementary thematic grouping ({len(matched)} categories).")
+        by_theme = defaultdict(list)
+        for c in remaining:
+            theme = _theme_of(c)
+            if theme is not None:
+                by_theme[theme].append(c)
+        for idx, cats in sorted(by_theme.items()):
+            _propose(theme_clusters[idx][0], cats)
 
-                if monthly_cats and yearly_cats:
-                    proposals.append(_build_proposal(cluster_name, monthly_cats, justif, period_override="monthly"))
-                    proposals.append(_build_proposal(f"{cluster_name} (Annuels)", yearly_cats, justif, period_override="yearly"))
-                else:
-                    period_ov = "yearly" if yearly_cats else "monthly"
-                    proposals.append(_build_proposal(cluster_name, matched, justif, period_override=period_ov))
-
-        # Restant fixe résiduel
-        rem_fixed = [c for c in remaining if cat_data[c]["is_fixed"] or cat_data[c]["type"] == "expense_fixed"]
-        if rem_fixed:
-            used_in_proposals.update(rem_fixed)
-            remaining = [c for c in remaining if c not in rem_fixed]
-            name = "Fixed Charges & Contracts" if lang == "en" else "Charges Fixes & Contrats"
-            justif = "Charges contractuelles résiduelles regroupées." if lang != "en" else "Residual fixed contractual charges grouped."
-            proposals.append(_build_proposal(name, rem_fixed, justif))
-
-        # Restant variable résiduel : séparer le mensuel et l'annuel pour préserver la précision budgétaire
-        rem_monthly = [c for c in remaining if cat_data[c].get("suggested_period", "monthly") == "monthly"]
-        rem_yearly = [c for c in remaining if cat_data[c].get("suggested_period") == "yearly"]
-
-        if rem_monthly:
-            used_in_proposals.update(rem_monthly)
-            name = "Daily Life & Miscellaneous" if lang == "en" else "Vie Courante & Divers"
-            justif = f"Dépenses courantes diverses ({len(rem_monthly)} catégories)." if lang != "en" else f"Miscellaneous living expenses ({len(rem_monthly)} categories)."
-            proposals.append(_build_proposal(name, rem_monthly, justif, period_override="monthly"))
-
-        if rem_yearly:
-            used_in_proposals.update(rem_yearly)
-            name = "Miscellaneous Annual Expenses" if lang == "en" else "Dépenses Annuelles Diverses"
-            justif = f"Dépenses annuelles diverses ({len(rem_yearly)} catégories)." if lang != "en" else f"Miscellaneous annual expenses ({len(rem_yearly)} categories)."
-            proposals.append(_build_proposal(name, rem_yearly, justif, period_override="yearly"))
+        # Le reste, sans thème reconnu
+        leftovers = [c for c in remaining if c not in used_in_proposals]
+        if leftovers:
+            _propose("Daily Life & Miscellaneous" if lang == "en" else "Vie courante & divers", leftovers)
 
     if not proposals and cat_data:
         is_fallback = True
@@ -1323,7 +1328,8 @@ async def _ai_suggest_budgets_service_impl(
     remaining_for_variables = max(0.0, available_monthly_budget - total_new_fixed_monthly)
 
     is_capped = False
-    if total_new_var_monthly > remaining_for_variables and total_new_var_monthly > 0:
+    # Sans revenu de référence connu, rien ne permet de juger les montants trop élevés : pas de réduction
+    if regular_salary > 0 and total_new_var_monthly > remaining_for_variables and total_new_var_monthly > 0:
         is_capped = True
         raw_ratio = remaining_for_variables / total_new_var_monthly
         effective_ratio = max(0.25, raw_ratio)
@@ -1431,13 +1437,13 @@ async def ai_refine_budgets_service(window_months: int, lang: Optional[str], exi
 
     raw = ""
     try:
-        raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500, "format": "json"})
+        raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500, "format": "json", "think": False})
     except Exception as e:
         logger.warning(f"[AI Refine] Essai 1 Ollama json échoué: {e}")
 
     if not raw or not raw.strip():
         try:
-            raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500})
+            raw = await call_ollama_async(prompt, cfg, extra_options={"num_predict": 1500, "think": False})
         except Exception as e:
             logger.warning(f"[AI Refine] Essai 2 Ollama échoué: {e}")
 
