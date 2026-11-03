@@ -604,9 +604,13 @@ class App {
         if (!immediate) {
             clearTimeout(this._activeViewDebounceTimer);
             return new Promise((resolve) => {
+                // Un appel remplacé par un autre pendant ce délai répond avec lui : son attente ne reste jamais suspendue
+                (this._activeViewDebounceWaiters ||= []).push(resolve);
                 this._activeViewDebounceTimer = setTimeout(async () => {
+                    const waiters = this._activeViewDebounceWaiters;
+                    this._activeViewDebounceWaiters = [];
                     const res = await this.refreshActiveView({ highlightTxId, force, immediate: true });
-                    resolve(res);
+                    waiters.forEach(done => done(res));
                 }, 100);
             });
         }
