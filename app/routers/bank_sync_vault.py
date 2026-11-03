@@ -6,7 +6,7 @@ le verrouillage, la réinitialisation du coffre et la configuration de la synchr
 
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,6 +18,15 @@ from app.services.credential_vault import CredentialVault, VaultSessionManager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bank-sync", tags=["bank-sync"])
+
+
+def _vault_token(
+    header_token: Optional[str] = Header(None, alias="X-OmniBank-Vault-Token"),
+    token: Optional[str] = Query(None, deprecated=True),
+) -> Optional[str]:
+    """Jeton du coffre, en en-tête pour qu'il n'apparaisse pas dans les journaux d'accès.
+    Le paramètre d'URL ne sert plus qu'aux applications mobiles pas encore mises à jour."""
+    return header_token or token
 
 
 @router.post("/vault/unlock", response_model=Dict[str, Any])
@@ -79,7 +88,7 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/vault/status", response_model=VaultStatusOut)
-def get_vault_status(token: Optional[str] = Query(None)):
+def get_vault_status(token: Optional[str] = Depends(_vault_token)):
     """Retourne l'état actuel de déverrouillage du coffre-fort pour le profil actif."""
     active_pid = get_active_profile().get("id", "default")
     status = VaultSessionManager.get_status(token, profile_id=active_pid)
@@ -87,7 +96,7 @@ def get_vault_status(token: Optional[str] = Query(None)):
 
 
 @router.post("/vault/lock")
-def lock_vault(token: Optional[str] = Query(None)):
+def lock_vault(token: Optional[str] = Depends(_vault_token)):
     """Verrouille immédiatement le coffre-fort du profil actif (purge de la mémoire vive)."""
     active_pid = get_active_profile().get("id", "default")
     VaultSessionManager.lock_session(token, profile_id=active_pid)

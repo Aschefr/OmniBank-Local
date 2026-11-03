@@ -49,6 +49,12 @@ Object.assign(window.BankSyncView, {
             const syncCheck = document.getElementById('masterPwSyncOnUnlockCheck');
             if (syncCheck) {
                 syncCheck.checked = this.autoSyncSettings ? this.autoSyncSettings.sync_on_vault_unlock !== false : true;
+                // Fenêtre ouverte hors de la page des connexions : la case doit montrer le vrai réglage
+                if (this.autoSyncSettings?.sync_on_vault_unlock === undefined) {
+                    this.loadAutoSyncSettings().then(() => {
+                        syncCheck.checked = this.autoSyncSettings?.sync_on_vault_unlock !== false;
+                    });
+                }
             }
 
             if (modal) {
@@ -78,15 +84,17 @@ Object.assign(window.BankSyncView, {
         const days = shouldRemember ? (rememberDaysSel ? parseInt(rememberDaysSel.value) : 7) : 1;
         const shouldSyncOnUnlock = syncCheck ? syncCheck.checked : true;
 
-        if (this.autoSyncSettings && this.autoSyncSettings.sync_on_vault_unlock !== shouldSyncOnUnlock) {
-            this.toggleSyncOnVaultUnlock(shouldSyncOnUnlock);
+        // Sauvegarder avant de déverrouiller : le serveur y lit ce réglage pour décider du relevé
+        if (this.autoSyncSettings?.sync_on_vault_unlock === !shouldSyncOnUnlock) {
+            await this.toggleSyncOnVaultUnlock(shouldSyncOnUnlock);
         }
 
         const unlockPayload = {
             master_password: val,
             remember_days: days
         };
-        if (this._pwForSync) {
+        // Case décochée : aucun relevé, même si la sauvegarde ci-dessus a échoué
+        if (this._pwForSync || !shouldSyncOnUnlock) {
             unlockPayload.skip_reactive_sync = true;
         }
 
@@ -707,12 +715,8 @@ Object.assign(window.BankSyncView, {
             this.mappingEventSource = null;
         }
 
-        const queryParams = new URLSearchParams();
-        if (token) {
-            queryParams.set("vault_token", token);
-        }
-
-        const sseUrl = window.API ? window.API.fullUrl(`/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`) : `/api/bank-sync/connections/${connId}/test-stream?${queryParams.toString()}`;
+        const streamPath = `/api/bank-sync/connections/${connId}/test-stream`;
+        const sseUrl = window.API ? window.API.fullUrl(streamPath) : streamPath;
         const es = new EventSource(window.API ? window.API.withSession(sseUrl) : sseUrl);
         this.mappingEventSource = es;
 

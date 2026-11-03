@@ -106,11 +106,15 @@ Object.assign(window.BankSyncView, {
         }
     },
 
+    // En en-tête : une URL finit en clair dans les journaux d'accès du serveur
+    _vaultTokenOptions(token) {
+        return token ? { headers: { 'X-OmniBank-Vault-Token': token } } : {};
+    },
+
     async loadVaultStatus() {
         try {
             const token = this.getVaultToken();
-            const url = token ? `/api/bank-sync/vault/status?token=${encodeURIComponent(token)}` : '/api/bank-sync/vault/status';
-            const data = await API.get(url);
+            const data = await API.get('/api/bank-sync/vault/status', this._vaultTokenOptions(token));
             this.vaultStatus = data;
             if (data && data.is_unlocked && data.vault_token) {
                 this.setVaultToken(data.vault_token);
@@ -353,7 +357,7 @@ Object.assign(window.BankSyncView, {
     async lockVault() {
         const token = this.getVaultToken();
         try {
-            await API.post(`/api/bank-sync/vault/lock${token ? `?token=${encodeURIComponent(token)}` : ''}`);
+            await API.post('/api/bank-sync/vault/lock', undefined, this._vaultTokenOptions(token));
         } catch (_) {}
         this.clearVaultToken();
         this.stopVaultCountdown();
@@ -424,11 +428,8 @@ Object.assign(window.BankSyncView, {
         }
         this.autoSyncSettings.sync_on_vault_unlock = enabled;
         try {
-            await API.post('/api/bank-sync/settings/auto-sync', {
-                enabled: this.autoSyncSettings.enabled,
-                interval_hours: this.autoSyncSettings.interval_hours,
-                sync_on_vault_unlock: enabled
-            });
+            // Ce réglage seul : ceux en mémoire peuvent ne pas encore être chargés et écraseraient les vrais
+            await API.post('/api/bank-sync/settings/auto-sync', { sync_on_vault_unlock: enabled });
         } catch (err) {
             console.warn('[BankSync] Erreur toggleSyncOnVaultUnlock:', err);
         }

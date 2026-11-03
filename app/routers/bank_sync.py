@@ -229,7 +229,6 @@ def test_existing_connection(conn_id: int, req: SyncConnectionRequest, db: Sessi
 @router.get("/connections/{conn_id}/test-stream")
 async def test_connection_stream(
     conn_id: int,
-    vault_token: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -240,7 +239,9 @@ async def test_connection_stream(
         raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
 
     active_pid = get_active_profile().get("id", "default")
-    pw = VaultSessionManager.get_password(vault_token, profile_id=active_pid)
+    # EventSource ne peut pas envoyer d'en-tête, et un jeton dans l'URL finirait dans les journaux d'accès :
+    # ces flux utilisent la session active du profil.
+    pw = VaultSessionManager.get_password(profile_id=active_pid)
     if not pw:
         raise HTTPException(status_code=401, detail="Coffre-fort verrouillé : veuillez déverrouiller votre coffre.")
 
@@ -419,7 +420,6 @@ def handle_2fa_response(req: TwoFAResponseRequest):
 @router.get("/connections/{conn_id}/sync-stream")
 async def sync_connection_stream(
     conn_id: int,
-    vault_token: Optional[str] = Query(None),
     since_days: int = Query(90),
     db: Session = Depends(get_db)
 ):
@@ -432,7 +432,9 @@ async def sync_connection_stream(
         raise HTTPException(status_code=404, detail="Connexion bancaire introuvable")
 
     active_pid = get_active_profile().get("id", "default")
-    pw = VaultSessionManager.get_password(vault_token, profile_id=active_pid)
+    # EventSource ne peut pas envoyer d'en-tête, et un jeton dans l'URL finirait dans les journaux d'accès :
+    # ces flux utilisent la session active du profil.
+    pw = VaultSessionManager.get_password(profile_id=active_pid)
     if not pw:
         raise HTTPException(status_code=401, detail="Coffre-fort verrouillé : veuillez déverrouiller votre coffre.")
 

@@ -459,7 +459,7 @@ Object.assign(window.BankSyncView, {
 
     async _startFreshSync(connId) {
         let pw = null;
-        let token = this.getVaultToken();
+        const token = this.getVaultToken();
         if (token && this.vaultStatus?.is_unlocked) {
             pw = "__USE_VAULT_TOKEN__";
         } else {
@@ -468,15 +468,14 @@ Object.assign(window.BankSyncView, {
                 window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître pour synchroniser vos comptes :',
                 { forSync: true } // ce relevé part juste après : pas un second en même temps
             );
-            token = this.getVaultToken();
         }
         if (!pw) return;
 
         this.activeConnId = connId;
-        this.startSyncStream(connId, pw !== "__USE_VAULT_TOKEN__" ? pw : null, token);
+        this.startSyncStream(connId, pw !== "__USE_VAULT_TOKEN__" ? pw : null);
     },
 
-    startSyncStream(connId, masterPassword, vaultToken) {
+    startSyncStream(connId, masterPassword) {
         const progressModal = document.getElementById('syncProgressModal');
         const progressTitle = document.getElementById('syncProgressTitle');
         const progressMsg = document.getElementById('syncProgressMsg');
@@ -487,8 +486,7 @@ Object.assign(window.BankSyncView, {
         progressMsg.innerText = 'Établissement du canal sécurisé...';
         progressBar.style.width = '25%';
 
-        let url = `/api/bank-sync/connections/${connId}/sync-stream?since_days=90`;
-        if (vaultToken) url += `&vault_token=${encodeURIComponent(vaultToken)}`;
+        const url = `/api/bank-sync/connections/${connId}/sync-stream?since_days=90`;
 
         const es = new EventSource(window.API ? window.API.withSession(window.API.fullUrl(url)) : url);
         this.eventSource = es;

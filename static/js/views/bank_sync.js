@@ -839,7 +839,7 @@ window.BankSyncView = {
 
                 <!-- Option de Synchronisation Immédiate au Déverrouillage -->
                 <div style="margin-bottom: 18px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;" data-i18n-title="bank_sync_on_unlock_tooltip" title="${window.i18n ? window.i18n.t('bank_sync_on_unlock_tooltip') : 'Déclenche automatiquement un relevé dès que le coffre est déverrouillé (respecte un délai de 3h entre deux relevés)'}">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;" data-i18n-title="bank_sync_on_unlock_tooltip" title="${window.i18n ? window.i18n.t('bank_sync_on_unlock_tooltip') : "Au déverrouillage, lance un relevé seulement s'il est nécessaire : aucun n'a encore été fait, ou le dernier est plus ancien que l'intervalle choisi. Sinon, le dernier relevé reste valable."}">
                         <input type="checkbox" id="masterPwSyncOnUnlockCheck" checked />
                         <span data-i18n="bank_sync_on_unlock_label">${window.i18n ? window.i18n.t('bank_sync_on_unlock_label') : 'Synchro au déverrouillage'}</span>
                     </label>

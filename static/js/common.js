@@ -179,7 +179,8 @@ const API = {
     },
     async get(endpoint, extraOptions = {}) {
         // PERF: Déduplication — si un GET identique est déjà en cours, réutiliser la même Promise
-        const cacheKey = endpoint;
+        // Des en-têtes différents (jeton du coffre…) peuvent donner une autre réponse
+        const cacheKey = extraOptions.headers ? `${endpoint}|${JSON.stringify(extraOptions.headers)}` : endpoint;
         if (this._inflight[cacheKey]) {
             return this._inflight[cacheKey];
         }
