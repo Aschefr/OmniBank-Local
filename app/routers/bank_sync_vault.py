@@ -55,7 +55,7 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
     ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
     db.commit()
 
-    # Déclenchement réactif au déverrouillage si configuré (avec respect du cooldown anti-spam)
+    # Au déverrouillage, si configuré : un relevé seulement s'il est nécessaire, sinon le dernier reste valable
     reactive_sync = None
     sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
     if getattr(req, "skip_reactive_sync", False) or not sync_on_unlock:

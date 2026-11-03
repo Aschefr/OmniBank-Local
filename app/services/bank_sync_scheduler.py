@@ -3,7 +3,7 @@ OmniBank-Local — Planificateur d'arrière-plan pour la Synchronisation Bancair
 Façade de rétrocompatibilité et orchestrateur de la boucle planifiée asyncio.
 Les composants modulaires sont situés dans app.services.bank_sync.* :
   - app.services.bank_sync.pending_store : Sas d'attente, cache RAM & GlobalConfig
-  - app.services.bank_sync.auto_sync : Relevé automatique, cooldown 3h & threads
+  - app.services.bank_sync.auto_sync : Relevé automatique, relevés nécessaires & threads
 """
 
 import asyncio
@@ -37,11 +37,11 @@ from app.services.bank_sync.pending_store import (
 )
 
 # 2. Imports et re-exports de l'auto-sync et gestion des threads (auto_sync)
-from app.services.bank_sync.label_refine import start_label_refinement
 from app.services.bank_sync.auto_sync import (
     _ACTIVE_BACKGROUND_THREADS,
     AUTO_SYNC_COOLDOWN_SECONDS,
     TRIGGER_SOURCE_LABELS,
+    due_connections,
     execute_auto_sync_for_connection,
     get_auto_sync_cooldown_status,
     is_background_sync_running,
@@ -51,6 +51,39 @@ from app.services.bank_sync.auto_sync import (
 logger = logging.getLogger(__name__)
 
 _SCHEDULER_RUNNING = False
+
+
+async def _run_scheduled_statement(db, pid: str) -> None:
+    """Relevé planifié, par le même chemin que le bouton : un seul relevé à la fois par profil, donc
+    jamais deux connexions simultanées à la même banque. Il part seulement s'il est nécessaire."""
+    if _get_config_value(db, "bank_auto_sync_enabled", "false") != "true":
+        return
+    if not VaultSessionManager.get_password(profile_id=pid):
+        logger.debug(f"[BankScheduler] Coffre verrouillé pour le profil '{pid}' : sync auto en attente")
+        return
+    trigger_manual_auto_sync(profile_id=pid, force=False, trigger_source="scheduled")
+    # Un profil après l'autre, comme l'analyse qui suit : elle doit voir les opérations relevées
+    while is_background_sync_running(pid):
+        await asyncio.sleep(2)
+
+
+async def _run_profile_cycle(pid: str) -> None:
+    from app.database import get_engine
+    from sqlalchemy.orm import sessionmaker
+
+    SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=get_engine(pid))
+    db = SessionProf()
+    try:
+        await _run_scheduled_statement(db, pid)
+        # Indépendante du relevé : attendre un relevé ne doit jamais retarder l'analyse budgétaire
+        try:
+            from app.services.budget_service import run_background_analysis
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, run_background_analysis, db, pid)
+        except Exception as b_eval_err:
+            logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
+    finally:
+        db.close()
 
 
 async def bank_sync_scheduler_loop():
@@ -71,85 +104,11 @@ async def bank_sync_scheduler_loop():
     while True:
         try:
             from app.profile_manager import load_profiles_data
-            from app.database import get_engine
-            from sqlalchemy.orm import sessionmaker
 
-            p_data = load_profiles_data()
-            profiles_list = p_data.get("profiles", [])
-
-            for prof in profiles_list:
+            for prof in load_profiles_data().get("profiles", []):
                 pid = prof["id"]
                 try:
-                    engine = get_engine(pid)
-                    SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-                    db = SessionProf()
-                    try:
-                        # 1. Vérifier si l'auto-sync est activé pour ce profil
-                        enabled_str = _get_config_value(db, "bank_auto_sync_enabled", "false")
-                        if enabled_str == "true":
-                            # Vérification du cooldown anti-spam persistant de 3h
-                            cooldown = get_auto_sync_cooldown_status(db, pid)
-                            if cooldown.get("cooldown_active"):
-                                rem_min = cooldown.get("remaining_seconds", 0) // 60
-                                logger.debug(f"[BankScheduler] Boucle auto ignorée pour profil '{pid}' : cooldown anti-spam actif ({rem_min} min restantes)")
-                                continue
-
-                            interval_hours = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
-
-                            # 2. Vérifier si le coffre de ce profil spécifique est déverrouillé en mémoire
-                            master_password = VaultSessionManager.get_password(profile_id=pid)
-                            if master_password:
-                                active_conns = db.query(BankConnection).filter(
-                                    BankConnection.is_active == True
-                                ).all()
-
-                                now = datetime.now(timezone.utc)
-                                ran_any = False
-                                for conn in active_conns:
-                                    # Ne pas exécuter si aucun compte n'est encore mappé
-                                    if not conn.account_mapping or conn.account_mapping.strip() in ("", "{}", "null"):
-                                        continue
-
-                                    should_run = False
-                                    if not conn.last_sync_at:
-                                        should_run = True
-                                    else:
-                                        last_sync = conn.last_sync_at
-                                        if last_sync.tzinfo is None:
-                                            last_sync = last_sync.replace(tzinfo=timezone.utc)
-                                        elapsed_hours = (now - last_sync).total_seconds() / 3600.0
-                                        if elapsed_hours >= interval_hours:
-                                            should_run = True
-
-                                    if should_run:
-                                        ran_any = True
-                                        loop = asyncio.get_running_loop()
-                                        await loop.run_in_executor(
-                                            None,
-                                            execute_auto_sync_for_connection,
-                                            db,
-                                            conn,
-                                            master_password,
-                                            pid,
-                                            "scheduled"
-                                        )
-                                        await asyncio.sleep(5)
-
-                                if ran_any:
-                                    _set_config_value(db, "last_auto_sync_attempt", datetime.now(timezone.utc).isoformat())
-                                    start_label_refinement(pid)
-                            else:
-                                logger.debug(f"[BankScheduler] Coffre verrouillé pour le profil '{pid}' : sync auto en attente")
-
-                        # 3. Étape 5 : Évaluation périodique/mensuelle des suggestions budgétaires (indépendante de la sync bancaire)
-                        try:
-                            from app.services.budget_service import run_background_analysis
-                            loop = asyncio.get_running_loop()
-                            await loop.run_in_executor(None, run_background_analysis, db, pid)
-                        except Exception as b_eval_err:
-                            logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
-                    finally:
-                        db.close()
+                    await _run_profile_cycle(pid)
                 except Exception as p_err:
                     logger.warning(f"[BankScheduler] Erreur inspection profil '{pid}': {p_err}")
 

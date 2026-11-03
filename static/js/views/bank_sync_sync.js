@@ -313,11 +313,6 @@ Object.assign(window.BankSyncView, {
 
         try {
             const res = await API.post('/api/bank-sync/trigger-auto-sync', payload);
-            if (res && res.cooldown_active) {
-                this.setButtonsState('idle');
-                this.showToast(res.message || 'Relevé ignoré : délai de sécurité actif.', 'info');
-                return;
-            }
             this.showToast(window.i18n ? window.i18n.t('bank_sync_run_background_toast') || 'Relevé lancé en arrière-plan.' : 'Relevé lancé en arrière-plan.', 'success');
 
             if (window.app && typeof window.app.setFastNotificationsPolling === 'function') {
@@ -470,7 +465,8 @@ Object.assign(window.BankSyncView, {
         } else {
             pw = await this.promptMasterPassword(
                 window.i18n ? window.i18n.t('bank_sync_modal_title') : 'Synchronisation bancaire',
-                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître pour synchroniser vos comptes :'
+                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître pour synchroniser vos comptes :',
+                { forSync: true } // ce relevé part juste après : pas un second en même temps
             );
             token = this.getVaultToken();
         }
