@@ -114,11 +114,12 @@ Object.assign(window.BankSyncView, {
             const isRunning = Boolean(statusRes && statusRes.is_running);
             
             if (isRunning) {
-                this._updateSyncProgress(statusRes.progress);
+                // Dans cet ordre : setButtonsState repart de 4 %, l'avancement réel (après un F5) passe ensuite
                 if (this._syncState !== 'syncing') {
                     this.setButtonsState('syncing');
                     this._startSyncPollingTracker();
                 }
+                this._updateSyncProgress(statusRes.progress);
             } else if (this._syncState === 'syncing' && !this._syncFinishing) {
                 await this._onSyncFinished();
             } else if (statusRes && statusRes.refining) {
