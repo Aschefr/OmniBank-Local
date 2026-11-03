@@ -215,6 +215,9 @@ window.OverviewView = {
             const accParam = this._selectedAccountId ? `&account_id=${this._selectedAccountId}` : '';
             const simAccParam = this._selectedAccountId ? `?account_id=${this._selectedAccountId}` : '';
 
+            // Non attendu : le widget met à jour sa tuile lui-même dès que le statut arrive
+            this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Erreur widget autopilot:', e));
+
             const [stats, accounts, transactions, pendingData, rhythmAverages] = await Promise.all([
                 API.get('/api/stats/dashboard'),
                 API.get('/api/stats/accounts'),
@@ -258,7 +261,6 @@ window.OverviewView = {
             // Les widgets annexes, prévisions et graphiques s'actualisent sans bloquer l'affichage
             this._fetchForecastSummary(simAccParam).catch(e => console.warn('[OverviewView] Erreur forecast summary:', e));
             this._checkBankConnections().catch(e => console.warn('[OverviewView] Erreur check connections:', e));
-            this._renderAutopilotWidget().catch(e => console.warn('[OverviewView] Erreur widget autopilot:', e));
         } finally {
             this._initInFlight = false;
             if (this._queuedInit) {
@@ -326,7 +328,7 @@ window.OverviewView = {
                 API.get('/api/autopilot/decisions?limit=15&deduplicate_entities=true', { silent: true }).catch(() => ({ items: [] }))
             ]);
 
-            this._apStatus = status || { 
+            this._apStatus = status || this._apStatus || { 
                 is_enabled: false, 
                 threshold: 85.0, 
                 unseen_decisions_count: 0,
@@ -335,6 +337,7 @@ window.OverviewView = {
                 next_execution_countdown_seconds: null
             };
             this._apDecisions = (decisionsRes && Array.isArray(decisionsRes.items)) ? decisionsRes.items : [];
+            this._refreshCockpitAutopilotTile();
 
             const isEnabled = !!this._apStatus.is_enabled;
             const threshold = Math.round(this._apStatus.threshold || 85);
@@ -1322,6 +1325,69 @@ window.OverviewView = {
 
     // ── Cockpit Mode: Simplified View ──────────────────────────────────────
 
+    _cockpitT(key, fallback) {
+        const val = window.i18n.t(key);
+        return (val && val !== key) ? val : fallback;
+    },
+
+    _cockpitApVaultLocked() {
+        const ap = this._apStatus;
+        return !!(ap && ap.is_enabled && !ap.vault_unlocked && ap.bank_auto_sync_enabled !== false);
+    },
+
+    // Statut encore inconnu : rien plutôt qu'un « Veille » faux
+    _cockpitApBadgeHtml(opensPopover) {
+        const ap = this._apStatus;
+        if (!ap) return '<span id="ovCockpitApBadge"></span>';
+        const t = (key, fallback) => this._cockpitT(key, fallback);
+        const enabled = !!ap.is_enabled;
+        const locked = this._cockpitApVaultLocked();
+        const badgeClass = enabled ? (locked ? 'badge-warning' : 'badge-active') : 'badge-inactive';
+        const dotClass = enabled ? (locked ? 'warning' : 'active') : 'inactive';
+        const label = enabled
+            ? (locked ? t('cockpit_ap_active_vault_locked', 'Actif · 🔒 Verrouillé') : t('cockpit_ap_active', 'Actif'))
+            : t('cockpit_ap_inactive', 'Veille');
+        const tooltip = locked
+            ? t('cockpit_ap_vault_locked_tooltip', 'Auto-Pilote actif mais coffre-fort verrouillé : les relevés bancaires automatiques sont suspendus. Cliquez pour déverrouiller.')
+            : (enabled ? t('cockpit_ap_active_tooltip', 'Auto-Pilote actif : surveillance et automatisations opérationnelles.') : t('cockpit_ap_inactive_tooltip', 'Auto-Pilote en veille.'));
+        let click = '';
+        if (locked) {
+            click = `onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();"`;
+        } else if (opensPopover) {
+            click = `onclick="event.stopPropagation(); window.OverviewView.showAutopilotPopover();"`;
+        }
+        return `<span id="ovCockpitApBadge" data-opens-popover="${opensPopover ? '1' : ''}" class="cockpit-card-badge ${badgeClass}" title="${tooltip}" ${click}>
+                            <span class="cockpit-ap-dot ${dotClass}"></span>
+                            <span>${label}</span>
+                        </span>`;
+    },
+
+    _cockpitApSubHtml() {
+        const ap = this._apStatus;
+        if (!ap) return '';
+        const t = (key, fallback) => this._cockpitT(key, fallback);
+        const reviewCount = ap.unseen_review_count || ap.review_queue_count || 0;
+        const actionCount = ap.unseen_decisions_count || 0;
+        if (reviewCount > 0) {
+            return `<span class="cockpit-ap-actions" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">🔍 ${reviewCount} ${t('cockpit_ap_to_review', 'à vérifier')}</span>`;
+        }
+        if (actionCount > 0) {
+            return `<span class="cockpit-ap-actions">⚡ ${actionCount} ${t('cockpit_ap_actions', 'action' + (actionCount > 1 ? 's récentes' : ' récente'))}</span>`;
+        }
+        if (this._cockpitApVaultLocked()) {
+            return `<span style="color:#f59e0b; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();" title="${t('cockpit_ap_vault_locked_tooltip', 'Coffre verrouillé (cliquer pour déverrouiller)')}">⚠️ ${t('overview_autopilot_next_exec_vault_locked', 'Coffre verrouillé')}</span>`;
+        }
+        return `<span style="color:var(--text-muted); font-size: 12px;">${t('cockpit_ap_no_actions', 'Aucune action en attente')}</span>`;
+    },
+
+    // Seule la tuile est réécrite : un rendu complet rejouerait l'animation des jauges
+    _refreshCockpitAutopilotTile() {
+        const badge = document.getElementById('ovCockpitApBadge');
+        if (badge) badge.outerHTML = this._cockpitApBadgeHtml(badge.dataset.opensPopover === '1');
+        const sub = document.getElementById('ovCockpitApSub');
+        if (sub) sub.innerHTML = this._cockpitApSubHtml();
+    },
+
     _renderCockpit() {
         const gaugesContainer = document.getElementById('ovCockpitGauges');
         const cardsContainer = document.getElementById('ovCockpitCards');
@@ -2206,24 +2272,6 @@ window.OverviewView = {
             orgBudgetSpent: typeof orgBudgetSpent !== 'undefined' ? orgBudgetSpent : 0
         };
 
-        // Card 2: AutoPilot Status
-        const apStatus = this._apStatus || {};
-        const apEnabled = !!apStatus.is_enabled;
-        const apCount = apStatus.unseen_decisions_count || 0;
-        const apReviewCount = apStatus.unseen_review_count || apStatus.review_queue_count || 0;
-        const isVaultLocked = apEnabled && !apStatus.vault_unlocked && (apStatus.bank_auto_sync_enabled !== false);
-        const apBadgeClass = apEnabled ? (isVaultLocked ? 'badge-warning' : 'badge-active') : 'badge-inactive';
-        const apDotClass = apEnabled ? (isVaultLocked ? 'warning' : 'active') : 'inactive';
-        const apLabel = apEnabled
-            ? (isVaultLocked ? t('cockpit_ap_active_vault_locked', 'Actif · 🔒 Verrouillé') : t('cockpit_ap_active', 'Actif'))
-            : (t('cockpit_ap_inactive', 'Veille'));
-        const apBadgeTooltip = isVaultLocked
-            ? t('cockpit_ap_vault_locked_tooltip', 'Auto-Pilote actif mais coffre-fort verrouillé : les relevés bancaires automatiques sont suspendus. Cliquez pour déverrouiller.')
-            : (apEnabled ? t('cockpit_ap_active_tooltip', 'Auto-Pilote actif : surveillance et automatisations opérationnelles.') : t('cockpit_ap_inactive_tooltip', 'Auto-Pilote en veille.'));
-        const apBadgeClick = isVaultLocked
-            ? `onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();"`
-            : '';
-
         // Card 3: Operations to reconcile
         const unreconciledCount = this._getCockpitUnreconciledCount();
 
@@ -2259,10 +2307,7 @@ window.OverviewView = {
                             <span class="cockpit-card-icon">📋</span>
                             <span>${t('cockpit_reconcile_title', 'À rapprocher')}</span>
                         </div>
-                        <span class="cockpit-card-badge ${apBadgeClass}" title="${apBadgeTooltip}" ${apBadgeClick} onclick="event.stopPropagation(); window.OverviewView.showAutopilotPopover();">
-                            <span class="cockpit-ap-dot ${apDotClass}"></span>
-                            <span>${apLabel}</span>
-                        </span>
+                        ${this._cockpitApBadgeHtml(true)}
                     </div>
                     <div class="cockpit-card-value">${unreconciledCount}</div>
                     <div class="cockpit-card-sub">${t('cockpit_reconcile_sub', 'opérations en attente')}</div>
@@ -2307,23 +2352,9 @@ window.OverviewView = {
                             <span class="cockpit-card-icon">🎯</span>
                             <span>AutoPilot</span>
                         </div>
-                        <span class="cockpit-card-badge ${apBadgeClass}" title="${apBadgeTooltip}" ${apBadgeClick}>
-                            <span class="cockpit-ap-dot ${apDotClass}"></span>
-                            <span>${apLabel}</span>
-                        </span>
+                        ${this._cockpitApBadgeHtml(false)}
                     </div>
-                    <div class="cockpit-card-sub" style="margin-top: auto;">
-                        ${apReviewCount > 0
-                            ? `<span class="cockpit-ap-actions" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">🔍 ${apReviewCount} ${t('cockpit_ap_to_review', 'à vérifier')}</span>`
-                            : (apCount > 0
-                                ? `<span class="cockpit-ap-actions">⚡ ${apCount} ${t('cockpit_ap_actions', 'action' + (apCount > 1 ? 's récentes' : ' récente'))}</span>`
-                                : (isVaultLocked
-                                    ? `<span style="color:#f59e0b; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" onclick="event.stopPropagation(); if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') window.BankSyncView.unlockVaultManually(); else window.OverviewView.showAutopilotPopover();" title="${t('cockpit_ap_vault_locked_tooltip', 'Coffre verrouillé (cliquer pour déverrouiller)')}">⚠️ ${t('overview_autopilot_next_exec_vault_locked', 'Coffre verrouillé')}</span>`
-                                    : `<span style="color:var(--text-muted); font-size: 12px;">${t('cockpit_ap_no_actions', 'Aucune action en attente')}</span>`
-                                )
-                            )
-                        }
-                    </div>
+                    <div class="cockpit-card-sub" id="ovCockpitApSub" style="margin-top: auto;">${this._cockpitApSubHtml()}</div>
                 </div>
                 <div class="cockpit-compact-card clickable" onclick="window.app.loadView('dashboard')" title="${window.i18n ? (window.i18n.t('nav_dashboard') || 'Dashboard') : 'Dashboard'}">
                     <div class="cockpit-card-header">
