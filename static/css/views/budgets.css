@@ -280,16 +280,15 @@
 .budget-strip-btn-review {
     padding: 0 14px !important;
     gap: 7px;
-    background: var(--accent-gradient, linear-gradient(135deg, #6366f1, #8b5cf6)) !important;
+    background: var(--accent) !important;
     border-color: transparent !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
+    box-shadow: 0 2px 8px var(--accent-glow) !important;
 }
 
 .budget-strip-btn-review:hover {
-    filter: brightness(1.1);
+    background: var(--accent-hover) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5) !important;
 }
 
 /* Boutons icônes carrés parfaitement proportionnés (32x32px) */
