@@ -144,7 +144,7 @@ def test_vault_session_manager_and_unlock():
     token = data["vault_token"]
 
     # 3. Status with token
-    status_res = client.get(f"/api/bank-sync/vault/status?token={token}")
+    status_res = client.get("/api/bank-sync/vault/status", headers={"X-OmniBank-Vault-Token": token})
     assert status_res.status_code == 200
     assert status_res.json()["is_unlocked"] is True
     assert status_res.json()["server_unlocked"] is True
@@ -161,9 +161,36 @@ def test_vault_session_manager_and_unlock():
     assert VaultSessionManager.get_password(token) == "MyMasterKey123!"
 
     # 5. Lock
-    lock_res = client.post(f"/api/bank-sync/vault/lock?token={token}")
+    lock_res = client.post("/api/bank-sync/vault/lock", headers={"X-OmniBank-Vault-Token": token})
     assert lock_res.status_code == 200
     assert VaultSessionManager.get_status(token)["is_unlocked"] is False
+
+
+def test_vault_token_in_url_still_works_for_apps_not_yet_updated():
+    from app.services.credential_vault import VaultSessionManager
+    client = TestClient(fastapi_app)
+    VaultSessionManager.lock_session()
+    token = client.post("/api/bank-sync/vault/unlock", json={
+        "master_password": "MyMasterKey123!",
+        "skip_reactive_sync": True
+    }).json()["vault_token"]
+
+    assert client.get(f"/api/bank-sync/vault/status?token={token}").json()["is_unlocked"] is True
+    assert client.post(f"/api/bank-sync/vault/lock?token={token}").status_code == 200
+    assert VaultSessionManager.get_status(token)["server_unlocked"] is False
+
+
+def test_vault_token_header_allowed_from_desktop_and_mobile_origins():
+    client = TestClient(fastapi_app)
+    for origin in ("tauri://localhost", "https://tauri.localhost", "capacitor://localhost", "http://localhost", "https://localhost"):
+        res = client.options("/api/bank-sync/vault/status", headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "x-omnibank-vault-token",
+        })
+        assert res.status_code == 200, origin
+        assert res.headers["access-control-allow-origin"] == origin
+        assert "x-omnibank-vault-token" in res.headers["access-control-allow-headers"].lower()
 
 
 def test_vault_unlock_with_skip_reactive_sync():
