@@ -324,11 +324,13 @@ class BankSyncService:
         master_password: str,
         since_days: int = 90,
         event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        defer_ai: bool = False
     ) -> Dict[str, Any]:
         """
         Récupère les transactions distantes sans les enregistrer, et calcule les correspondances
         de rapprochement (déjà rapprochées, à rapprocher, à ajouter) pour prévisualisation dans la modale.
+        defer_ai : ne pas attendre l'IA ; les opérations à lui soumettre sont marquées (voir label_refine).
         """
         from app.services.reconciliation_engine import check_reconciliation
 
@@ -808,11 +810,15 @@ class BankSyncService:
                 })
 
             # Résolution automatique des libellés et catégories (Smart Label / Règles bancaires / Historique / IA)
+            ai_deferred = False
             try:
+                from app.services.bank_sync.label_refine import deferred_tag
                 from app.services.chat.ollama_client import get_ollama_config
                 from app.services.smart_label_service import resolve_smart_labels_batch
                 cfg = get_ollama_config(db)
-                ai_active = bool(cfg and cfg.get("enabled"))
+                ai_enabled = bool(cfg and cfg.get("enabled"))
+                ai_active = ai_enabled and not defer_ai
+                ai_deferred = ai_enabled and defer_ai
 
                 all_raw_labels = []
                 tx_types_map = {}
@@ -839,6 +845,9 @@ class BankSyncService:
                                 raw = tx.get("raw_description") or tx.get("description") or ""
                                 if raw in resolutions:
                                     res = resolutions[raw]
+                                    tag = deferred_tag(res) if ai_deferred else None
+                                    if tag:
+                                        tx["smart_ai_deferred"] = tag
                                     if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
                                         tx["description"] = res["description"]
                                         if res.get("category"):
@@ -857,7 +866,8 @@ class BankSyncService:
             summary = {
                 "connection_id": connection.id,
                 "connection_label": connection.label,
-                "accounts": accounts_preview
+                "accounts": accounts_preview,
+                "ai_deferred": ai_deferred
             }
 
             try:

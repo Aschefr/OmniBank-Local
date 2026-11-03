@@ -1055,7 +1055,12 @@ h3 {
     cursor: pointer;
     transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     white-space: nowrap;
+    max-width: min(100%, 300px);
 }
+
+/* L'étape du relevé (« Crédit Agricole · Compte de Dépôt… ») se tronque à droite et garde le nom de la banque */
+.overview-bank-sync-btn > span:first-child { flex-shrink: 0; }
+.overview-bank-sync-btn > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .overview-bank-sync-btn:disabled,
 .overview-bank-sync-btn[disabled] {

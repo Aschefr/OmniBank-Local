@@ -349,7 +349,8 @@ def process_incoming_batch(
         try:
             from app.services.chat.ollama_client import get_ollama_config
             cfg = get_ollama_config(db)
-            use_ai = bool(cfg and cfg.get("enabled"))
+            # Relevé en arrière-plan : l'IA passe ensuite, dans sa propre tâche (voir label_refine)
+            use_ai = bool(cfg and cfg.get("enabled")) and not preview_data.get("ai_deferred")
         except Exception:
             pass
 
@@ -1241,6 +1242,8 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
             bank_sync_timestamps.append(dt_conn)
 
     last_bank_sync_str = max(bank_sync_timestamps).isoformat() if bank_sync_timestamps else None
+    labels_refined = db.query(GlobalConfig).filter(GlobalConfig.key == "bank_labels_refined_at").first()
+    labels_refined = db.query(GlobalConfig).filter(GlobalConfig.key == "bank_labels_refined_at").first()
 
     exec_timestamps = list(bank_sync_timestamps)
     if latest_decision and latest_decision.created_at:
@@ -1324,6 +1327,7 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         "unseen_review_count": unseen_review_count,
         "is_syncing": is_syncing,
         "last_bank_sync_at": last_bank_sync_str,
+        "labels_refined_at": labels_refined.value if labels_refined else None,
         "last_execution_at": last_execution_str,
         "next_execution_at": next_execution_at,
         "next_execution_type": next_execution_type,

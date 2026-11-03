@@ -37,6 +37,7 @@ from app.services.bank_sync.pending_store import (
 )
 
 # 2. Imports et re-exports de l'auto-sync et gestion des threads (auto_sync)
+from app.services.bank_sync.label_refine import start_label_refinement
 from app.services.bank_sync.auto_sync import (
     _ACTIVE_BACKGROUND_THREADS,
     AUTO_SYNC_COOLDOWN_SECONDS,
@@ -136,6 +137,7 @@ async def bank_sync_scheduler_loop():
 
                                 if ran_any:
                                     _set_config_value(db, "last_auto_sync_attempt", datetime.now(timezone.utc).isoformat())
+                                    start_label_refinement(pid)
                             else:
                                 logger.debug(f"[BankScheduler] Coffre verrouillé pour le profil '{pid}' : sync auto en attente")
 
