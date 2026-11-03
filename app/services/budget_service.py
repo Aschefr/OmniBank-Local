@@ -2657,6 +2657,34 @@ def _set_config(db: Session, key: str, value: str):
         db.add(GlobalConfig(key=key, value=value))
 
 
+BACKGROUND_CHANGED_AT_KEY = "background_changed_at"
+
+
+def _budget_analysis_signature(db: Session) -> tuple:
+    """Ce que l'analyse de fond peut changer : enveloppes créées, propositions ajoutées ou réglées."""
+    decisions = AutopilotDecisionLog.decision_type.like("budget%")
+    by_action = db.query(AutopilotDecisionLog.action, func.count()).filter(decisions).group_by(AutopilotDecisionLog.action).all()
+    return (
+        db.query(func.count(Budget.id)).scalar(),
+        db.query(func.max(AutopilotDecisionLog.id)).filter(decisions).scalar(),
+        tuple(sorted((action or "", count) for action, count in by_action)),
+    )
+
+
+def run_background_analysis(db: Session, profile_id: Optional[str] = None) -> bool:
+    """Cycle de fond des budgets. Horodate uniquement un vrai changement : les pages ouvertes se
+    rechargent sur ce marqueur, pas à chaque cycle."""
+    before = _budget_analysis_signature(db)
+    evaluate_monthly_budget_suggestions(db, profile_id, False)
+    suggest_new_envelopes(db, profile_id, False)
+    check_envelope_alerts(db)
+    changed = _budget_analysis_signature(db) != before
+    if changed:
+        _set_config(db, BACKGROUND_CHANGED_AT_KEY, datetime.now(timezone.utc).isoformat())
+        db.commit()
+    return changed
+
+
 def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
     """Retourne toutes les suggestions budgétaires en attente (créations + recalibrages + enrichissements).
     Purge automatiquement toute ancienne suggestion sur achat ponctuel isolé (< 2 mois sans récurrence).

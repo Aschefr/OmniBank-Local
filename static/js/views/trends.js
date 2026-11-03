@@ -398,7 +398,7 @@ window.TrendsView = {
         }
 
         // Peupler immédiatement les comptes si déjà en mémoire
-        const knownAccounts = (this.accounts && this.accounts.length > 0) ? this.accounts : window.app.accounts;
+        const knownAccounts = (window.app.accounts && window.app.accounts.length > 0) ? window.app.accounts : this.accounts;
         const knownMainAcc = window.app.mainAccount;
 
         let didSWR = false;
@@ -453,6 +453,8 @@ window.TrendsView = {
     },
 
     async saveConfig(updates) {
+        // Le retour sur la page relit cette copie : sans elle, l'ancien réglage revient jusqu'au F5
+        if (window.app && window.app.config) Object.assign(window.app.config, updates);
         try {
             await API.post('/api/config', updates);
         } catch(e) {
@@ -490,13 +492,11 @@ window.TrendsView = {
 
     async loadAccounts(didSWR = false) {
         try {
-            if (!this.accounts || this.accounts.length === 0) {
-                const [accs, mainAcc] = await Promise.all([
-                    API.get('/api/stats/accounts'),
-                    API.get('/api/stats/main_account')
-                ]);
-                this._populateAccountSelect(accs, mainAcc);
-            }
+            const [accs, mainAcc] = await Promise.all([
+                API.get('/api/stats/accounts'),
+                API.get('/api/stats/main_account')
+            ]);
+            this._populateAccountSelect(accs, mainAcc);
 
             await this.loadData(didSWR);
         } catch(e) {

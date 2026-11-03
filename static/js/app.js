@@ -701,6 +701,32 @@ class App {
     _syncWatcherTimer = null;
     _lastSyncExecutionAt = null;
     _isSyncRunning = false;
+    _serverMarkers = null;
+    _pendingServerRefresh = { labels: false, budgets: false };
+
+    _isUserEditing() {
+        const el = document.activeElement;
+        if (el && el.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable="true"]')) return true;
+        if (document.getElementById('sgPanel')) return true;
+        return [...document.querySelectorAll('.modal-overlay')].some(m => m.getClientRects().length > 0);
+    }
+
+    // Un changement de fond n'interrompt pas une saisie : il attend le prochain passage de la surveillance
+    _applyPendingServerRefresh() {
+        const { labels, budgets } = this._pendingServerRefresh;
+        if ((!labels && !budgets) || this._isUserEditing()) return;
+        this._pendingServerRefresh = { labels: false, budgets: false };
+        this.refreshSidebar().catch(e => console.warn('[App] Rafraîchissement de fond :', e));
+        this.updateAutopilotBadge();
+        if (labels) {
+            window.dispatchEvent(new CustomEvent('transactions_updated'));
+        } else if (this.currentView === 'overview' && window.OverviewView) {
+            // Ni les jauges ni les opérations n'ont changé : pas d'animation rejouée
+            window.OverviewView._renderAutopilotWidget().catch(() => {});
+        } else if (this.currentView === 'budgets' || this.currentView === 'autopilot') {
+            this.refreshActiveView().catch(e => console.warn('[App] Rafraîchissement de fond :', e));
+        }
+    }
 
     _initGlobalSyncWatcher() {
         if (this._syncWatcherTimer) return;
@@ -725,10 +751,13 @@ class App {
 
                 this._isSyncRunning = currentIsSyncing;
 
-                // Relevé planifié ou lancé ailleurs : l'IA a complété des opérations après coup
-                const refinedAt = status.labels_refined_at || null;
-                const labelsRefined = Boolean(this._lastLabelsRefinedAt && refinedAt && refinedAt !== this._lastLabelsRefinedAt);
-                this._lastLabelsRefinedAt = refinedAt || this._lastLabelsRefinedAt;
+                // Changements faits côté serveur, sans passer par ce navigateur
+                const markers = { labels: status.labels_refined_at || null, budgets: status.background_changed_at || null };
+                if (this._serverMarkers) {
+                    if (markers.labels && markers.labels !== this._serverMarkers.labels) this._pendingServerRefresh.labels = true;
+                    if (markers.budgets && markers.budgets !== this._serverMarkers.budgets) this._pendingServerRefresh.budgets = true;
+                }
+                this._serverMarkers = markers;
 
                 const execChanged = (this._lastSyncExecutionAt && currentLastExec && this._lastSyncExecutionAt !== currentLastExec);
                 // La date du relevé avance dès son lancement et après chaque banque : tant qu'il tourne, rien n'est terminé
@@ -736,6 +765,7 @@ class App {
 
                 if (syncJustCompleted) {
                     this._lastSyncExecutionAt = currentLastExec;
+                    this._pendingServerRefresh = { labels: false, budgets: false };
                     console.info('[App] Synchronisation automatique terminée détectée. Actualisation réactive globale (Zero F5)...');
 
                     window.dispatchEvent(new CustomEvent('bank_sync_completed'));
@@ -761,9 +791,8 @@ class App {
                     }
                 } else if (!this._lastSyncExecutionAt && currentLastExec) {
                     this._lastSyncExecutionAt = currentLastExec;
-                } else if (labelsRefined && !currentIsSyncing) {
-                    window.dispatchEvent(new CustomEvent('transactions_updated'));
-                    this.updateAutopilotBadge();
+                } else if (!currentIsSyncing) {
+                    this._applyPendingServerRefresh();
                 }
 
                 if (remSec !== null && remSec <= 0 && status.is_enabled && status.bank_auto_sync_enabled && status.vault_unlocked && !currentIsSyncing) {

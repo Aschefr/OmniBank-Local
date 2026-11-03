@@ -1243,7 +1243,7 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
 
     last_bank_sync_str = max(bank_sync_timestamps).isoformat() if bank_sync_timestamps else None
     labels_refined = db.query(GlobalConfig).filter(GlobalConfig.key == "bank_labels_refined_at").first()
-    labels_refined = db.query(GlobalConfig).filter(GlobalConfig.key == "bank_labels_refined_at").first()
+    background_changed = db.query(GlobalConfig).filter(GlobalConfig.key == "background_changed_at").first()
 
     exec_timestamps = list(bank_sync_timestamps)
     if latest_decision and latest_decision.created_at:
@@ -1328,6 +1328,7 @@ def get_autopilot_status(db: Session, profile_id: Optional[str] = None) -> Dict[
         "is_syncing": is_syncing,
         "last_bank_sync_at": last_bank_sync_str,
         "labels_refined_at": labels_refined.value if labels_refined else None,
+        "background_changed_at": background_changed.value if background_changed else None,
         "last_execution_at": last_execution_str,
         "next_execution_at": next_execution_at,
         "next_execution_type": next_execution_type,

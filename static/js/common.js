@@ -220,6 +220,7 @@ const API = {
             fetchOptions.body = JSON.stringify(data);
         }
         const res = await fetch(targetUrl, fetchOptions);
+        this._invalidateInflight(); // une lecture lancée pendant l'écriture a pu lire l'état d'avant
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -244,6 +245,7 @@ const API = {
             fetchOptions.body = JSON.stringify(data);
         }
         const res = await fetch(targetUrl, fetchOptions);
+        this._invalidateInflight(); // une lecture lancée pendant l'écriture a pu lire l'état d'avant
         if (!res.ok) await _handleApiError(res);
         const json = await res.json();
         if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -268,6 +270,7 @@ const API = {
             options.body = JSON.stringify(data);
         }
         const res = await fetch(targetUrl, options);
+        this._invalidateInflight(); // une lecture lancée pendant l'écriture a pu lire l'état d'avant
         if (!res.ok) await _handleApiError(res);
         if (res.status === 204) {
             if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
@@ -298,6 +301,7 @@ const API = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        this._invalidateInflight(); // une lecture lancée pendant l'écriture a pu lire l'état d'avant
         if (!res.ok) await _handleApiError(res);
         if (res.status === 204) {
             if (window.app && typeof window.app.updateHeaderHistoryState === 'function') {
