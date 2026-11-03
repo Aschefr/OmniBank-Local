@@ -27,8 +27,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                             <button type="button" role="menuitem" onclick="window.BudgetsView.openDisplayPrefs()">
                                 ${this._bvIcon('pin')}<span>${window.i18n.t('bv_prefs_menu') || "Personnaliser l'affichage"}</span>
                             </button>
-                            <button type="button" role="menuitem" class="bv-tools-danger" onclick="window.BudgetsView.showBulkDeleteModal()">
-                                ${this._bvIcon('trash')}<span>${this._stripEmoji(window.i18n.t('budget_btn_bulk_delete') || 'Nettoyer')}</span>
+                            <button type="button" role="menuitem" class="bv-tools-danger" onclick="window.BudgetsView.openBulkDelete()">
+                                ${this._bvIcon('trash')}<span>${window.i18n.t('budget_btn_bulk_delete') || 'Supprimer plusieurs enveloppes…'}</span>
                             </button>
                         </div>
                     </div>
@@ -38,42 +38,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </div>
             </div>
 
-            <!-- Inline Bulk Delete Panel -->
-            <div id="budgetBulkDeletePanel" style="display:none;margin-bottom:24px;background:var(--bg-surface);border:1px solid #ef4444;border-radius:12px;padding:20px;box-shadow:0 4px 12px rgba(239,68,68,0.15);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <strong style="color:#ef4444;font-size:15px;" data-i18n="budget_bulk_delete_title">${window.i18n.t('budget_bulk_delete_title') || 'Suppression groupée d\'enveloppes'}</strong>
-                    <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;" onclick="window.BudgetsView.closeBulkDeleteModal()">✕</button>
-                </div>
-                <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;" data-i18n="budget_bulk_delete_prompt">${window.i18n.t('budget_bulk_delete_prompt') || 'Choisissez la catégorie d\'enveloppes à supprimer :'}</p>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:var(--bg-base);padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);">
-                        <input type="radio" name="bulkDeleteType" value="monthly" checked>
-                        <span data-i18n="budget_bulk_delete_type_monthly">${window.i18n.t('budget_bulk_delete_type_monthly') || 'Enveloppes mensuelles'}</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:var(--bg-base);padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);">
-                        <input type="radio" name="bulkDeleteType" value="yearly">
-                        <span data-i18n="budget_bulk_delete_type_yearly">${window.i18n.t('budget_bulk_delete_type_yearly') || 'Enveloppes annuelles'}</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:var(--bg-base);padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);">
-                        <input type="radio" name="bulkDeleteType" value="project">
-                        <span data-i18n="budget_bulk_delete_type_project">${window.i18n.t('budget_bulk_delete_type_project') || 'Projets'}</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:var(--bg-base);padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);">
-                        <input type="radio" name="bulkDeleteType" value="savings">
-                        <span data-i18n="budget_bulk_delete_type_savings">${window.i18n.t('budget_bulk_delete_type_savings') || 'Tirelires d\'épargne'}</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;background:var(--bg-base);padding:8px 12px;border-radius:8px;border:1px solid #ef4444;color:#ef4444;font-weight:600;">
-                        <input type="radio" name="bulkDeleteType" value="all">
-                        <span data-i18n="budget_bulk_delete_type_all">${window.i18n.t('budget_bulk_delete_type_all') || '⚠️ TOUTES LES ENVELOPPES'}</span>
-                    </label>
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <button id="btnConfirmBulkDelete" class="btn" style="background:#ef4444;color:white;border:none;padding:8px 16px;font-size:13px;font-weight:600;" onclick="window.BudgetsView.confirmBulkDelete()" data-i18n="budget_bulk_delete_confirm">${window.i18n.t('budget_bulk_delete_confirm') || 'Confirmer la suppression'}</button>
-                    <button class="btn btn-secondary" onclick="window.BudgetsView.closeBulkDeleteModal()" data-i18n="budget_bulk_delete_cancel">${window.i18n.t('budget_bulk_delete_cancel') || 'Annuler'}</button>
-                </div>
-            </div>
-
-            <!-- Compact Minimized Strip for AI Suggestions (when temporarily hidden) -->
             <!-- Status this month -->
             <div id="budgetStatusContainer" style="margin-bottom:30px;"></div>
 
@@ -462,7 +426,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (open) {
             const close = (e) => {
                 if (e.type === 'keydown' && e.key !== 'Escape') return;
-                if (e.type === 'click' && menu.contains(e.target)) return;
                 menu.setAttribute('hidden', '');
                 btn.setAttribute('aria-expanded', 'false');
                 document.removeEventListener('click', close);
@@ -510,6 +473,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             long: spending.filter(b => !b.is_project && b.period === 'indefinite').sort(byUrgency),
             projects: spending.filter(b => b.is_project).sort(byUrgency),
         };
+        this._envGroups = { ...groups, savings: savingsBudgets };
 
         // ── Barre de période (enveloppes mensuelles : cycle de paie ou mois) ──
         const hasMonthly = groups.cycle.length > 0 || groups.fixed.some(isMonthly);
