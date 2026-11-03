@@ -529,7 +529,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                                 </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                                ${window.i18n.t('budget_auto_create_desc') || 'Crée automatiquement les enveloppes pour les nouvelles catégories régulières détectées, sans confirmation préalable.'}
+                                                ${window.i18n.t('budget_auto_create_desc') || 'Crée automatiquement les enveloppes des catégories régulières détectées, sans confirmation, y compris les propositions en attente. Une catégorie que vous retirez d\'une enveloppe revient comme simple proposition.'}
                                             </div>
                                         </div>
                                     </label>
@@ -849,11 +849,20 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             budget_minimum_threshold: String(minThresholdVal),
         };
 
+        const autoCreateTurnedOn = payload.auto_create_budget_envelopes === 'true' && !autoCreateChk.defaultChecked;
+
         try {
             await API.post('/api/config/', payload);
             showToast(window.i18n.t('budget_toast_automations_saved') || 'Paramètres des automatismes budgétaires enregistrés', 'success');
             const modal = document.getElementById('budgetAutomationsModal');
             if (modal) modal.remove();
+
+            // L'auto-création s'applique tout de suite, y compris aux propositions déjà en attente
+            if (autoCreateTurnedOn) {
+                const res = await API.post('/api/budgets/autopilot/auto-create/activate');
+                this._toastAutoApplied(res.auto_applied);
+                await Promise.all([this.loadBudgets(), this.loadAllStatuses()]);
+            }
 
             // Recharger immédiatement les suggestions pour mettre à jour le bandeau et la liste
             if (window.BudgetsView && typeof window.BudgetsView.loadAutopilotSuggestions === 'function') {
@@ -864,6 +873,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             console.error('[Budgets] Erreur sauvegarde config automatismes:', err);
             showToast(window.i18n.t('budget_toast_automations_error') || 'Erreur de sauvegarde des automatismes', 'error');
         }
+    },
+
+    _toastAutoApplied(applied) {
+        const count = applied?.length || 0;
+        if (!count) return false;
+        showToast((window.i18n.t('budget_auto_toast_auto_applied') || '{count} enveloppe(s) créée(s) ou complétée(s) sans validation').replace('{count}', count), 'success');
+        return true;
     },
 
     async triggerAutopilotAnalysis(engine = null) {
@@ -912,7 +928,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             this._isAiAnalyzing = false;
 
             const total = (res.new_envelopes?.length || 0) + (res.recalibrations?.length || 0);
-            if (total > 0) {
+            const autoApplied = this._toastAutoApplied(res.auto_applied);
+            if (autoApplied && !total) {
+                // Le message de l'auto-création suffit
+            } else if (total > 0) {
                 showToast((window.i18n.t('budget_auto_ai_toast_found') || '{count} recommandation(s) budgétaire(s) identifiée(s)').replace('{count}', total), 'success');
             } else {
                 showToast(window.i18n.t('budget_auto_ai_toast_none') || 'Aucun ajustement ni nouvelle enveloppe nécessaire pour le moment.', 'info');
