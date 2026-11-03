@@ -966,44 +966,103 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
-    showBulkDeleteModal() {
-        const panel = document.getElementById('budgetBulkDeletePanel');
-        if (panel) {
-            const isHidden = panel.style.display === 'none' || !panel.style.display;
-            panel.style.display = isHidden ? 'block' : 'none';
-        }
+    // Suppression groupée : un choix par groupe de la page, rien de coché au départ, le total sur le bouton
+    openBulkDelete() {
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (x) => String(x ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const g = this._envGroups || {};
+        const groups = [
+            ['cycle', this.periodInfo?.kind === 'cycle' ? t('bv_section_cycle', 'Dépenses du cycle') : t('bv_section_month', 'Dépenses du mois'), g.cycle],
+            ['yearly', t('bv_section_yearly', 'Enveloppes annuelles'), g.yearly],
+            ['fixed', t('bv_section_fixed', 'Charges prévues'), g.fixed],
+            ['dated', t('bv_section_dated', 'Enveloppes datées'), g.dated],
+            ['long', t('bv_section_long', 'Suivis long terme'), g.long],
+            ['projects', t('bv_section_projects', 'Projets'), g.projects],
+            ['savings', t('budget_savings_section', 'Tirelires'), g.savings],
+        ].filter(([, , list]) => list && list.length);
+        const total = groups.reduce((n, [, , list]) => n + list.length, 0);
+        const names = (list) => {
+            const shown = list.slice(0, 3).map(b => esc(b.name)).join(', ');
+            return list.length > 3 ? `${shown} +${list.length - 3}` : shown;
+        };
+
+        document.getElementById('bvBulkModal')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'bvBulkModal';
+        overlay.className = 'bv-modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+            <div class="bv-modal-panel bv-bulk" role="dialog" aria-modal="true" aria-labelledby="bvBulkTitle">
+                <div class="bv-modal-header">
+                    <h3 id="bvBulkTitle">${t('bv_bulk_title', 'Supprimer plusieurs enveloppes')}</h3>
+                    <button type="button" class="bv-icon-btn" data-close aria-label="${t('btn_close', 'Fermer')}">${this._bvIcon('close', 18)}</button>
+                </div>
+                ${total ? `
+                <p class="bv-bulk-hint">${t('bv_bulk_hint', 'Vos opérations ne sont pas touchées : seules les enveloppes disparaissent.')}</p>
+                <div class="bv-bulk-list">
+                    <label class="bv-bulk-row bv-bulk-all">
+                        <input type="checkbox" id="bvBulkAll">
+                        <span class="bv-bulk-text"><strong>${t('bv_bulk_all', 'Toutes les enveloppes')}</strong></span>
+                        <span class="bv-fold-count">${total}</span>
+                    </label>
+                    ${groups.map(([key, label, list]) => `
+                    <label class="bv-bulk-row">
+                        <input type="checkbox" data-group="${key}">
+                        <span class="bv-bulk-text"><strong>${esc(label)}</strong><span>${names(list)}</span></span>
+                        <span class="bv-fold-count">${list.length}</span>
+                    </label>`).join('')}
+                </div>
+                <p id="bvBulkWarn" class="bv-bulk-warn" hidden>${this._bvIcon('alert', 14)}<span>${t('bv_bulk_savings_warn', 'Les dépôts et retraits de ces tirelires sont supprimés avec elles.')}</span></p>
+                ` : `<p class="bv-bulk-hint">${t('budget_no_active', 'Aucune enveloppe budgétaire active.')}</p>`}
+                <div class="bv-modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close>${t('budget_btn_cancel', 'Annuler')}</button>
+                    ${total ? `<button type="button" id="bvBulkConfirm" class="btn btn-danger" disabled>${t('bv_bulk_btn_none', 'Supprimer')}</button>` : ''}
+                </div>
+            </div>`;
+
+        const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        const boxes = () => [...overlay.querySelectorAll('input[data-group]')];
+        const selectedIds = () => boxes().filter(x => x.checked)
+            .flatMap(x => groups.find(([key]) => key === x.dataset.group)[2].map(b => b.id));
+        const refresh = () => {
+            const n = selectedIds().length;
+            const all = overlay.querySelector('#bvBulkAll');
+            const checked = boxes().filter(x => x.checked).length;
+            all.checked = checked === boxes().length;
+            all.indeterminate = checked > 0 && !all.checked;
+            const btn = overlay.querySelector('#bvBulkConfirm');
+            btn.disabled = n === 0;
+            btn.textContent = n === 0 ? t('bv_bulk_btn_none', 'Supprimer')
+                : (n > 1 ? t('bv_bulk_btn_many', 'Supprimer {count} enveloppes') : t('bv_bulk_btn_one', 'Supprimer {count} enveloppe')).split('{count}').join(n);
+            overlay.querySelector('#bvBulkWarn').hidden = !boxes().some(x => x.checked && x.dataset.group === 'savings');
+        };
+        overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.closest('[data-close]')) close(); });
+        overlay.addEventListener('change', (e) => {
+            if (e.target.id === 'bvBulkAll') boxes().forEach(x => { x.checked = e.target.checked; });
+            refresh();
+        });
+        overlay.querySelector('#bvBulkConfirm')?.addEventListener('click', (e) => window.withButtonLoading(e.currentTarget, async () => {
+            try {
+                const res = await API.post('/api/budgets/bulk_delete', { budget_ids: selectedIds() });
+                close();
+                await this._reloadAfterBulkDelete();
+                const n = res.deleted_count;
+                const msg = (n > 1 ? t('bv_bulk_done_many', '{count} enveloppes supprimées') : t('bv_bulk_done_one', '{count} enveloppe supprimée')).split('{count}').join(n);
+                showUndoToast(msg, res.action_id, () => this._reloadAfterBulkDelete());
+            } catch (err) {
+                showInlineMessage(t('title_error', 'Erreur'), err.message);
+            }
+        }));
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-close]')?.focus();
     },
 
-    closeBulkDeleteModal() {
-        const panel = document.getElementById('budgetBulkDeletePanel');
-        if (panel) panel.style.display = 'none';
-    },
-
-    async confirmBulkDelete() {
-        const selected = document.querySelector('input[name="bulkDeleteType"]:checked')?.value || 'spending';
-        const btn = document.getElementById('btnConfirmBulkDelete');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin" style="width:14px;height:14px;margin-right:6px;display:inline-block;vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ${window.i18n.t('budget_bulk_delete_confirm') || 'En cours...'}`;
-        }
-
-        try {
-            const res = await API.post('/api/budgets/bulk_delete', { target_type: selected });
-            this.closeBulkDeleteModal();
-            await this.loadBudgets();
-            if (typeof this.loadAutopilotSuggestions === 'function') {
-                await this.loadAutopilotSuggestions();
-            }
-            await this.loadStatus();
-            window.app.refreshSidebar();
-            showInlineMessage(window.i18n.t('title_info'), `${res.deleted_count} enveloppe(s) supprimée(s).`);
-        } catch(e) {
-            showInlineMessage(window.i18n.t('title_error'), e.message || 'Erreur lors de la suppression.');
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = window.i18n.t('budget_bulk_delete_confirm') || 'Confirmer la suppression';
-            }
-        }
+    async _reloadAfterBulkDelete() {
+        await this.loadBudgets();
+        if (typeof this.loadAutopilotSuggestions === 'function') await this.loadAutopilotSuggestions();
+        await this.loadStatus();
+        window.app.refreshSidebar();
     }
 });

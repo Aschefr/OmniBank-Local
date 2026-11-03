@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, or_
 from fastapi import HTTPException
 from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Account, GlobalConfig, AutopilotDecisionLog
-from app.services.history_service import record_action, snapshot_entity
+from app.services.history_service import delete_budgets, record_action, snapshot_entity
 from app.services.stats_utils import winsorize_values
 
 logger = logging.getLogger(__name__)
@@ -456,6 +456,7 @@ def delete_single_budget(budget_id: int, db: Session) -> dict:
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
     old_snapshot = snapshot_entity(b, db)
+    old_snapshot["_allocations"] = [snapshot_entity(x) for x in db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).all()]
     db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
     db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).delete()
     # Clôturer automatiquement toute suggestion de recalibrage en attente visant ce budget
@@ -469,44 +470,18 @@ def delete_single_budget(budget_id: int, db: Session) -> dict:
     db.commit()
     return {"ok": True, "action_id": action_id}
 
-def bulk_delete_budgets_by_type(target_type: str, db: Session) -> dict:
-    query = db.query(Budget).filter(Budget.is_closed == False)
-    if target_type == "monthly":
-        query = query.filter(Budget.is_project == False, (Budget.envelope_type == "spending") | (Budget.envelope_type == None), (Budget.period == "monthly") | (Budget.period == None))
-    elif target_type == "yearly":
-        query = query.filter(Budget.is_project == False, (Budget.envelope_type == "spending") | (Budget.envelope_type == None), Budget.period == "yearly")
-    elif target_type == "spending":
-        query = query.filter(Budget.is_project == False, (Budget.envelope_type == "spending") | (Budget.envelope_type == None))
-    elif target_type == "project":
-        query = query.filter(Budget.is_project == True)
-    elif target_type == "savings":
-        query = query.filter(Budget.envelope_type == "savings")
-    elif target_type == "all":
-        pass
-    else:
-        raise HTTPException(status_code=400, detail="Type d'enveloppe invalide.")
-
-    budgets_to_delete = query.all()
-    deleted_count = len(budgets_to_delete)
-    if not budgets_to_delete:
-        return {"ok": True, "deleted_count": 0}
-
-    budget_ids = [b.id for b in budgets_to_delete]
-    db.query(BudgetCategory).filter(BudgetCategory.budget_id.in_(budget_ids)).delete(synchronize_session=False)
-    db.query(BudgetAllocation).filter(BudgetAllocation.budget_id.in_(budget_ids)).delete(synchronize_session=False)
-    # Clôturer automatiquement toute suggestion de recalibrage en attente visant ces budgets
-    db.query(AutopilotDecisionLog).filter(
-        AutopilotDecisionLog.decision_type == "budget_suggestion",
-        AutopilotDecisionLog.action == "SUGGESTED",
-        AutopilotDecisionLog.entity_id.in_(budget_ids),
-    ).update({"action": "DISMISSED"}, synchronize_session=False)
-    for b in budgets_to_delete:
-        old_snapshot = snapshot_entity(b, db)
-        record_action(db, "budget", b.id, "DELETE", old_snapshot, None)
-        db.delete(b)
-
+def bulk_delete_budgets(db: Session, budget_ids: list) -> dict:
+    """Supprime les enveloppes choisies en une seule action d'historique : Annuler les restaure toutes."""
+    budgets = db.query(Budget).filter(Budget.id.in_(budget_ids or [])).all()
+    if not budgets:
+        return {"ok": True, "deleted_count": 0, "action_id": None}
+    snapshots = delete_budgets(db, budgets)
+    count = len(snapshots)
+    label = snapshots[0]["name"] if count == 1 else f"{count} enveloppes"
+    action_id = record_action(db, "budget_bulk", 0, "DELETE", {"name": label, "budgets": snapshots}, None)
     db.commit()
-    return {"ok": True, "deleted_count": deleted_count}
+    return {"ok": True, "deleted_count": count, "action_id": action_id}
+
 
 def get_budget_status_data(year: int = None, month: int = None, date_start: str = None, date_end: str = None, period_filter: str = None, db: Session = None, cycle_offset: Optional[int] = None):
     """Consommation des enveloppes. cycle_offset (sans dates explicites) : les enveloppes mensuelles suivent

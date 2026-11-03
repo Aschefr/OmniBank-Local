@@ -56,7 +56,7 @@ class AllocationCreate(BaseModel):
 
 
 class BulkDeleteRequest(BaseModel):
-    target_type: str  # "monthly", "yearly", "spending", "project", "savings", "all"
+    budget_ids: List[int]
 
 
 class AiSuggestRequest(BaseModel):
@@ -141,14 +141,14 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
 @router.post("/bulk_delete")
 def bulk_delete_budgets(data: BulkDeleteRequest, db: Session = Depends(get_db)):
     try:
-        result = budget_service.bulk_delete_budgets_by_type(data.target_type, db)
+        result = budget_service.bulk_delete_budgets(db, data.budget_ids)
         stats_cache.invalidate()
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[Budgets Router] Erreur lors de la suppression en masse ({data.target_type}): {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erreur serveur lors du nettoyage : {str(e)}")
+        logger.error(f"[Budgets Router] Erreur lors de la suppression groupée: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erreur serveur lors de la suppression : {str(e)}")
 
 
 # ─── Status & Details Endpoints ───────────────────────────────────────────────

@@ -182,6 +182,56 @@ def record_action(db, entity_type: str, entity_id: int, action_type: str, previo
     db.flush()
     return history_entry.id
 
+def delete_budgets(db, budgets) -> list:
+    """Supprime des enveloppes et renvoie de quoi les restaurer entièrement : catégories, dépôts et retraits,
+    suggestions de recalibrage en attente (écartées avec elles)."""
+    snapshots = []
+    for b in budgets:
+        snap = snapshot_entity(b, db)
+        snap["_allocations"] = [snapshot_entity(a) for a in db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == b.id).all()]
+        pending = db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.decision_type == "budget_suggestion",
+            AutopilotDecisionLog.action == "SUGGESTED",
+            AutopilotDecisionLog.entity_id == b.id,
+        ).all()
+        snap["_dismissed_suggestions"] = [d.id for d in pending]
+        for d in pending:
+            d.action = "DISMISSED"
+        db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).delete(synchronize_session=False)
+        db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == b.id).delete(synchronize_session=False)
+        db.delete(b)
+        snapshots.append(snap)
+    db.flush()
+    return snapshots
+
+
+def _restore_allocations(db, budget_id: int, allocations) -> None:
+    for snap in allocations or []:
+        alloc = BudgetAllocation()
+        restore_state(alloc, snap)
+        alloc.budget_id = budget_id
+        if db.query(BudgetAllocation).filter(BudgetAllocation.id == alloc.id).first():
+            alloc.id = None
+        db.add(alloc)
+
+
+def restore_deleted_budget(db, snap: dict) -> int:
+    """Recrée une enveloppe supprimée par delete_budgets ; renvoie son id (un autre si le sien a été repris)."""
+    entity = Budget()
+    restore_state(entity, {k: v for k, v in snap.items() if not k.startswith("_")})
+    if db.query(Budget).filter(Budget.id == entity.id).first():
+        entity.id = None
+    db.add(entity)
+    db.flush()
+    for name in snap.get("_categories") or []:
+        db.add(BudgetCategory(budget_id=entity.id, category_name=name))
+    _restore_allocations(db, entity.id, snap.get("_allocations"))
+    ids = snap.get("_dismissed_suggestions") or []
+    if ids:
+        db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id.in_(ids)).update({"action": "SUGGESTED"}, synchronize_session=False)
+    return entity.id
+
+
 def _restore_global_configs(db, state: dict, is_undo: bool):
     """Restore GlobalConfig rows from a composite snapshot (paycheck_override)."""
     if not state:
@@ -208,6 +258,15 @@ def undo_action(db, action: ActionHistory):
     if action.entity_type == "paycheck_override":
         prev = json.loads(action.previous_state) if action.previous_state else {}
         _restore_global_configs(db, prev, is_undo=True)
+        action.is_undone = True
+        db.flush()
+        return True, None
+
+    if action.entity_type == "budget_bulk":
+        prev = json.loads(action.previous_state) if action.previous_state else {}
+        for snap in prev.get("budgets", []):
+            snap["id"] = restore_deleted_budget(db, snap)
+        action.previous_state = json.dumps(prev, default=default_serializer)
         action.is_undone = True
         db.flush()
         return True, None
@@ -370,6 +429,9 @@ def undo_action(db, action: ActionHistory):
         restore_state(new_entity, prev_state, db)
         new_entity.id = action.entity_id
         db.add(new_entity)
+        if action.entity_type == "budget":
+            db.flush()
+            _restore_allocations(db, action.entity_id, prev_state.get("_allocations"))
 
         # Set warnings for cascading deletions
         if action.entity_type == "category":
@@ -436,6 +498,14 @@ def redo_action(db, action: ActionHistory):
     if action.entity_type == "paycheck_override":
         new_st = json.loads(action.new_state) if action.new_state else {}
         _restore_global_configs(db, new_st, is_undo=False)
+        action.is_undone = False
+        db.flush()
+        return True, None
+
+    if action.entity_type == "budget_bulk":
+        prev = json.loads(action.previous_state) if action.previous_state else {}
+        ids = [s.get("id") for s in prev.get("budgets", [])]
+        delete_budgets(db, db.query(Budget).filter(Budget.id.in_(ids)).all())
         action.is_undone = False
         db.flush()
         return True, None
@@ -546,6 +616,9 @@ def redo_action(db, action: ActionHistory):
                     Transaction.recurrence_id == action.entity_id,
                     Transaction.reconciliation_date == None
                 ).delete()
+            elif action.entity_type == "budget":
+                db.query(BudgetCategory).filter(BudgetCategory.budget_id == action.entity_id).delete(synchronize_session=False)
+                db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == action.entity_id).delete(synchronize_session=False)
             db.delete(entity)
         else:
             return False, "Entity to delete not found"
