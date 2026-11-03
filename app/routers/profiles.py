@@ -331,6 +331,13 @@ def api_lock_session(request: Request, response: Response):
     return {"ok": True}
 
 
+@router.post("/session-ticket")
+def api_session_ticket(request: Request):
+    """Ticket à usage unique pour les URL ouvertes hors fetch (EventSource, téléchargements, navigateur externe)."""
+    token = pin_session.get_request_token(request)
+    return {"ticket": pin_session.create_ticket(token) if token else None}
+
+
 @router.post("/{profile_id}/pin/recover")
 def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, response: Response):
     """PIN oublié : réinitialise (ou supprime) le PIN grâce au code de récupération, puis active le profil."""

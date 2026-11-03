@@ -475,7 +475,7 @@ Object.assign(window.BankSyncView, {
         this.startSyncStream(connId, pw !== "__USE_VAULT_TOKEN__" ? pw : null);
     },
 
-    startSyncStream(connId, masterPassword) {
+    async startSyncStream(connId, masterPassword) {
         const progressModal = document.getElementById('syncProgressModal');
         const progressTitle = document.getElementById('syncProgressTitle');
         const progressMsg = document.getElementById('syncProgressMsg');
@@ -488,7 +488,7 @@ Object.assign(window.BankSyncView, {
 
         const url = `/api/bank-sync/connections/${connId}/sync-stream?since_days=90`;
 
-        const es = new EventSource(window.API ? window.API.withSession(window.API.fullUrl(url)) : url);
+        const es = new EventSource(window.API ? await window.API.withSession(window.API.fullUrl(url)) : url);
         this.eventSource = es;
 
         es.addEventListener('progress', (e) => {

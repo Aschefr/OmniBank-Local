@@ -147,11 +147,22 @@ const API = {
             else localStorage.removeItem(this.SESSION_KEY);
         } catch (_) {}
     },
-    /** Ajoute le jeton aux URL ouvertes hors fetch (EventSource, téléchargements, nouvel onglet). */
-    withSession(url) {
-        const token = this.getSessionToken();
-        if (!token || !url) return url;
-        return `${url}${url.includes('?') ? '&' : '?'}omni_session=${encodeURIComponent(token)}`;
+    /** URL ouverte hors fetch (EventSource, téléchargements, nouvel onglet) : un ticket à usage unique
+     *  remplace le jeton de session, car une URL finit en clair dans les journaux d'accès. */
+    async withSession(url) {
+        if (!url || !this.getSessionToken()) return url;
+        try {
+            const res = await fetch(this.fullUrl('/api/profiles/session-ticket'), { method: 'POST', silent: true });
+            const { ticket } = await res.json();
+            if (ticket) return `${url}${url.includes('?') ? '&' : '?'}omni_ticket=${encodeURIComponent(ticket)}`;
+        } catch (_) {}
+        return url;
+    },
+    /** L'onglet s'ouvre avant l'attente du ticket : après coup, le navigateur pourrait le bloquer. */
+    async openWithSession(url) {
+        const tab = window.open('', '_blank');
+        const target = await this.withSession(url);
+        if (tab) tab.location.href = target;
     },
     fullUrl(endpoint) {
         const base = this.getBaseUrl();

@@ -53,6 +53,41 @@ def test_header_token_unlocks_and_lock_revokes(protected_profile):
     assert other.get("/api/accounts/", headers=headers).status_code == 401
 
 
+def test_ticket_works_once_without_exposing_the_token(protected_profile):
+    prof, _ = protected_profile
+    client = TestClient(app)
+    token = _unlock(client, prof["id"])
+    headers = {pin_session.SESSION_HEADER: token}
+    ticket = TestClient(app).post("/api/profiles/session-ticket", headers=headers).json()["ticket"]
+    assert ticket and ticket != token
+
+    url = f"/api/accounts/?{pin_session.TICKET_QUERY}={ticket}"
+    other = TestClient(app)  # sans cookie : un navigateur externe ou un flux EventSource
+    assert other.get(url).status_code == 200
+    assert other.get(url).status_code == 401
+
+
+def test_ticket_requires_an_unlocked_session(protected_profile):
+    assert TestClient(app).post("/api/profiles/session-ticket").status_code == 401
+
+
+def test_ticket_expires(protected_profile, monkeypatch):
+    prof, _ = protected_profile
+    token = _unlock(TestClient(app), prof["id"])
+    ticket = pin_session.create_ticket(token)
+    now = pin_session.time.time()
+    monkeypatch.setattr(pin_session.time, "time", lambda: now + pin_session.TICKET_TTL_SECONDS + 1)
+    assert TestClient(app).get(f"/api/accounts/?{pin_session.TICKET_QUERY}={ticket}").status_code == 401
+
+
+def test_ticket_stops_working_when_session_is_revoked(protected_profile):
+    prof, _ = protected_profile
+    token = _unlock(TestClient(app), prof["id"])
+    ticket = pin_session.create_ticket(token)
+    pin_session.revoke(token)
+    assert TestClient(app).get(f"/api/accounts/?{pin_session.TICKET_QUERY}={ticket}").status_code == 401
+
+
 def test_cookie_session_works_for_same_origin(protected_profile):
     prof, _ = protected_profile
     client = TestClient(app)

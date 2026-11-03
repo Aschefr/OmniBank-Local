@@ -49,13 +49,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
     },
 
     async _downloadCSV(endpoint) {
-        const downloadUrl = API.withSession(`${window.location.origin}${endpoint}`);
-
         // In Tauri WebView, blob downloads don't work — open in system browser
         if (window.__TAURI_INTERNALS__) {
             showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
             try {
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(`${window.location.origin}${endpoint}`) });
             } catch (e) {
                 console.error(e);
             }
@@ -63,7 +61,12 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
 
         // Fallback for regular browser (dev mode)
-        window.open(API.withSession(endpoint), '_blank');
+        const a = document.createElement('a');
+        a.href = await API.withSession(endpoint);
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     },
 
     async importRawCSV(event) {
@@ -261,12 +264,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadBackup() {
         try {
-            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/download`);
-
             // In Tauri WebView, blob downloads don't work — open in system browser
             if (window.__TAURI_INTERNALS__) {
                 showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(`${window.location.origin}/api/backup/download`) });
                 return;
             }
 
@@ -948,12 +949,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadAutoBackup(filename) {
         try {
-            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/auto/download/${encodeURIComponent(filename)}`);
-
             // Tauri workaround: blob downloads don't work in WebView
             if (window.__TAURI_INTERNALS__) {
                 showToast(window.i18n.t('msg_backup_browser') || 'Download opening in your browser...', 'info', 4000);
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(`${window.location.origin}/api/backup/auto/download/${encodeURIComponent(filename)}`) });
                 return;
             }
 
@@ -981,12 +980,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
     async downloadAllProfilesBackup() {
         try {
-            const downloadUrl = API.withSession(`${window.location.origin}/api/backup/download-all`);
-
             // In Tauri WebView, blob downloads don't work — open in system browser
             if (window.__TAURI_INTERNALS__) {
                 showToast(window.i18n.t('msg_backup_browser') || 'Le téléchargement s\'ouvre dans votre navigateur...', 'info', 4000);
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: downloadUrl });
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(`${window.location.origin}/api/backup/download-all`) });
                 return;
             }
 
