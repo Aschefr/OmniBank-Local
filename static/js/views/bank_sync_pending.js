@@ -1057,6 +1057,16 @@ Object.assign(window.BankSyncView, {
         }
     },
 
+    async _firstStatementNeeded(connId) {
+        const conns = await API.get('/api/bank-sync/connections').catch(() => []);
+        const mapped = (conns || []).filter(c => c.is_active
+            && (!connId || connId === -1 || c.id === connId)
+            && c.account_mapping && !['{}', 'null'].includes(c.account_mapping.trim()));
+        // Une tentative toute récente sans résultat : cliquer de nouveau ne doit pas rappeler la banque en boucle
+        const recent = c => c.last_sync_at && Date.now() - new Date(c.last_sync_at).getTime() < this.COOLDOWN_MS;
+        return mapped.length > 0 && !mapped.some(recent);
+    },
+
     async openLastStatementModal(connId = null) {
         if (this._isOpeningPendingReview) return;
         this._isOpeningPendingReview = true;
@@ -1075,6 +1085,12 @@ Object.assign(window.BankSyncView, {
             const hasPend = pendingData && pendingData.accounts && pendingData.accounts.length > 0;
 
             if (!hasStmt && !hasPend) {
+                // Aucune copie à montrer : le seul cas où consulter justifie un vrai relevé
+                if (await this._firstStatementNeeded(connId)) {
+                    this.showToast(window.i18n.t('bank_sync_first_statement'), 'info');
+                    await this.triggerBackgroundSyncNow();
+                    return;
+                }
                 this.showToast(window.i18n ? window.i18n.t('bank_sync_no_statement_available') || 'Aucun relevé récent enregistré.' : 'Aucun relevé récent enregistré.', 'info');
                 return;
             }

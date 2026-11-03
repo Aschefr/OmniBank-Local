@@ -4,7 +4,7 @@ tests/test_bank_sync_step1.py
 Tests d'intégration et unitaires pour l'Étape 1 de l'Auto-Pilot :
 1. Déverrouillage réactif du coffre (bank_sync_on_vault_unlock = "true")
 2. Déverrouillage passif sans requête réseau (bank_sync_on_vault_unlock = "false")
-3. Cooldown anti-spam de 3 heures (GlobalConfig.last_auto_sync_attempt)
+3. Filet anti-boucle des relevés automatiques (GlobalConfig.last_auto_sync_attempt)
 4. Forçage manuel du relevé (force=True)
 5. Endpoints GET/POST /api/bank-sync/settings/auto-sync
 6. Tri chronologique strict des transactions Woob (history_raw & coming_raw)
@@ -73,9 +73,9 @@ def test_auto_sync_cooldown_initial_state(step1_db):
 
 
 def test_auto_sync_cooldown_activation_and_bypass(step1_db, monkeypatch):
-    """Une exécution active le cooldown 3h. force=False le respecte, force=True le contourne."""
+    """Une tentative automatique arme le filet. force=False le respecte, force=True le contourne."""
     monkeypatch.setenv("OMNIBANK_ENABLE_TEST_BACKGROUND_SYNC", "1")
-    conn = BankConnection(id=1, label="Test Bank", backend="cragr", is_active=True)
+    conn = BankConnection(id=1, label="Test Bank", backend="cragr", is_active=True, account_mapping='{"r1": 1}')
     step1_db.add(conn)
     step1_db.commit()
 
@@ -106,9 +106,9 @@ def test_auto_sync_cooldown_activation_and_bypass(step1_db, monkeypatch):
             db=step1_db
         )
         assert res2["ok"] is True
+        assert res2["nothing_due"] is True
         assert res2["cooldown_active"] is True
         assert res2["remaining_seconds"] > 0
-        assert "cooldown" in res2["message"].lower() or "3h" in res2["message"]
 
         # 3. Forçage explicite avec force=True -> Doit passer outre le cooldown
         res3 = trigger_manual_auto_sync(
@@ -122,11 +122,11 @@ def test_auto_sync_cooldown_activation_and_bypass(step1_db, monkeypatch):
 
 
 def test_auto_sync_cooldown_expiration(step1_db):
-    """Après 3h (10800s), le cooldown expire."""
-    four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=4)
+    """Le filet expire de lui-même."""
+    past = datetime.now(timezone.utc) - timedelta(seconds=AUTO_SYNC_COOLDOWN_SECONDS + 60)
     cfg = GlobalConfig(
         key="last_auto_sync_attempt",
-        value=four_hours_ago.isoformat()
+        value=past.isoformat()
     )
     step1_db.add(cfg)
     step1_db.commit()
@@ -135,7 +135,7 @@ def test_auto_sync_cooldown_expiration(step1_db):
     assert status["cooldown_active"] is False
     assert status["remaining_seconds"] == 0
     assert status["elapsed_seconds"] is not None
-    assert status["elapsed_seconds"] >= 4 * 3600
+    assert status["elapsed_seconds"] >= AUTO_SYNC_COOLDOWN_SECONDS
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -103,10 +103,7 @@ Object.assign(window.BankSyncView, {
                 // Si l'ouverture venait de "Relevé en ligne", ne pas déclencher le relevé passif ici :
                 // triggerBackgroundSyncNow() prend immédiatement le relais avec le forçage manuel.
                 if (!this._pwForSync && res.reactive_sync) {
-                    if (res.reactive_sync.cooldown_active) {
-                        this.showToast(res.reactive_sync.message, 'info');
-                        this._vaultUnlockToastShown = true;
-                    } else if (res.reactive_sync.ok && !res.reactive_sync.skipped_passive_mode) {
+                    if (res.reactive_sync.ok && !res.reactive_sync.skipped_passive_mode && !res.reactive_sync.nothing_due) {
                         const startedMsg = window.i18n ? window.i18n.t('bank_sync_bg_started', 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...') : 'Coffre déverrouillé : relevé bancaire en cours en arrière-plan...';
                         this.showToast(startedMsg, 'info');
                         this._vaultUnlockToastShown = true;
@@ -688,7 +685,8 @@ Object.assign(window.BankSyncView, {
         } else {
             pw = await this.promptMasterPassword(
                 window.i18n ? window.i18n.t('bank_sync_map_btn', 'Association des comptes') : 'Association des comptes',
-                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :'
+                window.i18n ? window.i18n.t('bank_sync_master_pw_modal_msg') : 'Entrez votre mot de passe maître :',
+                { forSync: true } // pas de relevé en plus : il se connecterait à la banque en même temps que cette liste
             );
         }
 

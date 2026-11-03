@@ -1,7 +1,7 @@
 """
 OmniBank-Local — Moteur d'Exécution et d'Orchestration des Relevés Bancaires Automatiques (Auto Sync).
 Gère l'exécution silencieuse en tâche de fond (thread-safe, anti-collision),
-le cooldown anti-spam persistant (3h), la détection 2FA et l'émission
+le filet anti-boucle des relevés automatiques, la détection 2FA et l'émission
 de notifications in-app enrichies.
 """
 
@@ -11,12 +11,11 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import BankConnection, Notification
 from app.services.bank_sync_service import BankSyncService
-from app.services.bank_sync.label_refine import note_deferred_batch, start_label_refinement
 from app.services.bank_sync.label_refine import note_deferred_batch, start_label_refinement
 from app.services.credential_vault import VaultSessionManager
 from app.services.bank_sync.pending_store import (
@@ -36,7 +35,10 @@ TRIGGER_SOURCE_LABELS = {
     "test": "test automatisé"
 }
 
-AUTO_SYNC_COOLDOWN_SECONDS = 3 * 3600  # 3 heures de cooldown anti-spam
+# Filet de sécurité entre deux tentatives automatiques, jamais sur demande explicite. Ce qui décide d'un
+# relevé, c'est due_connections() ; ce délai évite seulement de se reconnecter à la banque en boucle si
+# un plantage empêchait d'enregistrer la date du relevé (risque de blocage du compte).
+AUTO_SYNC_COOLDOWN_SECONDS = 15 * 60
 
 _ACTIVE_BACKGROUND_THREADS: Dict[str, threading.Thread] = {}
 # Avancement du relevé en cours par profil : {"total": int, "done": int, "current": str, "current_started": float}
@@ -44,7 +46,7 @@ _SYNC_PROGRESS: Dict[str, Dict[str, Any]] = {}
 
 
 def get_auto_sync_cooldown_status(db: Session, profile_id: Optional[str] = None) -> Dict[str, Any]:
-    """Retourne l'état du cooldown anti-spam persistant pour un profil donné."""
+    """Retourne l'état du filet anti-boucle des relevés automatiques pour un profil donné."""
     pid = _resolve_profile_id(profile_id)
     last_attempt_str = _get_config_value(db, "last_auto_sync_attempt", "")
     if not last_attempt_str:
@@ -77,18 +79,32 @@ def get_auto_sync_cooldown_status(db: Session, profile_id: Optional[str] = None)
         }
 
 
+def due_connections(db: Session) -> List[BankConnection]:
+    """Connexions pour lesquelles un relevé est nécessaire : associées à des comptes, et jamais
+    relevées ou relevées depuis plus longtemps que l'intervalle choisi. Une tentative en échec compte
+    (last_sync_at est posé) : une banque en panne n'est pas réessayée avant l'intervalle."""
+    interval_hours = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
+    now = datetime.now(timezone.utc)
+    due = []
+    for conn in db.query(BankConnection).filter(BankConnection.is_active == True).all():
+        if not conn.account_mapping or conn.account_mapping.strip() in ("", "{}", "null"):
+            continue
+        last_sync = conn.last_sync_at
+        if last_sync is None:
+            due.append(conn)
+            continue
+        if last_sync.tzinfo is None:
+            last_sync = last_sync.replace(tzinfo=timezone.utc)
+        if (now - last_sync).total_seconds() >= interval_hours * 3600:
+            due.append(conn)
+    return due
+
+
 def is_background_sync_running(profile_id: Optional[str] = None) -> bool:
     """Retourne True si un relevé en arrière-plan est actuellement en cours d'exécution."""
     pid = _resolve_profile_id(profile_id)
     t = _ACTIVE_BACKGROUND_THREADS.get(pid)
     return bool(t and t.is_alive())
-
-
-def _set_sync_phase(profile_id: str, phase: str, account: Optional[str] = None) -> None:
-    """Étape affichée sur le bouton ; sans effet hors d'un relevé suivi (relevé planifié connexion par connexion)."""
-    prog = _SYNC_PROGRESS.get(profile_id)
-    if prog:
-        prog.update(phase=phase, account=account)
 
 
 def _set_sync_phase(profile_id: str, phase: str, account: Optional[str] = None) -> None:
@@ -459,8 +475,10 @@ def trigger_manual_auto_sync(
     trigger_source: str = "manual"
 ) -> Dict[str, Any]:
     """
-    Déclenche un relevé automatique en arrière-plan pour toutes les connexions actives d'un profil.
-    Si force=False, respecte le cooldown anti-spam persistant de 3h (GlobalConfig.last_auto_sync_attempt).
+    Déclenche un relevé en arrière-plan pour un profil.
+    force=True (demande explicite, « Relever en ligne ») : toutes les connexions actives, sans condition.
+    force=False (déverrouillage, planificateur) : uniquement les connexions où c'est nécessaire, voir
+    due_connections() ; sinon rien ne part et le dernier relevé enregistré reste la référence.
     """
     pid = _resolve_profile_id(profile_id)
 
@@ -488,6 +506,7 @@ def trigger_manual_auto_sync(
 
     # 1. Vérifier qu'il existe des connexions actives pour ce profil
     db_check = db or SessionProf()
+    conn_ids = None
     try:
         active_conns = db_check.query(BankConnection).filter(BankConnection.is_active == True).all()
         if not active_conns:
@@ -496,19 +515,28 @@ def trigger_manual_auto_sync(
                 "detail": "Aucune connexion bancaire active pour ce profil."
             }
 
-        # 2. Vérification du cooldown persistant (si non forcé)
+        # 2. Sans demande explicite : seulement si un relevé est nécessaire
         if not force:
+            conn_ids = [c.id for c in due_connections(db_check)]
+            if not conn_ids:
+                return {
+                    "ok": True,
+                    "nothing_due": True,
+                    "cooldown_active": False,
+                    "message": "Aucun relevé nécessaire : le dernier relevé reste valable."
+                }
             cooldown = get_auto_sync_cooldown_status(db_check, pid)
             if cooldown.get("cooldown_active"):
                 remaining = cooldown.get("remaining_seconds", 0)
                 rem_min = remaining // 60
-                logger.info(f"[BankAutoSync] Relevé réactif ignoré par cooldown anti-spam (reste {rem_min} min, profil={pid})")
+                logger.info(f"[BankAutoSync] Tentative automatique trop rapprochée de la précédente (reste {rem_min} min, profil={pid})")
                 return {
                     "ok": True,
+                    "nothing_due": True,
                     "cooldown_active": True,
                     "remaining_seconds": remaining,
                     "elapsed_seconds": cooldown.get("elapsed_seconds"),
-                    "message": f"Relevé récent effectué il y a moins de 3h. Prochain relevé auto disponible dans {rem_min} min."
+                    "message": f"Nouvelle tentative automatique possible dans {rem_min} min."
                 }
     finally:
         if not db:
@@ -538,9 +566,10 @@ def trigger_manual_auto_sync(
         import time
         worker_db = SessionProf()
         try:
-            active_conns = worker_db.query(BankConnection).filter(
-                BankConnection.is_active == True
-            ).all()
+            conn_query = worker_db.query(BankConnection).filter(BankConnection.is_active == True)
+            if conn_ids is not None:
+                conn_query = conn_query.filter(BankConnection.id.in_(conn_ids))
+            active_conns = conn_query.all()
             logger.info(f"[BankAutoSync] Relevé en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid}, force={force}, source={trigger_source})")
             _SYNC_PROGRESS[pid] = {"total": len(active_conns), "done": 0, "current": None, "current_started": None}
             for idx, conn in enumerate(active_conns):
@@ -556,8 +585,6 @@ def trigger_manual_auto_sync(
             logger.error(f"[BankAutoSync] Erreur lors du relevé d'arrière-plan (profil={pid}): {e}")
         finally:
             worker_db.close()
-            # Démarré avant la fin de ce fil : le navigateur ne voit jamais de creux entre le relevé et l'analyse
-            start_label_refinement(pid)
             # Démarré avant la fin de ce fil : le navigateur ne voit jamais de creux entre le relevé et l'analyse
             start_label_refinement(pid)
 
