@@ -338,9 +338,11 @@ def resolve_smart_label(
 
     # Ne conserver que les transactions variables ou revenus (jamais de dépenses fixes récurrentes pour du ponctuel)
     # et STRICTEMENT compatibles avec la direction tx_type (pas de catégorie recette pour une dépense)
+    # Une opération encore à vérifier n'apprend rien : sa catégorie de repli ne doit pas se propager à 100 % de confiance
     recent_txs = [
         tx for tx in all_recent_txs
-        if tx.category
+        if not tx.needs_review
+        and tx.category
         and is_category_compatible_with_tx_type(cat_type_map.get(tx.category), tx_type)
         and (cat_type_map.get(tx.category) != 'transfer' if tx_type != 'transfer' else True)
         and (cat_type_map.get(tx.category) != 'expense_fixed' if tx_type == 'expense_var' else True)
@@ -472,9 +474,11 @@ def resolve_smart_labels_batch(
     ).order_by(Transaction.date_operation.desc()).all()
 
     # Filtrer pour n'inclure que les transactions variables / recettes
+    # Une opération encore à vérifier n'apprend rien : sa catégorie de repli ne doit pas se propager à 100 % de confiance
     recent_txs = [
         tx for tx in all_recent_txs
-        if not tx.category or cat_type_map.get(tx.category) not in ('expense_fixed', 'transfer')
+        if not tx.needs_review
+        and (not tx.category or cat_type_map.get(tx.category) not in ('expense_fixed', 'transfer'))
     ]
 
     # Pré-calculer les tokens et chaînes nettoyées des règles (une seule fois pour tout le lot)

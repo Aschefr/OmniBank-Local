@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.models import BankConnection, Notification
 from app.services.bank_sync_service import BankSyncService
+from app.services.bank_sync.label_refine import note_deferred_batch, start_label_refinement
+from app.services.bank_sync.label_refine import note_deferred_batch, start_label_refinement
 from app.services.credential_vault import VaultSessionManager
 from app.services.bank_sync.pending_store import (
     _PENDING_SYNC_DATA,
@@ -82,6 +84,20 @@ def is_background_sync_running(profile_id: Optional[str] = None) -> bool:
     return bool(t and t.is_alive())
 
 
+def _set_sync_phase(profile_id: str, phase: str, account: Optional[str] = None) -> None:
+    """Étape affichée sur le bouton ; sans effet hors d'un relevé suivi (relevé planifié connexion par connexion)."""
+    prog = _SYNC_PROGRESS.get(profile_id)
+    if prog:
+        prog.update(phase=phase, account=account)
+
+
+def _set_sync_phase(profile_id: str, phase: str, account: Optional[str] = None) -> None:
+    """Étape affichée sur le bouton ; sans effet hors d'un relevé suivi (relevé planifié connexion par connexion)."""
+    prog = _SYNC_PROGRESS.get(profile_id)
+    if prog:
+        prog.update(phase=phase, account=account)
+
+
 def get_background_sync_progress(profile_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Avancement réel du relevé en arrière-plan (None si aucun relevé en cours)."""
     pid = _resolve_profile_id(profile_id)
@@ -93,6 +109,8 @@ def get_background_sync_progress(profile_id: Optional[str] = None) -> Optional[D
         "total": prog["total"],
         "done": prog["done"],
         "current": prog.get("current"),
+        "phase": prog.get("phase"),
+        "account": prog.get("account"),
         "current_elapsed": round(time.time() - started, 1) if started else 0.0,
     }
 
@@ -108,17 +126,29 @@ def execute_auto_sync_for_connection(
     pid = _resolve_profile_id(profile_id)
     trigger_desc = TRIGGER_SOURCE_LABELS.get(trigger_source, trigger_source)
     logger.info(f"[BankAutoSync] Lancement du relevé auto ({trigger_desc}) pour '{conn.label}' (id={conn.id}, profil={pid})")
+
+    def _on_fetch_event(event: str, data: Dict[str, Any]) -> None:
+        if event == "progress" and data.get("step") == "sync_account":
+            _set_sync_phase(pid, "account", data.get("account"))
+
     try:
         _t_fetch = time.time()
         preview = BankSyncService.fetch_preview_transactions(
             db=db,
             connection=conn,
             master_password=master_password,
-            since_days=30
+            since_days=30,
+            event_callback=_on_fetch_event,
+            defer_ai=True
         )
         from app.services.autopilot_service import process_incoming_batch
+        _set_sync_phase(pid, "classify")
         _t_proc = time.time()
         auto_res = process_incoming_batch(db, conn.id, preview, profile_id=pid)
+        if preview.get("ai_deferred") and any(
+            tx.get("smart_ai_deferred") for acc in preview.get("accounts", []) for tx in acc.get("transactions", [])
+        ):
+            note_deferred_batch(pid, conn.id, auto_res.get("batch_id"))
         logger.info(f"[BankAutoSync] '{conn.label}' : récupération {_t_proc - _t_fetch:.1f}s, traitement Auto-Pilote {time.time() - _t_proc:.1f}s")
 
         # Calculer le nombre de correspondances (confirmées / en attente) et nouvelles lignes
@@ -514,7 +544,7 @@ def trigger_manual_auto_sync(
             logger.info(f"[BankAutoSync] Relevé en arrière-plan démarré pour {len(active_conns)} connexion(s) (profil={pid}, force={force}, source={trigger_source})")
             _SYNC_PROGRESS[pid] = {"total": len(active_conns), "done": 0, "current": None, "current_started": None}
             for idx, conn in enumerate(active_conns):
-                _SYNC_PROGRESS[pid].update(current=conn.label, current_started=time.time())
+                _SYNC_PROGRESS[pid].update(current=conn.label, current_started=time.time(), phase="connect", account=None)
                 t0 = time.time()
                 execute_auto_sync_for_connection(worker_db, conn, pw, profile_id=pid, trigger_source=trigger_source)
                 logger.info(f"[BankAutoSync] '{conn.label}' traitée en {time.time() - t0:.1f}s")
@@ -526,6 +556,10 @@ def trigger_manual_auto_sync(
             logger.error(f"[BankAutoSync] Erreur lors du relevé d'arrière-plan (profil={pid}): {e}")
         finally:
             worker_db.close()
+            # Démarré avant la fin de ce fil : le navigateur ne voit jamais de creux entre le relevé et l'analyse
+            start_label_refinement(pid)
+            # Démarré avant la fin de ce fil : le navigateur ne voit jamais de creux entre le relevé et l'analyse
+            start_label_refinement(pid)
 
     t = threading.Thread(target=_worker, daemon=True)
     _ACTIVE_BACKGROUND_THREADS[pid] = t

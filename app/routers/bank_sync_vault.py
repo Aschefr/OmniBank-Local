@@ -190,8 +190,11 @@ def get_bank_sync_status(profile_id: Optional[str] = None):
     active_pid = profile_id or get_active_profile().get("id", "default")
     is_running = is_background_sync_running(active_pid)
     from app.services.bank_sync.auto_sync import get_background_sync_progress
+    from app.services.bank_sync.label_refine import is_refining, last_refined_count
     return {
         "is_running": is_running,
         "running_tasks": [active_pid] if is_running else [],
-        "progress": get_background_sync_progress(active_pid) if is_running else None
+        "progress": get_background_sync_progress(active_pid) if is_running else None,
+        "refining": is_refining(active_pid),
+        "refined_count": last_refined_count(active_pid)
     }

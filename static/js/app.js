@@ -725,6 +725,11 @@ class App {
 
                 this._isSyncRunning = currentIsSyncing;
 
+                // Relevé planifié ou lancé ailleurs : l'IA a complété des opérations après coup
+                const refinedAt = status.labels_refined_at || null;
+                const labelsRefined = Boolean(this._lastLabelsRefinedAt && refinedAt && refinedAt !== this._lastLabelsRefinedAt);
+                this._lastLabelsRefinedAt = refinedAt || this._lastLabelsRefinedAt;
+
                 const execChanged = (this._lastSyncExecutionAt && currentLastExec && this._lastSyncExecutionAt !== currentLastExec);
                 // La date du relevé avance dès son lancement et après chaque banque : tant qu'il tourne, rien n'est terminé
                 const syncJustCompleted = !currentIsSyncing && (prevIsSyncing || execChanged);
@@ -756,6 +761,9 @@ class App {
                     }
                 } else if (!this._lastSyncExecutionAt && currentLastExec) {
                     this._lastSyncExecutionAt = currentLastExec;
+                } else if (labelsRefined && !currentIsSyncing) {
+                    window.dispatchEvent(new CustomEvent('transactions_updated'));
+                    this.updateAutopilotBadge();
                 }
 
                 if (remSec !== null && remSec <= 0 && status.is_enabled && status.bank_auto_sync_enabled && status.vault_unlocked && !currentIsSyncing) {

@@ -17,6 +17,21 @@ Object.assign(window.BankSyncView, {
         const pct = ((progress.done + within) / progress.total) * 100;
         this._syncProgressPct = Math.max(this._syncProgressPct, Math.min(97, Math.max(4, pct)));
         this._paintSyncProgress();
+        const label = this._syncPhaseLabel(progress);
+        if (label && this._syncState === 'syncing' && label !== this._syncStateHtml) this.setButtonsState('syncing', label);
+    },
+
+    // « Crédit Agricole · Livret A… » : ce que le relevé est en train de faire
+    _syncPhaseLabel(progress) {
+        if (!progress.current) return null;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const phase = {
+            connect: t('bank_sync_phase_connect', 'connexion…'),
+            account: progress.account ? `${progress.account}…` : null,
+            classify: t('bank_sync_phase_classify', 'classement…'),
+        }[progress.phase];
+        return phase ? `${esc(progress.current)} · ${esc(phase)}` : esc(progress.current);
     },
 
     _paintSyncProgress() {
@@ -50,6 +65,10 @@ Object.assign(window.BankSyncView, {
                 btn.classList.add('is-error');
                 btn.disabled = false;
                 btn.innerHTML = `<span>⚠️</span> <span>${customHtml || (window.i18n ? window.i18n.t('bank_sync_progress_error') || 'Erreur relevé' : 'Erreur relevé')}</span>`;
+            } else if (this._labelsRefining) {
+                // Le relevé est fini et le bouton reste utilisable : seule l'analyse IA tourne encore
+                btn.disabled = false;
+                btn.innerHTML = `<span>✨</span> <span>${window.i18n ? window.i18n.t('bank_sync_refining') || 'Analyse IA des libellés…' : 'Analyse IA des libellés…'}</span>`;
             } else {
                 btn.disabled = false;
                 btn.innerHTML = `<span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${window.i18n ? window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne' : 'Relever en ligne'}</span>`;
@@ -102,8 +121,45 @@ Object.assign(window.BankSyncView, {
                 }
             } else if (this._syncState === 'syncing' && !this._syncFinishing) {
                 await this._onSyncFinished();
+            } else if (statusRes && statusRes.refining) {
+                this._watchLabelRefinement();
             }
         } catch (_) {}
+    },
+
+    // L'IA complète les libellés après le relevé : le bouton le dit, puis la page reprend les opérations complétées
+    _watchLabelRefinement() {
+        if (this._labelsRefiningTimer) return;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const poll = async () => {
+            let statusRes = null;
+            try {
+                statusRes = await API.get('/api/bank-sync/status', { silent: true });
+            } catch (_) {
+                this._labelsRefiningTimer = setTimeout(poll, 4000);
+                return;
+            }
+            if (statusRes && statusRes.refining) {
+                if (!this._labelsRefining) {
+                    this._labelsRefining = true;
+                    this.applySyncButtonsState();
+                }
+                this._labelsRefiningTimer = setTimeout(poll, 2500);
+                return;
+            }
+            this._labelsRefiningTimer = null;
+            const wasRefining = this._labelsRefining;
+            this._labelsRefining = false;
+            this.applySyncButtonsState();
+            const count = (statusRes && statusRes.refined_count) || 0;
+            if (wasRefining && count > 0) {
+                this.showToast((count > 1 ? t('bank_sync_refined_many', "{n} opérations complétées par l'IA") : t('bank_sync_refined_one', "1 opération complétée par l'IA")).replace('{n}', count), 'success');
+                try {
+                    await this.refreshActiveViews();
+                } catch (_) {}
+            }
+        };
+        this._labelsRefiningTimer = setTimeout(poll, 400);
     },
 
     // La barre va au bout pendant que les vues et les notifications se mettent à jour ; le bouton ne
@@ -162,6 +218,7 @@ Object.assign(window.BankSyncView, {
             : null;
         this.setButtonsState(state, label);
         setTimeout(() => { if (this._syncState === state) this.setButtonsState('idle'); }, 4500);
+        this._watchLabelRefinement();
     },
 
     _startSyncPollingTracker() {
