@@ -22,7 +22,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const now = new Date();
         // Per-type date state from localStorage (or defaults)
         this.monthlyMonth = ProfileStorage.get('budget_monthly_month') || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        this.yearlyYear = parseInt(ProfileStorage.get('budget_yearly_year') || now.getFullYear());
+        this.yearlyYear = now.getFullYear(); // comme les cycles : chaque visite s'ouvre sur l'année en cours
 
         // Restore custom period state for monthly
         const savedEnabled = ProfileStorage.get('budget_custom_enabled') === 'true';
@@ -95,14 +95,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     },
 
     stepYearly(delta) {
-        this.yearlyYear += delta;
-        ProfileStorage.set('budget_yearly_year', this.yearlyYear);
-        this.loadStatusForType('yearly');
-    },
-
-    goTodayYearly() {
-        this.yearlyYear = new Date().getFullYear();
-        ProfileStorage.set('budget_yearly_year', this.yearlyYear);
+        this.yearlyYear = Math.min(new Date().getFullYear(), this.yearlyYear + delta);
         this.loadStatusForType('yearly');
     },
 
@@ -242,9 +235,10 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async loadAllStatuses() {
         try {
-            const [statusRes, capacity] = await Promise.all([
+            const [statusRes, capacity, yearly] = await Promise.all([
                 API.get(this._buildStatusUrl('all')),
                 API.get('/api/budgets/capacity'),
+                API.get(this._buildStatusUrl('yearly')),
             ]);
 
             if (statusRes?.period !== undefined) this.periodInfo = statusRes.period;
@@ -253,6 +247,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             } else {
                 this.statusByType = { monthly: statusRes, yearly: statusRes, indefinite: statusRes, custom: statusRes };
             }
+            // Les enveloppes annuelles suivent l'année choisie, pas celle du cycle affiché
+            this.statusByType.yearly = yearly;
             this.capacityData = capacity;
             this.savingsOverflow = capacity?.savings_overflow || null;
             this._mergeStatusData();
@@ -267,13 +263,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async loadStatusForType(type) {
         try {
-            const [status, capacity] = await Promise.all([
+            const [status, capacity, yearly] = await Promise.all([
                 API.get(this._buildStatusUrl(type)),
-                API.get('/api/budgets/capacity')
+                API.get('/api/budgets/capacity'),
+                type === 'all' ? API.get(this._buildStatusUrl('yearly')) : Promise.resolve(null),
             ]);
-            if (status?.period !== undefined) this.periodInfo = status.period;
+            // La réponse annuelle ne porte pas de cycle : le cycle affiché ne change pas
+            if (type !== 'yearly' && status?.period !== undefined) this.periodInfo = status.period;
             if (type === 'all' && status?.statusByType) {
                 this.statusByType = status.statusByType;
+                if (yearly) this.statusByType.yearly = yearly;
             } else {
                 this.statusByType[type] = status;
             }

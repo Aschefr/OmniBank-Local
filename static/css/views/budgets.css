@@ -707,7 +707,18 @@
     margin: 0; font-size: 14.5px; font-weight: 700; line-height: 1.3; color: var(--text-main);
     text-transform: none; letter-spacing: 0;
 }
+.bv-total--head h3 { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .bv-total--head .bv-total-figures { font-size: 14px; }
+.bv-year-nav { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
+.bv-year-label { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+.bv-env-sugg.bv-env-issue { text-align: left; color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); border-radius: 8px; }
+.bv-notice {
+    display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 16px;
+    margin: 0 0 14px; padding: 12px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px;
+}
+.bv-notice-body { flex: 1; min-width: min(100%, 320px); }
+.bv-notice h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text-main); }
+.bv-notice ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 .bv-total--head .bv-env-bar { height: 8px; }
 .bv-section > .bv-totals { margin-bottom: 8px; }
 
@@ -988,7 +999,12 @@
     .bv-form-preview { position: static; max-height: 420px; }
 }
 
+@media (min-width: 769px) and (pointer: fine) {
+    .bv-year-nav .bv-icon-btn { width: 24px; height: 24px; }
+}
+
 @media (max-width: 768px) {
+    .bv-notice ul { font-size: 13px; }
     .bv-header-actions { width: 100%; }
     .bv-tools { flex: 1; }
     .bv-tools-btn { width: 100%; justify-content: center; }

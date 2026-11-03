@@ -36,6 +36,7 @@ from app.migrations.versions import (
     v30_transaction_needs_review,
     v31_chat_applied_actions,
     v32_chat_variants,
+    v33_budget_update_notice,
 )
 
 ALL_MIGRATIONS: List[Migration] = [
@@ -70,4 +71,5 @@ ALL_MIGRATIONS: List[Migration] = [
     Migration(v30_transaction_needs_review.VERSION, v30_transaction_needs_review.DESCRIPTION, v30_transaction_needs_review.upgrade),
     Migration(v31_chat_applied_actions.VERSION, v31_chat_applied_actions.DESCRIPTION, v31_chat_applied_actions.upgrade),
     Migration(v32_chat_variants.VERSION, v32_chat_variants.DESCRIPTION, v32_chat_variants.upgrade),
+    Migration(v33_budget_update_notice.VERSION, v33_budget_update_notice.DESCRIPTION, v33_budget_update_notice.upgrade),
 ]

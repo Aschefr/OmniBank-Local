@@ -50,6 +50,7 @@ CONFIG_DEFAULTS = {
     "budget_sidebar_totals": "true",
     "budget_totals_exclude_fixed": "true",
     "budget_sidebar_labels": "{}",
+    "budget_update_notice": "false",
 }
 
 @router.get("/")

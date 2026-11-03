@@ -225,6 +225,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             plus: '<path d="M12 5v14M5 12h14"/>',
             pin: '<path d="M12 17v5"/><path d="M9 10.76V4h6v6.76a2 2 0 0 0 1.11 1.79l1.78.9A2 2 0 0 1 19 15.24V17H5v-1.76a2 2 0 0 1 1.11-1.79l1.78-.9A2 2 0 0 0 9 10.76Z"/>',
             close: '<path d="M18 6 6 18M6 6l12 12"/>',
+            alert: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/>',
         };
         return `<svg class="bv-ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
     },
@@ -238,7 +239,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             return s;
         };
         const isOrg = window.app?.config?.enable_org_mode === 'true';
-        const isCurrentPeriod = !this.customPeriod?.enabled && (this.cycleOffset || 0) === 0;
+        const isCurrentPeriod = b.period === 'yearly'
+            ? this.yearlyYear === new Date().getFullYear()
+            : !this.customPeriod?.enabled && (this.cycleOffset || 0) === 0;
         const todayIso = new Date().toISOString().slice(0, 10);
         const limit = b.budget_amount || 0;
         const spent = b.spent_to_date ?? b.spent ?? 0;
@@ -267,6 +270,41 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
         if (ended && status !== 'over') statusText = t('bv_status_ended', 'Terminée');
         return { limit, spent, planned, pct, plannedPct, tone, showPace, statusText, expected: b.expected_percent };
+    },
+
+    // Enveloppe héritée d'une version précédente : sans catégorie, ou catégorie suivie aussi ailleurs
+    _envIssue(b) {
+        if (b.is_closed || b.is_project || (b.envelope_type || 'spending') !== 'spending') return null;
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const cats = b.categories || [];
+        if (!cats.length) return t('bv_env_no_cats', 'Aucune catégorie : cette enveloppe ne suit aucune dépense.');
+        const owners = this._conflictsFor({ id: b.id, period: b.period || 'monthly', start: b.start_date, end: b.end_date, accounts: b.account_ids || [] });
+        const shared = cats.filter(c => owners[c]);
+        if (!shared.length) return null;
+        if (shared.length > 1) return t('bv_env_shared_many', '{count} catégories sont aussi suivies ailleurs : leurs dépenses comptent deux fois.').split('{count}').join(shared.length);
+        return t('bv_env_shared_one', '« {category} » est aussi suivie par {names} : ses dépenses comptent deux fois.')
+            .split('{category}').join(esc(shared[0])).split('{names}').join(esc(owners[shared[0]].join(', ')));
+    },
+
+    // Une seule fois, pour les profils qui avaient déjà des enveloppes avant la nouvelle page
+    _updateNoticeHtml(isOrg) {
+        if (window.app?.config?.budget_update_notice !== 'true') return '';
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const items = [
+            isOrg ? '' : t('bv_notice_cycle', "Vos enveloppes mensuelles suivent votre cycle de paie, et non plus le mois calendaire : leurs montants peuvent différer de ce que vous aviez l'habitude de voir."),
+            t('bv_notice_bars', "Les barres montrent le dépensé à ce jour et, en hachuré, ce qui est prévu d'ici la fin de la période (elles montraient les dépenses rapprochées)."),
+            isOrg ? '' : t('bv_notice_fixed', "Les enveloppes de charges fixes sont regroupées dans « Charges prévues » et ne comptent plus dans les totaux. Vous pouvez les réintégrer dans Outils > Personnaliser l'affichage."),
+            t('bv_notice_issues', 'Une enveloppe sans catégorie, ou dont une catégorie est aussi suivie ailleurs, est signalée sur sa carte.'),
+        ].filter(Boolean);
+        return `
+            <section class="bv-notice" role="status">
+                <div class="bv-notice-body">
+                    <h3>${t('bv_notice_title', 'La page Budgets a évolué')}</h3>
+                    <ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>
+                </div>
+                <button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.saveBudgetPrefs({ budget_update_notice: 'false' })">${t('bv_notice_ok', 'Compris')}</button>
+            </section>`;
     },
 
     _envBarHtml(g) {
@@ -518,8 +556,9 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
 
         // ── Synthèse des points d'attention ──
+        const isThisYear = this.yearlyYear === new Date().getFullYear();
         const watched = [...groups.cycle, ...groups.yearly, ...groups.dated.filter(b => !isEnded(b)),
-                         ...groups.fixed, ...groups.projects];
+                         ...groups.fixed, ...groups.projects].filter(b => b.period !== 'yearly' || isThisYear);
         const count = (s) => watched.filter(b => b.status === s).length;
         const nOver = count('over'), nNear = count('near'), nAhead = count('ahead');
         const plural = (n, one, many) => (n > 1 ? many : one).split('{count}').join(n);
@@ -527,6 +566,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (nOver) attnParts.push(`<span class="bv-attn-item bv-tone-over">${plural(nOver, t('bv_attn_over_one', '{count} enveloppe dépassée'), t('bv_attn_over_many', '{count} enveloppes dépassées'))}</span>`);
         if (nNear) attnParts.push(`<span class="bv-attn-item bv-tone-near">${plural(nNear, t('bv_attn_near_one', '{count} proche de la limite'), t('bv_attn_near_many', '{count} proches de la limite'))}</span>`);
         if (nAhead) attnParts.push(`<span class="bv-attn-item bv-tone-ahead">${plural(nAhead, t('bv_attn_ahead_one', '{count} en avance sur le rythme'), t('bv_attn_ahead_many', '{count} en avance sur le rythme'))}</span>`);
+        const nIssues = spending.filter(b => this._envIssue(b)).length;
+        if (nIssues) attnParts.push(`<span class="bv-attn-item bv-tone-near">${plural(nIssues, t('bv_attn_check_one', '{count} enveloppe à vérifier'), t('bv_attn_check_many', '{count} enveloppes à vérifier'))}</span>`);
         const attnHtml = all.length === 0 ? '' : `<p class="bv-attn" role="status">${attnParts.length
             ? attnParts.join('<span class="bv-attn-sep" aria-hidden="true">·</span>')
             : `<span class="bv-attn-item bv-tone-ok">${t('bv_attn_ok', 'Toutes les enveloppes sont dans les clous')}</span>`}</p>`;
@@ -620,7 +661,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 </button>` : '';
 
             const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const y = period ? parseInt(period.start.slice(0, 4)) : new Date().getFullYear();
+            const y = b.period === 'yearly' ? this.yearlyYear : (period ? parseInt(period.start.slice(0, 4)) : new Date().getFullYear());
+            const issue = this._envIssue(b);
             const m = period ? parseInt(period.start.slice(5, 7)) : new Date().getMonth() + 1;
             return `
             <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}${change ? ' bv-env--changed' : ''}" data-budget-id="${b.id}" tabindex="0"
@@ -648,6 +690,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     : change.kind === 'adjusted'
                         ? tp('bv_change_adjusted', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Plafond ajusté : {from} → {to}')
                         : tp('bv_change_completed', { from: formatCurrency(change.from), to: formatCurrency(change.to) }, 'Complétée : plafond {from} → {to}')}</p>` : ''}
+                ${issue ? `<button type="button" class="bv-env-sugg bv-env-issue" onclick="event.stopPropagation(); window.BudgetsView.editBudget(${b.id})">${this._bvIcon('alert', 14)}<span>${issue}</span></button>` : ''}
                 ${suggHtml}
             </article>`;
         };
@@ -680,6 +723,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         };
 
         let html = '';
+        const yearNav = `
+            <span class="bv-year-nav" onclick="event.preventDefault(); event.stopPropagation();">
+                <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.stepYearly(-1)" aria-label="${t('bv_year_prev', 'Année précédente')}">${this._bvIcon('chevronLeft', 14)}</button>
+                <span class="bv-year-label">${this.yearlyYear}</span>
+                <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.stepYearly(1)" ${isThisYear ? 'disabled' : ''} aria-label="${t('bv_year_next', 'Année suivante')}">${this._bvIcon('chevronRight', 14)}</button>
+            </span>`;
 
         if (isOrg) {
             // Mode organisation : pas de cycle de paie ; enveloppes regroupées par compte
@@ -701,7 +750,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } else {
             const cycleTitle = period?.kind === 'cycle' ? t('bv_section_cycle', 'Dépenses du cycle') : t('bv_section_month', 'Dépenses du mois');
             html += renderSection('monthly', cycleTitle, groups.cycle);
-            html += renderSection('yearly', t('bv_section_yearly', 'Enveloppes annuelles'), groups.yearly);
+            html += renderSection('yearly', `${t('bv_section_yearly', 'Enveloppes annuelles')}${yearNav}`, groups.yearly);
             html += renderSection('custom', t('bv_section_dated', 'Enveloppes datées'), groups.dated);
         }
 
@@ -722,6 +771,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 if (planned > 0.005) status += ` · ${tp('bv_planned', { amount: formatCurrency(planned) }, '{amount} prévus')}`;
                 return {
                     label: p === 'yearly' ? t('bv_fixed_yearly', 'Annuelles') : t('bv_fixed_monthly', 'Mensuelles'),
+                    nav: p === 'yearly' && !groups.yearly.length ? yearNav : '',
                     gauge: { pct: limit > 0 ? (spent / limit) * 100 : 0, plannedPct: limit > 0 ? (planned / limit) * 100 : 0, showPace: false },
                     tone: spent > limit + 0.005 ? 'over' : 'fixed', limit, spent, status,
                 };
@@ -736,12 +786,12 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                      ontoggle="ProfileStorage.set('budget_fixed_open', this.open ? 'true' : 'false')">
                 <summary class="bv-total bv-total--head bv-fold-sum bv-tone-${foldTone}">
                     <div class="bv-total-head">
-                        <span class="bv-total-label"><h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3><span class="bv-total-period">${t('bv_section_fixed_sub', 'liées à vos récurrences')}</span></span>
+                        <span class="bv-total-label"><h3>${t('bv_section_fixed', 'Charges prévues')} <span class="bv-fold-count">${groups.fixed.length}</span></h3><span class="bv-total-period">${t('bv_section_fixed_sub', 'liées à vos récurrences')}</span>${single ? single.nav : ''}</span>
                         <span class="bv-fold-right">${single ? figures(single) : ''}<span class="bv-fold-chevron">${this._bvIcon('chevronDown', 18)}</span></span>
                     </div>
                     ${single ? barBlock(single) : fixedBars.map(f => `
                     <div class="bv-fold-period bv-tone-${f.tone}">
-                        <div class="bv-total-head"><span class="bv-total-period">${f.label}</span>${figures(f)}</div>
+                        <div class="bv-total-head"><span class="bv-total-label"><span class="bv-total-period">${f.label}</span>${f.nav}</span>${figures(f)}</div>
                         ${barBlock(f)}
                     </div>`).join('')}
                 </summary>
@@ -771,7 +821,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ? `<section class="bv-totals" aria-label="${t('bv_totals_label', 'Totaux des enveloppes')}">${orphans.map(g => renderTotal(g)).join('')}</section>`
             : '';
         const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
-        html = (bannerHtml ? `<div class="bv-sugg-zone">${bannerHtml}</div>` : '') + periodHtml + orphansHtml + attnHtml + html;
+        html = (all.length ? this._updateNoticeHtml(isOrg) : '') + (bannerHtml ? `<div class="bv-sugg-zone">${bannerHtml}</div>` : '') + periodHtml + orphansHtml + attnHtml + html;
 
         if (container) container.innerHTML = html;
 
