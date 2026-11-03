@@ -2,8 +2,9 @@
 app/services/pin_session.py — Sessions de déverrouillage des profils protégés par PIN.
 
 Un profil avec PIN n'est accessible via l'API qu'avec un jeton de session obtenu
-en fournissant le PIN (en-tête X-OmniBank-Session, cookie omni_session ou
-paramètre ?omni_session= pour EventSource / téléchargements).
+en fournissant le PIN (en-tête X-OmniBank-Session ou cookie omni_session).
+Une URL finissant en clair dans les journaux d'accès, EventSource et les téléchargements
+utilisent un ticket à usage unique (?omni_ticket=), jamais le jeton lui-même.
 Les sessions sont en mémoire : un redémarrage du serveur exige de ressaisir le PIN.
 """
 import secrets
@@ -13,9 +14,11 @@ from typing import Optional
 
 SESSION_HEADER = "X-OmniBank-Session"
 SESSION_COOKIE = "omni_session"
-SESSION_QUERY = "omni_session"
+SESSION_QUERY = "omni_session"  # Ne sert plus qu'aux applications mobiles pas encore mises à jour
+TICKET_QUERY = "omni_ticket"
 
 SESSION_IDLE_SECONDS = 24 * 3600
+TICKET_TTL_SECONDS = 60
 
 # Anti brute-force : MAX_FAILURES échecs par profil sur FAILURE_WINDOW_SECONDS
 MAX_FAILURES = 5
@@ -23,6 +26,7 @@ FAILURE_WINDOW_SECONDS = 300
 
 _lock = threading.Lock()
 _sessions: dict = {}   # token -> {"profile_id": str, "last_seen": float}
+_tickets: dict = {}    # ticket -> {"token": str, "expires_at": float}
 _failures: dict = {}   # profile_id -> [timestamps]
 
 
@@ -64,10 +68,30 @@ def revoke_profile(profile_id: str, keep_token: Optional[str] = None):
             _sessions.pop(tok, None)
 
 
+def create_ticket(token: str) -> str:
+    """Crée un ticket à usage unique et de courte durée qui représente ce jeton dans une URL."""
+    ticket = secrets.token_urlsafe(32)
+    now = time.time()
+    with _lock:
+        for expired in [t for t, v in _tickets.items() if v["expires_at"] <= now]:
+            _tickets.pop(expired, None)
+        _tickets[ticket] = {"token": token, "expires_at": now + TICKET_TTL_SECONDS}
+    return ticket
+
+
+def _consume_ticket(ticket: Optional[str]) -> Optional[str]:
+    if not ticket:
+        return None
+    with _lock:
+        entry = _tickets.pop(ticket, None)
+    return entry["token"] if entry and entry["expires_at"] > time.time() else None
+
+
 def get_request_token(request) -> Optional[str]:
     return (
         request.headers.get(SESSION_HEADER)
         or request.query_params.get(SESSION_QUERY)
+        or _consume_ticket(request.query_params.get(TICKET_QUERY))
         or request.cookies.get(SESSION_COOKIE)
     )
 
@@ -97,4 +121,5 @@ def reset_all():
     """Réinitialise l'état (tests)."""
     with _lock:
         _sessions.clear()
+        _tickets.clear()
         _failures.clear()

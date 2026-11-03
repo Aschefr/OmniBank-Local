@@ -1226,13 +1226,13 @@ window.TimelineView = {
     },
 
     async _openAttachment(path) {
-        const fileUrl = API.withSession(`${window.location.origin}/${path}`);
+        const fileUrl = `${window.location.origin}/${path}`;
         if (window.__TAURI_INTERNALS__) {
             try {
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(fileUrl) });
             } catch(err) { console.error('Shell open failed', err); }
         } else {
-            window.open(fileUrl, '_blank');
+            await API.openWithSession(fileUrl);
         }
     },
 
