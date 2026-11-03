@@ -129,6 +129,7 @@ def update_budget(budget_id: int, data: BudgetUpdate, db: Session = Depends(get_
 def delete_budget(budget_id: int, db: Session = Depends(get_db)):
     try:
         result = budget_service.delete_single_budget(budget_id, db)
+        budget_service.propose_after_removal(db)
         stats_cache.invalidate()
         return result
     except HTTPException:
@@ -142,6 +143,7 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
 def bulk_delete_budgets(data: BulkDeleteRequest, db: Session = Depends(get_db)):
     try:
         result = budget_service.bulk_delete_budgets(db, data.budget_ids)
+        budget_service.propose_after_removal(db)
         stats_cache.invalidate()
         return result
     except HTTPException:
@@ -536,6 +538,7 @@ def get_budget_autopilot_status(db: Session = Depends(get_db)):
             "active_envelopes_count": active_count,
             "is_cold_start": active_count < 3,
             "pending_count": len(pending_sugg),
+            "held_back": budget_service.get_held_back_proposals(db, pending_sugg),
             "enable_creation": not (cfg_creation and cfg_creation.value and cfg_creation.value.strip().lower() == "false"),
             "auto_create": bool(cfg_auto_create and cfg_auto_create.value.strip().lower() == "true"),
             "enable_recalibration": not (cfg_recalib and cfg_recalib.value and cfg_recalib.value.strip().lower() == "false"),
