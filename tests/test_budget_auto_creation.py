@@ -199,3 +199,56 @@ def test_refused_categories_and_locked_targets_stay_untouched(db):
     assert not any("Bricolage" in n for n in names) and "Cinéma" in names
     assert db.query(Budget).filter(Budget.id == locked.id).one().monthly_amount == 100.0
     assert not db.query(BudgetCategory).filter(BudgetCategory.category_name == "Sport").first()
+
+
+# ── Récapitulatif sur la page Budgets, jusqu'à validation ──
+
+def test_notice_lists_what_was_added_until_dismissed(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    assert bs.get_auto_applied_notice(db) == []
+    _cycle(db)
+
+    items = bs.get_auto_applied_notice(db)
+    assert [(i["name"], i["created"], i["categories"]) for i in items] == [("Bricolage", True, ["Bricolage"])]
+    # Reste affiché au fil des cycles
+    _cycle(db)
+    assert len(bs.get_auto_applied_notice(db)) == 1
+
+    bs.dismiss_auto_applied_notice(db)
+    assert bs.get_auto_applied_notice(db) == []
+    _cycle(db)
+    assert bs.get_auto_applied_notice(db) == []
+
+
+def test_notice_groups_by_envelope_and_follows_later_removals(db):
+    budget = Budget(name="Sorties", monthly_amount=100.0, period="monthly", envelope_type="spending")
+    db.add(budget)
+    db.flush()
+    db.add(BudgetCategory(budget_id=budget.id, category_name="Cinéma"))
+    db.commit()
+    for cat in ("Café", "Concerts"):
+        db.add(BudgetCategory(budget_id=budget.id, category_name=cat))
+        db.flush()
+        bs._note_auto_applied(db, [], "enrichment", "Sorties", budget.id, [cat])
+    db.commit()
+
+    items = bs.get_auto_applied_notice(db)
+    assert len(items) == 1 and items[0]["categories"] == ["Café", "Concerts"] and items[0]["created"] is False
+
+    db.query(BudgetCategory).filter(BudgetCategory.category_name == "Café").delete()
+    db.commit()
+    assert bs.get_auto_applied_notice(db)[0]["categories"] == ["Concerts"]
+
+    bs.delete_single_budget(budget.id, db)
+    assert bs.get_auto_applied_notice(db) == []
+
+
+def test_notice_holds_several_additions_in_a_background_session(db):
+    """Le cycle de fond tourne sans autoflush : deux ajouts de suite ne doivent pas créer deux fois le réglage."""
+    db.autoflush = False
+    _spend(db, "Bricolage")
+    _spend(db, "Cinéma")
+    _set_auto(db, True)
+    _cycle(db)
+    assert len(bs.get_auto_applied_notice(db)) == 2

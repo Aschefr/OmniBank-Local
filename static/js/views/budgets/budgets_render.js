@@ -785,7 +785,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             ? `<section class="bv-totals" aria-label="${t('bv_totals_label', 'Totaux des enveloppes')}">${orphans.map(g => renderTotal(g)).join('')}</section>`
             : '';
         const bannerHtml = this.renderAutopilotSuggestionsBanner ? this.renderAutopilotSuggestionsBanner() : '';
-        html = (all.length ? this._updateNoticeHtml(isOrg) : '') + (bannerHtml ? `<div class="bv-sugg-zone">${bannerHtml}</div>` : '') + periodHtml + orphansHtml + attnHtml + html;
+        html = (all.length ? this._updateNoticeHtml(isOrg) : '') + this._autoNoticeHtml() + (bannerHtml ? `<div class="bv-sugg-zone">${bannerHtml}</div>` : '') + periodHtml + orphansHtml + attnHtml + html;
 
         if (container) container.innerHTML = html;
 
