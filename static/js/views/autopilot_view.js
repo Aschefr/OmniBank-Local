@@ -921,10 +921,10 @@ window.AutopilotView = {
                 }
                 const elapsedMs = Date.now() - this._trackerStartedAt;
 
-                // Le relevé est terminé dès qu'il n'est plus en cours (après une fenêtre d'initialisation de 1.5s ou après l'avoir vu tourner)
-                // OU dès que l'horodatage d'exécution a avancé
+                // Le relevé est terminé dès qu'il n'est plus en cours (après une fenêtre d'initialisation de 1.5s, après l'avoir
+                // vu tourner, ou si l'horodatage d'exécution a avancé). Cet horodatage avance aussi pendant le relevé.
                 const execChanged = Boolean(newLastExec && prevLastExec && newLastExec !== prevLastExec);
-                const syncDone = (!isSyncing && (this._sawSyncRunning || elapsedMs >= 1500)) || execChanged;
+                const syncDone = !isSyncing && (this._sawSyncRunning || elapsedMs >= 1500 || execChanged);
 
                 if (syncDone) {
                     this._stopActiveSyncTracker();

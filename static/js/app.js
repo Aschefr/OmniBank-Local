@@ -726,7 +726,8 @@ class App {
                 this._isSyncRunning = currentIsSyncing;
 
                 const execChanged = (this._lastSyncExecutionAt && currentLastExec && this._lastSyncExecutionAt !== currentLastExec);
-                const syncJustCompleted = (prevIsSyncing && !currentIsSyncing) || execChanged;
+                // La date du relevé avance dès son lancement et après chaque banque : tant qu'il tourne, rien n'est terminé
+                const syncJustCompleted = !currentIsSyncing && (prevIsSyncing || execChanged);
 
                 if (syncJustCompleted) {
                     this._lastSyncExecutionAt = currentLastExec;
@@ -744,8 +745,11 @@ class App {
                     if (typeof this.loadNotifications === 'function') {
                         this.loadNotifications(true);
                     }
-                    if (window.BankSyncView && typeof window.BankSyncView.setButtonsState === 'function') {
-                        window.BankSyncView.setButtonsState('idle');
+                    // Relevé lancé depuis ce navigateur : son suivi mène le bouton jusqu'à « Relevé terminé »
+                    const bankSync = window.BankSyncView;
+                    if (bankSync && typeof bankSync.setButtonsState === 'function'
+                        && bankSync._syncState === 'syncing' && !bankSync._syncPollingTimer && !bankSync._syncFinishing) {
+                        bankSync.setButtonsState('idle');
                     }
                     if (window.BankSyncView && typeof window.BankSyncView.loadConnections === 'function') {
                         window.BankSyncView.loadConnections().catch(() => {});
