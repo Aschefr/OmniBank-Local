@@ -455,6 +455,7 @@ def delete_single_budget(budget_id: int, db: Session) -> dict:
     b = db.query(Budget).filter(Budget.id == budget_id).first()
     if not b:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
+    _remember_tracked_categories(db)
     old_snapshot = snapshot_entity(b, db)
     old_snapshot["_allocations"] = [snapshot_entity(x) for x in db.query(BudgetAllocation).filter(BudgetAllocation.budget_id == budget_id).all()]
     db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).delete()
@@ -475,6 +476,7 @@ def bulk_delete_budgets(db: Session, budget_ids: list) -> dict:
     budgets = db.query(Budget).filter(Budget.id.in_(budget_ids or [])).all()
     if not budgets:
         return {"ok": True, "deleted_count": 0, "action_id": None}
+    _remember_tracked_categories(db)
     snapshots = delete_budgets(db, budgets)
     count = len(snapshots)
     label = snapshots[0]["name"] if count == 1 else f"{count} enveloppes"
@@ -1683,17 +1685,42 @@ def _auto_known_categories(db: Session, auto_create: bool) -> set:
             db.delete(row)
             db.commit()
         return set()
-    known = set()
-    if row and row.value:
-        try:
-            known = set(json.loads(row.value))
-        except (ValueError, TypeError):
-            pass
-    return known | _budgeted_categories(db)
+    return set(_json_list(row.value if row else None)) | _budgeted_categories(db)
 
 
 def _save_auto_known_categories(db: Session, known: set) -> None:
     _set_config(db, AUTO_KNOWN_CATEGORIES_KEY, json.dumps(sorted(known), ensure_ascii=False))
+
+
+def _remember_tracked_categories(db: Session) -> None:
+    """À appeler avant une suppression : une enveloppe créée depuis le dernier cycle ne doit pas revenir non plus."""
+    if _auto_create_enabled(db):
+        _save_auto_known_categories(db, _auto_known_categories(db, True))
+        db.flush()
+
+
+def propose_after_removal(db: Session) -> None:
+    """En auto-création, ce qui vient d'être supprimé redevient aussitôt une proposition, sans attendre le cycle
+    suivant : la page peut expliquer tout de suite pourquoi rien n'est recréé. Moteur intégré, car une suppression
+    ne doit pas attendre l'IA."""
+    if not _auto_create_enabled(db):
+        return
+    try:
+        suggest_new_envelopes(db, force=True, engine_override="deterministic")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"[AutoPilot Budgets] Propositions après suppression non calculées : {e}")
+
+
+def get_held_back_proposals(db: Session, pending: List[dict]) -> List[str]:
+    """Propositions que l'auto-création laisse à la décision de l'utilisateur : leurs catégories ont perdu leur
+    enveloppe depuis son activation."""
+    if not _auto_create_enabled(db):
+        return []
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_KNOWN_CATEGORIES_KEY).first()
+    known = set(_json_list(row.value if row else None))
+    return [p.get("name") for p in pending
+            if p.get("type") != "recalibration" and known & set(p.get("categories") or [])]
 
 
 AUTO_NOTICE_KEY = "budget_auto_notice"
@@ -2045,14 +2072,18 @@ def suggest_new_envelopes(
                 if not existing_bc:
                     db.add(BudgetCategory(budget_id=b.id, category_name=prop["new_category"]))
                     db.flush()
-                b.monthly_amount = prop["suggested_amount"]
-                b.base_annual_amount = prop["suggested_amount"] * 12 if b.period != "yearly" else prop["suggested_amount"]
+                # Depuis le plafond actuel : une autre catégorie vient peut-être de s'y ajouter dans cette analyse
+                current_amount = b.monthly_amount or 0.0
+                new_amount = round(current_amount + _enrichment_increment(prop, b), 2)
+                b.monthly_amount = new_amount
+                b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
+                snapshot = _json.dumps({**_json.loads(snapshot), "current_amount": current_amount, "suggested_amount": new_amount})
                 db.flush()
                 record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db))
                 action_status = "AUTO_COMMIT"
                 known_categories.add(prop["new_category"])
                 _note_auto_applied(db, applied, "enrichment", b.name, b.id, [prop["new_category"]])
-                logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({prop['suggested_amount']} €).")
+                logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({new_amount} €).")
 
         decision = AutopilotDecisionLog(
             batch_id=batch_id,

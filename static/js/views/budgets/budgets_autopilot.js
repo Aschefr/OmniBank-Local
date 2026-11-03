@@ -900,6 +900,22 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             </section>`;
     },
 
+    // S'efface de lui-même une fois les propositions validées ou écartées
+    _heldBackNoticeHtml() {
+        const names = this.autopilotStatus?.held_back || [];
+        if (!names.length) return '';
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        return `
+            <section class="bv-notice" role="status">
+                <div class="bv-notice-body">
+                    <h3>${t('bv_held_title', 'Ces propositions attendent votre décision')}</h3>
+                    <p class="bv-auto-hint">${t('bv_held_body', "Pour ne pas recréer ce que vous venez de retirer de vos enveloppes, l'auto-création vous laisse le choix : validez ou écartez ces propositions avec « Examiner ». Les nouvelles catégories détectées à l'avenir continueront d'être créées automatiquement.")}</p>
+                    <p class="bv-auto-hint">${t('bv_held_names', 'Propositions concernées : {names}').split('{names}').join(names.map(esc).join(', '))}</p>
+                </div>
+            </section>`;
+    },
+
     openAutoNoticeEnvelope(id) {
         const budget = (this.budgets || []).find(b => b.id === id);
         if (!budget) return;

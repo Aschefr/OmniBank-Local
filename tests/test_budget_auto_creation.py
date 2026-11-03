@@ -252,3 +252,100 @@ def test_notice_holds_several_additions_in_a_background_session(db):
     _set_auto(db, True)
     _cycle(db)
     assert len(bs.get_auto_applied_notice(db)) == 2
+
+
+# ── Après une suppression : les propositions et leur explication arrivent aussitôt ──
+
+def test_removal_gives_proposals_at_once_and_explains_them(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    _cycle(db)
+
+    bs.bulk_delete_budgets(db, [b.id for b in db.query(Budget).all()])
+    bs.propose_after_removal(db)
+
+    assert _names(db) == []
+    pending = bs.get_all_pending_budget_suggestions(db)
+    assert [p["name"] for p in pending] == ["Bricolage"]
+    assert bs.get_held_back_proposals(db, pending) == ["Bricolage"]
+
+    # Une proposition validée n'attend plus rien
+    bs.apply_budget_suggestion(db, pending[0]["decision_id"])
+    assert bs.get_held_back_proposals(db, bs.get_all_pending_budget_suggestions(db)) == []
+
+
+def test_new_categories_stay_automatic_after_a_removal(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    _cycle(db)
+    bs.delete_single_budget(db.query(Budget).one().id, db)
+    bs.propose_after_removal(db)
+
+    _spend(db, "Cinéma")
+    applied, _ = _cycle(db)
+
+    assert [a["name"] for a in applied] == ["Cinéma"] and _names(db) == ["Cinéma"]
+    assert bs.get_held_back_proposals(db, bs.get_all_pending_budget_suggestions(db)) == ["Bricolage"]
+
+
+def test_envelope_created_since_the_last_cycle_does_not_come_back_either(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    _cycle(db)
+    budget = Budget(name="Cinéma à la main", monthly_amount=50.0, period="monthly", envelope_type="spending")
+    db.add(budget)
+    db.flush()
+    db.add(BudgetCategory(budget_id=budget.id, category_name="Cinéma"))
+    db.commit()
+    _spend(db, "Cinéma")
+
+    bs.delete_single_budget(budget.id, db)
+    bs.propose_after_removal(db)
+
+    assert _names(db) == ["Bricolage"]
+
+
+def test_undoing_the_removal_clears_the_message(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    _cycle(db)
+    res = bs.bulk_delete_budgets(db, [b.id for b in db.query(Budget).all()])
+    bs.propose_after_removal(db)
+
+    ok, _ = undo_action(db, db.query(ActionHistory).filter(ActionHistory.id == res["action_id"]).one())
+    db.commit()
+
+    assert ok and _names(db) == ["Bricolage"]
+    assert bs.get_held_back_proposals(db, bs.get_all_pending_budget_suggestions(db)) == []
+    assert _cycle(db) == ([], [])
+
+
+def test_reactivating_at_once_recreates_without_waiting_for_a_cycle(db):
+    _spend(db, "Bricolage")
+    _set_auto(db, True)
+    _cycle(db)
+    bs.delete_single_budget(db.query(Budget).one().id, db)
+    bs.propose_after_removal(db)
+
+    # Décoché puis recoché sans qu'aucun cycle ne passe entre les deux
+    _set_auto(db, False)
+    _set_auto(db, True)
+    result = bs.activate_auto_creation(db)
+
+    assert [a["name"] for a in result["auto_applied"]] == ["Bricolage"] and _names(db) == ["Bricolage"]
+
+
+def test_several_categories_added_in_one_analysis_all_raise_the_cap(db):
+    budget = Budget(name="Loisirs & Culture", monthly_amount=100.0, period="monthly", envelope_type="spending")
+    db.add(budget)
+    db.flush()
+    db.add(BudgetCategory(budget_id=budget.id, category_name="Loisirs & Culture"))
+    db.commit()
+    _spend(db, "Cinéma", 40.0)
+    _spend(db, "Concerts", 30.0)
+    _set_auto(db, True)
+
+    applied, _ = _cycle(db)
+
+    assert sorted(a["type"] for a in applied) == ["enrichment", "enrichment"]
+    assert db.query(Budget).one().monthly_amount == 170.0
