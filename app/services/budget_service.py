@@ -1112,6 +1112,18 @@ import uuid
 from app.models import AutopilotDecisionLog, Notification, RecurrenceTemplate
 
 
+def _budgeted_categories(db: Session) -> set:
+    """Catégories suivies par une enveloppe de dépenses ouverte."""
+    rows = (
+        db.query(BudgetCategory.category_name)
+        .join(Budget, Budget.id == BudgetCategory.budget_id)
+        .filter(Budget.is_closed == False, Budget.envelope_type == "spending")
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
 def get_unbudgeted_categories(db: Session, lookback_months: int = 3) -> List[str]:
     """Retourne les catégories de dépenses variables actives (3 derniers mois) non encore associées à un budget.
     Exclut formellement :
@@ -1123,14 +1135,7 @@ def get_unbudgeted_categories(db: Session, lookback_months: int = 3) -> List[str
     today = date.today()
     start_date = today.replace(day=1) - timedelta(days=lookback_months * 31)
 
-    # Catégories déjà budgétées (budgets non fermés)
-    budgeted_cats_q = (
-        db.query(BudgetCategory.category_name)
-        .join(Budget, Budget.id == BudgetCategory.budget_id)
-        .filter(Budget.is_closed == False, Budget.envelope_type == "spending")
-        .distinct()
-    )
-    budgeted_set = {row[0] for row in budgeted_cats_q.all()}
+    budgeted_set = _budgeted_categories(db)
 
     # Catégories explicitement non-dépenses variables dans le référentiel
     non_spending_cats = db.query(Category.name).filter(
@@ -1656,17 +1661,132 @@ def _detect_envelope_enrichments(db: Session, cat_stats: dict, chosen_engine: st
     return enrichments, remaining_stats
 
 
+def _auto_create_enabled(db: Session) -> bool:
+    cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_create_budget_envelopes").first()
+    if cfg and cfg.value is not None:
+        return cfg.value.strip().lower() in ("true", "1", "yes", "on")
+    from app.services.autopilot_service import is_autopilot_enabled
+    return is_autopilot_enabled(db)
+
+
+AUTO_KNOWN_CATEGORIES_KEY = "budget_auto_known_categories"
+
+
+def _auto_known_categories(db: Session, auto_create: bool) -> set:
+    """Catégories déjà suivies depuis l'activation de l'auto-création. Celle qui n'a plus d'enveloppe a été
+    retirée par l'utilisateur (suppression, annulation, modification) : elle redevient une simple proposition
+    au lieu d'être recréée au cycle suivant. Sans auto-création, rien n'est retenu : une activation repart de
+    l'état du moment."""
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_KNOWN_CATEGORIES_KEY).first()
+    if not auto_create:
+        if row:
+            db.delete(row)
+            db.commit()
+        return set()
+    known = set()
+    if row and row.value:
+        try:
+            known = set(json.loads(row.value))
+        except (ValueError, TypeError):
+            pass
+    return known | _budgeted_categories(db)
+
+
+def _save_auto_known_categories(db: Session, known: set) -> None:
+    _set_config(db, AUTO_KNOWN_CATEGORIES_KEY, json.dumps(sorted(known), ensure_ascii=False))
+
+
+def _categories_have_envelope(db: Session, categories: list) -> bool:
+    return db.query(Budget.id).join(BudgetCategory, BudgetCategory.budget_id == Budget.id).filter(
+        BudgetCategory.category_name.in_(categories), Budget.is_closed == False,
+    ).first() is not None
+
+
+def _proposal_is_outdated(db: Session, decision: AutopilotDecisionLog) -> bool:
+    """Une proposition sans objet (enveloppe cible supprimée, catégorie déjà suivie) ne doit plus immobiliser
+    ses catégories : tant qu'elle est en attente, l'analyse les ignore."""
+    try:
+        snap = json.loads(decision.raw_snapshot) if decision.raw_snapshot else {}
+    except (ValueError, TypeError):
+        snap = {}
+    if decision.decision_type == "budget_enrichment_suggestion":
+        target_id = decision.entity_id or snap.get("target_budget_id")
+        if not target_id or not db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first():
+            return True
+        new_cat = snap.get("new_category") or snap.get("category")
+        return bool(new_cat and db.query(BudgetCategory.id).filter(
+            BudgetCategory.budget_id == target_id, BudgetCategory.category_name == new_cat).first())
+    cats = snap.get("categories") or ([snap["category"]] if snap.get("category") else [])
+    return bool(cats) and _categories_have_envelope(db, cats)
+
+
+def _settle_pending_envelope_proposals(db: Session, auto_create: bool, known: set, applied: list) -> None:
+    """Retire les propositions sans objet et, en auto-création, applique celles qui attendent encore : elles
+    datent d'avant l'activation de l'option, et l'analyse ne les reprend pas tant qu'elles sont en attente.
+    Une catégorie retirée par l'utilisateur, écartée, ou devenue une charge prévue reste à sa décision."""
+    pending = db.query(AutopilotDecisionLog).filter(
+        AutopilotDecisionLog.decision_type.in_(["budget_creation_suggestion", "budget_enrichment_suggestion"]),
+        AutopilotDecisionLog.action == "SUGGESTED",
+        AutopilotDecisionLog.is_undone == False,
+    ).all()
+    for decision in pending:
+        if _proposal_is_outdated(db, decision):
+            decision.action = "EXPIRED"
+    db.commit()
+    if not auto_create:
+        return
+
+    refused = _get_dismissed_categories(db)
+    for suggestion in get_all_pending_budget_suggestions(db):
+        if suggestion["type"] == "recalibration" or (suggestion.get("observed_months") or 0) < 2:
+            continue
+        cats = suggestion.get("categories") or []
+        if not cats or (known | refused) & set(cats) or recurring_charge_categories(db, cats):
+            continue
+        if suggestion["type"] == "enrichment":
+            target = db.query(Budget).filter(Budget.id == suggestion.get("target_budget_id")).first()
+            if target and target.is_locked:
+                continue
+        try:
+            result = apply_budget_suggestion(db, suggestion["decision_id"])
+        except HTTPException as e:
+            # Une enveloppe suit déjà une de ces catégories : ses autres catégories seront réanalysées
+            db.rollback()
+            db.query(AutopilotDecisionLog).filter(
+                AutopilotDecisionLog.id == suggestion["decision_id"], AutopilotDecisionLog.action == "SUGGESTED",
+            ).update({"action": "EXPIRED"}, synchronize_session=False)
+            db.commit()
+            logger.info(f"[AutoPilot Budgets] Proposition {suggestion['decision_id']} retirée : {e.detail}")
+            continue
+        known.update(cats)
+        applied.append({"type": result["type"], "name": result["name"], "budget_id": result["budget_id"]})
+    _save_auto_known_categories(db, known)
+    db.commit()
+
+
+def activate_auto_creation(db: Session) -> dict:
+    """L'utilisateur vient d'activer l'auto-création : elle s'applique tout de suite, en repartant de l'état actuel."""
+    db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_KNOWN_CATEGORIES_KEY).delete(synchronize_session=False)
+    db.commit()
+    applied = []
+    remaining = suggest_new_envelopes(db, force=True, auto_applied=applied)
+    return {"auto_applied": applied, "new_envelopes": remaining}
+
+
 def suggest_new_envelopes(
     db: Session,
     profile_id_or_force: Union[str, bool, None] = None,
     force: bool = False,
     engine_override: Optional[str] = None,
+    auto_applied: Optional[list] = None,
 ) -> List[dict]:
     """Volet A — Détection et suggestion de création d'enveloppes pour les catégories orphelines.
     
     Supporte deux moteurs configurables :
     1. Déterministe (défaut) : calcul Winsorisé 100% hors-ligne avec clustering thématique, zéro dépendance Ollama.
     2. Assisté par IA (Ollama) : regroupement sémantique multi-catégories avec fallback automatique transparent si Ollama est indisponible.
+
+    Renvoie les propositions en attente ; auto_applied reçoit ce que l'auto-création vient d'appliquer.
     """
     if isinstance(profile_id_or_force, bool):
         force = profile_id_or_force
@@ -1687,6 +1807,11 @@ def suggest_new_envelopes(
     else:
         db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
     db.commit()
+
+    is_auto_create = _auto_create_enabled(db)
+    applied = auto_applied if auto_applied is not None else []
+    known_categories = _auto_known_categories(db, is_auto_create)
+    _settle_pending_envelope_proposals(db, is_auto_create, known_categories, applied)
 
     orphan_cats = get_unbudgeted_categories(db)
     if not orphan_cats:
@@ -1736,14 +1861,6 @@ def suggest_new_envelopes(
             min_threshold = float(cfg.value)
         except (ValueError, TypeError):
             pass
-
-    # Vérifier si l'option d'auto-création est activée
-    cfg_auto_create = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_create_budget_envelopes").first()
-    if cfg_auto_create and cfg_auto_create.value is not None:
-        is_auto_create = cfg_auto_create.value.strip().lower() in ("true", "1", "yes", "on")
-    else:
-        from app.services.autopilot_service import is_autopilot_enabled
-        is_auto_create = is_autopilot_enabled(db)
 
     # Moteur sélectionné (déterministe par défaut)
     engine_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "budget_suggestion_engine").first()
@@ -1865,7 +1982,7 @@ def suggest_new_envelopes(
         action_status = "SUGGESTED"
         target_budget_id = prop["target_budget_id"]
 
-        if is_auto_create and prop["observed_months"] >= 2:
+        if is_auto_create and prop["observed_months"] >= 2 and prop["new_category"] not in known_categories:
             from app.services.history_service import record_action, snapshot_entity
             b = db.query(Budget).filter(Budget.id == target_budget_id).first()
             if b and not b.is_closed and free_categories(
@@ -1884,6 +2001,8 @@ def suggest_new_envelopes(
                 db.flush()
                 record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db))
                 action_status = "AUTO_COMMIT"
+                known_categories.add(prop["new_category"])
+                applied.append({"type": "enrichment", "name": b.name, "budget_id": b.id})
                 logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({prop['suggested_amount']} €).")
 
         decision = AutopilotDecisionLog(
@@ -1943,7 +2062,7 @@ def suggest_new_envelopes(
         action_status = "SUGGESTED"
         created_budget_id = None
 
-        if is_auto_create and prop["observed_months"] >= 2:
+        if is_auto_create and prop["observed_months"] >= 2 and not known_categories & set(cats):
             from app.services.history_service import record_action, snapshot_entity
             b = Budget(
                 name=prop["name"],
@@ -1963,6 +2082,8 @@ def suggest_new_envelopes(
             record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
             action_status = "AUTO_COMMIT"
             created_budget_id = b.id
+            known_categories.update(cats)
+            applied.append({"type": "creation", "name": b.name, "budget_id": b.id})
             logger.info(f"[AutoPilot Budgets] Auto-création de l'enveloppe '{prop['name']}' ({prop['suggested_amount']} €).")
 
         decision = AutopilotDecisionLog(
@@ -2001,6 +2122,9 @@ def suggest_new_envelopes(
         cfg_last.value = now_iso
     else:
         db.add(GlobalConfig(key="last_budget_autopilot_run_at", value=now_iso))
+
+    if is_auto_create:
+        _save_auto_known_categories(db, known_categories)
 
     if suggestions or is_auto_create:
         db.commit()
@@ -2492,8 +2616,8 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
             target_id = d.entity_id or snap_check.get("budget_id")
             target_b = db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first() if target_id else None
             if not target_b:
-                # L'enveloppe cible a été supprimée ou clôturée : écarter la suggestion
-                d.action = "DISMISSED"
+                # L'enveloppe cible a été supprimée ou clôturée : la suggestion n'a plus d'objet
+                d.action = "EXPIRED"
                 continue
 
         snap = {}
@@ -2509,7 +2633,7 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
             target_id = d.entity_id or snap.get("target_budget_id")
             target_b = db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first() if target_id else None
             if not target_b:
-                d.action = "DISMISSED"
+                d.action = "EXPIRED"
                 continue
             new_cat = snap.get("new_category") or snap.get("category")
             if new_cat:
@@ -2518,7 +2642,7 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
                     BudgetCategory.category_name == new_cat
                 ).first()
                 if already_attached:
-                    d.action = "DISMISSED"
+                    d.action = "EXPIRED"
                     continue
 
         # Filtrage de sécurité : si une suggestion de création concerne un achat ponctuel isolé ou une charge non éligible (prêt, crédit, charge fixe)
@@ -2541,16 +2665,7 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
 
             # Si une enveloppe active existe déjà pour cette catégorie, la suggestion est ignorée (déjà traitée)
             cats = snap.get("categories", [cat] if cat else [])
-            existing_budget = (
-                db.query(Budget)
-                .join(BudgetCategory, BudgetCategory.budget_id == Budget.id)
-                .filter(
-                    BudgetCategory.category_name.in_(cats),
-                    Budget.is_closed == False
-                )
-                .first()
-            )
-            if existing_budget:
+            if _categories_have_envelope(db, cats):
                 continue
 
         entry_type = "creation" if d.decision_type == "budget_creation_suggestion" else ("enrichment" if d.decision_type == "budget_enrichment_suggestion" else "recalibration")

@@ -465,7 +465,8 @@ def trigger_budget_recalibration(
     try:
         from datetime import datetime, timezone
         from app.models import GlobalConfig
-        creation_results = budget_service.suggest_new_envelopes(db, force=True, engine_override=engine)
+        auto_applied = []
+        creation_results = budget_service.suggest_new_envelopes(db, force=True, engine_override=engine, auto_applied=auto_applied)
         recalib_results = budget_service.evaluate_monthly_budget_suggestions(db, force=True)
         stats_cache.invalidate()
 
@@ -480,10 +481,23 @@ def trigger_budget_recalibration(
         return {
             "new_envelopes": creation_results,
             "recalibrations": recalib_results,
+            "auto_applied": auto_applied,
             "total": len(creation_results) + len(recalib_results)
         }
     except Exception as e:
         logger.error(f"[Budgets AutoPilot] Erreur recalibrage forcé: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/autopilot/auto-create/activate")
+def activate_budget_auto_creation(db: Session = Depends(get_db)):
+    """Applique l'auto-création dès son activation, sans attendre le prochain cycle."""
+    try:
+        result = budget_service.activate_auto_creation(db)
+        stats_cache.invalidate()
+        return result
+    except Exception as e:
+        logger.error(f"[Budgets AutoPilot] Erreur activation auto-création: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
