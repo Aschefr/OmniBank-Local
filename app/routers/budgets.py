@@ -501,6 +501,18 @@ def activate_budget_auto_creation(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/autopilot/auto-notice")
+def get_budget_auto_notice(db: Session = Depends(get_db)):
+    """Ce que l'auto-création a ajouté et que l'utilisateur n'a pas encore validé."""
+    return {"items": budget_service.get_auto_applied_notice(db)}
+
+
+@router.post("/autopilot/auto-notice/dismiss")
+def dismiss_budget_auto_notice(db: Session = Depends(get_db)):
+    budget_service.dismiss_auto_applied_notice(db)
+    return {"ok": True}
+
+
 @router.get("/autopilot/status")
 def get_budget_autopilot_status(db: Session = Depends(get_db)):
     """Retourne le statut temporel et la cadence d'exécution de l'auto-pilote des budgets."""

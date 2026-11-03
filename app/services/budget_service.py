@@ -1696,6 +1696,55 @@ def _save_auto_known_categories(db: Session, known: set) -> None:
     _set_config(db, AUTO_KNOWN_CATEGORIES_KEY, json.dumps(sorted(known), ensure_ascii=False))
 
 
+AUTO_NOTICE_KEY = "budget_auto_notice"
+
+
+def _note_auto_applied(db: Session, applied: list, kind: str, name: str, budget_id: int, categories: list) -> None:
+    """Retient ce que l'auto-création vient d'appliquer. Elle tourne aussi en fond : le récapitulatif reste
+    sur la page Budgets jusqu'à ce que l'utilisateur le valide."""
+    applied.append({"type": kind, "name": name, "budget_id": budget_id, "categories": list(categories)})
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_NOTICE_KEY).first()
+    items = _json_list(row.value if row else None)
+    items.append({"type": kind, "budget_id": budget_id, "categories": list(categories)})
+    _set_config(db, AUTO_NOTICE_KEY, json.dumps(items, ensure_ascii=False))
+    db.flush()
+
+
+def _json_list(value: Optional[str]) -> list:
+    try:
+        parsed = json.loads(value) if value else []
+    except (ValueError, TypeError):
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def get_auto_applied_notice(db: Session) -> List[dict]:
+    """Récapitulatif par enveloppe de ce que l'auto-création a ajouté, d'après l'état actuel : ce qui a été
+    annulé, supprimé ou retiré depuis n'y figure plus."""
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_NOTICE_KEY).first()
+    merged = {}
+    for item in _json_list(row.value if row else None):
+        budget = db.query(Budget).filter(Budget.id == item.get("budget_id"), Budget.is_closed == False).first()
+        if not budget:
+            continue
+        tracked = {bc.category_name for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget.id).all()}
+        added = [c for c in item.get("categories") or [] if c in tracked]
+        if not added:
+            continue
+        entry = merged.setdefault(budget.id, {
+            "budget_id": budget.id, "name": budget.name, "amount": budget.monthly_amount or 0.0,
+            "created": False, "categories": [],
+        })
+        entry["created"] = entry["created"] or item.get("type") == "creation"
+        entry["categories"].extend(c for c in added if c not in entry["categories"])
+    return list(merged.values())
+
+
+def dismiss_auto_applied_notice(db: Session) -> None:
+    db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_NOTICE_KEY).delete(synchronize_session=False)
+    db.commit()
+
+
 def _categories_have_envelope(db: Session, categories: list) -> bool:
     return db.query(Budget.id).join(BudgetCategory, BudgetCategory.budget_id == Budget.id).filter(
         BudgetCategory.category_name.in_(categories), Budget.is_closed == False,
@@ -1759,7 +1808,7 @@ def _settle_pending_envelope_proposals(db: Session, auto_create: bool, known: se
             logger.info(f"[AutoPilot Budgets] Proposition {suggestion['decision_id']} retirée : {e.detail}")
             continue
         known.update(cats)
-        applied.append({"type": result["type"], "name": result["name"], "budget_id": result["budget_id"]})
+        _note_auto_applied(db, applied, result["type"], result["name"], result["budget_id"], cats)
     _save_auto_known_categories(db, known)
     db.commit()
 
@@ -2002,7 +2051,7 @@ def suggest_new_envelopes(
                 record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db))
                 action_status = "AUTO_COMMIT"
                 known_categories.add(prop["new_category"])
-                applied.append({"type": "enrichment", "name": b.name, "budget_id": b.id})
+                _note_auto_applied(db, applied, "enrichment", b.name, b.id, [prop["new_category"]])
                 logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({prop['suggested_amount']} €).")
 
         decision = AutopilotDecisionLog(
@@ -2083,7 +2132,7 @@ def suggest_new_envelopes(
             action_status = "AUTO_COMMIT"
             created_budget_id = b.id
             known_categories.update(cats)
-            applied.append({"type": "creation", "name": b.name, "budget_id": b.id})
+            _note_auto_applied(db, applied, "creation", b.name, b.id, cats)
             logger.info(f"[AutoPilot Budgets] Auto-création de l'enveloppe '{prop['name']}' ({prop['suggested_amount']} €).")
 
         decision = AutopilotDecisionLog(

@@ -7,11 +7,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
     async loadAutopilotSuggestions() {
         try {
-            const [data, cfg, autoStatus] = await Promise.all([
+            const [data, cfg, autoStatus, autoNotice] = await Promise.all([
                 API.get('/api/budgets/autopilot/suggestions'),
                 API.get('/api/config/').catch(() => ({})),
-                API.get('/api/budgets/autopilot/status').catch(() => ({}))
+                API.get('/api/budgets/autopilot/status').catch(() => ({})),
+                API.get('/api/budgets/autopilot/auto-notice').catch(() => ({}))
             ]);
+            this.autoNoticeItems = autoNotice?.items || [];
             this.autopilotSuggestions = Array.isArray(data) ? data : [];
             this.autopilotConfig = cfg || {};
             this.autopilotStatus = autoStatus || {};
@@ -859,8 +861,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
             // L'auto-création s'applique tout de suite, y compris aux propositions déjà en attente
             if (autoCreateTurnedOn) {
-                const res = await API.post('/api/budgets/autopilot/auto-create/activate');
-                this._toastAutoApplied(res.auto_applied);
+                await API.post('/api/budgets/autopilot/auto-create/activate');
                 await Promise.all([this.loadBudgets(), this.loadAllStatuses()]);
             }
 
@@ -875,11 +876,45 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         }
     },
 
-    _toastAutoApplied(applied) {
-        const count = applied?.length || 0;
-        if (!count) return false;
-        showToast((window.i18n.t('budget_auto_toast_auto_applied') || '{count} enveloppe(s) créée(s) ou complétée(s) sans validation').replace('{count}', count), 'success');
-        return true;
+    _autoNoticeHtml() {
+        const items = this.autoNoticeItems || [];
+        if (!items.length) return '';
+        const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
+        const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const rows = items.map(it => `
+                        <li class="bv-auto-item">
+                            <button type="button" class="bv-auto-name" onclick="window.BudgetsView.openAutoNoticeEnvelope(${Number(it.budget_id)})">${esc(it.name)}</button>
+                            <span class="bv-auto-meta">${it.created ? t('bv_auto_notice_created', 'Nouvelle enveloppe') : t('bv_auto_notice_extended', 'Catégorie ajoutée')} · <span class="privacy-blur">${t('bv_auto_notice_cap', 'plafond {amount}').split('{amount}').join(formatCurrency(it.amount))}</span></span>
+                            <span class="bv-auto-cats">${it.categories.map(esc).join(', ')}</span>
+                        </li>`).join('');
+        return `
+            <section class="bv-notice" role="status">
+                <div class="bv-notice-body">
+                    <h3>${t('bv_auto_notice_title', "L'auto-création a complété vos enveloppes")}</h3>
+                    <ul class="bv-auto-list">${rows}</ul>
+                    <p class="bv-auto-hint">${t('bv_auto_notice_hint', "Vous pouvez les modifier ou les supprimer : une catégorie que vous retirez revient comme simple proposition.")}
+                        <button type="button" class="bv-auto-link" onclick="window.BudgetsView.openDismissedSuggestionsModal('executed')">${t('bv_auto_notice_history', "Voir l'historique")}</button>
+                    </p>
+                </div>
+                <button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.dismissAutoNotice()">${t('bv_notice_ok', 'Compris')}</button>
+            </section>`;
+    },
+
+    openAutoNoticeEnvelope(id) {
+        const budget = (this.budgets || []).find(b => b.id === id);
+        if (!budget) return;
+        const now = new Date();
+        this.showDetail(id, budget.name, now.getFullYear(), now.getMonth() + 1);
+    },
+
+    async dismissAutoNotice() {
+        try {
+            await API.post('/api/budgets/autopilot/auto-notice/dismiss');
+            this.autoNoticeItems = [];
+            this.renderStatus();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
     },
 
     async triggerAutopilotAnalysis(engine = null) {
@@ -928,9 +963,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             this._isAiAnalyzing = false;
 
             const total = (res.new_envelopes?.length || 0) + (res.recalibrations?.length || 0);
-            const autoApplied = this._toastAutoApplied(res.auto_applied);
-            if (autoApplied && !total) {
-                // Le message de l'auto-création suffit
+            if (res.auto_applied?.length && !total) {
+                // Le message en tête de page récapitule ce qui vient d'être créé
             } else if (total > 0) {
                 showToast((window.i18n.t('budget_auto_ai_toast_found') || '{count} recommandation(s) budgétaire(s) identifiée(s)').replace('{count}', total), 'success');
             } else {
