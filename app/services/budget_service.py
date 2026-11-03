@@ -103,14 +103,17 @@ def category_conflicts(db: Session, categories, period: Optional[str], start: Op
 
 def envelope_validation_error(db: Session, *, categories, envelope_type: Optional[str], is_project: bool,
                               period: Optional[str], start: Optional[date] = None, end: Optional[date] = None,
-                              account_ids=None, exclude_id: Optional[int] = None) -> Optional[str]:
-    """Message d'erreur si l'enveloppe fausserait le suivi, sinon None."""
+                              account_ids=None, exclude_id: Optional[int] = None,
+                              known_conflicts=frozenset()) -> Optional[str]:
+    """Message d'erreur si l'enveloppe fausserait le suivi, sinon None. known_conflicts : recoupements qui
+    existaient déjà avant cette modification, tolérés (voir update_existing_budget)."""
     if not _tracks_by_category(envelope_type, is_project):
         return None
     if not categories:
         return ("Choisissez au moins une catégorie : une enveloppe de dépenses suit les opérations de ses catégories "
                 "(pour y rattacher des opérations à la main, créez un projet).")
-    conflicts = category_conflicts(db, categories, period, start, end, account_ids, exclude_id)
+    conflicts = [c for c in category_conflicts(db, categories, period, start, end, account_ids, exclude_id)
+                 if c not in known_conflicts]
     if conflicts:
         details = ", ".join(f"« {c} » (enveloppe « {n} »)" for c, n in conflicts)
         return (f"Déjà suivie par une autre enveloppe sur une période qui se recoupe : {details}. "
@@ -406,6 +409,12 @@ def update_existing_budget(budget_id: int, data, db: Session) -> dict:
         raise HTTPException(status_code=404, detail="Budget non trouvé.")
 
     old_snapshot = snapshot_entity(b, db)
+    # Une enveloppe d'avant la règle peut partager une catégorie ou n'en avoir aucune : on ne bloque que ce que
+    # cette modification introduit, pour que son plafond, son nom ou son verrou restent modifiables
+    old_cats = [c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).all()]
+    was_open_tracker = not b.is_closed and _tracks_by_category(b.envelope_type, b.is_project)
+    known_conflicts = set(category_conflicts(db, old_cats, b.period, b.start_date, b.end_date,
+                                             parse_account_ids(b.account_ids), b.id)) if was_open_tracker else set()
     dump_data = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data.dict(exclude_unset=True)
     for k, v in dump_data.items():
         if k == "categories":
@@ -418,12 +427,12 @@ def update_existing_budget(budget_id: int, data, db: Session) -> dict:
             continue
         setattr(b, k, v)
 
-    final_cats = data.categories if data.categories is not None else [
-        c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == budget_id).all()
-    ]
-    error = None if b.is_closed else envelope_validation_error(
+    final_cats = data.categories if data.categories is not None else old_cats
+    keeps_legacy_gap = was_open_tracker and not final_cats and data.categories is None
+    error = None if b.is_closed or keeps_legacy_gap else envelope_validation_error(
         db, categories=final_cats, envelope_type=b.envelope_type, is_project=b.is_project, period=b.period,
         start=b.start_date, end=b.end_date, account_ids=parse_account_ids(b.account_ids), exclude_id=b.id,
+        known_conflicts=known_conflicts,
     )
     if error:
         db.rollback()

@@ -62,6 +62,65 @@ def test_update_cannot_take_a_category_from_another_envelope(db):
     assert {c.category_name for c in db.query(BudgetCategory).filter(BudgetCategory.budget_id == other["id"])} == {"Cinéma"}
 
 
+def _legacy(db, name, cats, **kw):
+    """Enveloppe créée avant la règle : posée directement en base, sans validation."""
+    b = Budget(name=name, monthly_amount=100.0, period=kw.pop("period", "monthly"), envelope_type="spending", **kw)
+    db.add(b)
+    db.flush()
+    db.add_all([BudgetCategory(budget_id=b.id, category_name=c) for c in cats])
+    db.commit()
+    return b.id
+
+
+def test_existing_shared_category_does_not_block_other_changes(db):
+    first = _legacy(db, "Courses", ["Alimentation"])
+    second = _legacy(db, "Vie courante", ["Alimentation", "Pharmacie"])
+    assert update_existing_budget(first, BudgetUpdate(monthly_amount=250.0), db)["monthly_amount"] == 250.0
+    assert update_existing_budget(second, BudgetUpdate(is_locked=True), db)["is_locked"] is True
+    # Le formulaire renvoie toutes les catégories : la même liste passe, avec un autre nom
+    saved = update_existing_budget(second, BudgetUpdate(name="Quotidien", categories=["Alimentation", "Pharmacie"]), db)
+    assert saved["name"] == "Quotidien"
+
+
+def test_existing_shared_category_can_be_removed_but_no_new_one_added(db):
+    _legacy(db, "Courses", ["Alimentation"])
+    _legacy(db, "Loisirs", ["Cinéma"])
+    second = _legacy(db, "Vie courante", ["Alimentation", "Pharmacie"])
+    with pytest.raises(HTTPException) as e:
+        update_existing_budget(second, BudgetUpdate(categories=["Alimentation", "Pharmacie", "Cinéma"]), db)
+    assert e.value.status_code == 409 and "Cinéma" in e.value.detail and "Alimentation" not in e.value.detail
+    db.rollback()
+    saved = update_existing_budget(second, BudgetUpdate(categories=["Pharmacie"]), db)
+    assert saved["categories"] == ["Pharmacie"]
+
+
+def test_envelope_without_category_stays_editable_until_categories_are_sent(db):
+    empty = _legacy(db, "Héritée", [])
+    assert update_existing_budget(empty, BudgetUpdate(monthly_amount=80.0), db)["monthly_amount"] == 80.0
+    with pytest.raises(HTTPException) as e:
+        update_existing_budget(empty, BudgetUpdate(categories=[]), db)
+    assert e.value.status_code == 400
+
+
+def test_reopening_a_closed_envelope_still_checks_for_conflicts(db):
+    _legacy(db, "Courses", ["Alimentation"])
+    closed = _legacy(db, "Ancienne", ["Alimentation"], is_closed=True)
+    with pytest.raises(HTTPException):
+        update_existing_budget(closed, BudgetUpdate(is_closed=False), db)
+
+
+def test_update_notice_migration_targets_profiles_with_envelopes(db):
+    from app.migrations.versions.v33_budget_update_notice import upgrade
+    conn = db.connection()
+    upgrade(conn)
+    assert db.query(GlobalConfig).filter(GlobalConfig.key == "budget_update_notice").first() is None
+    _legacy(db, "Courses", ["Alimentation"])
+    conn = db.connection()
+    upgrade(conn)
+    db.commit()
+    assert db.query(GlobalConfig).filter(GlobalConfig.key == "budget_update_notice").one().value == "true"
+
+
 def test_closed_envelope_frees_its_categories(db):
     old = _create(db, "Ancien", ["Alimentation"])
     update_existing_budget(old["id"], BudgetUpdate(is_closed=True), db)

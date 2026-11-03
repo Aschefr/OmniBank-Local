@@ -25,15 +25,23 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
     // Catégories qu'une autre enveloppe ouverte suit déjà sur une période (et des comptes) qui recoupent
     // ceux du formulaire : même règle que le serveur, qui refuserait l'enregistrement (double comptage)
     _catConflicts() {
-        const period = document.getElementById('newBudgetPeriod')?.value || 'monthly';
-        const currentEditId = parseInt(document.getElementById('budgetEditId')?.value || 0);
-        const win = (p, s, e) => (p === 'custom' && s && e) ? [s, e] : ['0000-01-01', '9999-12-31'];
-        const [s1, e1] = win(period, document.getElementById('newBudgetStartDate')?.value, document.getElementById('newBudgetEndDate')?.value);
         const isOrg = window.app?.config?.enable_org_mode === 'true';
-        const acc1 = new Set(isOrg ? this.getSelectedAccounts() : []);
+        return this._conflictsFor({
+            id: parseInt(document.getElementById('budgetEditId')?.value || 0),
+            period: document.getElementById('newBudgetPeriod')?.value || 'monthly',
+            start: document.getElementById('newBudgetStartDate')?.value,
+            end: document.getElementById('newBudgetEndDate')?.value,
+            accounts: isOrg ? this.getSelectedAccounts() : [],
+        });
+    },
+
+    _conflictsFor({ id = 0, period, start, end, accounts = [] }) {
+        const win = (p, s, e) => (p === 'custom' && s && e) ? [s, e] : ['0000-01-01', '9999-12-31'];
+        const [s1, e1] = win(period, start, end);
+        const acc1 = new Set(accounts);
         const map = {};
         for (const b of (this.budgets || [])) {
-            if (b.id === currentEditId || b.is_closed || b.is_project || (b.envelope_type || 'spending') !== 'spending') continue;
+            if (b.id === id || b.is_closed || b.is_project || (b.envelope_type || 'spending') !== 'spending') continue;
             const [s2, e2] = win(b.period, b.start_date, b.end_date);
             if (s1 > e2 || s2 > e1) continue;
             const acc2 = new Set(b.account_ids || []);
@@ -263,7 +271,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const isOrg = window.app?.config?.enable_org_mode === 'true';
         const accIds = isOrg ? this.getSelectedAccounts() : [];
         const p = this.periodInfo;
-        const year = this._currentDetailYear || (p ? parseInt(p.start.slice(0, 4)) : new Date().getFullYear());
+        const year = period === 'yearly' ? this.yearlyYear : (this._currentDetailYear || (p ? parseInt(p.start.slice(0, 4)) : new Date().getFullYear()));
         const month = this._currentDetailMonth || (p ? parseInt(p.start.slice(5, 7)) : new Date().getMonth() + 1);
 
         const params = new URLSearchParams({ period, year, month });
