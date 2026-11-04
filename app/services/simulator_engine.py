@@ -59,6 +59,28 @@ PRESET_STANDARD_SEASONALITY = {
 }
 
 
+def _recurrence_amount_for_month(rec, month: int) -> Optional[float]:
+    """Montant d'une récurrence pour un mois calendaire, ou None si elle ne tombe pas ce mois-là."""
+    raw_freq = (rec.frequency or "monthly").strip().lower()
+    base_m = rec.month_of_year or 1
+    amount = abs(float(rec.amount or 0.0))  # Le sens vient du type : une charge saisie en négatif reste une charge
+    if raw_freq in ("monthly", "mensuel", "mensuelle"):
+        return amount
+    if "year" in raw_freq or "annuel" in raw_freq:
+        return amount if month == base_m else None
+    if "semi" in raw_freq or "semestr" in raw_freq:  # Tous les 6 mois, calé sur base_m
+        return amount if month in (base_m, (base_m + 5) % 12 + 1) else None
+    if "quarter" in raw_freq or "trimestr" in raw_freq:
+        return amount if month in [(base_m - 1 + 3 * i) % 12 + 1 for i in range(4)] else None
+    if "bimestr" in raw_freq:
+        return amount if month in [(base_m - 1 + 2 * i) % 12 + 1 for i in range(6)] else None
+    if "bi-week" in raw_freq or "bi-hebdo" in raw_freq or "quinzain" in raw_freq or "bi-month" in raw_freq:  # 26 échéances / 12 mois
+        return amount * 2.167
+    if "week" in raw_freq or "hebdo" in raw_freq:  # 52 échéances / 12 mois
+        return amount * 4.333
+    return amount
+
+
 def _add_months(sourcedate: date, months: int) -> date:
     """Ajoute N mois à une date en gérant correctement la fin de mois."""
     month = sourcedate.month - 1 + months
@@ -1135,52 +1157,8 @@ def run_simulation(
             if rec.max_occurrences and (db_rec_occurrences.get(rec.id, 0) + sim_rec_occurrences.get(rec.id, 0)) >= rec.max_occurrences:
                 continue
 
-            raw_freq = (rec.frequency or "monthly").strip().lower()
-            base_m = rec.month_of_year or 1
-            # Le sens vient du type : une charge saisie en négatif reste une charge
-            rec_amt = abs(float(rec.amount or 0.0))
-            should_apply = False
-            effective_amt = rec_amt
-
-            # 1. Mensuel
-            if raw_freq in ("monthly", "mensuel", "mensuelle"):
-                should_apply = True
-                effective_amt = rec_amt
-            # 2. Annuel
-            elif "year" in raw_freq or "annuel" in raw_freq:
-                if m == base_m:
-                    should_apply = True
-                    effective_amt = rec_amt
-            # 3. Semestriel (tous les 6 mois, calé sur base_m, ex: Fév & Août)
-            elif "semi" in raw_freq or "semestr" in raw_freq:
-                m2 = (base_m + 5) % 12 + 1
-                if m in (base_m, m2):
-                    should_apply = True
-                    effective_amt = rec_amt
-            # 4. Trimestriel (tous les 3 mois, calé sur base_m)
-            elif "quarter" in raw_freq or "trimestr" in raw_freq:
-                applicable_quarters = [(base_m - 1 + 3 * i) % 12 + 1 for i in range(4)]
-                if m in applicable_quarters:
-                    should_apply = True
-                    effective_amt = rec_amt
-            # 5. Bimestriel (tous les 2 mois, calé sur base_m)
-            elif "bimestr" in raw_freq:
-                applicable_bimonthly = [(base_m - 1 + 2 * i) % 12 + 1 for i in range(6)]
-                if m in applicable_bimonthly:
-                    should_apply = True
-                    effective_amt = rec_amt
-            # 6. Bi-hebdomadaire / Quinzaine (toutes les 2 semaines -> 26 échéances / 12 mois = 2.167 par mois)
-            elif "bi-week" in raw_freq or "bi-hebdo" in raw_freq or "quinzain" in raw_freq or ("bi-month" in raw_freq and "bimestr" not in raw_freq):
-                should_apply = True
-                effective_amt = rec_amt * 2.167
-            # 7. Hebdomadaire (toutes les semaines -> 52 échéances / 12 mois = 4.333 par mois)
-            elif "week" in raw_freq or "hebdo" in raw_freq:
-                should_apply = True
-                effective_amt = rec_amt * 4.333
-            else:
-                # Repli par défaut : mensuel
-                should_apply = True
-                effective_amt = rec_amt
+            effective_amt = _recurrence_amount_for_month(rec, m)
+            should_apply = effective_amt is not None
 
             if should_apply:
                 sim_rec_occurrences[rec.id] = sim_rec_occurrences.get(rec.id, 0) + 1
@@ -1559,6 +1537,7 @@ def run_simulation(
         "recent_history": recent_history,
         "other_income_avg": round(other_income_avg, 2),
         "unplanned_fixed_avg": round(unplanned_fixed_avg, 2),
+        "recurring_variable_monthly": round(sum(recurring_variable_share.values()), 2),
         "scenario": {
             "level": round(scenario_level, 2),
             "favorable_available": favorable_available,

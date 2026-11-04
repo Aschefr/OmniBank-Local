@@ -125,6 +125,7 @@ window.OverviewView = {
                 <div class="cockpit-container" id="ovCockpitContainer">
                     <div class="cockpit-gauges-row" id="ovCockpitGauges"></div>
                     <div class="cockpit-cards-row" id="ovCockpitCards"></div>
+                    <div class="cockpit-tracking-container" id="ovCockpitTracking" style="display:none;"></div>
                     <div class="cockpit-forecast-container" id="ovCockpitForecast"></div>
                 </div>
             </div>
@@ -159,6 +160,145 @@ window.OverviewView = {
         } catch (err) {
             console.warn('[OverviewView] Erreur chargement forecast summary:', err);
         }
+    },
+
+    async _fetchForecastTracking(simAccParam = '') {
+        if (window.app?.config?.enable_simulator === 'false') return;
+        try {
+            this._forecastTracking = await API.get('/api/simulator/forecast-tracking' + simAccParam);
+        } catch (err) {
+            console.warn('[OverviewView] Erreur chargement suivi de la prévision:', err);
+            this._forecastTracking = null;
+        }
+        this._renderForecastTracking();
+    },
+
+    _trackingEuro(value) {
+        return `${Math.round(Math.abs(value || 0)).toLocaleString(window.i18n?.lang === 'en' ? 'en-US' : 'fr-FR')} €`;
+    },
+
+    _trackingDate(iso, withYear = false) {
+        const options = withYear ? { day: 'numeric', month: 'long', year: 'numeric' } : { day: 'numeric', month: 'short' };
+        const isEn = window.i18n?.lang === 'en';
+        const text = new Date(`${iso}T12:00:00`).toLocaleDateString(isEn ? 'en-GB' : 'fr-FR', options);
+        return isEn ? text : text.replace(/^1 /, '1er ');
+    },
+
+    _renderForecastTracking() {
+        const container = document.getElementById('ovCockpitTracking');
+        if (!container) return;
+        if (this._trackingChart) {
+            this._trackingChart.destroy();
+            this._trackingChart = null;
+        }
+        const data = this._forecastTracking;
+        if (!data || !data.available) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        const t = window.i18n.t.bind(window.i18n);
+        const isExercise = data.kind === 'exercise';
+        const title = isExercise
+            ? t('cockpit_track_title_exercise').replace('{year}', data.period_start.slice(0, 4))
+            : t('cockpit_track_title_period');
+        const statusText = data.is_first_day
+            ? t('cockpit_track_first_day')
+            : t(`cockpit_track_${data.status}`).replace('{amount}', this._trackingEuro(data.gap));
+        const created = t('cockpit_track_recorded').replace('{date}', this._trackingDate(data.created_on, true));
+        const notes = [created];
+        if (data.recent_history) notes.push(t('cockpit_track_recent'));
+
+        const stored = window.ProfileStorage?.get('ov_tracking_open');
+        const open = (stored === null || stored === undefined || stored === '') ? window.innerWidth > 768 : stored === 'true';
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div class="cockpit-tracking-head">
+                <div class="cockpit-tracking-summary">
+                    <h3 class="cockpit-tracking-title">${escapeHtml(title)}</h3>
+                    <span class="cockpit-tracking-status is-${data.is_first_day ? 'first-day' : data.status}">${escapeHtml(statusText)}</span>
+                </div>
+                <button type="button" class="cockpit-tracking-toggle" aria-expanded="${open}" onclick="window.OverviewView.toggleForecastTracking()">
+                    ${escapeHtml(open ? t('cockpit_track_hide') : t('cockpit_track_show'))}
+                </button>
+            </div>
+            ${open ? `
+            <div class="cockpit-tracking-chart"><canvas id="ovTrackingCanvas" role="img" aria-label="${escapeHtml(`${title} : ${statusText}`)}"></canvas></div>
+            <div class="cockpit-tracking-foot">
+                <span class="cockpit-tracking-legend">
+                    <span class="cockpit-tracking-key is-real"></span>${escapeHtml(t('cockpit_track_legend_real'))}
+                    <span class="cockpit-tracking-key is-forecast"></span>${escapeHtml(t('cockpit_track_legend_forecast'))}
+                </span>
+                <span class="cockpit-tracking-note">${escapeHtml(notes.join(' · '))}</span>
+            </div>` : ''}
+        `;
+        if (open) this._drawForecastTracking(data);
+    },
+
+    toggleForecastTracking() {
+        const stored = window.ProfileStorage?.get('ov_tracking_open');
+        const open = (stored === null || stored === undefined || stored === '') ? window.innerWidth > 768 : stored === 'true';
+        window.ProfileStorage?.set('ov_tracking_open', String(!open));
+        this._renderForecastTracking();
+    },
+
+    _drawForecastTracking(data) {
+        const canvas = document.getElementById('ovTrackingCanvas');
+        if (!canvas || typeof Chart === 'undefined') return;
+        const realByDate = Object.fromEntries(data.real.map(p => [p.date, p.balance]));
+        const forecastByDate = Object.fromEntries(data.points.map(p => [p.date, p]));
+        const dates = [...new Set([...data.points.map(p => p.date), ...data.real.map(p => p.date)])].sort();
+        const styles = getComputedStyle(document.body);
+        const accent = styles.getPropertyValue('--accent').trim() || '#6366f1';
+        const muted = styles.getPropertyValue('--text-muted').trim() || '#94a3b8';
+        const grid = styles.getPropertyValue('--border-color').trim() || 'rgba(148,163,184,0.2)';
+        const band = 'rgba(148,163,184,0.14)';
+        const forecast = day => forecastByDate[day]?.balance ?? null;
+        const limit = (day, sign) => forecastByDate[day] ? forecastByDate[day].balance + sign * forecastByDate[day].tolerance : null;
+        const isExercise = data.kind === 'exercise';
+        const euro = value => `${Math.round(value).toLocaleString(window.i18n?.lang === 'en' ? 'en-US' : 'fr-FR')} €`;
+
+        this._trackingChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    { label: 'high', order: 3, data: dates.map(d => limit(d, 1)), borderWidth: 0, pointRadius: 0, backgroundColor: band, fill: '+1', spanGaps: true },
+                    { label: 'low', order: 3, data: dates.map(d => limit(d, -1)), borderWidth: 0, pointRadius: 0, fill: false, spanGaps: true },
+                    { label: window.i18n.t('cockpit_track_legend_forecast'), order: 2, data: dates.map(forecast), borderColor: muted, borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, tension: 0, fill: false, spanGaps: true },
+                    { label: window.i18n.t('cockpit_track_legend_real'), order: 1, data: dates.map(d => realByDate[d] ?? null), borderColor: accent, backgroundColor: accent, borderWidth: 2.5, pointRadius: dates.length <= 14 || data.real.length <= 1 ? 3 : 0, tension: 0, fill: false, spanGaps: true },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        filter: item => item.datasetIndex >= 2 && item.parsed.y !== null,
+                        callbacks: {
+                            title: items => this._trackingDate(items[0].label),
+                            label: item => `${item.dataset.label} : ${euro(item.parsed.y)}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: muted, maxTicksLimit: isExercise ? 12 : 6, maxRotation: 0, font: { size: 12 }, callback: (value, index) => this._trackingDate(dates[index]) },
+                    },
+                    y: {
+                        grid: { color: grid },
+                        border: { display: false },
+                        ticks: { color: muted, maxTicksLimit: 4, font: { size: 12 }, callback: value => euro(value) },
+                    },
+                },
+            },
+        });
     },
 
     async loadData() {
@@ -260,6 +400,7 @@ window.OverviewView = {
             // ── CHARGEMENT EN ARRIÈRE-PLAN (Non-bloquant) ──────────────────────
             // Les widgets annexes, prévisions et graphiques s'actualisent sans bloquer l'affichage
             this._fetchForecastSummary(simAccParam).catch(e => console.warn('[OverviewView] Erreur forecast summary:', e));
+            this._fetchForecastTracking(simAccParam);
             this._checkBankConnections().catch(e => console.warn('[OverviewView] Erreur check connections:', e));
         } finally {
             this._initInFlight = false;
@@ -899,7 +1040,9 @@ window.OverviewView = {
         }
         await this._fetchRhythmAverages();
         this._renderCockpit();
-        this._fetchForecastSummary(this._selectedAccountId ? '?account_id=' + this._selectedAccountId : '');
+        const trackingParam = this._selectedAccountId ? '?account_id=' + this._selectedAccountId : '';
+        this._fetchForecastSummary(trackingParam);
+        this._fetchForecastTracking(trackingParam);
     },
 
     async openUserPicker() {
@@ -3828,5 +3971,9 @@ window.OverviewView = {
 
     destroy() {
         this.closeInfoSheet();
+        if (this._trackingChart) {
+            this._trackingChart.destroy();
+            this._trackingChart = null;
+        }
     }
 };

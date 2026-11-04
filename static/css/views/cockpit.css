@@ -1282,3 +1282,113 @@
         display: none;
     }
 }
+
+/* Le réel comparé à la prévision enregistrée pour la période */
+.cockpit-tracking-container {
+    max-width: 1040px;
+    margin: 24px auto 0;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 12px 18px;
+    box-shadow: var(--shadow-sm);
+}
+
+.cockpit-tracking-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.cockpit-tracking-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    min-width: 0;
+}
+
+.cockpit-tracking-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.cockpit-tracking-status {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.cockpit-tracking-status.is-above {
+    color: #10b981;
+}
+
+.cockpit-tracking-status.is-below {
+    color: #f59e0b;
+}
+
+.cockpit-tracking-toggle {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent, #6366f1);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.cockpit-tracking-toggle:hover,
+.cockpit-tracking-toggle:focus-visible {
+    text-decoration: underline;
+}
+
+.cockpit-tracking-chart {
+    position: relative;
+    height: 130px;
+    margin-top: 6px;
+}
+
+.cockpit-tracking-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2px 16px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.cockpit-tracking-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cockpit-tracking-key {
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    border-top: 2.5px solid var(--accent, #6366f1);
+}
+
+.cockpit-tracking-key.is-forecast {
+    margin-left: 8px;
+    border-top: 2px dashed var(--text-muted);
+}
+
+@media (max-width: 768px) {
+    .cockpit-tracking-container {
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 12px;
+    }
+}

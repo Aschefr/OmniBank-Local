@@ -34,6 +34,8 @@ Le simulateur prend en charge :
 - **Dépenses Ponctuelles / Travaux** : Décaissements étalés ou en une fois.
 
 ## 4. Synthèse Prévisionnelle dans le Cockpit (Vue d'Ensemble)
+
+**Réel et prévision** : la prévision du mode Conseillé est enregistrée dès le début de la période et ne bouge plus ensuite (cycle de paie en mode personnel, exercice civil en mode organisation). Le réel s'affiche depuis le début de la période. Si le serveur était éteint à ce moment, la prévision part de son redémarrage.
 Le Cockpit affiche un résumé prévisionnel direct en 3 cartes multi-horizons :
 1. **Horizon 7 Jours** : Flux imminents et échéances programmées de la semaine.
 2. **Horizon Cycle en Cours** : Recettes prévues, charges fixes restantes, budget variable alloué et solde prévisionnel de fin de cycle.
