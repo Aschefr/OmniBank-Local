@@ -48,6 +48,9 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **Export PDF sur téléphone** : l'aperçu montre la feuille à sa vraie mise en page, réduite à la largeur de l'écran, avec des montants entiers et des lignes de coupe au bon endroit. Les boutons Imprimer et Ajouter un saut de page ne débordent plus.
 - **Export PDF : un tableau des opérations lisible** : la taille du texte s'adapte au nombre de colonnes et les en-têtes passent à la ligne au lieu d'être coupés.
 - **Export PDF : les soldes des comptes** : la situation des comptes affichait 0,00 € pour chaque compte, et le compte de résultat une trésorerie et une réserve à zéro. Les vrais soldes apparaissent, et la trésorerie suit les comptes du rapport sans compter les prêts. Le bandeau de chiffres indique désormais « Dépenses » et « Résultat net », qui correspondent à ce qu'il totalise. Les textes du compte de résultat et de la certification suivent la langue de l'interface.
+- **Simulateur : un mode Conseillé plus prudent** : il ne retire plus que les achats hors norme, au-delà de 800 €. Les réparations et achats courants restent dans la moyenne. Le réglage reste libre en mode Avancé, avec des niveaux renommés pour dire ce qu'ils font.
+- **Simulateur : le curseur de prudence agit en mode organisation** : au maximum, il ne garde que les recettes revenues l'année d'avant, au plus bas des deux années, et retient les dépenses de l'année la plus chère. Une dotation ne s'étale plus sur tous les mois quand le curseur est bas.
+- **Simulateur : mois en cours et profils récents** : en revenu désactivé ou personnalisé, le mois en cours ne compte plus la paie attendue. Avec moins de 4 mois d'historique, les enveloppes servent de repère et un message le signale. Une charge récurrente saisie en négatif reste une charge.
 
 ## [1.3.0] - 2026-11-01
 
