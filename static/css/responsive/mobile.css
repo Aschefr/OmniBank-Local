@@ -466,6 +466,8 @@
         align-items: stretch !important;
         gap: 8px !important;
         padding: 0 !important;
+        margin-top: 0 !important;
+        top: -12px !important;
         margin-bottom: 8px !important;
     }
 
@@ -1334,6 +1336,40 @@
 
     .profile-name {
         max-width: 120px !important;
+    }
+
+    .view-header-bar {
+        top: -10px !important;
+    }
+
+    /* Mode organisation : profil, rôle et cloche doivent tenir. Le logo reste, son texte cède la place */
+    .app-header:has(#userSwitcher[style*="block"]) .logo-brand span {
+        display: none !important;
+    }
+
+    .app-header > div:first-child,
+    .notifications-dropdown {
+        flex-shrink: 0 !important;
+    }
+
+    .profile-selector,
+    .user-switcher {
+        min-width: 0 !important;
+        flex-shrink: 1 !important;
+    }
+
+    .profile-badge,
+    .user-switcher-btn {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .profile-name,
+    .user-switcher-name {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
     .header-actions button:not(#notifMenu *):not(#themeMenu *):not(#langMenu *):not(.user-switcher-btn):not(.notif-action-btn):not(#langToggleBtn):not(.profile-badge):not(#profileBtn) {
