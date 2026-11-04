@@ -74,6 +74,12 @@ ORG_EXCEPTIONAL_SHARE = {1: 0.05, 2: 0.10, 3: 0.15, 4: 0.25}
 # Une organisation vit sur un cycle annuel (dotation, chèques-vacances, colis de fin d'année)
 ORG_VARIABLE_WINDOW_MONTHS = 12
 PERSONAL_VARIABLE_WINDOW_MONTHS = 6
+# Mode conseillé : seuls les achats géants sortent de la moyenne, le reste fait partie de la vie courante
+DEFAULT_OUTLIER_SENSITIVITY = 4
+# Mode organisation : marge du curseur de prudence quand aucune année complète ne permet de comparer
+ORG_SHORT_HISTORY_MARGIN = 0.10
+# En deçà de ces mois d'historique, les dépenses saisies ne disent pas encore le train de vie
+RECENT_HISTORY_MONTHS = 4
 
 
 def _elapsed_months(first_activity: Optional[date], window_start: date, window_end: date) -> int:
@@ -128,7 +134,8 @@ def _personal_variable_outlier_ids(txs: list, outlier_sens: int) -> set:
     median_amt = statistics.median(amounts)
     return {
         t.id for t in txs
-        if abs(t.amount) > upper_fence and abs(t.amount) > cfg["min_thresh"] and abs(t.amount) > cfg["median_mult"] * median_amt
+        if not t.recurrence_id
+        and abs(t.amount) > upper_fence and abs(t.amount) > cfg["min_thresh"] and abs(t.amount) > cfg["median_mult"] * median_amt
     }
 
 
@@ -154,6 +161,50 @@ def _variable_expenses_in_window(db: Session, window_start: date, window_end: da
     )
     target_txs = [t for t in treasury_txs if not target_ids or t.from_account_id in target_ids]
     return [t for t in target_txs if t.id not in excluded_ids], [t for t in target_txs if t.id in excluded_ids]
+
+
+def _org_prudence_ratios(db: Session, treasury_ids: set, window_start: date, window_end: date, first_activity: Optional[date], outlier_sens: int) -> tuple:
+    """Mode organisation, curseur de prudence au maximum, rapporté à la dernière année : (recettes, dépenses).
+    Ne restent que les recettes revenues l'année d'avant, au plus bas des deux années, et les dépenses de l'année
+    la plus chère. Calculé sur toute la trésorerie, pour que la somme des comptes redonne le global."""
+    if not first_activity:
+        return 1.0, 1.0
+    previous_start = _add_months(window_start, -12)
+    if first_activity.replace(day=1) > previous_start:
+        return 1.0 - ORG_SHORT_HISTORY_MARGIN, 1.0 + ORG_SHORT_HISTORY_MARGIN
+
+    txs = db.query(Transaction).filter(
+        Transaction.type.in_(("income", "expense_fixed", "expense_var")),
+        Transaction.date_operation >= previous_start,
+        Transaction.date_operation < window_end,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).all()
+    # Une recette isolée ne figure déjà pas dans la référence
+    isolated = _isolated_exceptional_ids(
+        db, [t for t in txs if t.type == "income" and t.date_operation >= window_start and t.to_account_id in treasury_ids],
+        outlier_sens, first_activity, window_end
+    )
+    last_income, previous_income = {}, {}
+    last_expense = previous_expense = 0.0
+    for t in txs:
+        if t.id in isolated:
+            continue
+        is_last_year = t.date_operation >= window_start
+        amount = abs(t.amount)
+        if t.type == "income":
+            if t.to_account_id in treasury_ids:
+                incomes = last_income if is_last_year else previous_income
+                incomes[t.category] = incomes.get(t.category, 0.0) + amount
+        elif t.from_account_id in treasury_ids and t.to_account_id not in treasury_ids:
+            if is_last_year:
+                last_expense += amount
+            else:
+                previous_expense += amount
+
+    total_income = sum(last_income.values())
+    income_ratio = sum(min(amount, previous_income.get(cat, 0.0)) for cat, amount in last_income.items()) / total_income if total_income else 1.0
+    expense_ratio = max(1.0, previous_expense / last_expense) if last_expense else 1.0
+    return income_ratio, expense_ratio
 
 
 def _monthly_envelope_equivalent(budget) -> float:
@@ -197,7 +248,7 @@ def run_simulation(
     variable_expense_adjustment_pct: float = 0.0,
     projection_profile: str = "realistic",
     conservative_weight: Optional[float] = None,
-    outlier_sensitivity: int = 2,
+    outlier_sensitivity: int = DEFAULT_OUTLIER_SENSITIVITY,
     seasonality_mode: str = "disabled",
     seasonality_intensity: float = 1.0
 ) -> Dict[str, Any]:
@@ -205,7 +256,7 @@ def run_simulation(
     Exécute la projection sur `horizon_months` mois.
     Compare la trajectoire de base (réelle) avec la trajectoire simulée (What-If).
     Supporte un curseur continu de prudence / conservatisme `conservative_weight` (0.0 = 100% Réel, 1.0 = 100% Conservateur).
-    Supporte un curseur de sensibilité aux dépenses exceptionnelles `outlier_sensitivity` (1: Strict, 2: Prudent, 3: Équilibré, 4: Permissif, 5: Intégral).
+    Supporte un curseur de sensibilité aux dépenses exceptionnelles `outlier_sensitivity` (1 : filtre très fort … 4 : gros achats seulement, 5 : tout inclure).
     Supporte une saisonnalité optionnelle `seasonality_mode` ('disabled', 'historical', 'preset_standard') et son intensité `seasonality_intensity` (0.0 à 1.0).
     Supporte 4 modes de revenu de référence : 'auto', 'historical_n1', 'custom', 'none'.
     Supporte toutes les fréquences de récurrence (mensuelle, annuelle, semestrielle, trimestrielle, bimestrielle, hebdo, bi-hebdo).
@@ -221,7 +272,7 @@ def run_simulation(
     else:
         conservative_weight = 0.20
 
-    outlier_sens = max(1, min(int(outlier_sensitivity if outlier_sensitivity is not None else 2), 5))
+    outlier_sens = max(1, min(int(outlier_sensitivity if outlier_sensitivity is not None else DEFAULT_OUTLIER_SENSITIVITY), 5))
 
     valid_seasonality_modes = {"disabled", "historical", "preset_standard"}
     if seasonality_mode not in valid_seasonality_modes:
@@ -570,6 +621,19 @@ def run_simulation(
     # Réservée à la trésorerie entière : un compte précis sans dépense variable n'en a simplement pas.
     if avg_variable_expense == 0.0 and is_whole_treasury:
         avg_variable_expense = _cold_start_variable_expense(db, today)
+
+    # Historique récent : les enveloppes complètent des dépenses pas encore toutes saisies. Le complément va au compte
+    # qui reçoit les revenus, pour que la somme des comptes redonne le global.
+    recent_history = not org_mode and first_activity is not None and (
+        _elapsed_months(first_activity, twelve_months_ago, current_month_start) < RECENT_HISTORY_MONTHS
+    )
+    if recent_history and (is_whole_treasury or income_account_id in target_acc_ids):
+        window_start = _add_months(current_month_start, -PERSONAL_VARIABLE_WINDOW_MONTHS)
+        treasury_var_txs, _ = _variable_expenses_in_window(
+            db, window_start, current_month_start, treasury_ids, treasury_ids, outlier_sens, org_mode, first_activity
+        )
+        treasury_avg = sum(abs(t.amount) for t in treasury_var_txs) / max(1, _elapsed_months(first_activity, window_start, current_month_start))
+        avg_variable_expense += max(0.0, _cold_start_variable_expense(db, today) - max(treasury_avg, avg_variable_expense if is_whole_treasury else 0.0))
         if avg_variable_expense > 0:
             logger.info(f"[Simulateur] Cascade: Dépenses variables initialisées via les enveloppes budgétaires ({avg_variable_expense:.2f} €/mois)")
 
@@ -711,6 +775,9 @@ def run_simulation(
         historical_real_net_avg = (predicted_salary_for_account or 0.0) - avg_variable_expense
 
     # Mode organisation : recettes déjà reçues ce mois-ci, et virements habituels entre comptes (cycle annuel)
+    org_income_ratio, org_expense_ratio = (
+        _org_prudence_ratios(db, treasury_ids, twelve_months_ago, current_month_start, first_activity, outlier_sens) if org_mode else (1.0, 1.0)
+    )
     income_received_this_month = 0.0
     org_transfers_in_by_month = {}
     org_transfers_out_by_month = {}
@@ -883,7 +950,8 @@ def run_simulation(
 
             raw_freq = (rec.frequency or "monthly").strip().lower()
             base_m = rec.month_of_year or 1
-            rec_amt = float(rec.amount or 0.0)
+            # Le sens vient du type : une charge saisie en négatif reste une charge
+            rec_amt = abs(float(rec.amount or 0.0))
             should_apply = False
             effective_amt = rec_amt
 
@@ -967,7 +1035,11 @@ def run_simulation(
                 real_fixed_ref = historical_real_fixed_avg + planned_transfers_out
             else:
                 real_fixed_ref = total_contractual_fixed
-            blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * total_contractual_fixed
+            prudent_fixed_ref = total_contractual_fixed
+            if org_mode:
+                # Une organisation sans récurrence paie quand même ses charges : la prudence ne peut pas les effacer
+                prudent_fixed_ref = max(total_contractual_fixed, (real_fixed_ref - planned_transfers_out) * org_expense_ratio + planned_transfers_out)
+            blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * prudent_fixed_ref
             baseline_expense = blended_fixed_for_month
 
         # 5. Revenus projetés : interpolation continue entre réel et socle contractuel/salaire
@@ -977,6 +1049,8 @@ def run_simulation(
             # Les recettes planifiées recoupent celles de l'an dernier : on retient la plus haute des deux références
             if m_offset == 0:
                 salary_floor = max(0.0, salary_floor - income_received_this_month)
+            else:
+                salary_floor *= org_income_ratio
             cons_income_ref = max(total_contractual_income - planned_transfers_in, salary_floor) + planned_transfers_in
         else:
             cons_income_ref = total_contractual_income + (salary_floor if not is_salary_in_recurrence else 0.0)
@@ -985,7 +1059,8 @@ def run_simulation(
             # 1. Recettes réelles de l'année précédente (saisonnier mois par mois)
             if m in seasonal_real_income_by_calendar_month:
                 real_income_ref = seasonal_real_income_by_calendar_month[m] + planned_transfers_in
-            elif income_history_months >= 12:
+            elif org_mode or income_history_months >= 12:
+                # Une organisation reçoit ses recettes à leur mois : une dotation ne s'étale pas sur les autres
                 real_income_ref = planned_transfers_in
             elif historical_real_income_avg > 0:
                 real_income_ref = historical_real_income_avg + planned_transfers_in
@@ -1006,16 +1081,23 @@ def run_simulation(
             blended_income = cons_income_ref
 
         if m_offset == 0:
-            if org_mode and income_mode in ("historical_n1", "auto", "average", "historical_avg"):
+            has_main_salary = any(
+                t.type == "income" and abs(t.amount) >= (0.6 * salary_floor) and t.date_operation >= first_day
+                for t in existing_txs
+                if (not target_acc_ids or t.to_account_id in target_acc_ids)
+            ) if salary_floor > 0 else False
+            if income_mode == "none":
+                # Scénario sans revenu : la paie attendue n'arrive pas ce mois-ci non plus
+                baseline_income = total_contractual_income
+            elif income_mode == "custom":
+                # Le montant choisi remplace la paie attendue, sauf si la paie du mois est déjà arrivée
+                pay_already_in = has_main_salary or (is_current_month_pay_received and not org_mode)
+                baseline_income = total_contractual_income + (float(custom_income_amount or 0.0) if custom_income_applies and not pay_already_in else 0.0)
+            elif org_mode and income_mode in ("historical_n1", "auto", "average", "historical_avg"):
                 baseline_income = cons_income_ref
             elif is_current_month_pay_received and not org_mode:
                 baseline_income = total_contractual_income
             else:
-                has_main_salary = any(
-                    t.type == "income" and abs(t.amount) >= (0.6 * salary_floor) and t.date_operation >= first_day
-                    for t in existing_txs
-                    if (not target_acc_ids or t.to_account_id in target_acc_ids)
-                ) if salary_floor > 0 else False
                 if is_salary_in_recurrence or has_main_salary:
                     baseline_income = total_contractual_income
                 elif salary_floor > 0 and not org_mode:
@@ -1036,7 +1118,7 @@ def run_simulation(
                 # Mois 0 : prorata temporis des jours restants d'ici la fin du mois
                 base_variable_projected = avg_variable_expense * seasonal_coeff_m * prorata_m0
             else:
-                base_variable_projected = avg_variable_expense * seasonal_coeff_m
+                base_variable_projected = avg_variable_expense * seasonal_coeff_m * (1.0 + (org_expense_ratio - 1.0) * conservative_weight)
             base_variable_projected = max(0.0, base_variable_projected - recurring_variable_overlap)
 
             # Appliquer le curseur d'effort budgétaire utilisateur (-100% à +50%)
@@ -1058,7 +1140,7 @@ def run_simulation(
                 desc = (rec.description or "").lower()
                 cat = (rec.category or "").lower()
                 if any(k in desc or k in cat for k in loan_keywords):
-                    non_inflatable_fixed += rec.amount
+                    non_inflatable_fixed += abs(rec.amount)
 
             inflatable_base = max(0.0, baseline_expense - non_inflatable_fixed)
             inflation_delta = inflatable_base * (inflation_factor - 1.0)
@@ -1285,6 +1367,7 @@ def run_simulation(
         "avg_variable_expense": round(avg_variable_expense, 2),
         "variable_expense_stddev": round(variable_expense_stddev, 2),
         "variable_expense_history_months": variable_expense_history_months,
+        "recent_history": recent_history,
         "outlier_sensitivity": outlier_sens,
         "excluded_outliers_count": excluded_outliers_count,
         "excluded_outliers_total": round(excluded_outliers_total, 2),
@@ -1446,11 +1529,11 @@ def get_cockpit_forecast_summary(
     else:
         conservative_weight = 1.0
 
-    outlier_sens_raw = sim_settings.get("outlier_sensitivity") or _get_cfg_val("sim_outlier_sensitivity", "2")
+    outlier_sens_raw = sim_settings.get("outlier_sensitivity") or _get_cfg_val("sim_outlier_sensitivity", str(DEFAULT_OUTLIER_SENSITIVITY))
     try:
         outlier_sens = int(outlier_sens_raw)
     except (ValueError, TypeError):
-        outlier_sens = 2
+        outlier_sens = DEFAULT_OUTLIER_SENSITIVITY
 
     var_adj_raw = sim_settings.get("var_expense_adjustment_pct") or _get_cfg_val("sim_var_expense_adj", "0.0")
     try:

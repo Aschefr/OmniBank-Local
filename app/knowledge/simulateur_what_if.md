@@ -16,6 +16,11 @@ Le **Simulateur What-If** d'OmniBank permet d'anticiper l'impact de décisions f
    - Intégration des variations annuelles régulières : pic estival de vacances (juillet/août) et dépenses de fin d'année / fêtes (décembre).
 4. **Curseur de Prudence** :
    - Permet d'injecter une marge de sécurité réglable sur les dépenses courantes imprévues.
+   - En mode organisation, le maximum ne garde que les recettes revenues l'année d'avant, au plus bas des deux années, et retient les dépenses de l'année la plus chère. Sans année complète pour comparer, il applique une marge de 10 %.
+5. **Dépenses exceptionnelles** :
+   - Le mode Conseillé ne retire que les achats hors norme (plus de 800 €). Le mode Avancé permet de filtrer davantage ou de tout inclure.
+6. **Historique récent** :
+   - Avec moins de 4 mois d'historique, les enveloppes servent de repère si elles dépassent les dépenses saisies. La projection reste à prendre avec recul tant que les dépenses courantes ne sont pas toutes saisies.
 
 ## 3. Scénarios et Événements de Vie
 Le simulateur prend en charge :
