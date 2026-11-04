@@ -430,3 +430,76 @@ def test_background_skips_an_empty_profile_and_a_disabled_simulator(db, fresh_ba
 
     assert record_period_forecasts(db, "desactive") == 0
     assert db.query(ForecastSnapshot).count() == 0
+
+
+# ── Le rythme de dépenses ───────────────────────────────────
+
+def test_pace_gives_the_usual_net_spending_per_day(db):
+    _life(db, months=6)
+
+    pace = get_forecast_tracking(db)["pace"]
+
+    if pace is None:
+        pytest.skip("la période se termine aujourd'hui")
+    assert pace["kind"] == "cycle"
+    assert pace["usual_per_day"] == pytest.approx(300.0 / 30.44, abs=0.02)
+    assert pace["days_left"] >= 1
+
+
+def test_pace_counts_regular_income_against_spending(db):
+    _life(db, months=6)
+    for offset in range(-6, 0):
+        _tx(db, _month(offset, 20), 100.0, "income", to_acc=COURANT, category="Ventes")
+    db.commit()
+
+    pace = get_forecast_tracking(db)["pace"]
+
+    if pace is None:
+        pytest.skip("la période se termine aujourd'hui")
+    assert pace["usual_per_day"] == pytest.approx(200.0 / 30.44, abs=0.5)
+
+
+def test_pace_follows_the_situation_while_the_forecast_stays_frozen(db):
+    _life(db, months=6)
+    first = get_forecast_tracking(db)
+    if first["pace"] is None:
+        pytest.skip("la période se termine aujourd'hui")
+    for offset in range(-6, 0):
+        _tx(db, _month(offset, 6), 300.0, "expense_var", from_acc=COURANT, category="Courses")
+    db.commit()
+
+    again = get_forecast_tracking(db)
+
+    assert again["points"] == first["points"]
+    assert again["pace"]["usual_per_day"] > first["pace"]["usual_per_day"]
+
+
+def test_no_pace_on_a_recent_history(db):
+    db.add(Budget(name="Courses", monthly_amount=450.0, period="monthly", envelope_type="spending"))
+    _tx(db, _month(-1, 15), SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire")
+    _tx(db, _month(-1, 5), 60.0, "expense_var", from_acc=COURANT, category="Courses")
+    db.commit()
+
+    assert get_forecast_tracking(db)["pace"] is None
+
+
+def test_organisation_pace_gives_what_can_still_be_committed(db):
+    _organisation(db)
+    today = date.today()
+    if today.month == 12 and today.day == 31:
+        pytest.skip("l'exercice se termine aujourd'hui")
+
+    res = get_forecast_tracking(db)
+    pace = res["pace"]
+
+    assert pace["kind"] == "exercise"
+    assert pace["expected_spending"] > 0
+    assert pace["engageable"] == pytest.approx(res["points"][-1]["balance"] + pace["expected_spending"], abs=0.05)
+
+
+def test_young_organisation_has_no_pace(db):
+    db.add(GlobalConfig(key="enable_org_mode", value="true"))
+    _tx(db, _month(-1, 5), 100.0, "expense_var", from_acc=COURANT, category="Sorties")
+    db.commit()
+
+    assert get_forecast_tracking(db)["pace"] is None

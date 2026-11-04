@@ -80,6 +80,38 @@ test.describe('Cockpit : réel face à la prévision', () => {
     await expect(page.locator('#ovCockpitTracking')).toBeHidden();
   });
 
+  test('16.05 - Le repère de rythme selon la situation', async ({ page }) => {
+    await openCockpit(page, tracking());
+    const show = (pace, known) => page.evaluate(([p, k]) => {
+      const view = window.OverviewView;
+      view._stats = view._stats || {};
+      view._calculateProjection = () => ({ projectedEnd: k, titleText: 'Fin de cycle, opérations prévues seules' });
+      view._forecastTracking = { ...view._forecastTracking, pace: p };
+      view._renderForecastTracking();
+    }, [pace, known]);
+    const line = page.locator('.cockpit-tracking-pace');
+
+    await show({ kind: 'cycle', usual_per_day: 38, days_left: 24 }, 213);
+    await expect(line).toHaveClass(/is-warning/);
+    await expect(line).toContainText('38');
+    await expect(line).toContainText('9');
+    await expect(page.locator('.cockpit-tracking-explain')).toContainText('Fin de cycle, opérations prévues seules');
+
+    await show({ kind: 'cycle', usual_per_day: 5, days_left: 24 }, 213);
+    await expect(line).toHaveClass(/is-calm/);
+
+    await show({ kind: 'cycle', usual_per_day: 38, days_left: 24 }, -120);
+    await expect(line).toHaveClass(/is-warning/);
+    await expect(line).toContainText('120');
+
+    await show({ kind: 'exercise', engageable: 50000, expected_spending: 15000 }, 0);
+    await expect(line).toHaveClass(/is-calm/);
+    await expect(line).toContainText('50');
+
+    await show(null, 213);
+    await expect(line).toHaveCount(0);
+  });
+
   test('16.04 - Sur téléphone, la courbe est repliée, et rien ne déborde une fois ouverte', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await openCockpit(page, tracking());

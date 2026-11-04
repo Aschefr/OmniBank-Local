@@ -48,7 +48,14 @@ def get_forecast_summary(account_id: Optional[int] = None, db: Session = Depends
 def get_forecast_tracking_route(account_id: Optional[int] = None, db: Session = Depends(get_db)):
     """Le réel comparé à la prévision enregistrée pour la période en cours (Cockpit)."""
     from app.services.forecast_tracking import get_forecast_tracking
-    return get_forecast_tracking(db, account_id=account_id)
+    profile_id = get_active_profile()["id"]
+    cache_key = f"cockpit_forecast_tracking_{account_id or 'all'}"
+    cached = stats_cache.get(profile_id, cache_key)
+    if cached is not None:
+        return cached
+    result = get_forecast_tracking(db, account_id=account_id)
+    stats_cache.set(profile_id, cache_key, result)
+    return result
 
 
 # ─── Modèles Prédéfinis (Presets) ─────────────────────────────────────────────

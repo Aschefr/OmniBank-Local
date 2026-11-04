@@ -1333,6 +1333,26 @@
     color: #f59e0b;
 }
 
+.cockpit-tracking-pace {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.cockpit-tracking-pace.is-warning {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.cockpit-tracking-explain {
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
 .cockpit-tracking-toggle {
     flex-shrink: 0;
     min-height: 32px;
