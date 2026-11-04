@@ -51,6 +51,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **Simulateur : un mode Conseillé plus prudent** : il ne retire plus que les achats hors norme, au-delà de 800 €. Les réparations et achats courants restent dans la moyenne. Le réglage reste libre en mode Avancé, avec des niveaux renommés pour dire ce qu'ils font.
 - **Simulateur : le curseur de prudence agit en mode organisation** : au maximum, il ne garde que les recettes revenues l'année d'avant, au plus bas des deux années, et retient les dépenses de l'année la plus chère. Une dotation ne s'étale plus sur tous les mois quand le curseur est bas.
 - **Simulateur : mois en cours et profils récents** : en revenu désactivé ou personnalisé, le mois en cours ne compte plus la paie attendue. Avec moins de 4 mois d'historique, les enveloppes servent de repère et un message le signale. Une charge récurrente saisie en négatif reste une charge.
+- **En-tête et titres sur téléphone** : en mode organisation, le profil, le rôle et la cloche tiennent à l'écran, le logo restant seul quand la place manque. Les titres de Tendances et d'Analyses ne passent plus sous l'en-tête.
 
 ## [1.3.0] - 2026-11-01
 
