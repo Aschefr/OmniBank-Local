@@ -298,7 +298,7 @@ def export_csv(db: Session = Depends(get_db), cols: str = Query(None, descriptio
     data = []
     for tx in txs:
         row = {
-            "Date de saisie": tx.date_saisie.strftime("%d/%m/%Y"),
+            "Date de saisie": (tx.date_saisie or tx.date_operation).strftime("%d/%m/%Y"),
             "Date opération": tx.date_operation.strftime("%d/%m/%Y"),
             "Description": tx.description,
             "Montant": f"{tx.amount:.2f}".replace('.', ','),
