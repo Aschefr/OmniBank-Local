@@ -154,7 +154,8 @@ def simulate_financial_scenario_tool(
     sim_result = run_simulation(
         db,
         horizon_months=horizon_months,
-        custom_events=custom_events if custom_events else None
+        custom_events=custom_events if custom_events else None,
+        projection_profile="recommended"
     )
     
     today = date.today()

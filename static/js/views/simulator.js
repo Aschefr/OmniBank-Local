@@ -16,11 +16,9 @@ window.SimulatorView = {
     customIncomeAmount: null,
     inflationRate: 0.0,
     varExpenseAdjustmentPct: 0.0,
-    conservativeWeight: 0.20,
+    scenarioLevel: 0.0,
     outlierSensitivity: 2,
     seasonalityMode: 'disabled',
-    seasonalityIntensity: 1.0,
-    isSeasonalityProfileOpen: false,
     _liveDebounceTimer: null,
     _configSyncTimer: null,
     _pendingConfigUpdates: {},
@@ -88,43 +86,37 @@ window.SimulatorView = {
         const rawSimMode = getSetting('sim_mode', 'recommended');
         this.simMode = (rawSimMode === 'advanced' || rawSimMode === 'custom') ? 'advanced' : 'recommended';
 
-        // Custom parameters backup / memory
-        const savedCustomWeight = getSetting('sim_custom_conservative_weight', getSetting('sim_conservative_weight', '0.20'));
-        const customWeight = (savedCustomWeight !== null && savedCustomWeight !== '') ? parseFloat(savedCustomWeight) : 0.20;
-        const customIncomeMode = getSetting('sim_custom_income_mode', getSetting('sim_income_mode', 'historical_n1'));
-        const savedCustom = getSetting('sim_custom_income', null);
+        // Réglages du mode avancé. Ils partent du mode conseillé : ceux de l'ancien panneau ne sont pas repris.
+        const hasNewPanelSettings = getSetting('sim_custom_scenario_level', null) !== null;
+        const customSetting = (key, fallback) => hasNewPanelSettings ? getSetting(key, fallback) : fallback;
+        const customLevel = parseFloat(customSetting('sim_custom_scenario_level', '0'));
+        const customIncomeMode = customSetting('sim_custom_income_mode', 'auto');
+        const savedCustom = customSetting('sim_custom_income', null);
         const customIncomeAmt = (savedCustom && savedCustom !== 'null' && savedCustom !== '') ? parseFloat(savedCustom) : null;
-        const customInflation = parseFloat(getSetting('sim_custom_inflation_rate', getSetting('sim_inflation_rate', '0.0'))) || 0.0;
-        const customVarAdj = parseFloat(getSetting('sim_custom_var_expense_adj', getSetting('sim_var_expense_adj', '0.0'))) || 0.0;
-        const customOutlierSens = parseInt(getSetting('sim_custom_outlier_sensitivity', getSetting('sim_outlier_sensitivity', '4'))) || 4;
-        const rawCustomSeasonality = getSetting('sim_custom_seasonality_mode', getSetting('sim_seasonality_mode', 'disabled'));
-        const customSeasonality = ['disabled', 'historical', 'preset_standard'].includes(rawCustomSeasonality) ? rawCustomSeasonality : 'disabled';
-        const savedSeasIntensity = getSetting('sim_custom_seasonality_intensity', getSetting('sim_seasonality_intensity', '1.0'));
-        const customSeasIntensity = (savedSeasIntensity !== null && savedSeasIntensity !== undefined && savedSeasIntensity !== '') ? Math.max(0.0, Math.min(1.0, parseFloat(savedSeasIntensity))) : 1.0;
+        const customInflation = parseFloat(customSetting('sim_custom_inflation_rate', '0.0')) || 0.0;
+        const customVarAdj = parseFloat(customSetting('sim_custom_var_expense_adj', '0.0')) || 0.0;
+        const customOutlierSens = parseInt(customSetting('sim_custom_outlier_sensitivity', '4')) || 4;
+        const customSeasonality = customSetting('sim_custom_seasonality_mode', 'disabled') === 'historical' ? 'historical' : 'disabled';
 
         if (this.simMode === 'recommended') {
-            this.conservativeWeight = 1.0;
+            this.scenarioLevel = 0.0;
             this.incomeMode = 'auto';
             this.customIncomeAmount = null;
             this.inflationRate = 0.0;
             this.varExpenseAdjustmentPct = 0.0;
             this.outlierSensitivity = 4;
             this.seasonalityMode = 'disabled';
-            this.seasonalityIntensity = 1.0;
             // Le Cockpit lit ce réglage côté serveur : il suit le mode conseillé
             if (getSetting('sim_outlier_sensitivity', '4') !== '4') this._batchSaveParams({ sim_outlier_sensitivity: '4' });
         } else {
-            this.conservativeWeight = isNaN(customWeight) ? 0.20 : customWeight;
-            this.incomeMode = customIncomeMode;
+            this.scenarioLevel = isNaN(customLevel) ? 0.0 : customLevel;
+            this.incomeMode = customIncomeMode === 'historical_n1' ? 'auto' : customIncomeMode;
             this.customIncomeAmount = customIncomeAmt;
             this.inflationRate = customInflation;
             this.varExpenseAdjustmentPct = customVarAdj;
             this.outlierSensitivity = customOutlierSens;
             this.seasonalityMode = customSeasonality;
-            this.seasonalityIntensity = isNaN(customSeasIntensity) ? 1.0 : customSeasIntensity;
         }
-
-        this.isSeasonalityProfileOpen = getSetting('sim_seasonality_profile_open', 'false') === 'true';
 
         // Synchronisation du ProfileStorage local avec les valeurs résolues
         ProfileStorage.set('sim_mode', this.simMode);
@@ -137,10 +129,7 @@ window.SimulatorView = {
         ProfileStorage.set('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         ProfileStorage.set('sim_outlier_sensitivity', this.outlierSensitivity);
         ProfileStorage.set('sim_seasonality_mode', this.seasonalityMode);
-        ProfileStorage.set('sim_seasonality_intensity', this.seasonalityIntensity);
-        ProfileStorage.set('sim_seasonality_profile_open', this.isSeasonalityProfileOpen);
-        ProfileStorage.set('sim_conservative_weight', this.conservativeWeight);
-        ProfileStorage.set('sim_advanced_open', getSetting('sim_advanced_open', 'false') === 'true');
+        ProfileStorage.set('sim_scenario_level', this.scenarioLevel);
         ProfileStorage.set('sim_table_open', getSetting('sim_table_open', 'false') === 'true');
         ProfileStorage.set('sim_sources_open', getSetting('sim_sources_open', 'false') === 'true');
 
@@ -282,14 +271,14 @@ window.SimulatorView = {
                 scenario_id: this.activeScenarioId,
                 horizon_months: this.horizonMonths,
                 account_id: this.accountId,
+                projection_profile: 'recommended',
+                scenario_level: this.simMode === 'advanced' ? (this.scenarioLevel || 0) : 0,
                 income_mode: this.incomeMode,
                 custom_income_amount: this.customIncomeAmount,
                 inflation_rate: this.inflationRate || 0.0,
                 variable_expense_adjustment_pct: this.varExpenseAdjustmentPct || 0.0,
-                conservative_weight: (typeof this.conservativeWeight === 'number') ? this.conservativeWeight : 0.0,
                 outlier_sensitivity: this.outlierSensitivity || 4,
                 seasonality_mode: this.seasonalityMode || 'disabled',
-                seasonality_intensity: (typeof this.seasonalityIntensity === 'number') ? this.seasonalityIntensity : 1.0
             };
             const result = await API.post('/api/simulator/run', payload, { skipMutateEvent: true });
             if (this._simSeq === currentSeq) {
@@ -309,42 +298,8 @@ window.SimulatorView = {
 
         const activeScenario = this.scenarios.find(s => s.id === this.activeScenarioId);
         const data = this.simulationData;
-        const estSalary = (data && data.predicted_salary) ? Math.round(data.predicted_salary) : 0;
-        const avgIncome = (data && data.historical_real_income_avg) ? Math.round(data.historical_real_income_avg) : estSalary;
-
-        // Collapsible state from ProfileStorage
-        const advancedOpen = ProfileStorage.get('sim_advanced_open') === 'true';
         const tableOpen = ProfileStorage.get('sim_table_open') === 'true';
         const sourcesOpen = ProfileStorage.get('sim_sources_open') === 'true';
-
-        // Compact summary line for controls panel
-        const prudencePct = Math.round((this.conservativeWeight || 0) * 100);
-        const effortPct = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
-        const compactSummaryParts = [];
-        compactSummaryParts.push(`🛡️ ${prudencePct === 0 ? (window.i18n.t('sim_prudence_badge_100real') || 'Recettes du modèle') : (prudencePct === 100 ? (window.i18n.t('sim_prudence_badge_100cons') || 'Recettes minimales') : `Prudence ${prudencePct}%`)}`);
-        compactSummaryParts.push(`⚡ ${effortPct > 0 ? '+' : ''}${effortPct}%`);
-        const incomeBadge = (!this.incomeMode || this.incomeMode === 'historical_n1' || this.incomeMode === 'auto')
-            ? (window.i18n.t('sim_income_badge_historical_n1') || 'Année passée')
-            : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
-        compactSummaryParts.push(`💼 ${incomeBadge}`);
-        if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
-        const outlierLevel = this.outlierSensitivity || 4;
-        const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
-        const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
-        compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
-
-        // Seasonality summary badge
-        const currentSeasPct = this.getSeasonalityIntensityPct();
-        if (this.seasonalityMode === 'historical') {
-            const seasMonths = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
-            compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_historical') || 'Historique'} ${seasMonths}m (${currentSeasPct}%)`);
-        } else if (this.seasonalityMode === 'preset_standard') {
-            compactSummaryParts.push(`🏖️ ${window.i18n.t('sim_seasonality_badge_preset') || 'Vacances & Fêtes'} (${currentSeasPct}%)`);
-        } else {
-            compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_disabled') || 'Lissée'}`);
-        }
-
-        const compactSummary = compactSummaryParts.join('  <span style="opacity:0.3;">│</span>  ');
 
         const html = `
         <div id="simulatorRoot" class="view-root" style="padding-bottom:40px;">
@@ -465,21 +420,209 @@ window.SimulatorView = {
                     align-items: center;
                     gap: 5px;
                 }
-                .sim-sliders-grid {
+                .sim-adv {
+                    padding: 12px 16px;
+                }
+                .sim-adv-main {
                     display: grid;
-                    grid-template-columns: repeat(3, minmax(0, 1fr));
-                    gap: 20px;
+                    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+                    gap: 8px 32px;
                     align-items: start;
                 }
-                @media (max-width: 1100px) {
-                    .sim-sliders-grid {
-                        grid-template-columns: 1fr;
+                .sim-adv-head {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: baseline;
+                    flex-wrap: wrap;
+                    gap: 0 10px;
+                    font-size: 13px;
+                }
+                .sim-adv-title {
+                    font-size: 13px !important;
+                    font-weight: 700;
+                    color: var(--text-main);
+                    margin: 0 !important;
+                    text-transform: none !important;
+                    letter-spacing: 0 !important;
+                }
+                .sim-adv-level {
+                    font-weight: 700;
+                    color: var(--accent, #6366f1);
+                    font-variant-numeric: tabular-nums;
+                    white-space: nowrap;
+                }
+                .sim-adv-slider-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin: 2px 0;
+                }
+                .sim-adv-stop {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    background: transparent;
+                    border: none;
+                    padding: 4px 0;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    font-variant-numeric: tabular-nums;
+                    flex-shrink: 0;
+                }
+                button.sim-adv-stop:hover,
+                button.sim-adv-stop:focus-visible {
+                    color: var(--text-main);
+                }
+                span.sim-adv-stop {
+                    cursor: default;
+                }
+                .sim-adv-track {
+                    position: relative;
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                }
+                .sim-adv-track.two-sided::after {
+                    content: '';
+                    position: absolute;
+                    left: 50%;
+                    top: -2px;
+                    bottom: -2px;
+                    width: 2px;
+                    margin-left: -1px;
+                    background: var(--text-muted);
+                    opacity: 0.6;
+                    pointer-events: none;
+                }
+                .sim-adv-readout {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0 16px;
+                    margin: 0;
+                    font-size: 12px;
+                    line-height: 1.5;
+                }
+                .sim-adv-readout > div {
+                    display: flex;
+                    gap: 5px;
+                    white-space: nowrap;
+                }
+                .sim-adv-readout dt {
+                    color: var(--text-muted);
+                    font-weight: 500;
+                }
+                .sim-adv-readout dd {
+                    margin: 0;
+                    color: var(--text-main);
+                    font-weight: 600;
+                    font-variant-numeric: tabular-nums;
+                }
+                .sim-adv-note {
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    margin: 0;
+                    line-height: 1.5;
+                }
+                .sim-adv-result {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: baseline;
+                    gap: 0 8px;
+                    font-size: 12px;
+                    line-height: 1.5;
+                    color: var(--text-muted);
+                }
+                .sim-adv-result-value {
+                    font-size: 14px;
+                    font-weight: 800;
+                    color: var(--text-main);
+                    font-variant-numeric: tabular-nums;
+                }
+                .sim-adv-result-value.is-negative {
+                    color: #ef4444;
+                }
+                .sim-adv-effort-value {
+                    font-weight: 700;
+                    color: var(--text-main);
+                    font-variant-numeric: tabular-nums;
+                    white-space: nowrap;
+                }
+                .sim-adv-bottom {
+                    position: relative;
+                    border-top: 1px solid var(--border-color);
+                    margin-top: 8px;
+                    padding-top: 6px;
+                }
+                .sim-adv-details summary {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                    cursor: pointer;
+                    line-height: 28px;
+                    width: fit-content;
+                }
+                .sim-adv-details summary:hover,
+                .sim-adv-details summary:focus-visible {
+                    color: var(--text-main);
+                }
+                .sim-adv-reset {
+                    position: absolute;
+                    right: 0;
+                    top: 6px;
+                    height: 28px;
+                    padding: 0 2px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--accent, #6366f1);
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                }
+                .sim-adv-reset:hover,
+                .sim-adv-reset:focus-visible {
+                    text-decoration: underline;
+                }
+                .sim-adv-fields {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+                    gap: 8px 16px;
+                    margin: 4px 0;
+                }
+                .sim-adv-field {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    min-width: 0;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--text-muted);
+                }
+                .sim-adv-field select,
+                .sim-adv-field input {
+                    width: 100%;
+                    min-width: 0;
+                    box-sizing: border-box;
+                    height: 32px;
+                    padding: 2px 8px;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: var(--text-main);
+                    background: var(--bg-input);
+                    border: 1px solid var(--border-color);
+                    border-radius: 6px;
+                }
+                .sim-adv-field-hint {
+                    font-weight: 500;
+                    line-height: 1.3;
+                }
+                @media (max-width: 900px) {
+                    .sim-adv-main {
+                        grid-template-columns: minmax(0, 1fr);
                     }
-                    .sim-secondary-controls {
-                        border-left: none !important;
-                        padding-left: 0 !important;
+                    .sim-adv-effort {
                         border-top: 1px solid var(--border-color);
-                        padding-top: 14px;
+                        padding-top: 8px;
                     }
                 }
                 .sim-range-input {
@@ -515,62 +658,6 @@ window.SimulatorView = {
                     cursor: pointer;
                     border: 2px solid #ffffff;
                     box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-                }
-                .sim-slider-label-btn {
-                    font-size: 10px;
-                    font-weight: 600;
-                    color: var(--text-muted);
-                    background: transparent;
-                    border: none;
-                    padding: 2px 4px;
-                    cursor: pointer;
-                    transition: color 0.15s ease, transform 0.15s ease;
-                    white-space: nowrap;
-                    line-height: 1.2;
-                }
-                .sim-slider-label-btn:hover {
-                    color: var(--accent, #6366f1);
-                    transform: scale(1.05);
-                }
-                .sim-slider-badge-btn {
-                    font-size: 11px;
-                    font-weight: 800;
-                    padding: 2px 8px;
-                    border-radius: 6px;
-                    background: var(--bg-base);
-                    border: 1px solid var(--border-color);
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    line-height: 1.2;
-                }
-                .sim-slider-badge-btn:hover {
-                    border-color: var(--accent, #6366f1);
-                    transform: scale(1.04);
-                }
-                .sim-seasonality-toggle-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 5px;
-                    padding: 4px 10px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: var(--text-muted);
-                    background: var(--bg-base);
-                    border: 1px solid var(--border-color);
-                    border-radius: 6px;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                }
-                .sim-seasonality-toggle-btn:hover {
-                    color: var(--text-main);
-                    border-color: var(--accent, #6366f1);
-                    background: rgba(99, 102, 241, 0.05);
-                }
-                .sim-seasonality-toggle-btn.active {
-                    color: var(--accent, #6366f1);
-                    border-color: rgba(99, 102, 241, 0.4);
-                    background: rgba(99, 102, 241, 0.1);
-                    font-weight: 700;
                 }
 
                 /* Collapsible sections */
@@ -655,16 +742,6 @@ window.SimulatorView = {
                     .sim-events-card {
                         grid-column: span 1 !important;
                     }
-                    .sim-sliders-grid {
-                        grid-template-columns: 1fr !important;
-                        gap: 16px !important;
-                    }
-                    .sim-secondary-controls {
-                        border-left: none !important;
-                        padding-left: 0 !important;
-                        border-top: 1px solid var(--border-color);
-                        padding-top: 14px !important;
-                    }
                     .sim-kpi-grid {
                         grid-template-columns: 1fr !important;
                     }
@@ -745,13 +822,6 @@ window.SimulatorView = {
                     .sim-collapsible-header {
                         padding: 9px 12px !important;
                     }
-                    #simAdvancedSummary {
-                        font-size: 10.5px !important;
-                        max-width: 155px !important;
-                        overflow: hidden !important;
-                        text-overflow: ellipsis !important;
-                        white-space: nowrap !important;
-                    }
                     .sim-break-even-container {
                         flex-direction: column !important;
                         align-items: stretch !important;
@@ -792,14 +862,12 @@ window.SimulatorView = {
                         white-space: normal !important;
                         flex-shrink: 1 !important;
                     }
-                    #simRecommendedStrip,
-                    .sim-advanced-strip {
+                    #simRecommendedStrip {
                         flex-direction: column !important;
                         align-items: stretch !important;
                         gap: 8px !important;
                     }
-                    #simRecommendedStrip button,
-                    .sim-advanced-strip button {
+                    #simRecommendedStrip button {
                         height: auto !important;
                         line-height: 1.3 !important;
                         white-space: normal !important;
@@ -851,58 +919,6 @@ window.SimulatorView = {
                         white-space: normal !important;
                         text-align: center !important;
                         line-height: 1.25 !important;
-                    }
-                    .sim-slider-header {
-                        display: flex !important;
-                        justify-content: space-between !important;
-                        align-items: center !important;
-                        flex-wrap: wrap !important;
-                        gap: 6px !important;
-                    }
-                    .sim-slider-badge-btn {
-                        white-space: normal !important;
-                        max-width: 100% !important;
-                        height: auto !important;
-                        padding: 3px 8px !important;
-                        text-align: right !important;
-                        line-height: 1.25 !important;
-                    }
-                    .sim-seasonality-row {
-                        flex-direction: column !important;
-                        align-items: stretch !important;
-                        gap: 10px !important;
-                    }
-                    .sim-seasonality-mode-container {
-                        flex-direction: column !important;
-                        align-items: stretch !important;
-                        width: 100% !important;
-                        gap: 8px !important;
-                    }
-                    .sim-seasonality-btn-group {
-                        display: flex !important;
-                        flex-direction: column !important;
-                        width: 100% !important;
-                        gap: 4px !important;
-                        background: transparent !important;
-                        border: none !important;
-                        padding: 0 !important;
-                    }
-                    .sim-seasonality-btn-group .btn {
-                        width: 100% !important;
-                        justify-content: flex-start !important;
-                        padding: 8px 12px !important;
-                        font-size: 12px !important;
-                        height: auto !important;
-                        min-height: 36px !important;
-                        white-space: normal !important;
-                        border-radius: 8px !important;
-                        border: 1px solid var(--border-color) !important;
-                    }
-                    .sim-seasonality-toggle-btn {
-                        width: 100% !important;
-                        justify-content: center !important;
-                        padding: 7px 12px !important;
-                        margin-top: 4px !important;
                     }
                 }
                 @media (max-width: 420px) {
@@ -1006,193 +1022,9 @@ window.SimulatorView = {
                 </button>
             </div>
 
-            <!-- ═══ Mode Avancé : Panneau de réglages personnalisés (masqué en mode conseillé) ═══ -->
+            <!-- ═══ Mode Avancé : scénario de l'année et réglages ═══ -->
             <div class="sim-card" id="simAdvancedCard" style="margin-bottom:16px;padding:0;overflow:hidden;display:${this.simMode === 'advanced' ? 'block' : 'none'};">
-                <div class="sim-collapsible-header" onclick="window.SimulatorView.toggleSection('advanced')">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:13px;">⚙️</span>
-                        <span style="font-size:12px;font-weight:700;color:var(--text-main);" data-i18n="sim_advanced_params">${window.i18n.t('sim_advanced_params')}</span>
-                        <span id="simAdvancedSummary" style="font-size:11px;color:var(--text-muted);margin-left:6px;">${compactSummary}</span>
-                    </div>
-                    <span class="sim-collapsible-chevron ${advancedOpen ? 'open' : ''}" id="simAdvancedChevron">▸</span>
-                </div>
-                <div class="sim-collapsible-body ${advancedOpen ? 'open' : ''}" id="simAdvancedBody">
-                    <div class="sim-advanced-strip" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255, 255, 255, 0.03);border:1px solid var(--border-color);border-radius:8px;padding:6px 12px;margin-bottom:14px;font-size:11px;gap:12px;">
-                        <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);">
-                            <span>⚙️</span>
-                            <span data-i18n="sim_advanced_mode_banner_desc">${window.i18n.t('sim_advanced_mode_banner_desc') || 'Paramètres de simulation avancés actifs. Ajustez les curseurs ci-dessous.'}</span>
-                        </div>
-                        <button type="button" class="btn btn-ghost btn-xs" onclick="window.SimulatorView.setSimMode('recommended')" style="font-size:11px;color:var(--accent, #6366f1);white-space:nowrap;">
-                            <span>🎯</span> <span data-i18n="sim_btn_align_recommended">${window.i18n.t('sim_btn_align_recommended') || 'Revenir aux paramètres conseillés'}</span>
-                        </button>
-                    </div>
-                    <div class="sim-sliders-grid" style="gap:24px;align-items:start;">
-                        <!-- Colonne 1 : Curseur de Prudence & Réalisme -->
-                        <div style="display:flex;flex-direction:column;gap:6px;">
-                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
-                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_prudence_slider_tooltip')}">
-                                    <span style="font-size:14px;">🛡️</span>
-                                    <span data-i18n="sim_prudence_title">${window.i18n.t('sim_prudence_title')}</span>
-                                </label>
-                                <button type="button" id="simPrudenceBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setPrudenceWeight(0.5)" title="${window.i18n.t('sim_tooltip_click_blend')}" style="color:${(this.conservativeWeight || 0) === 0 ? '#10b981' : ((this.conservativeWeight || 0) >= 0.8 ? '#ef4444' : ((this.conservativeWeight || 0) >= 0.4 ? '#f59e0b' : 'var(--text-main)'))};">
-                                    ${this.getPrudenceBadgeText(this.conservativeWeight || 0)}
-                                </button>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(0.0)" title="${window.i18n.t('sim_tooltip_click_100real')}">🎯 <span data-i18n="sim_prudence_badge_100real">${window.i18n.t('sim_prudence_badge_100real')}</span></button>
-                                <input type="range" id="simPrudenceSlider" class="sim-range-input" min="0" max="100" step="1" value="${Math.round((this.conservativeWeight || 0) * 100)}" oninput="window.SimulatorView.onConservativeWeightInput(this.value)" onchange="window.SimulatorView.onConservativeWeightChange(this.value)">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setPrudenceWeight(1.0)" title="${window.i18n.t('sim_tooltip_click_100stress')}">🛡️ <span data-i18n="sim_prudence_badge_100cons">${window.i18n.t('sim_prudence_badge_100cons')}</span></button>
-                            </div>
-                            <div id="simPrudenceExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:4px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
-                                ${this.getPrudenceExplainerText(this.conservativeWeight || 0)}
-                            </div>
-                        </div>
-
-                        <!-- Colonne 2 : Curseur d'Effort Budgétaire -->
-                        <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
-                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
-                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_var_adj_tooltip')}">
-                                    <span style="font-size:14px;">⚡</span>
-                                    <span data-i18n="sim_effort_title">${window.i18n.t('sim_effort_title')}</span>
-                                </label>
-                                <button type="button" id="simVarAdjBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.0)" title="${window.i18n.t('sim_tooltip_click_reset_effort')}" style="color:${this.varExpenseAdjustmentPct < 0 ? '#10b981' : (this.varExpenseAdjustmentPct > 0 ? '#ef4444' : 'var(--text-main)')};">
-                                    ${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(this.varExpenseAdjustmentPct * 100)}%${(data && data.avg_variable_expense && this.varExpenseAdjustmentPct !== 0) ? ` (${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(data.avg_variable_expense * this.varExpenseAdjustmentPct).toLocaleString('fr-FR')} €/m)` : ''}
-                                </button>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(-1.0)" title="${window.i18n.t('sim_tooltip_click_min_effort')}">-100%</button>
-                                <input type="range" id="simVarAdjSlider" class="sim-range-input" min="-100" max="20" step="1" value="${Math.round(this.varExpenseAdjustmentPct * 100)}" oninput="window.SimulatorView.onVarExpenseAdjustmentInput(this.value)" onchange="window.SimulatorView.onVarExpenseAdjustmentChange(this.value)">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setVarExpenseAdjustment(0.2)" title="${window.i18n.t('sim_tooltip_click_max_effort')}">+20%</button>
-                            </div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-muted);opacity:0.85;">
-                                <span data-i18n="sim_effort_hint_left">${window.i18n.t('sim_effort_hint_left')}</span>
-                                <span data-i18n="sim_effort_hint_right">${window.i18n.t('sim_effort_hint_right')}</span>
-                            </div>
-                        </div>
-
-                        <!-- Colonne 3 : Curseur de Sensibilité Dépenses Exceptionnelles (Outliers 1-5) -->
-                        <div style="display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border-color);padding-left:24px;" class="sim-secondary-controls">
-                            <div class="sim-slider-header" style="display:flex;justify-content:space-between;align-items:center;">
-                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_outlier_tooltip')}">
-                                    <span style="font-size:14px;">🧹</span>
-                                    <span data-i18n="sim_outlier_title">${window.i18n.t('sim_outlier_title')}</span>
-                                </label>
-                                <button type="button" id="simOutlierBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setOutlierSensitivity(4)" title="${window.i18n.t('sim_outlier_desc_2')}" style="color:${(this.outlierSensitivity || 4) === 1 ? '#ef4444' : ((this.outlierSensitivity || 4) === 2 ? '#10b981' : ((this.outlierSensitivity || 4) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 4) === 4 ? '#f59e0b' : 'var(--text-muted)')))};">
-                                    ${this.getOutlierSensitivityLabel(this.outlierSensitivity || 4)}
-                                </button>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(1)" title="${window.i18n.t('sim_outlier_desc_1')}">🧹 <span data-i18n="sim_outlier_badge_strict">${window.i18n.t('sim_outlier_badge_strict')}</span></button>
-                                <input type="range" id="simOutlierSlider" class="sim-range-input" min="1" max="5" step="1" value="${this.outlierSensitivity || 4}" oninput="window.SimulatorView.onOutlierSensitivityInput(this.value)" onchange="window.SimulatorView.onOutlierSensitivityChange(this.value)">
-                                <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(5)" title="${window.i18n.t('sim_outlier_desc_5')}">📦 <span data-i18n="sim_outlier_badge_full">${window.i18n.t('sim_outlier_badge_full')}</span></button>
-                            </div>
-                            <div id="simOutlierExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:4px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
-                                ${this.getOutlierSensitivityExplainer(this.outlierSensitivity || 4, (data && data.excluded_outliers_count) || 0, (data && data.excluded_outliers_total) || 0)}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ═══ Seasonality Controls Row ═══ -->
-                    <div style="border-top:1px solid var(--border-color);margin-top:14px;padding-top:12px;">
-                        <div class="sim-seasonality-row" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-                            <!-- Mode selector buttons -->
-                            <div class="sim-seasonality-mode-container" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                <label style="font-size:12px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:6px;" title="${window.i18n.t('sim_seasonality_tooltip')}">
-                                    <span style="font-size:14px;">🍂</span>
-                                    <span data-i18n="sim_seasonality_title">${window.i18n.t('sim_seasonality_title')} :</span>
-                                </label>
-                                <div class="sim-seasonality-btn-group" style="display:inline-flex;background:var(--bg-base);border:1px solid var(--border-color);border-radius:8px;padding:2px;gap:2px;">
-                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'disabled' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('disabled')">
-                                        🍂 <span data-i18n="sim_seasonality_mode_disabled">${window.i18n.t('sim_seasonality_mode_disabled')}</span>
-                                    </button>
-                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'historical' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('historical')">
-                                        📊 <span data-i18n="sim_seasonality_mode_historical">${window.i18n.t('sim_seasonality_mode_historical')}</span>${(data && data.seasonal_history_months) ? ` (${data.seasonal_history_months}m)` : ''}
-                                    </button>
-                                    <button type="button" class="btn btn-xs ${this.seasonalityMode === 'preset_standard' ? 'btn-primary' : 'btn-ghost'}" style="font-size:11px;padding:3px 8px;border-radius:6px;" onclick="window.SimulatorView.setSeasonalityMode('preset_standard')">
-                                        🏖️ <span data-i18n="sim_seasonality_mode_preset">${window.i18n.t('sim_seasonality_mode_preset')}</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Intensity slider (visible when mode != 'disabled') -->
-                            ${this.seasonalityMode !== 'disabled' ? `
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
-                                <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:4px;" title="${window.i18n.t('sim_seasonality_intensity_tooltip')}">
-                                    <span data-i18n="sim_seasonality_intensity_label">${window.i18n.t('sim_seasonality_intensity_label')}</span>
-                                </label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setSeasonalityIntensity(0.0)" title="${window.i18n.t('sim_tooltip_click_seas_0')}">0%</button>
-                                    <input type="range" id="simSeasonalityIntensitySlider" class="sim-range-input" style="width:85px;" min="0" max="100" step="5" value="${this.getSeasonalityIntensityPct()}" oninput="window.SimulatorView.onSeasonalityIntensityInput(this.value)" onchange="window.SimulatorView.onSeasonalityIntensityChange(this.value)">
-                                    <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setSeasonalityIntensity(1.0)" title="${window.i18n.t('sim_tooltip_click_seas_100')}">100%</button>
-                                    <button type="button" id="simSeasonalityIntensityBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setSeasonalityIntensity(1.0)" title="${window.i18n.t('sim_tooltip_click_seas_rec')}" style="color:var(--accent, #6366f1);font-weight:700;">${this.getSeasonalityIntensityPct()}%</button>
-                                </div>
-                            </div>
-                            ` : ''}
-
-                            <!-- Toggle 12-Month Profile Preview Strip -->
-                            <div>
-                                <button type="button" class="sim-seasonality-toggle-btn ${this.isSeasonalityProfileOpen ? 'active' : ''}" onclick="window.SimulatorView.toggleSeasonalityProfile()">
-                                    <span>${this.isSeasonalityProfileOpen ? '▲' : '▼'}</span>
-                                    <span data-i18n="${this.isSeasonalityProfileOpen ? 'sim_seasonality_btn_hide_profile' : 'sim_seasonality_btn_view_profile'}">${this.isSeasonalityProfileOpen ? window.i18n.t('sim_seasonality_btn_hide_profile') : window.i18n.t('sim_seasonality_btn_view_profile')}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Seasonality Explainer -->
-                        <div id="simSeasonalityExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:6px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
-                            ${this.getSeasonalityExplainer(data)}
-                        </div>
-
-                        <!-- 12-Month Profile Preview Strip -->
-                        ${this.isSeasonalityProfileOpen ? `
-                        <div id="simSeasonalityProfileStrip" style="margin-top:8px;padding:8px 10px;background:var(--bg-base);border-radius:8px;border:1px solid var(--border-color);overflow-x:auto;">
-                            ${this.renderSeasonality12MonthsStrip(data)}
-                        </div>
-                        ` : ''}
-                    </div>
-
-                    <!-- Income & Inflation Row -->
-                    <div style="border-top:1px solid var(--border-color);margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
-                            <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;white-space:nowrap;">
-                                <span>💼</span>
-                                <span data-i18n="sim_income_mode_label">${window.i18n.t('sim_income_mode_label')}</span>
-                            </label>
-                            <select id="simIncomeModeSelect" class="inline-input" style="padding:3px 8px;font-size:12px;font-weight:500;border-radius:6px;width:auto;min-width:280px;" onchange="window.SimulatorView.onIncomeModeChange(this.value)">
-                                <option value="auto" ${(!this.incomeMode || this.incomeMode === 'auto') ? 'selected' : ''}>${(window.i18n.t('sim_income_mode_auto') || 'Automatique (Historique & Salaire)').replace('{amount}', (estSalary || 2500).toLocaleString('fr-FR'))}</option>
-                                <option value="historical_n1" ${this.incomeMode === 'historical_n1' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_historical')}</option>
-                                <option value="average" ${this.incomeMode === 'average' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_average')}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €/m)` : ''}</option>
-                                <option value="custom" ${this.incomeMode === 'custom' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_custom')}</option>
-                                <option value="none" ${this.incomeMode === 'none' ? 'selected' : ''}>${window.i18n.t('sim_income_mode_none')}</option>
-                            </select>
-                            ${this.incomeMode === 'custom' ? `
-                                <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
-                                    <input type="number" step="50" id="simCustomIncomeInput" class="inline-input" value="${this.customIncomeAmount || (estSalary || 2500)}" style="width:65px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onCustomIncomeChange(this.value)">
-                                    <span style="font-size:11px;color:var(--text-muted);font-weight:600;">€/m</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                            ${this.horizonMonths >= 12 ? `
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
-                                    <span>📈</span>
-                                    <span data-i18n="sim_inflation_label">${window.i18n.t('sim_inflation_label')} :</span>
-                                </label>
-                                <div style="display:flex;align-items:center;gap:3px;background:var(--bg-input);padding:2px 6px;border-radius:6px;border:1px solid var(--border-color);">
-                                    <input type="number" step="0.5" min="0" max="20" id="simInflationInput" class="inline-input" value="${(this.inflationRate * 100).toFixed(1)}" style="width:42px;padding:1px 2px;font-size:12px;font-weight:700;border:none;background:transparent;text-align:right;" onchange="window.SimulatorView.onInflationChange(this.value)">
-                                    <span style="font-size:11px;color:var(--text-muted);font-weight:600;" data-i18n="sim_inflation_suffix">${window.i18n.t('sim_inflation_suffix')}</span>
-                                </div>
-                            </div>
-                            ` : ''}
-
-                            <button type="button" class="sim-seasonality-toggle-btn" onclick="window.SimulatorView.resetToRecommendedSettings()" title="${window.i18n.t('sim_reset_defaults_tooltip')}" style="padding:4px 10px;gap:5px;">
-                                <span>🔄</span>
-                                <span data-i18n="sim_btn_reset_defaults">${window.i18n.t('sim_btn_reset_defaults')}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <div id="simAdvancedPanelContainer" data-shape="${this._advancedPanelShape(data)}">${this.renderAdvancedPanel(data)}</div>
             </div>
 
             <!-- ═══ KPI Cards (3 fused) ═══ -->
@@ -1367,7 +1199,16 @@ window.SimulatorView = {
         const pctCons = Math.round(w * 100);
         const pctReal = 100 - pctCons;
 
-        if (pctCons === 0) {
+        if (data.projection_profile === 'recommended') {
+            const other = Math.round(data.other_income_avg || 0).toLocaleString('fr-FR');
+            const text = data.other_income_avg > 0
+                ? t('sim_transparency_recommended').replace('{other}', other)
+                : t('sim_transparency_recommended_no_other');
+            items.push(`<span style="display:flex;align-items:center;gap:4px;color:#10b981;font-weight:700;">🎯 ${text}</span>`);
+            if (data.scenario && data.scenario.level) {
+                items.push(`<span style="display:flex;align-items:center;gap:4px;font-weight:700;">${t('sim_adv_transparency_scenario').replace('{label}', this.getScenarioLabel(data.scenario.level))}</span>`);
+            }
+        } else if (pctCons === 0) {
             const inc = Math.round(data.historical_real_income_avg || data.predicted_salary || 0).toLocaleString('fr-FR');
             const fix = Math.round(data.historical_real_fixed_avg || 0).toLocaleString('fr-FR');
             const net = Math.round(data.historical_real_net_avg || 0).toLocaleString('fr-FR');
@@ -1681,12 +1522,12 @@ window.SimulatorView = {
                         }
 
                         const seasSuffix = seasPct !== 0 ? (window.i18n.tp ? window.i18n.tp('sim_table_var_seasonality_suffix', { pct: `${seasPct > 0 ? '+' : ''}${seasPct}` }) : ` (Saisonnalité : ${seasPct > 0 ? '+' : ''}${seasPct}%)`) : '';
-                        const inflDetail = m.baseline_inflation_delta > 0 ? (window.i18n.tp ? window.i18n.tp('sim_inflation_detail', { amount: m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) }) : `dont +${m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € inflation`) : '';
+                        const inflDetail = m.baseline_inflation_delta >= 0.005 ? (window.i18n.tp ? window.i18n.tp('sim_inflation_detail', { amount: m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) }) : `dont +${m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € inflation`) : '';
                         const inflSuffix = inflDetail ? ` (${inflDetail})` : '';
 
                         const netTooltip = `💼 ${window.i18n.t('sim_th_income')} : ${incSign}${incFormatted} €\n🏠 ${window.i18n.t('sim_th_fixed')} : ${fixSign}${fixFormatted} €\n🛒 ${window.i18n.t('sim_th_variable')} : ${varSign}${varFormatted} €${seasSuffix}${inflSuffix}${m.simulated_events_impact !== 0 ? `\n🎯 ${window.i18n.t('sim_th_sim_impact')} : ${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_th_net')} : ${netFormatted}`;
 
-                        const varCellTitle = (m.baseline_inflation_delta > 0 || seasPct !== 0) ? `${window.i18n.tp ? window.i18n.tp('sim_table_var_tooltip', { amount: varFormatted }) : `Dépenses variables : ${varSign}${varFormatted} €`}${seasSuffix}${inflSuffix}` : '';
+                        const varCellTitle = (m.baseline_inflation_delta >= 0.005 || seasPct !== 0) ? `${window.i18n.tp ? window.i18n.tp('sim_table_var_tooltip', { amount: varFormatted }) : `Dépenses variables : ${varSign}${varFormatted} €`}${seasSuffix}${inflSuffix}` : '';
 
                         return `
                             <tr style="${isNeg ? 'background:rgba(239, 68, 68, 0.08);' : ''};border-bottom:1px solid var(--border-color, rgba(255,255,255,0.05));">
@@ -1709,7 +1550,7 @@ window.SimulatorView = {
                                         <span>${varSign}${varFormatted} €</span>
                                         ${seasBadge}
                                     </div>
-                                    ${m.baseline_inflation_delta > 0 ? `<div style="font-size:9px;color:var(--text-muted);opacity:0.8;">(+${Math.round(m.baseline_inflation_delta)}€ infl.)</div>` : ''}
+                                    ${m.baseline_inflation_delta >= 0.005 ? `<div style="font-size:9px;color:var(--text-muted);opacity:0.8;">(+${Math.round(m.baseline_inflation_delta)}€ infl.)</div>` : ''}
                                 </td>
                                 <td style="text-align:right;font-weight:600;color:${m.simulated_events_impact > 0 ? '#10b981' : (m.simulated_events_impact < 0 ? '#ef4444' : 'var(--text-muted)')};vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
                                     ${m.simulated_events_impact !== 0 ? `${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '<span style="opacity:0.35;">—</span>'}
@@ -1940,76 +1781,238 @@ window.SimulatorView = {
     },
 
     // ── Handlers & Live Update ──
-    getPrudenceBadgeText(w) {
-        const pctCons = Math.round(w * 100);
-        const t = (k) => window.i18n ? window.i18n.t(k) : k;
-        if (pctCons === 0) return `🎯 ${t('sim_prudence_badge_100real') || 'Recettes du modèle'}`;
-        if (pctCons === 100) return `🛡️ ${t('sim_prudence_badge_100cons') || 'Recettes minimales'}`;
-        const blendTemplate = t('sim_prudence_badge_blend') || 'Prudence {cons}%';
-        return `⚖️ ${blendTemplate.replace('{cons}', pctCons)}`;
+    _isOrgScenario(data) {
+        return !!(data && data.scenario && data.scenario.uncertain_income_year !== null && data.scenario.uncertain_income_year !== undefined);
     },
 
-    getPrudenceExplainerText(w) {
-        const pctCons = Math.round(w * 100);
-        const t = (k) => window.i18n ? window.i18n.t(k) : k;
-        const mode = this.incomeMode || 'historical_n1';
+    _formatEuro(value) {
+        return `${Math.round(value || 0).toLocaleString((window.i18n && window.i18n.lang === 'en') ? 'en-US' : 'fr-FR')} €`;
+    },
 
-        if (mode === 'custom') {
-            const amountStr = `${(this.customIncomeAmount || 2500).toLocaleString('fr-FR')} €/m`;
-            if (pctCons === 0) {
-                const desc = (t('sim_prudence_desc_custom_100real') || 'Charges fixes basées sur vos prélèvements réels observés (Revenu fixé à {amount}).').replace('{amount}', amountStr);
-                return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${desc}`;
-            }
-            if (pctCons === 100) {
-                const desc = (t('sim_prudence_desc_custom_100cons') || 'Charges fixes calculées au plafond contractuel maximal (Revenu fixé à {amount}).').replace('{amount}', amountStr);
-                return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${desc}`;
-            }
-            const desc = (t('sim_prudence_desc_custom_blend') || 'Marge de sécurité de {pct}% appliquée sur vos charges fixes (Revenu fixé à {amount}).')
-                .replace('{pct}', pctCons)
-                .replace('{amount}', amountStr);
-            const modeTitle = (t('sim_prudence_mode_moderate') || 'Prudence modérée ({pct}%)').replace('{pct}', pctCons);
-            return `⚖️ <strong>${modeTitle}</strong> : ${desc}`;
-        }
+    getScenarioLabel(level) {
+        const t = window.i18n.t.bind(window.i18n);
+        if (level < 0) return t('sim_adv_level_favorable');
+        if (level === 0) return t('sim_adv_level_recommended');
+        if (level >= 1) return t('sim_adv_level_hard');
+        return level < 0.5 ? t('sim_adv_level_difficult') : t('sim_adv_level_very_difficult');
+    },
 
-        if (mode === 'none') {
-            if (pctCons === 0) {
-                const desc = t('sim_prudence_desc_none_100real') || 'Charges fixes basées sur vos prélèvements réels observés (Sans salaire projeté).';
-                return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${desc}`;
-            }
-            if (pctCons === 100) {
-                const desc = t('sim_prudence_desc_none_100cons') || 'Charges fixes calculées au plafond contractuel maximal (Sans salaire projeté).';
-                return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${desc}`;
-            }
-            const desc = (t('sim_prudence_desc_none_blend') || 'Marge de sécurité de {pct}% appliquée sur vos charges fixes (Sans salaire projeté).')
-                .replace('{pct}', pctCons);
-            const modeTitle = (t('sim_prudence_mode_moderate') || 'Prudence modérée ({pct}%)').replace('{pct}', pctCons);
-            return `⚖️ <strong>${modeTitle}</strong> : ${desc}`;
+    _renderScenarioReadout(data) {
+        const t = window.i18n.t.bind(window.i18n);
+        const scenario = (data && data.scenario) || {};
+        const rows = [];
+        if (this._isOrgScenario(data)) {
+            rows.push([t('sim_adv_org_income'), t('sim_adv_org_income_hint'), `${this._formatEuro(scenario.uncertain_income_year)}${t('sim_adv_per_year')}`]);
+        } else if (!this.incomeMode || this.incomeMode === 'auto') {
+            rows.push([t('sim_adv_other_income'), t('sim_adv_other_income_hint'), `${this._formatEuro(data && data.other_income_avg)}${t('sim_adv_per_month')}`]);
         }
+        const factorPct = Math.round(((scenario.expense_factor || 1) - 1) * 100);
+        const factorText = factorPct !== 0 ? ` (${factorPct > 0 ? '+' : '−'}${Math.abs(factorPct)} %)` : '';
+        rows.push([t('sim_adv_expenses'), t('sim_adv_expenses_hint'), `${this._formatEuro(scenario.expense_month)}${t('sim_adv_per_month')}${factorText}`]);
+        const inflation = ((scenario.inflation_rate || 0) * 100).toFixed(1).replace('.', (window.i18n && window.i18n.lang === 'en') ? '.' : ',');
+        rows.push([t('sim_adv_inflation'), '', `${inflation} ${t('sim_adv_percent_per_year')}`]);
+        return rows.map(([label, hint, value]) => `<div><dt${hint ? ` title="${escapeHtml(hint)}"` : ''}>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('');
+    },
 
-        if (mode === 'average') {
-            if (pctCons === 0) {
-                return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${t('sim_prudence_desc_average_100real') || 'Projection lissée basée sur vos recettes mensuelles moyennes (sans variation saisonnière).'}`;
-            }
-            if (pctCons === 100) {
-                return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${t('sim_prudence_desc_100cons') || 'Scénario avec recettes au strict minimum (salaire de base garanti seul, charges fixes contractuelles maximales).'}`;
-            }
-            const hybridDesc = (t('sim_prudence_desc_average_blend') || 'Dosage équilibré entre vos recettes moyennes et une marge de sécurité ({pct}%).')
-                .replace('{pct}', pctCons);
-            const modeTitle = (t('sim_prudence_mode_moderate') || 'Prudence modérée ({pct}%)').replace('{pct}', pctCons);
-            return `⚖️ <strong>${modeTitle}</strong> : ${hybridDesc}`;
-        }
+    _scenarioResultNote(data) {
+        const t = window.i18n.t.bind(window.i18n);
+        const months = (data && data.monthly_data) || [];
+        if (!months.length) return '';
+        const firstNegative = months.find(m => m.simulated_end_balance < 0);
+        if (firstNegative) return t('sim_adv_overdraft_from').replace('{month}', this.formatMonthLabel(firstNegative.month).toLowerCase());
+        const lowest = months.reduce((low, m) => (m.simulated_end_balance < low.simulated_end_balance ? m : low));
+        return t('sim_adv_no_overdraft').replace('{amount}', this._formatEuro(lowest.simulated_end_balance));
+    },
 
-        // Mode historical_n1 / auto (saisonnier année passée)
-        if (pctCons === 0) {
-            return `🎯 <strong>${t('sim_prudence_mode_neutral') || 'Recettes du modèle (0%)'}</strong> : ${t('sim_prudence_desc_100real') || "Projection basée sur l'historique réel de l'année passée (primes, bonus et saisonnalité inclus)."}`;
+    _effortLabel(data) {
+        const pct = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
+        if (pct === 0) return '0 %';
+        const base = (data && data.scenario && data.scenario.expense_month) || 0;
+        const delta = Math.round(base * Math.abs(this.varExpenseAdjustmentPct));
+        const sign = pct > 0 ? '+' : '−';
+        return `${sign}${Math.abs(pct)} % (${sign}${delta.toLocaleString('fr-FR')} €${window.i18n.t('sim_adv_per_month')})`;
+    },
+
+    _excludedPurchasesHint(data) {
+        const t = window.i18n.t.bind(window.i18n);
+        const count = (data && data.excluded_outliers_count) || 0;
+        if (!count) return t('sim_adv_none_excluded');
+        return t('sim_adv_excluded').replace('{count}', count).replace('{amount}', this._formatEuro(data.excluded_outliers_total));
+    },
+
+    renderAdvancedPanel(data) {
+        const t = window.i18n.t.bind(window.i18n);
+        const scenario = (data && data.scenario) || {};
+        const twoSided = !!scenario.favorable_available;
+        const levelPct = Math.round((this.scenarioLevel || 0) * 100);
+        const effortPct = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
+        const final = data ? data.simulated_final_balance : 0;
+        const detailsOpen = ProfileStorage.get('sim_adv_details_open') === 'true';
+        const income = this.incomeMode || 'auto';
+        const option = (value, current, label) => `<option value="${value}" ${String(current) === String(value) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+
+        return `
+            <div class="sim-adv">
+                <div class="sim-adv-main">
+                    <div class="sim-adv-scenario">
+                        <div class="sim-adv-head">
+                            <h3 class="sim-adv-title" id="simScenarioTitle">${t('sim_adv_scenario_title')}</h3>
+                            <span class="sim-adv-level" id="simScenarioLabel">${escapeHtml(this.getScenarioLabel(this.scenarioLevel || 0))}</span>
+                        </div>
+                        <div class="sim-adv-slider-row">
+                            <button type="button" class="sim-adv-stop" onclick="window.SimulatorView.setScenarioLevel(${twoSided ? -1 : 0})">${twoSided ? t('sim_adv_stop_favorable') : t('sim_adv_level_recommended')}</button>
+                            <div class="sim-adv-track ${twoSided ? 'two-sided' : ''}" ${twoSided ? `title="${escapeHtml(t('sim_adv_level_recommended'))}"` : ''}>
+                                <input type="range" id="simScenarioSlider" class="sim-range-input" min="${twoSided ? -100 : 0}" max="100" step="5" value="${levelPct}"
+                                    aria-labelledby="simScenarioTitle" aria-valuetext="${escapeHtml(this.getScenarioLabel(this.scenarioLevel || 0))}"
+                                    oninput="window.SimulatorView.onScenarioInput(this.value)">
+                            </div>
+                            <button type="button" class="sim-adv-stop" onclick="window.SimulatorView.setScenarioLevel(1)">${t('sim_adv_level_hard')}</button>
+                        </div>
+                        <dl class="sim-adv-readout" id="simScenarioReadout">${this._renderScenarioReadout(data)}</dl>
+                        ${twoSided ? '' : `<p class="sim-adv-note">${t('sim_adv_favorable_unavailable')}</p>`}
+                    </div>
+                    <div class="sim-adv-effort">
+                        <div class="sim-adv-head">
+                            <label class="sim-adv-title" for="simVarAdjSlider">${t('sim_adv_effort_title')}</label>
+                            <span class="sim-adv-effort-value" id="simVarAdjBadge">${escapeHtml(this._effortLabel(data))}</span>
+                        </div>
+                        <div class="sim-adv-slider-row">
+                            <span class="sim-adv-stop">−50 %</span>
+                            <div class="sim-adv-track">
+                                <input type="range" id="simVarAdjSlider" class="sim-range-input" min="${Math.min(-50, effortPct)}" max="30" step="5" value="${effortPct}"
+                                    oninput="window.SimulatorView.onVarExpenseAdjustmentInput(this.value)">
+                            </div>
+                            <span class="sim-adv-stop">+30 %</span>
+                        </div>
+                        <div class="sim-adv-result">
+                            <span>${t('sim_adv_result_label').replace('{months}', this.horizonMonths)}</span>
+                            <span class="sim-adv-result-value ${final < 0 ? 'is-negative' : ''}" id="simAdvResultValue">${this._formatEuro(final)}</span>
+                            <span id="simAdvResultNote">${escapeHtml(this._scenarioResultNote(data))}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sim-adv-bottom">
+                    <details class="sim-adv-details" ${detailsOpen ? 'open' : ''} ontoggle="window.SimulatorView.onAdvancedDetailsToggle(this.open)">
+                        <summary>${t('sim_adv_more_settings')}</summary>
+                        <div class="sim-adv-fields">
+                            ${this._isOrgScenario(data) ? '' : `
+                            <label class="sim-adv-field">
+                                ${t('sim_adv_purchases_label')}
+                                <select id="simOutlierSelect" onchange="window.SimulatorView.onOutlierChoice(this.value)">
+                                    ${option(4, this.outlierSensitivity, t('sim_adv_purchases_exceptional'))}
+                                    ${option(2, this.outlierSensitivity, t('sim_adv_purchases_unusual'))}
+                                    ${option(5, this.outlierSensitivity, t('sim_adv_purchases_keep'))}
+                                </select>
+                                <span class="sim-adv-field-hint" id="simOutlierHint">${escapeHtml(this._excludedPurchasesHint(data))}</span>
+                            </label>`}
+                            <label class="sim-adv-field">
+                                ${t('sim_adv_income_label')}
+                                <select id="simIncomeModeSelect" onchange="window.SimulatorView.onIncomeModeChange(this.value)">
+                                    ${option('auto', income, t('sim_adv_income_auto'))}
+                                    ${option('average', income, t('sim_adv_income_average'))}
+                                    ${option('custom', income, t('sim_adv_income_custom'))}
+                                    ${option('none', income, t('sim_adv_income_none'))}
+                                </select>
+                                ${income === 'custom' ? `<input type="number" step="50" min="0" id="simCustomIncomeInput" aria-label="${t('sim_adv_income_custom')}" value="${this.customIncomeAmount || 0}" onchange="window.SimulatorView.onCustomIncomeChange(this.value)">` : ''}
+                            </label>
+                            <label class="sim-adv-field">
+                                ${t('sim_adv_rhythm_label')}
+                                <select id="simSeasonalitySelect" onchange="window.SimulatorView.setSeasonalityMode(this.value)">
+                                    ${option('disabled', this.seasonalityMode, t('sim_adv_rhythm_smooth'))}
+                                    ${option('historical', this.seasonalityMode, t('sim_adv_rhythm_last_year'))}
+                                </select>
+                            </label>
+                            <label class="sim-adv-field">
+                                ${t('sim_adv_extra_inflation')}
+                                <input type="number" step="0.5" min="0" max="20" id="simInflationInput" value="${((this.inflationRate || 0) * 100).toFixed(1)}" onchange="window.SimulatorView.onInflationChange(this.value)">
+                            </label>
+                        </div>
+                    </details>
+                    <button type="button" class="sim-adv-reset" onclick="window.SimulatorView.setSimMode('recommended')">${t('sim_adv_back_to_recommended')}</button>
+                </div>
+            </div>
+        `;
+    },
+
+    /** Ce qui change la structure du panneau, et pas seulement ses valeurs. */
+    _advancedPanelShape(data) {
+        const scenario = (data && data.scenario) || {};
+        return [!!scenario.favorable_available, this._isOrgScenario(data), this.horizonMonths, this.incomeMode].join('|');
+    },
+
+    _syncAdvancedPanel(data) {
+        // Le premier affichage peut précéder le premier calcul : le panneau se recompose dès que sa forme change
+        const container = document.getElementById('simAdvancedPanelContainer');
+        if (container && container.dataset.shape !== this._advancedPanelShape(data)) {
+            container.dataset.shape = this._advancedPanelShape(data);
+            container.innerHTML = this.renderAdvancedPanel(data);
+            return;
         }
-        if (pctCons === 100) {
-            return `🛡️ <strong>${t('sim_prudence_mode_max') || 'Recettes minimales (100%)'}</strong> : ${t('sim_prudence_desc_100cons') || 'Scénario avec recettes au strict minimum (salaire de base garanti seul, charges fixes contractuelles maximales).'}`;
+        const label = this.getScenarioLabel(this.scenarioLevel || 0);
+        const labelEl = document.getElementById('simScenarioLabel');
+        if (labelEl) labelEl.textContent = label;
+        const slider = document.getElementById('simScenarioSlider');
+        if (slider) {
+            slider.setAttribute('aria-valuetext', label);
+            if (document.activeElement !== slider) slider.value = Math.round((this.scenarioLevel || 0) * 100);
         }
-        const hybridDesc = (t('sim_prudence_desc_blend') || 'Dosage équilibré entre votre train de vie réel et une marge de sécurité ({pct}%).')
-            .replace('{pct}', pctCons);
-        const modeTitle = (t('sim_prudence_mode_moderate') || 'Prudence modérée ({pct}%)').replace('{pct}', pctCons);
-        return `⚖️ <strong>${modeTitle}</strong> : ${hybridDesc}`;
+        const readout = document.getElementById('simScenarioReadout');
+        if (readout) readout.innerHTML = this._renderScenarioReadout(data);
+        const value = document.getElementById('simAdvResultValue');
+        if (value) {
+            value.textContent = this._formatEuro(data.simulated_final_balance);
+            value.classList.toggle('is-negative', data.simulated_final_balance < 0);
+        }
+        const note = document.getElementById('simAdvResultNote');
+        if (note) note.textContent = this._scenarioResultNote(data);
+        const effort = document.getElementById('simVarAdjBadge');
+        if (effort) effort.textContent = this._effortLabel(data);
+        const effortSlider = document.getElementById('simVarAdjSlider');
+        if (effortSlider && document.activeElement !== effortSlider) effortSlider.value = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
+        const hint = document.getElementById('simOutlierHint');
+        if (hint) hint.textContent = this._excludedPurchasesHint(data);
+    },
+
+    _refreshTableSoon() {
+        clearTimeout(this._tableDebounceTimer);
+        this._tableDebounceTimer = setTimeout(() => {
+            if (this.simulationData) {
+                const tableContainer = document.getElementById('simMonthlyTableContainer');
+                if (tableContainer) tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
+            }
+        }, 150);
+    },
+
+    onScenarioInput(val) {
+        this.scenarioLevel = (parseInt(val) || 0) / 100;
+        const labelEl = document.getElementById('simScenarioLabel');
+        if (labelEl) labelEl.textContent = this.getScenarioLabel(this.scenarioLevel);
+        this._onCustomParamTouch();
+        this._saveParam('sim_scenario_level', this.scenarioLevel);
+        this._triggerLiveSimulation();
+        this._refreshTableSoon();
+    },
+
+    async setScenarioLevel(level) {
+        this.scenarioLevel = level;
+        this._onCustomParamTouch();
+        this._saveParam('sim_scenario_level', level);
+        const slider = document.getElementById('simScenarioSlider');
+        if (slider) slider.value = Math.round(level * 100);
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    async onOutlierChoice(val) {
+        this.outlierSensitivity = parseInt(val) || 4;
+        this._onCustomParamTouch();
+        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
+        await this.runSimulation();
+        this.updateLiveSimulationView(true);
+    },
+
+    onAdvancedDetailsToggle(isOpen) {
+        this._saveParam('sim_adv_details_open', isOpen);
     },
 
     _triggerLiveSimulation() {
@@ -2034,292 +2037,12 @@ window.SimulatorView = {
         this._isSimulating = false;
     },
 
-    onConservativeWeightInput(val) {
-        const intVal = parseInt(val) || 0;
-        this.conservativeWeight = intVal / 100.0;
-        this._onCustomParamTouch();
-        const badge = document.getElementById('simPrudenceBadge');
-        if (badge) {
-            badge.textContent = this.getPrudenceBadgeText(this.conservativeWeight);
-            badge.style.color = this.conservativeWeight === 0 ? '#10b981' : (this.conservativeWeight >= 0.8 ? '#ef4444' : (this.conservativeWeight >= 0.4 ? '#f59e0b' : 'var(--text-main)'));
-        }
-
-        const explainer = document.getElementById('simPrudenceExplainer');
-        if (explainer) {
-            explainer.innerHTML = this.getPrudenceExplainerText(this.conservativeWeight);
-        }
-
-        // Déclenchement temps réel fluide
-        this._saveParam('sim_conservative_weight', this.conservativeWeight);
-        this._triggerLiveSimulation();
-
-        // Tableau mis à jour en différé pour maximiser les FPS du graphe
-        clearTimeout(this._tableDebounceTimer);
-        this._tableDebounceTimer = setTimeout(() => {
-            if (this.simulationData) {
-                const tableContainer = document.getElementById('simMonthlyTableContainer');
-                if (tableContainer) {
-                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
-                }
-            }
-        }, 150);
-    },
-
-    async setPrudenceWeight(val) {
-        this.conservativeWeight = val;
-        this._onCustomParamTouch();
-        const slider = document.getElementById('simPrudenceSlider');
-        if (slider) slider.value = Math.round(val * 100);
-        const badge = document.getElementById('simPrudenceBadge');
-        if (badge) {
-            badge.textContent = this.getPrudenceBadgeText(this.conservativeWeight);
-            badge.style.color = this.conservativeWeight === 0 ? '#10b981' : (this.conservativeWeight >= 0.8 ? '#ef4444' : ((this.conservativeWeight >= 0.4 ? '#f59e0b' : 'var(--text-main)')));
-        }
-        const explainer = document.getElementById('simPrudenceExplainer');
-        if (explainer) {
-            explainer.innerHTML = this.getPrudenceExplainerText(this.conservativeWeight);
-        }
-        this._saveParam('sim_conservative_weight', this.conservativeWeight);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    async setVarExpenseAdjustment(val) {
-        this.varExpenseAdjustmentPct = val;
-        this._onCustomParamTouch();
-        const slider = document.getElementById('simVarAdjSlider');
-        if (slider) slider.value = Math.round(val * 100);
-        const badge = document.getElementById('simVarAdjBadge');
-        if (badge) {
-            const intVal = Math.round(val * 100);
-            const avgVar = (this.simulationData && this.simulationData.avg_variable_expense) ? this.simulationData.avg_variable_expense : 0;
-            const euroDelta = Math.round(avgVar * val);
-            const euroSuffix = (intVal !== 0 && avgVar > 0) ? ` (${intVal > 0 ? '+' : ''}${euroDelta.toLocaleString('fr-FR')} €/m)` : '';
-            badge.textContent = `${intVal > 0 ? '+' : ''}${intVal}%${euroSuffix}`;
-            badge.style.color = intVal < 0 ? '#10b981' : (intVal > 0 ? '#ef4444' : 'var(--text-main)');
-        }
-        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    async onConservativeWeightChange(val) {
-        const intVal = parseInt(val) || 0;
-        this.conservativeWeight = intVal / 100.0;
-        this._saveParam('sim_conservative_weight', this.conservativeWeight);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    getOutlierSensitivityLabel(level) {
-        const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
-        const map = {
-            1: t('sim_outlier_level_1', 'Filtre très fort'),
-            2: t('sim_outlier_level_2', 'Filtre fort'),
-            3: t('sim_outlier_level_3', 'Filtre moyen'),
-            4: t('sim_outlier_level_4', 'Gros achats seulement'),
-            5: t('sim_outlier_level_5', 'Tout inclure')
-        };
-        return map[level] || map[4];
-    },
-
-    getOutlierSensitivityExplainer(level, excludedCount = 0, excludedTotal = 0) {
-        const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
-        const descMap = {
-            1: t('sim_outlier_desc_1', 'Filtre maximal : écarte tout achat inhabituel ou imprévu même modéré (> 250 €).'),
-            2: t('sim_outlier_desc_2', 'Filtre fort : écarte les achats de matériel, paiements en plusieurs fois et imprévus (> 250 €).'),
-            3: t('sim_outlier_desc_3', 'Filtre IQR standard : écarte uniquement les anomalies statistiques évidentes (> 600 €).'),
-            4: t('sim_outlier_desc_4', 'Conseillé : ne retire que les achats hors norme (> 800 €), le reste compte comme dépense courante.'),
-            5: t('sim_outlier_desc_5', 'Intégral : conserve 100% des dépenses historiques sans aucun filtrage.')
-        };
-        const desc = descMap[level] || descMap[4];
-        const isEn = (window.i18n && window.i18n.lang === 'en');
-        const formattedTotal = Math.round(excludedTotal).toLocaleString(isEn ? 'en-US' : 'fr-FR');
-        const badgeText = window.i18n.tp
-            ? window.i18n.tp('sim_outlier_excluded_badge', { count: excludedCount, total: formattedTotal })
-            : `${excludedCount} ${isEn ? 'expense(s) excluded' : 'dépense(s) exclue(s)'} (-${formattedTotal} €)`;
-        const noOutlierText = t('sim_outlier_none_detected', isEn ? 'No abnormal purchases detected' : 'Aucun achat anormal détecté');
-        const badgePart = excludedCount > 0
-            ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,0.12);color:#10b981;font-weight:700;padding:2px 7px;border-radius:4px;font-size:10px;">⚡ ${badgeText}</div>`
-            : `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);opacity:0.75;">${noOutlierText}</div>`;
-        return `<div>${desc}</div>${badgePart}`;
-    },
-
-    onOutlierSensitivityInput(val) {
-        const intVal = Math.min(5, Math.max(1, parseInt(val) || 4));
-        this.outlierSensitivity = intVal;
-        this._onCustomParamTouch();
-        const badge = document.getElementById('simOutlierBadge');
-        if (badge) {
-            badge.textContent = this.getOutlierSensitivityLabel(intVal);
-            badge.style.color = intVal === 1 ? '#ef4444' : (intVal === 2 ? '#10b981' : (intVal === 3 ? '#3b82f6' : (intVal === 4 ? '#f59e0b' : 'var(--text-muted)')));
-        }
-        const explainer = document.getElementById('simOutlierExplainer');
-        if (explainer) {
-            const excCount = (this.simulationData && this.simulationData.excluded_outliers_count) || 0;
-            const excTotal = (this.simulationData && this.simulationData.excluded_outliers_total) || 0;
-            explainer.innerHTML = this.getOutlierSensitivityExplainer(intVal, excCount, excTotal);
-        }
-        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
-        this._triggerLiveSimulation();
-
-        clearTimeout(this._tableDebounceTimer);
-        this._tableDebounceTimer = setTimeout(() => {
-            if (this.simulationData) {
-                const tableContainer = document.getElementById('simMonthlyTableContainer');
-                if (tableContainer) {
-                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
-                }
-            }
-        }, 150);
-    },
-
-    async setOutlierSensitivity(level) {
-        const intVal = Math.min(5, Math.max(1, parseInt(level) || 4));
-        this.outlierSensitivity = intVal;
-        this._onCustomParamTouch();
-        const slider = document.getElementById('simOutlierSlider');
-        if (slider) slider.value = intVal;
-        const badge = document.getElementById('simOutlierBadge');
-        if (badge) {
-            badge.textContent = this.getOutlierSensitivityLabel(intVal);
-            badge.style.color = intVal === 1 ? '#ef4444' : (intVal === 2 ? '#10b981' : (intVal === 3 ? '#3b82f6' : (intVal === 4 ? '#f59e0b' : 'var(--text-muted)')));
-        }
-        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    async onOutlierSensitivityChange(val) {
-        const intVal = Math.min(5, Math.max(1, parseInt(val) || 4));
-        this.outlierSensitivity = intVal;
-        this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    getSeasonalityIntensityPct() {
-        return Math.round(((typeof this.seasonalityIntensity === 'number' && !isNaN(this.seasonalityIntensity)) ? this.seasonalityIntensity : 1.0) * 100);
-    },
-
-    getSeasonalityExplainer(data) {
-        const t = (k) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : k;
-        const mode = this.seasonalityMode || 'disabled';
-        const intensity = this.getSeasonalityIntensityPct();
-
-        if (mode === 'disabled') {
-            return `🍂 <strong>${t('sim_seasonality_mode_disabled')}</strong> : ${t('sim_seasonality_desc_disabled')}`;
-        }
-        if (mode === 'historical') {
-            const mCount = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
-            if (mCount >= 6) {
-                const desc = (t('sim_seasonality_desc_historical') || '').replace('{months}', mCount);
-                return `📊 <strong>${t('sim_seasonality_mode_historical')} (${intensity}%)</strong> : ${desc}`;
-            } else {
-                const desc = (t('sim_seasonality_desc_historical_insufficient') || '').replace('{months}', mCount);
-                return `⚠️ <strong>${t('sim_seasonality_mode_historical')}</strong> : ${desc}`;
-            }
-        }
-        if (mode === 'preset_standard') {
-            return `🏖️ <strong>${t('sim_seasonality_mode_preset')} (${intensity}%)</strong> : ${t('sim_seasonality_desc_preset')}`;
-        }
-        return '';
-    },
-
-    renderSeasonality12MonthsStrip(data) {
-        if (!data) return '';
-        const coeffs = data.seasonal_expense_coefficients || {};
-        const locale = (window.i18n && window.i18n.lang === 'en') ? 'en-US' : 'fr-FR';
-        const monthNames = Array.from({length: 12}, (_, i) => {
-            const raw = new Date(2026, i, 1).toLocaleDateString(locale, { month: 'short' });
-            return raw.charAt(0).toUpperCase() + raw.slice(1).replace('.', '');
-        });
-        
-        return `
-            <div style="display:flex;gap:6px;min-width:780px;justify-content:space-between;">
-                ${monthNames.map((name, idx) => {
-                    const m = idx + 1;
-                    const coeff = coeffs[m] !== undefined ? coeffs[m] : 1.0;
-                    const pct = Math.round((coeff - 1.0) * 100);
-                    const sign = pct > 0 ? '+' : '';
-                    const color = pct > 0 ? (pct >= 25 ? '#ef4444' : '#f59e0b') : (pct < 0 ? '#10b981' : 'var(--text-muted)');
-                    const bg = pct > 0 ? 'rgba(245, 158, 11, 0.08)' : (pct < 0 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)');
-                    const icon = m === 12 ? '🎄' : (m === 7 || m === 8 ? '🏖️' : (m === 9 ? '🎒' : (m === 1 || m === 2 ? '❄️' : '')));
-
-                    return `
-                        <div style="flex:1;min-width:56px;background:${bg};border:1px solid var(--border-color);border-radius:6px;padding:5px 4px;text-align:center;display:flex;flex-direction:column;gap:2px;">
-                            <div style="font-size:10px;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:2px;">
-                                <span>${name}</span>
-                                ${icon ? `<span style="font-size:10px;">${icon}</span>` : ''}
-                            </div>
-                            <div style="font-size:11px;font-weight:800;color:${color};">
-                                ${pct === 0 ? '0%' : `${sign}${pct}%`}
-                            </div>
-                            <div style="font-size:9.5px;color:var(--text-muted);opacity:0.8;">
-                                ${coeff.toFixed(2)}x
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    },
-
     async setSeasonalityMode(mode) {
-        this.seasonalityMode = mode;
+        this.seasonalityMode = mode === 'historical' ? 'historical' : 'disabled';
         this._onCustomParamTouch();
-        this._saveParam('sim_seasonality_mode', mode);
-        await this.runSimulation();
-        this.render();
-    },
-
-    onSeasonalityIntensityInput(val) {
-        const parsed = parseInt(val, 10);
-        const intVal = isNaN(parsed) ? 100 : Math.max(0, Math.min(100, parsed));
-        this.seasonalityIntensity = intVal / 100.0;
-        const badge = document.getElementById('simSeasonalityIntensityBadge');
-        if (badge) badge.textContent = `${intVal}%`;
-        const explainer = document.getElementById('simSeasonalityExplainer');
-        if (explainer) explainer.innerHTML = this.getSeasonalityExplainer(this.simulationData);
-        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
-        this._triggerLiveSimulation();
-
-        clearTimeout(this._tableDebounceTimer);
-        this._tableDebounceTimer = setTimeout(() => {
-            if (this.simulationData) {
-                const tableContainer = document.getElementById('simMonthlyTableContainer');
-                if (tableContainer) {
-                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
-                }
-            }
-        }, 150);
-    },
-
-    async onSeasonalityIntensityChange(val) {
-        const parsed = parseInt(val, 10);
-        const intVal = isNaN(parsed) ? 100 : Math.max(0, Math.min(100, parsed));
-        this.seasonalityIntensity = intVal / 100.0;
-        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
+        this._saveParam('sim_seasonality_mode', this.seasonalityMode);
         await this.runSimulation();
         this.updateLiveSimulationView(true);
-    },
-
-    async setSeasonalityIntensity(val) {
-        const parsed = parseFloat(val);
-        this.seasonalityIntensity = isNaN(parsed) ? 1.0 : Math.max(0.0, Math.min(1.0, parsed));
-        this._saveParam('sim_seasonality_intensity', this.seasonalityIntensity);
-        const slider = document.getElementById('simSeasonalityIntensitySlider');
-        if (slider) slider.value = this.getSeasonalityIntensityPct();
-        const badge = document.getElementById('simSeasonalityIntensityBadge');
-        if (badge) badge.textContent = `${this.getSeasonalityIntensityPct()}%`;
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
-    },
-
-    toggleSeasonalityProfile() {
-        this.isSeasonalityProfileOpen = !this.isSeasonalityProfileOpen;
-        this._saveParam('sim_seasonality_profile_open', this.isSeasonalityProfileOpen);
-        this.render();
     },
 
     async setSimMode(mode) {
@@ -2329,23 +2052,21 @@ window.SimulatorView = {
         this._saveParam('sim_mode', targetMode);
 
         if (targetMode === 'recommended') {
-            this.conservativeWeight = 1.0;
+            this.scenarioLevel = 0.0;
             this.incomeMode = 'auto';
             this.customIncomeAmount = null;
             this.varExpenseAdjustmentPct = 0.0;
             this.inflationRate = 0.0;
             this.seasonalityMode = 'disabled';
-            this.seasonalityIntensity = 1.0;
             this.outlierSensitivity = 4;
 
             this._batchSaveParams({
-                sim_conservative_weight: '1.0',
+                sim_scenario_level: '0',
                 sim_income_mode: 'auto',
                 sim_custom_income: '',
                 sim_var_expense_adj: '0.0',
                 sim_inflation_rate: '0.0',
                 sim_seasonality_mode: 'disabled',
-                sim_seasonality_intensity: '1.0',
                 sim_outlier_sensitivity: '4'
             });
 
@@ -2360,25 +2081,26 @@ window.SimulatorView = {
                 const s = ProfileStorage.get(k);
                 return (s !== null && s !== undefined && s !== '') ? s : fb;
             };
-            const customWeight = parseFloat(getSetting('sim_custom_conservative_weight', getSetting('sim_conservative_weight', '0.20')));
-            this.conservativeWeight = isNaN(customWeight) ? 0.20 : customWeight;
-            this.incomeMode = getSetting('sim_custom_income_mode', 'historical_n1');
-            const customInc = getSetting('sim_custom_income', null);
+            // Sans réglage propre au nouveau panneau, le mode avancé part du mode conseillé
+            const hasNewPanelSettings = getSetting('sim_custom_scenario_level', null) !== null;
+            const customSetting = (key, fallback) => hasNewPanelSettings ? getSetting(key, fallback) : fallback;
+            this.scenarioLevel = parseFloat(customSetting('sim_custom_scenario_level', '0')) || 0.0;
+            const customIncomeMode = customSetting('sim_custom_income_mode', 'auto');
+            this.incomeMode = customIncomeMode === 'historical_n1' ? 'auto' : customIncomeMode;
+            const customInc = customSetting('sim_custom_income', null);
             this.customIncomeAmount = (customInc && customInc !== 'null' && customInc !== '') ? parseFloat(customInc) : null;
-            this.varExpenseAdjustmentPct = parseFloat(getSetting('sim_custom_var_expense_adj', '0.0')) || 0.0;
-            this.inflationRate = parseFloat(getSetting('sim_custom_inflation_rate', '0.0')) || 0.0;
-            this.seasonalityMode = getSetting('sim_custom_seasonality_mode', 'disabled');
-            this.seasonalityIntensity = parseFloat(getSetting('sim_custom_seasonality_intensity', '1.0')) || 1.0;
-            this.outlierSensitivity = parseInt(getSetting('sim_custom_outlier_sensitivity', '2')) || 2;
+            this.varExpenseAdjustmentPct = parseFloat(customSetting('sim_custom_var_expense_adj', '0.0')) || 0.0;
+            this.inflationRate = parseFloat(customSetting('sim_custom_inflation_rate', '0.0')) || 0.0;
+            this.seasonalityMode = customSetting('sim_custom_seasonality_mode', 'disabled') === 'historical' ? 'historical' : 'disabled';
+            this.outlierSensitivity = parseInt(customSetting('sim_custom_outlier_sensitivity', '4')) || 4;
 
             this._batchSaveParams({
-                sim_conservative_weight: String(this.conservativeWeight),
+                sim_scenario_level: String(this.scenarioLevel),
                 sim_income_mode: String(this.incomeMode),
                 sim_custom_income: this.customIncomeAmount !== null ? String(this.customIncomeAmount) : '',
                 sim_var_expense_adj: String(this.varExpenseAdjustmentPct),
                 sim_inflation_rate: String(this.inflationRate),
                 sim_seasonality_mode: String(this.seasonalityMode),
-                sim_seasonality_intensity: String(this.seasonalityIntensity),
                 sim_outlier_sensitivity: String(this.outlierSensitivity)
             });
 
@@ -2401,13 +2123,12 @@ window.SimulatorView = {
 
     _saveCustomParams() {
         this._batchSaveParams({
-            sim_custom_conservative_weight: String(this.conservativeWeight),
+            sim_custom_scenario_level: String(this.scenarioLevel || 0),
             sim_custom_income_mode: String(this.incomeMode),
             sim_custom_income: this.customIncomeAmount !== null ? String(this.customIncomeAmount) : '',
             sim_custom_var_expense_adj: String(this.varExpenseAdjustmentPct),
             sim_custom_inflation_rate: String(this.inflationRate),
             sim_custom_seasonality_mode: String(this.seasonalityMode),
-            sim_custom_seasonality_intensity: String(this.seasonalityIntensity),
             sim_custom_outlier_sensitivity: String(this.outlierSensitivity)
         });
     },
@@ -2438,46 +2159,8 @@ window.SimulatorView = {
         }
     },
 
-    async resetToRecommendedSettings() {
-        this.simMode = 'advanced';
-        this.conservativeWeight = 0.20;
-        this.varExpenseAdjustmentPct = 0.0;
-        this.outlierSensitivity = 2;
-        this.seasonalityMode = 'disabled';
-        this.seasonalityIntensity = 1.0;
-        this.incomeMode = 'historical_n1';
-        this.customIncomeAmount = null;
-        this.inflationRate = 0.0;
-
-        this._batchSaveParams({
-            sim_conservative_weight: '0.20',
-            sim_var_expense_adj: '0.0',
-            sim_outlier_sensitivity: '2',
-            sim_seasonality_mode: 'disabled',
-            sim_seasonality_intensity: '1.0',
-            sim_income_mode: 'historical_n1',
-            sim_custom_income: '',
-            sim_inflation_rate: '0.0'
-        });
-
-        await this.runSimulation();
-        this.render();
-
-        if (typeof showToast === 'function') {
-            showToast(window.i18n.t('sim_toast_defaults_restored') || 'Paramètres recommandés restaurés avec succès', 'success');
-        }
-    },
-
     toggleSection(section) {
-        if (section === 'advanced') {
-            const body = document.getElementById('simAdvancedBody');
-            const chevron = document.getElementById('simAdvancedChevron');
-            if (body && chevron) {
-                const isOpen = body.classList.toggle('open');
-                chevron.classList.toggle('open', isOpen);
-                this._saveParam('sim_advanced_open', isOpen);
-            }
-        } else if (section === 'table') {
+        if (section === 'table') {
             const body = document.getElementById('simTableBody');
             const chevron = document.getElementById('simTableChevron');
             if (body && chevron) {
@@ -2569,103 +2252,9 @@ window.SimulatorView = {
             breakEvenContainer.innerHTML = this.renderBreakEvenBanner(data);
         }
 
-        // 5. Update Advanced Summary & Mode Controls
+        // 5. Update Advanced Panel & Mode Controls
         this.updateModeToggleUI();
-
-        const summaryEl = document.getElementById('simAdvancedSummary');
-        if (summaryEl) {
-            const estSalary = (data && data.predicted_salary) ? Math.round(data.predicted_salary) : 0;
-            const avgIncome = (data && data.historical_real_income_avg) ? Math.round(data.historical_real_income_avg) : estSalary;
-            const prudencePct = Math.round((this.conservativeWeight || 0) * 100);
-            const effortPct = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
-            const compactSummaryParts = [];
-            compactSummaryParts.push(`🛡️ ${prudencePct === 0 ? (window.i18n.t('sim_prudence_badge_100real') || 'Recettes du modèle') : (prudencePct === 100 ? (window.i18n.t('sim_prudence_badge_100cons') || 'Recettes minimales') : `Prudence ${prudencePct}%`)}`);
-            compactSummaryParts.push(`⚡ ${effortPct > 0 ? '+' : ''}${effortPct}%`);
-            const incomeBadge = (!this.incomeMode || this.incomeMode === 'historical_n1' || this.incomeMode === 'auto')
-                ? (window.i18n.t('sim_income_badge_historical_n1') || 'Année passée')
-                : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
-            compactSummaryParts.push(`💼 ${incomeBadge}`);
-            if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
-            const outlierLevel = this.outlierSensitivity || 4;
-            const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
-            const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
-            compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
-
-            // Seasonality summary badge
-            const seasPct = this.getSeasonalityIntensityPct();
-            if (this.seasonalityMode === 'historical') {
-                const seasMonths = (data && data.seasonal_history_months) ? data.seasonal_history_months : 0;
-                compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_historical') || 'Historique'} ${seasMonths}m (${seasPct}%)`);
-            } else if (this.seasonalityMode === 'preset_standard') {
-                compactSummaryParts.push(`🏖️ ${window.i18n.t('sim_seasonality_badge_preset') || 'Vacances & Fêtes'} (${seasPct}%)`);
-            } else {
-                compactSummaryParts.push(`🍂 ${window.i18n.t('sim_seasonality_badge_disabled') || 'Lissée'}`);
-            }
-
-            summaryEl.innerHTML = compactSummaryParts.join('  <span style="opacity:0.3;">│</span>  ');
-        }
-
-        // Update Outlier Explainer & Badge
-        const outlierBadge = document.getElementById('simOutlierBadge');
-        if (outlierBadge) {
-            outlierBadge.textContent = this.getOutlierSensitivityLabel(this.outlierSensitivity || 4);
-            outlierBadge.style.color = (this.outlierSensitivity || 4) === 1 ? '#ef4444' : ((this.outlierSensitivity || 4) === 2 ? '#10b981' : ((this.outlierSensitivity || 4) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 4) === 4 ? '#f59e0b' : 'var(--text-muted)')));
-        }
-        const outlierExplainer = document.getElementById('simOutlierExplainer');
-        if (outlierExplainer) {
-            const excCount = (data && data.excluded_outliers_count) || 0;
-            const excTotal = (data && data.excluded_outliers_total) || 0;
-            outlierExplainer.innerHTML = this.getOutlierSensitivityExplainer(this.outlierSensitivity || 4, excCount, excTotal);
-        }
-        const outlierSlider = document.getElementById('simOutlierSlider');
-        if (outlierSlider && document.activeElement !== outlierSlider) {
-            outlierSlider.value = this.outlierSensitivity || 4;
-        }
-
-        // Update Seasonality Explainer, Badge & Slider
-        const seasPct = this.getSeasonalityIntensityPct();
-        const seasExplainer = document.getElementById('simSeasonalityExplainer');
-        if (seasExplainer) {
-            seasExplainer.innerHTML = this.getSeasonalityExplainer(data);
-        }
-        const seasBadge = document.getElementById('simSeasonalityIntensityBadge');
-        if (seasBadge) {
-            seasBadge.textContent = `${seasPct}%`;
-        }
-        const seasSlider = document.getElementById('simSeasonalityIntensitySlider');
-        if (seasSlider && document.activeElement !== seasSlider) {
-            seasSlider.value = seasPct;
-        }
-        const seasStrip = document.getElementById('simSeasonalityProfileStrip');
-        if (seasStrip && this.isSeasonalityProfileOpen) {
-            seasStrip.innerHTML = this.renderSeasonality12MonthsStrip(data);
-        }
-
-        // Sync Prudence Controls
-        const prudenceSlider = document.getElementById('simPrudenceSlider');
-        if (prudenceSlider && document.activeElement !== prudenceSlider) {
-            prudenceSlider.value = Math.round((this.conservativeWeight || 0) * 100);
-        }
-        const prudenceBadge = document.getElementById('simPrudenceBadge');
-        if (prudenceBadge) {
-            prudenceBadge.textContent = this.getPrudenceBadgeText(this.conservativeWeight || 0);
-            prudenceBadge.style.color = (this.conservativeWeight || 0) === 0 ? '#10b981' : ((this.conservativeWeight || 0) >= 0.8 ? '#ef4444' : ((this.conservativeWeight || 0) >= 0.4 ? '#f59e0b' : 'var(--text-main)'));
-        }
-        const prudenceExplainer = document.getElementById('simPrudenceExplainer');
-        if (prudenceExplainer) {
-            prudenceExplainer.innerHTML = this.getPrudenceExplainerText(this.conservativeWeight || 0);
-        }
-
-        // Sync Effort Controls
-        const varAdjSlider = document.getElementById('simVarAdjSlider');
-        if (varAdjSlider && document.activeElement !== varAdjSlider) {
-            varAdjSlider.value = Math.round((this.varExpenseAdjustmentPct || 0) * 100);
-        }
-        const varAdjBadge = document.getElementById('simVarAdjBadge');
-        if (varAdjBadge) {
-            varAdjBadge.textContent = `${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(this.varExpenseAdjustmentPct * 100)}%${(data && data.avg_variable_expense && this.varExpenseAdjustmentPct !== 0) ? ` (${this.varExpenseAdjustmentPct > 0 ? '+' : ''}${Math.round(data.avg_variable_expense * this.varExpenseAdjustmentPct).toLocaleString('fr-FR')} €/m)` : ''}`;
-            varAdjBadge.style.color = this.varExpenseAdjustmentPct < 0 ? '#10b981' : (this.varExpenseAdjustmentPct > 0 ? '#ef4444' : 'var(--text-main)');
-        }
+        this._syncAdvancedPanel(data);
 
         // 6. Update Monthly Table (only on demand or settled pause)
         if (updateTable) {
@@ -2713,40 +2302,13 @@ window.SimulatorView = {
     },
 
     onVarExpenseAdjustmentInput(val) {
-        const intVal = parseInt(val) || 0;
-        this.varExpenseAdjustmentPct = intVal / 100.0;
+        this.varExpenseAdjustmentPct = (parseInt(val) || 0) / 100.0;
         this._onCustomParamTouch();
         const badge = document.getElementById('simVarAdjBadge');
-        if (badge) {
-            const avgVar = (this.simulationData && this.simulationData.avg_variable_expense) ? this.simulationData.avg_variable_expense : 0;
-            const euroDelta = Math.round(avgVar * (intVal / 100.0));
-            const euroSuffix = (intVal !== 0 && avgVar > 0) ? ` (${intVal > 0 ? '+' : ''}${euroDelta.toLocaleString('fr-FR')} €/m)` : '';
-            badge.textContent = `${intVal > 0 ? '+' : ''}${intVal}%${euroSuffix}`;
-            badge.style.color = intVal < 0 ? '#10b981' : (intVal > 0 ? '#ef4444' : 'var(--text-main)');
-        }
-
-        // Déclenchement temps réel fluide
+        if (badge) badge.textContent = this._effortLabel(this.simulationData);
         this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         this._triggerLiveSimulation();
-
-        // Tableau mis à jour en différé pour maximiser les FPS du graphe
-        clearTimeout(this._tableDebounceTimer);
-        this._tableDebounceTimer = setTimeout(() => {
-            if (this.simulationData) {
-                const tableContainer = document.getElementById('simMonthlyTableContainer');
-                if (tableContainer) {
-                    tableContainer.innerHTML = this.renderMonthlyTable(this.simulationData);
-                }
-            }
-        }, 150);
-    },
-
-    async onVarExpenseAdjustmentChange(val) {
-        const intVal = parseInt(val) || 0;
-        this.varExpenseAdjustmentPct = intVal / 100.0;
-        this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
-        await this.runSimulation();
-        this.updateLiveSimulationView(true);
+        this._refreshTableSoon();
     },
 
     async applyBreakEvenEffort(pct) {
@@ -2756,11 +2318,9 @@ window.SimulatorView = {
         this.varExpenseAdjustmentPct = -(targetPct / 100.0);
         this._saveParam('sim_var_expense_adj', this.varExpenseAdjustmentPct);
         const slider = document.getElementById('simVarAdjSlider');
-        if (slider) slider.value = Math.round(this.varExpenseAdjustmentPct * 100);
-        const badge = document.getElementById('simVarAdjBadge');
-        if (badge) {
-            badge.textContent = `-${targetPct}%`;
-            badge.style.color = '#10b981';
+        if (slider) {
+            slider.min = Math.min(-50, -targetPct);
+            slider.value = -targetPct;
         }
         await this.runSimulation();
         this.updateLiveSimulationView(true);
@@ -2775,11 +2335,6 @@ window.SimulatorView = {
         this._saveParam('sim_var_expense_adj', 0.0);
         const slider = document.getElementById('simVarAdjSlider');
         if (slider) slider.value = 0;
-        const badge = document.getElementById('simVarAdjBadge');
-        if (badge) {
-            badge.textContent = `0%`;
-            badge.style.color = 'var(--text-main)';
-        }
         await this.runSimulation();
         this.updateLiveSimulationView(true);
     },
@@ -2951,7 +2506,7 @@ window.SimulatorView = {
                         <button type="button" class="modal-close-btn" onclick="window.SimulatorView.closeModal('simPresetsModal')" aria-label="Fermer" title="Fermer">✕</button>
                     </div>
                     <div style="padding: 20px 24px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                        ${this.presets.map(p => {
+                        ${this.presets.filter(p => !p.personal_only || !this._isOrgScenario(this.simulationData)).map(p => {
                             const pName = isEn ? (p.name_en || window.i18n.t(p.i18n_key) || p.name) : (p.name_fr || window.i18n.t(p.i18n_key) || p.name);
                             const pDesc = isEn ? (p.desc_en || window.i18n.t(`${p.i18n_key}_desc`) || p.description) : (p.desc_fr || window.i18n.t(`${p.i18n_key}_desc`) || p.description);
 
@@ -2991,11 +2546,16 @@ window.SimulatorView = {
         const pName = isEn ? (preset.name_en || preset.name) : (preset.name_fr || preset.name);
         const pDesc = isEn ? (preset.desc_en || preset.description) : (preset.desc_fr || preset.description);
 
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+        const pad = n => String(n).padStart(2, '0');
+        const startDate = preset.start_next_month ? `${nextMonth.getFullYear()}-${pad(nextMonth.getMonth() + 1)}-01` : todayStr;
+
         const eventsPayload = preset.events.map(ev => ({
             label: isEn ? (ev.label_en || ev.label) : (ev.label_fr || ev.label),
             event_type: ev.event_type,
             amount: ev.amount,
-            start_date: todayStr,
+            start_date: startDate,
             duration_months: ev.duration_months,
             is_active: true,
             notes: isEn ? (ev.notes_en || ev.notes) : (ev.notes_fr || ev.notes)
@@ -3016,6 +2576,10 @@ window.SimulatorView = {
             const toastMsg = (window.i18n.t('sim_toast_preset_applied') || 'Modèle "{name}" appliqué').replace('{name}', pName);
             showToast(toastMsg, "success");
             await this.loadData();
+            if (preset.edit_after_apply) {
+                const scenario = this.scenarios.find(s => s.id === created.id);
+                if (scenario && scenario.events && scenario.events[0]) this.openEditEventModal(scenario.events[0].id);
+            }
         } catch (err) {
             console.error("[SimulatorView] Erreur application preset:", err);
             showToast("Erreur lors de l'application du modèle", "error");

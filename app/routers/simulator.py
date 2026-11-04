@@ -260,6 +260,7 @@ def execute_simulation(payload: SimulationRunRequest, db: Session = Depends(get_
         projection_profile=payload.projection_profile or "realistic",
         conservative_weight=payload.conservative_weight,
         outlier_sensitivity=payload.outlier_sensitivity if payload.outlier_sensitivity is not None else 4,
+        scenario_level=payload.scenario_level or 0.0,
         seasonality_mode=payload.seasonality_mode or "disabled",
         seasonality_intensity=payload.seasonality_intensity if payload.seasonality_intensity is not None else 1.0
     )

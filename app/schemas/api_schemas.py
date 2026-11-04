@@ -360,6 +360,7 @@ class SimulationRunRequest(BaseModel):
     variable_expense_adjustment_pct: Optional[float] = 0.0  # Effort/adjustment on variable spending (-0.20 = -20%, +0.10 = +10%)
     projection_profile: Optional[str] = "blend"  # 'realistic', 'conservative', 'blend'
     conservative_weight: Optional[float] = 0.20  # Curseur continu de prudence : 0.0 (Recettes du modèle) à 1.0 (Recettes minimales), 0.20 par défaut
+    scenario_level: Optional[float] = 0.0  # -1: année favorable, 0: conseillé, 1: coup dur (mode conseillé)
     outlier_sensitivity: Optional[int] = 4  # 1: filtre très fort … 4: gros achats seulement, 5: tout inclure
     seasonality_mode: Optional[str] = "disabled"  # 'disabled', 'historical', 'preset_standard'
     seasonality_intensity: Optional[float] = 1.0  # 0.0 (lissage 100%) à 1.0 (effet plein)
