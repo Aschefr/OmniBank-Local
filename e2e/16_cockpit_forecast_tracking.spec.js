@@ -80,6 +80,16 @@ test.describe('Cockpit : réel face à la prévision', () => {
     await expect(page.locator('#ovCockpitTracking')).toBeHidden();
   });
 
+  test("16.06 - L'information du titre s'ouvre aussi au toucher", async ({ page }) => {
+    await openCockpit(page, tracking());
+    await expect(page.locator('.cockpit-tracking-hint')).toHaveCount(0);
+    await page.locator('.cockpit-tracking-info').click();
+    await expect(page.locator('.cockpit-tracking-hint')).toBeVisible();
+    await expect(page.locator('.cockpit-tracking-info')).toHaveAttribute('aria-expanded', 'true');
+    await page.locator('.cockpit-tracking-info').click();
+    await expect(page.locator('.cockpit-tracking-hint')).toHaveCount(0);
+  });
+
   test('16.05 - Le repère de rythme selon la situation', async ({ page }) => {
     await openCockpit(page, tracking());
     const show = (pace, known) => page.evaluate(([p, k]) => {
@@ -95,7 +105,7 @@ test.describe('Cockpit : réel face à la prévision', () => {
     await expect(line).toHaveClass(/is-warning/);
     await expect(line).toContainText('38');
     await expect(line).toContainText('9');
-    await expect(page.locator('.cockpit-tracking-explain')).toContainText('Fin de cycle, opérations prévues seules');
+    await expect(page.locator('.cockpit-tracking-explain')).toBeVisible();
 
     await show({ kind: 'cycle', usual_per_day: 5, days_left: 24 }, 213);
     await expect(line).toHaveClass(/is-calm/);

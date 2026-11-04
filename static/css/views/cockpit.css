@@ -1333,6 +1333,33 @@
     color: #f59e0b;
 }
 
+.cockpit-tracking-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin-left: -8px;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    align-self: center;
+}
+
+.cockpit-tracking-info:hover,
+.cockpit-tracking-info:focus-visible {
+    color: var(--text-main);
+}
+
+.cockpit-tracking-hint {
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
 .cockpit-tracking-pace {
     margin: 2px 0 0;
     font-size: 13px;
