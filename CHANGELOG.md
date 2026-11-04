@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 - **Backups in the Mobile App**: Downloading a backup from the app appeared to work but saved nothing. It now downloads through your phone's browser.
 - **Readable Main Buttons With Any Profile Color**: White text on the main buttons was hard to read with a pink, green or orange profile color. The button background now darkens just enough to keep the white text readable.
 - **Budget Automations Explained Correctly**: The Automations window, the Auto-Pilot settings and the setup assistant still described the old monthly smoothing and when the analysis runs. They now match what actually happens, and the budget documentation has been rewritten.
+- **Button Text That Fits on Phones**: On the Cockpit, the Auto-Pilot button no longer spills out or crushes its label: on a phone it shows the status text instead. The delete button on the Accounts page, the pagination in Auto-Pilot and the last chart mode in Trends stay inside the screen on small phones, decision badges wrap instead of being cut off, and the History filters wrap on tablets.
 
 ## [1.3.0] - 2026-11-01
 

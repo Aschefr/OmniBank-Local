@@ -36,6 +36,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **Sauvegardes dans l'application mobile** : télécharger une sauvegarde depuis l'application semblait fonctionner mais n'enregistrait rien. Elle se télécharge désormais par le navigateur de votre téléphone.
 - **Boutons principaux lisibles quelle que soit la couleur du profil** : le texte blanc des boutons principaux était difficile à lire avec une couleur de profil rose, verte ou orange. Le fond du bouton fonce désormais juste assez pour que le texte blanc reste lisible.
 - **Automatismes des budgets mieux expliqués** : la fenêtre des automatismes, les réglages de l'Auto-Pilote et l'assistant de démarrage décrivaient encore l'ancien lissage mensuel et le moment où l'analyse s'exécute. Ils correspondent désormais à ce qui se passe réellement, et la documentation des budgets a été réécrite.
+- **Textes des boutons qui tiennent sur téléphone** : sur le Cockpit, le bouton Auto-Pilote ne déborde plus et n'écrase plus son libellé : sur téléphone, il affiche le texte d'état à la place. Le bouton de suppression de la page Comptes, la pagination de l'Auto-Pilote et le dernier mode des graphiques de Tendances restent dans l'écran sur les petits téléphones, les badges des décisions passent à la ligne au lieu d'être coupés, et les filtres de l'Historique passent à la ligne sur tablette.
 
 ## [1.3.0] - 2026-11-01
 
