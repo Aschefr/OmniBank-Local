@@ -546,8 +546,16 @@ if (typeof window._originalFetch === 'undefined') {
             config.headers = headers;
         }
 
+        // Écritures en fetch direct (chat, import, envoi de fichier) : même vidage du cache de lecture que API.post
+        const method = ((config && config.method) || (resource instanceof Request ? resource.method : 'GET')).toUpperCase();
+        const isWrite = isApi && method !== 'GET' && method !== 'HEAD';
+        if (isWrite) API._invalidateInflight();
+
         try {
             let p = window._originalFetch.call(this, resource, config);
+            if (isWrite) {
+                p = Promise.resolve(p).finally(() => API._invalidateInflight());
+            }
             if (needsSession) {
                 p = Promise.resolve(p).then(res => {
                     if (res.status === 401) {
