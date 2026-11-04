@@ -149,6 +149,8 @@ def get_transactions_autopilot_history(limit: int = 5, db: Session = Depends(get
 @router.post("/", response_model=TransactionOut)
 def create_transaction(tx: TransactionCreate, db: Session = Depends(get_db)):
     db_tx = Transaction(**tx.model_dump())
+    if not db_tx.date_saisie:
+        db_tx.date_saisie = date.today()
     # Ensure bidirectional transactions are always typed as transfer
     if db_tx.from_account_id and db_tx.to_account_id:
         db_tx.type = "transfer"
