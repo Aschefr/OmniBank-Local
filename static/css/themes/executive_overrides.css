@@ -384,7 +384,7 @@ body.theme-titanium-light .data-table tbody td {
 body.theme-titanium-dark .btn-primary,
 body.theme-titanium-light .btn-primary {
     background: var(--accent);
-    color: #ffffff;
+    color: var(--on-accent, #ffffff);
     border-radius: 6px;
     font-weight: 600;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
@@ -397,6 +397,7 @@ body.theme-titanium-dark .btn-primary {
 
 body.theme-titanium-dark .btn-primary:hover {
     background: var(--accent-hover);
+    color: var(--on-accent-hover, #ffffff);
     box-shadow: 0 2px 6px var(--accent-glow);
     transform: translateY(-1px);
 }
@@ -408,6 +409,7 @@ body.theme-titanium-light .btn-primary {
 
 body.theme-titanium-light .btn-primary:hover {
     background: var(--accent-hover);
+    color: var(--on-accent-hover, #ffffff);
     box-shadow: 0 2px 6px var(--accent-glow);
     transform: translateY(-1px);
 }

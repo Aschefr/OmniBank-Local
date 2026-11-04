@@ -19,12 +19,13 @@
 
 .btn-primary {
     background: var(--accent);
-    color: #ffffff;
+    color: var(--on-accent, #ffffff);
     box-shadow: 0 8px 16px 0 rgba(51, 102, 255, 0.24);
 }
 
 .btn-primary:hover {
     background: var(--accent-hover);
+    color: var(--on-accent-hover, #ffffff);
     box-shadow: none;
 }
 
