@@ -3365,18 +3365,17 @@ body.theme-titanium-dark .ghost-row .btn-primary,
 body.theme-titanium-dark .ghost-mobile-card .btn-primary,
 body.theme-titanium-light .ghost-row .btn-primary,
 body.theme-titanium-light .ghost-mobile-card .btn-primary {
-    background: var(--accent) !important;
+    background: var(--accent-button, var(--accent)) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
-    color: var(--on-accent, #fff) !important;
+    color: #fff !important;
 }
 
 body.theme-titanium-dark .ghost-row .btn-primary:hover,
 body.theme-titanium-dark .ghost-mobile-card .btn-primary:hover,
 body.theme-titanium-light .ghost-row .btn-primary:hover,
 body.theme-titanium-light .ghost-mobile-card .btn-primary:hover {
-    background: var(--accent-hover) !important;
-    color: var(--on-accent-hover, #fff) !important;
+    background: var(--accent-button-hover, var(--accent-hover)) !important;
 }
 
 /* ── 2. Boutons d'Action de Lignes (Modifier, Dupliquer, Supprimer) ── */

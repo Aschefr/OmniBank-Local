@@ -85,7 +85,7 @@ class App {
         const highlightG = Math.min(255, Math.floor(g + (255 - g) * 0.75));
         const highlightB = Math.min(255, Math.floor(b + (255 - b) * 0.75));
 
-        // Texte sur l'accent : la couleur de profil est libre, le blanc n'y est pas toujours lisible
+        // Boutons principaux : le texte reste blanc, le fond fonce juste assez pour rester lisible (4,5:1)
         const luminance = (red, green, blue) => {
             const [lr, lg, lb] = [red, green, blue].map(c => {
                 const v = c / 255;
@@ -93,12 +93,16 @@ class App {
             });
             return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
         };
-        const readableOn = (red, green, blue) => {
-            const bg = luminance(red, green, blue);
-            return 1.05 / (bg + 0.05) >= (bg + 0.05) / (luminance(17, 24, 39) + 0.05) ? '#ffffff' : '#111827';
+        const toHex = (parts) => `#${parts.map(c => Math.floor(c).toString(16).padStart(2, '0')).join('')}`;
+        const forWhiteText = (red, green, blue) => {
+            let k = 1;
+            while (k > 0 && 1.05 / (luminance(red * k, green * k, blue * k) + 0.05) < 4.5) k -= 0.01;
+            return [red * k, green * k, blue * k];
         };
-        const onAccent = readableOn(r, g, b);
-        const onAccentHover = readableOn(darkR, darkG, darkB);
+        const buttonParts = forWhiteText(r, g, b);
+        const buttonHex = toHex(buttonParts);
+        const buttonHoverHex = toHex(buttonParts.map(c => c * 0.85));
+        const lightButtonHex = toHex(forWhiteText(darkR, darkG, darkB));
 
         let styleEl = document.getElementById('dynamicProfileThemeStyle');
         if (!styleEl) {
@@ -111,8 +115,8 @@ class App {
             :root, body, .theme-dark, body.theme-dark, body.theme-classic-dark, body.theme-classic-light, body.theme-titanium-dark, body.theme-titanium-light, .theme-titanium-dark, .theme-titanium-light {
                 --accent: ${colorHex} !important;
                 --accent-hover: ${hoverHex} !important;
-                --on-accent: ${onAccent} !important;
-                --on-accent-hover: ${onAccentHover} !important;
+                --accent-button: ${buttonHex} !important;
+                --accent-button-hover: ${buttonHoverHex} !important;
                 --accent-rgb: ${r}, ${g}, ${b} !important;
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.18) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.35) !important;
@@ -123,8 +127,8 @@ class App {
             .theme-light, body.theme-light, body.theme-ios-glass {
                 --accent: ${hoverHex} !important;
                 --accent-hover: ${hoverHex} !important;
-                --on-accent: ${onAccentHover} !important;
-                --on-accent-hover: ${onAccentHover} !important;
+                --accent-button: ${lightButtonHex} !important;
+                --accent-button-hover: ${lightButtonHex} !important;
                 --accent-rgb: ${r}, ${g}, ${b} !important;
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.12) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.3) !important;
