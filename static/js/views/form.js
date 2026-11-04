@@ -687,7 +687,8 @@ window.FormView = {
             document.getElementById('op_check_slip_container').style.display = 'none';
         }
         
-        if (cfg.enable_attachments === 'true' || cfg.enable_attachments === true) {
+        // Des fichiers déjà joints restent accessibles même si l'option a été désactivée depuis
+        if (cfg.enable_attachments === 'true' || cfg.enable_attachments === true || document.getElementById('op_attachments').value) {
             document.getElementById('op_attachments_container').style.display = 'block';
         } else {
             document.getElementById('op_attachments_container').style.display = 'none';
@@ -734,29 +735,20 @@ window.FormView = {
         const paths = attachmentsStr.split(',');
         paths.forEach((p, idx) => {
             const name = p.split('/').pop().split('\\').pop();
-            const fileUrl = `${window.location.origin}/${p}`;
             const div = document.createElement('div');
             div.style.display = 'flex';
             div.style.gap = '10px';
             div.style.alignItems = 'center';
 
             const link = document.createElement('a');
-            link.href = `/${p}`;
+            link.href = API.fileUrl(p);
             link.textContent = name;
             link.style.cssText = 'color:var(--accent);text-decoration:none;flex:1;';
 
-            // In Tauri WebView, target=_blank doesn't work — open via system browser
-            if (window.__TAURI_INTERNALS__) {
-                link.href = '#';
-                link.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    try {
-                        await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: fileUrl });
-                    } catch(err) { console.error('Shell open failed', err); }
-                });
-            } else {
-                link.target = '_blank';
-            }
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                API.openFile(p);
+            });
 
             const removeBtn = document.createElement('span');
             removeBtn.textContent = '❌';
