@@ -87,9 +87,9 @@ window.SetupWizard = {
             icon: '📊',
             items: [
                 { key: 'enable_budget_creation_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_creation_suggestions', label: 'Suggestions de nouvelles enveloppes', descKey: 'autopilot_subtoggle_enable_budget_creation_suggestions_desc', desc: 'Analyse vos dépenses réelles pour proposer la création d\'enveloppes sur vos postes récurrents.' },
-                { key: 'enable_budget_recalibration_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions', label: 'Suggestions de recalibrage mensuel', descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc', desc: 'Calcule des propositions d\'ajustement lissé (filtre EMA 3-6 mois) pour vos budgets sous ou sur-consommés.' },
+                { key: 'enable_budget_recalibration_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions', label: 'Suggestions de plafonds à revoir', descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc', desc: 'Signale les enveloppes mensuelles dépassées, ou utilisées à moins de 60 %, trois périodes de suite, et propose un nouveau plafond à valider.' },
                 { key: 'auto_create_budget_envelopes', labelKey: 'autopilot_subtoggle_auto_create_budget_envelopes', label: 'Création 100% autonome des enveloppes', descKey: 'autopilot_subtoggle_auto_create_budget_envelopes_desc', desc: 'Valide et crée immédiatement les enveloppes suggérées sans attendre votre approbation manuelle.' },
-                { key: 'auto_apply_budget_suggestions', labelKey: 'autopilot_subtoggle_auto_apply_budget_suggestions', label: 'Application 100% autonome des recalibrages', descKey: 'autopilot_subtoggle_auto_apply_budget_suggestions_desc', desc: 'Applique automatiquement les nouveaux plafonds budgétaires calculés au 1er de chaque mois.' }
+                { key: 'auto_apply_budget_suggestions', labelKey: 'autopilot_subtoggle_auto_apply_budget_suggestions', label: 'Plafonds qui suivent les récurrences', descKey: 'autopilot_subtoggle_auto_apply_budget_suggestions_desc', desc: 'Applique automatiquement les nouveaux plafonds budgétaires calculés au 1er de chaque mois.' }
             ]
         }
     ],
@@ -1620,7 +1620,7 @@ window.SetupWizard = {
               tagLabel: this._t('autopilot_subtoggle_auto_propagate_recurrence_hikes', 'Propagation automatique des hausses') },
             { icon: '📊', tag: 'enable_budget_recalibration_suggestions',
               title: this._t('wizard_auto_s4_title', 'Le budget Alimentation déborde'),
-              desc: this._t('wizard_auto_s4_desc', 'Un nouveau plafond lissé vous est suggéré, à valider d\'un clic (ou appliqué seul en Autonomie Totale).'),
+              desc: this._t('wizard_auto_s4_desc', 'Après trois périodes de dépassement, un nouveau plafond vous est suggéré, à valider d\'un clic.'),
               tagLabel: this._t('autopilot_subtoggle_enable_budget_recalibration_suggestions', 'Suggestions de recalibrage mensuel') }
         ];
     },

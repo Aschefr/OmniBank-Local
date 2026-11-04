@@ -444,16 +444,16 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
                             <div style="font-size: 12px; color: ${isColdStart ? 'var(--accent)' : 'var(--text-muted)'}; background: var(--bg-surface); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); line-height: 1.4;">
                                 ${isColdStart 
-                                    ? `🚀 <strong>Mode Cold-Start actif (${activeEnvelopes} enveloppe${activeEnvelopes > 1 ? 's' : ''})</strong> : Vos dépenses sont analysées pour vous proposer votre première structure budgétaire dès le prochain import ou analyse manuelle.`
-                                    : `🛡️ <strong>Mode Surveillance active (${activeEnvelopes} enveloppes)</strong> : Veille sur les nouvelles catégories régulières et ajustement mensuel lissé.`
+                                    ? window.i18n.tp('budget_auto_mode_cold_start', { count: activeEnvelopes })
+                                    : window.i18n.tp('budget_auto_mode_monitoring', { count: activeEnvelopes })
                                 }
                             </div>
 
                             <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
                                 <div style="font-weight: 700; color: var(--text-main); margin-bottom: 2px;">${window.i18n.t('budget_auto_triggers_title') || 'Quand s\'exécutent les automatisations ?'}</div>
-                                <div>${window.i18n.t('budget_auto_trigger_import') || '📥 <strong>À chaque import / sync bancaire</strong> : analyse réactive dès réception de nouvelles opérations.'}</div>
-                                <div>${window.i18n.t('budget_auto_trigger_month') || '📅 <strong>Au 1er de chaque mois</strong> : recalibrage mensuel lissé (EMA) des enveloppes existantes.'}</div>
-                                <div>${window.i18n.t('budget_auto_trigger_startup') || '💻 <strong>Au lancement de l\'application</strong> : rattrapage automatique si un cycle a été manqué.'}</div>
+                                <div>${window.i18n.t('budget_auto_trigger_import') || '🔁 En continu : environ chaque minute, l\'analyse de fond cherche les nouvelles catégories régulières et vérifie les alertes d\'enveloppes.'}</div>
+                                <div>${window.i18n.t('budget_auto_trigger_month') || '📅 À chaque nouvelle période (cycle de paie, ou mois en mode organisation) : repère les plafonds à revoir.'}</div>
+                                <div>${window.i18n.t('budget_auto_trigger_startup') || '💻 Au lancement de l\'application : première analyse environ 15 secondes après le démarrage, avec rattrapage si une période a été manquée.'}</div>
                                 <div>${window.i18n.t('budget_auto_trigger_manual') || '🚀 <strong>À la demande</strong> : immédiat en cliquant sur « Lancer une analyse maintenant ».'}</div>
                             </div>
                         </div>
@@ -545,11 +545,11 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                 <input type="checkbox" id="cfg_enable_budget_recalibration_suggestions" ${isEnableRecalib ? 'checked' : ''} onchange="window.BudgetsView.updateBudgetAutomationsDependencies()" style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isEnableRecalibAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                 <div style="flex: 1; min-width: 0;">
                                     <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📊</span> <span>${window.i18n.t('budget_auto_enable_recalib_title') || 'Suggestions de recalibrage mensuel'}</span></span>
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span>📊</span> <span>${window.i18n.t('budget_auto_enable_recalib_title') || 'Suggestions de plafonds à revoir'}</span></span>
                                         ${isEnableRecalibAp ? apBadgeHtml : ''}
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                        ${window.i18n.t('budget_auto_enable_recalib_desc') || 'Analyse vos dépenses réelles chaque mois et propose des ajustements budgétaires lissés (EMA).'}
+                                        ${window.i18n.t('budget_auto_enable_recalib_desc') || 'Signale les enveloppes mensuelles dépassées, ou utilisées à moins de 60 %, trois périodes de suite, et propose un plafond arrondi à 5 €. Rien n\'est appliqué sans vous.'}
                                     </div>
                                 </div>
                             </label>
@@ -561,14 +561,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                                         <input type="checkbox" id="cfg_auto_apply_budget_suggestions" ${isAutoApply ? 'checked' : ''} style="margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: ${isAutoApplyAp ? '#10b981' : 'var(--accent)'}; cursor: pointer;">
                                         <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                                                <span>${window.i18n.t('budget_auto_apply_title') || 'Auto-application sans validation'}</span>
+                                                <span>${window.i18n.t('budget_auto_apply_title') || 'Plafonds qui suivent les récurrences'}</span>
                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                     ${isAutoApplyAp ? apBadgeHtml : ''}
                                                     <span style="font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; white-space: nowrap;">${window.i18n.t('budget_auto_badge_autonomous') || 'Option autonome'}</span>
                                                 </div>
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">
-                                                ${window.i18n.t('budget_auto_apply_desc') || 'Applique automatiquement les ajustements EMA mensuels lissés (bornes de sécurité : ±10%/mois et ±25%/an).'}
+                                                ${window.i18n.t('budget_auto_apply_desc') || 'Quand le montant d\'une charge récurrente change, ajuste le plafond de l\'enveloppe mensuelle ou annuelle qui la suit. Les plafonds proposés ci-dessus restent toujours à valider.'}
                                             </div>
                                             <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
                                                 ${window.i18n.t('budget_auto_apply_warning') || '💡 Historique et annulation en 1 clic disponibles dans le Centre de Contrôle Auto-Pilote'}
