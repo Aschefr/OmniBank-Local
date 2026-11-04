@@ -85,6 +85,21 @@ class App {
         const highlightG = Math.min(255, Math.floor(g + (255 - g) * 0.75));
         const highlightB = Math.min(255, Math.floor(b + (255 - b) * 0.75));
 
+        // Texte sur l'accent : la couleur de profil est libre, le blanc n'y est pas toujours lisible
+        const luminance = (red, green, blue) => {
+            const [lr, lg, lb] = [red, green, blue].map(c => {
+                const v = c / 255;
+                return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+        };
+        const readableOn = (red, green, blue) => {
+            const bg = luminance(red, green, blue);
+            return 1.05 / (bg + 0.05) >= (bg + 0.05) / (luminance(17, 24, 39) + 0.05) ? '#ffffff' : '#111827';
+        };
+        const onAccent = readableOn(r, g, b);
+        const onAccentHover = readableOn(darkR, darkG, darkB);
+
         let styleEl = document.getElementById('dynamicProfileThemeStyle');
         if (!styleEl) {
             styleEl = document.createElement('style');
@@ -96,6 +111,8 @@ class App {
             :root, body, .theme-dark, body.theme-dark, body.theme-classic-dark, body.theme-classic-light, body.theme-titanium-dark, body.theme-titanium-light, .theme-titanium-dark, .theme-titanium-light {
                 --accent: ${colorHex} !important;
                 --accent-hover: ${hoverHex} !important;
+                --on-accent: ${onAccent} !important;
+                --on-accent-hover: ${onAccentHover} !important;
                 --accent-rgb: ${r}, ${g}, ${b} !important;
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.18) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.35) !important;
@@ -106,6 +123,8 @@ class App {
             .theme-light, body.theme-light, body.theme-ios-glass {
                 --accent: ${hoverHex} !important;
                 --accent-hover: ${hoverHex} !important;
+                --on-accent: ${onAccentHover} !important;
+                --on-accent-hover: ${onAccentHover} !important;
                 --accent-rgb: ${r}, ${g}, ${b} !important;
                 --accent-subtle: rgba(${r}, ${g}, ${b}, 0.12) !important;
                 --accent-border: rgba(${r}, ${g}, ${b}, 0.3) !important;
