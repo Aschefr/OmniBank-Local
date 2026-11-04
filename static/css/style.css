@@ -19,7 +19,7 @@
 
 /* 3. View-Specific Layouts */
 @import url('./views/dashboard.css?v=82');
-@import url('./views/analytics.css?v=100');
+@import url('./views/analytics.css?v=102');
 @import url('./views/budgets.css?v=124');
 @import url('./views/bank_sync.css?v=82');
 @import url('./views/recurrences.css?v=98');
