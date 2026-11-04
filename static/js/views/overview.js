@@ -231,7 +231,7 @@ window.OverviewView = {
         const notes = [created];
         if (data.recent_history) notes.push(t('cockpit_track_recent'));
         const pace = this._trackingPace(data);
-        const projectionLabel = this._stats ? this._calculateProjection(this._stats).titleText : '';
+        const hint = t('cockpit_track_title_hint');
 
         const stored = window.ProfileStorage?.get('ov_tracking_open');
         const open = (stored === null || stored === undefined || stored === '') ? window.innerWidth > 768 : stored === 'true';
@@ -240,13 +240,17 @@ window.OverviewView = {
         container.innerHTML = `
             <div class="cockpit-tracking-head">
                 <div class="cockpit-tracking-summary">
-                    <h3 class="cockpit-tracking-title">${escapeHtml(title)}</h3>
+                    <h3 class="cockpit-tracking-title" title="${escapeHtml(hint)}">${escapeHtml(title)}</h3>
+                    <button type="button" class="cockpit-tracking-info" title="${escapeHtml(hint)}" aria-label="${escapeHtml(hint)}" aria-expanded="${!!this._trackingHintOpen}" onclick="window.OverviewView.toggleForecastTrackingHint()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><path d="M12 8h.01"></path></svg>
+                    </button>
                     <span class="cockpit-tracking-status is-${data.is_first_day ? 'first-day' : data.status}">${escapeHtml(statusText)}</span>
                 </div>
                 <button type="button" class="cockpit-tracking-toggle" aria-expanded="${open}" onclick="window.OverviewView.toggleForecastTracking()">
                     ${escapeHtml(open ? t('cockpit_track_hide') : t('cockpit_track_show'))}
                 </button>
             </div>
+            ${this._trackingHintOpen ? `<p class="cockpit-tracking-hint">${escapeHtml(hint)}</p>` : ''}
             ${pace ? `<p class="cockpit-tracking-pace is-${pace.level}">${escapeHtml(pace.text)}</p>` : ''}
             ${open ? `
             <div class="cockpit-tracking-chart"><canvas id="ovTrackingCanvas" role="img" aria-label="${escapeHtml(`${title} : ${statusText}`)}"></canvas></div>
@@ -257,9 +261,14 @@ window.OverviewView = {
                 </span>
                 <span class="cockpit-tracking-note">${escapeHtml(notes.join(' · '))}</span>
             </div>
-            ${projectionLabel ? `<p class="cockpit-tracking-explain">${escapeHtml(t(isExercise ? 'cockpit_track_explain_org' : 'cockpit_track_explain').replace('{label}', projectionLabel))}</p>` : ''}` : ''}
+            <p class="cockpit-tracking-explain">${escapeHtml(t(isExercise ? 'cockpit_track_explain_org' : 'cockpit_track_explain'))}</p>` : ''}
         `;
         if (open) this._drawForecastTracking(data);
+    },
+
+    toggleForecastTrackingHint() {
+        this._trackingHintOpen = !this._trackingHintOpen;
+        this._renderForecastTracking();
     },
 
     toggleForecastTracking() {
