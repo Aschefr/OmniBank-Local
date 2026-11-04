@@ -7,7 +7,8 @@ Le **Simulateur What-If** d'OmniBank permet d'anticiper l'impact de décisions f
 1. **Trajectoire Déterministe** :
    - Recettes futures (salaires récurrents prévus, rentrées programmées).
    - Charges fixes engagées (abonnements, loyers, mensualités de prêts).
-   - Dépenses variables calculées selon le rythme moyen quotidien constaté ou le total des enveloppes budgétaires.
+   - Dépenses variables calculées selon le rythme moyen constaté. Sans historique sur toute la trésorerie : enveloppes de dépenses libres ramenées au mois. Un compte précis sans dépense variable n'en projette aucune. Les moyennes divisent par les mois écoulés, y compris ceux sans dépense.
+   - Mode organisation : le rythme est annuel. Les recettes et les virements reviennent aux mois où ils ont eu lieu l'an dernier, les dépenses variables sont lissées sur 12 mois, et seule une grosse opération isolée (sans équivalent depuis trois ans, avec au moins deux ans d'historique) est écartée.
 2. **Cônes de Confiance et Incertitude Stochastique** :
    - Modélisation de l'aléa financier par un processus brownien dont l'écart-type croît avec la racine carrée du temps ($\sigma \sqrt{t}$).
    - Visualisation d'une fourchette haute et basse (intervalles de confiance à $\pm 1\sigma$ et $\pm 2\sigma$).

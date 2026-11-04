@@ -781,6 +781,34 @@ window.SimulatorView = {
                         align-items: stretch !important;
                         gap: 10px !important;
                     }
+                    /* Bandeau trop haut pour rester collé : il couvrirait un tiers de l'écran et son titre passe sous l'en-tête */
+                    #simulatorRoot .view-header-bar {
+                        position: static !important;
+                        margin-top: 0 !important;
+                    }
+                    #simulatorRoot .view-header-title {
+                        white-space: normal !important;
+                        flex-shrink: 1 !important;
+                    }
+                    #simRecommendedStrip,
+                    .sim-advanced-strip {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 8px !important;
+                    }
+                    #simRecommendedStrip button,
+                    .sim-advanced-strip button {
+                        height: auto !important;
+                        line-height: 1.3 !important;
+                        white-space: normal !important;
+                        justify-content: center !important;
+                        margin-left: 0 !important;
+                    }
+                    #simRecommendedStrip [data-i18n="sim_recommended_mode_banner_desc"] {
+                        display: block;
+                        margin-left: 0 !important;
+                        margin-top: 2px;
+                    }
                     .view-header-title-group {
                         flex-direction: column !important;
                         align-items: stretch !important;
@@ -878,6 +906,9 @@ window.SimulatorView = {
                 @media (max-width: 420px) {
                     .sim-kpi-grid {
                         grid-template-columns: 1fr;
+                    }
+                    .sim-ev-grid {
+                        grid-template-columns: 1fr !important;
                     }
                     .view-header h2 span:last-child {
                         font-size: 13px !important;
@@ -984,7 +1015,7 @@ window.SimulatorView = {
                     <span class="sim-collapsible-chevron ${advancedOpen ? 'open' : ''}" id="simAdvancedChevron">▸</span>
                 </div>
                 <div class="sim-collapsible-body ${advancedOpen ? 'open' : ''}" id="simAdvancedBody">
-                    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255, 255, 255, 0.03);border:1px solid var(--border-color);border-radius:8px;padding:6px 12px;margin-bottom:14px;font-size:11px;gap:12px;">
+                    <div class="sim-advanced-strip" style="display:flex;align-items:center;justify-content:space-between;background:rgba(255, 255, 255, 0.03);border:1px solid var(--border-color);border-radius:8px;padding:6px 12px;margin-bottom:14px;font-size:11px;gap:12px;">
                         <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);">
                             <span>⚙️</span>
                             <span data-i18n="sim_advanced_mode_banner_desc">${window.i18n.t('sim_advanced_mode_banner_desc') || 'Paramètres de simulation avancés actifs. Ajustez les curseurs ci-dessous.'}</span>
@@ -1341,7 +1372,10 @@ window.SimulatorView = {
             items.push(`<span style="display:flex;align-items:center;gap:4px;color:#10b981;font-weight:700;">🎯 <strong>${t('sim_prudence_badge_100real')} :</strong> ${t('sim_transparency_real_profile').replace('{income}', inc).replace('{fixed}', fix).replace('{net}', net)}</span>`);
         } else if (pctCons === 100) {
             const sal = Math.round(data.predicted_salary || 0).toLocaleString('fr-FR');
-            items.push(`<span style="display:flex;align-items:center;gap:4px;color:#ef4444;font-weight:700;">🛡️ <strong>${t('sim_prudence_badge_100cons')} :</strong> ${t('sim_transparency_conservative_profile').replace('{salary}', sal)}</span>`);
+            const profileText = data.predicted_salary > 0
+                ? t('sim_transparency_conservative_profile').replace('{salary}', sal)
+                : t('sim_transparency_conservative_no_salary');
+            items.push(`<span style="display:flex;align-items:center;gap:4px;color:#ef4444;font-weight:700;">🛡️ <strong>${t('sim_prudence_badge_100cons')} :</strong> ${profileText}</span>`);
         } else {
             const realInc = data.historical_real_income_avg || data.predicted_salary || 0;
             const consInc = data.predicted_salary || 0;
@@ -1412,7 +1446,8 @@ window.SimulatorView = {
         if (!data) return '';
         const t = window.i18n.t.bind(window.i18n);
 
-        if (data.is_overdraft_risk && data.break_even_monthly_saving > 0) {
+        // Sans dépense variable sur ce compte, aucun effort à proposer
+        if (data.is_overdraft_risk && data.break_even_monthly_saving > 0 && data.avg_variable_expense > 0) {
             if (data.is_fixed_expenses_deficit) {
                 const fixedAmt = data.fixed_deficit_monthly ? data.fixed_deficit_monthly.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) : data.break_even_monthly_saving.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
                 return `
@@ -1434,7 +1469,7 @@ window.SimulatorView = {
             } else {
                 const savingAmt = data.break_even_monthly_saving.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
                 const recPct = data.break_even_var_reduction_pct;
-                const targetPct = Math.min(100, Math.ceil(recPct / 5) * 5);
+                const targetPct = Math.min(100, Math.ceil(recPct));
                 const currentEffortPct = Math.round(this.varExpenseAdjustmentPct * 100);
 
                 let adviceText = '';
@@ -1487,6 +1522,11 @@ window.SimulatorView = {
             `;
         }
         return '';
+    },
+
+    _eventAccountSuffix(ev) {
+        const account = ev.account_id ? this.accounts.find(a => a.id === ev.account_id) : null;
+        return account ? ` • ${escapeHtml(account.name)}` : '';
     },
 
     renderEventsList(scenario) {
@@ -1552,7 +1592,7 @@ window.SimulatorView = {
                                         ${escapeHtml(ev.label)}
                                     </div>
                                     <div style="font-size:10px;color:var(--text-muted);">
-                                        ${typeLabel} • ${startsLabel} ${ev.start_date} ${ev.duration_months ? `(${ev.duration_months} ${monthsSuffix})` : ''}
+                                        ${typeLabel} • ${startsLabel} ${ev.start_date} ${ev.duration_months ? `(${ev.duration_months} ${monthsSuffix})` : ''}${this._eventAccountSuffix(ev)}
                                     </div>
                                 </td>
                                 <td style="text-align:right;white-space:nowrap;font-weight:700;color:${color};${!ev.is_active ? 'opacity:0.5;' : ''};vertical-align:middle;">
@@ -1620,6 +1660,9 @@ window.SimulatorView = {
                         const incFormatted = (m.baseline_income || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
                         const fixFormatted = (m.baseline_fixed || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
                         const varFormatted = (m.baseline_variable || 0).toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+                        const incSign = m.baseline_income > 0 ? '+' : '';
+                        const fixSign = m.baseline_fixed > 0 ? '-' : '';
+                        const varSign = m.baseline_variable > 0 ? '-' : '';
                         const netFormatted = `${netSign}${m.simulated_net.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €`;
 
                         const seasFactor = m.seasonal_factor || 1.0;
@@ -1636,9 +1679,9 @@ window.SimulatorView = {
                         const inflDetail = m.baseline_inflation_delta > 0 ? (window.i18n.tp ? window.i18n.tp('sim_inflation_detail', { amount: m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}) }) : `dont +${m.baseline_inflation_delta.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} € inflation`) : '';
                         const inflSuffix = inflDetail ? ` (${inflDetail})` : '';
 
-                        const netTooltip = `💼 ${window.i18n.t('sim_th_income')} : +${incFormatted} €\n🏠 ${window.i18n.t('sim_th_fixed')} : -${fixFormatted} €\n🛒 ${window.i18n.t('sim_th_variable')} : -${varFormatted} €${seasSuffix}${inflSuffix}${m.simulated_events_impact !== 0 ? `\n🎯 ${window.i18n.t('sim_th_sim_impact')} : ${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_th_net')} : ${netFormatted}`;
+                        const netTooltip = `💼 ${window.i18n.t('sim_th_income')} : ${incSign}${incFormatted} €\n🏠 ${window.i18n.t('sim_th_fixed')} : ${fixSign}${fixFormatted} €\n🛒 ${window.i18n.t('sim_th_variable')} : ${varSign}${varFormatted} €${seasSuffix}${inflSuffix}${m.simulated_events_impact !== 0 ? `\n🎯 ${window.i18n.t('sim_th_sim_impact')} : ${impactSign}${m.simulated_events_impact.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : ''}\n─────────────────────\n➜ ${window.i18n.t('sim_th_net')} : ${netFormatted}`;
 
-                        const varCellTitle = (m.baseline_inflation_delta > 0 || seasPct !== 0) ? `${window.i18n.tp ? window.i18n.tp('sim_table_var_tooltip', { amount: varFormatted }) : `Dépenses variables : -${varFormatted} €`}${seasSuffix}${inflSuffix}` : '';
+                        const varCellTitle = (m.baseline_inflation_delta > 0 || seasPct !== 0) ? `${window.i18n.tp ? window.i18n.tp('sim_table_var_tooltip', { amount: varFormatted }) : `Dépenses variables : ${varSign}${varFormatted} €`}${seasSuffix}${inflSuffix}` : '';
 
                         return `
                             <tr style="${isNeg ? 'background:rgba(239, 68, 68, 0.08);' : ''};border-bottom:1px solid var(--border-color, rgba(255,255,255,0.05));">
@@ -1651,14 +1694,14 @@ window.SimulatorView = {
                                     ${m.start_balance_simulated.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                                 </td>
                                 <td style="text-align:right;font-weight:600;color:#10b981;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
-                                    +${incFormatted} €
+                                    ${incSign}${incFormatted} €
                                 </td>
                                 <td style="text-align:right;font-weight:500;color:#ef4444;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;">
-                                    -${fixFormatted} €
+                                    ${fixSign}${fixFormatted} €
                                 </td>
                                 <td style="text-align:right;font-weight:500;color:#f59e0b;vertical-align:middle;padding:8px;font-variant-numeric:tabular-nums;" ${varCellTitle ? `title="${varCellTitle}"` : ''}>
                                     <div style="display:flex;justify-content:flex-end;align-items:center;gap:2px;">
-                                        <span>-${varFormatted} €</span>
+                                        <span>${varSign}${varFormatted} €</span>
                                         ${seasBadge}
                                     </div>
                                     ${m.baseline_inflation_delta > 0 ? `<div style="font-size:9px;color:var(--text-muted);opacity:0.8;">(+${Math.round(m.baseline_inflation_delta)}€ infl.)</div>` : ''}
@@ -1689,13 +1732,13 @@ window.SimulatorView = {
                             ${startBal.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                         </td>
                         <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#10b981;">
-                            +${totalIncome.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                            ${totalIncome > 0 ? '+' : ''}${totalIncome.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                         </td>
                         <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#ef4444;">
-                            -${totalFixed.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                            ${totalFixed > 0 ? '-' : ''}${totalFixed.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                         </td>
                         <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:#f59e0b;">
-                            -${totalVariable.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
+                            ${totalVariable > 0 ? '-' : ''}${totalVariable.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €
                         </td>
                         <td style="text-align:right;padding:10px 8px;font-variant-numeric:tabular-nums;color:${totalEvents > 0 ? '#10b981' : (totalEvents < 0 ? '#ef4444' : 'var(--text-muted)')};">
                             ${totalEvents !== 0 ? `${totalEvents > 0 ? '+' : ''}${totalEvents.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2})} €` : '<span style="opacity:0.35;">—</span>'}
@@ -2471,14 +2514,15 @@ window.SimulatorView = {
         if (!data) return;
 
         // 1. Live Chart morphing with exact data keys
-        if (this.chart && data.monthly_data) {
+        // Le nombre de courbes dépend des bandes de confiance : s'il change, on reconstruit le graphique
+        const hasConfidence = data.variable_expense_stddev > 0;
+        if (this.chart && data.monthly_data && this.chart.data.datasets.length === (hasConfidence ? 4 : 2)) {
             const mData = data.monthly_data;
             const labels = mData.map(d => this.formatMonthLabel(d.month));
             const simData = mData.map(d => d.simulated_end_balance);
             const baseData = mData.map(d => d.baseline_end_balance);
             const optData = mData.map(d => d.optimistic_end_balance);
             const pesData = mData.map(d => d.pessimistic_end_balance);
-            const hasConfidence = data.variable_expense_stddev > 0;
 
             this.chart.data.labels = labels;
 
@@ -3021,7 +3065,7 @@ window.SimulatorView = {
                                 <input type="text" id="simEvLabel" class="inline-input" required value="${escapeHtml(ev.label)}" placeholder="${window.i18n.t('sim_ph_event_label') || 'ex: Apport personnel, Mensualité crédit'}" style="width: 100%; box-sizing: border-box; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-main);">
                             </div>
 
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div class="sim-ev-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                 <div>
                                     <label class="input-label" style="display:block; font-size:11px; font-weight: 700; margin-bottom:5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="sim_field_type">
                                         ${window.i18n.t('sim_field_type')}
@@ -3042,7 +3086,7 @@ window.SimulatorView = {
                                 </div>
                             </div>
 
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <div class="sim-ev-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                 <div>
                                     <label class="input-label" style="display:block; font-size:11px; font-weight: 700; margin-bottom:5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="sim_field_start_date">
                                         ${window.i18n.t('sim_field_start_date')} *
@@ -3055,6 +3099,16 @@ window.SimulatorView = {
                                     </label>
                                     <input type="number" id="simEvDuration" class="inline-input" min="1" max="36" value="${ev.duration_months || 1}" style="width: 100%; box-sizing: border-box; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-main);">
                                 </div>
+                            </div>
+
+                            <div>
+                                <label class="input-label" style="display:block; font-size:11px; font-weight: 700; margin-bottom:5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="sim_field_account">
+                                    ${window.i18n.t('sim_field_account')}
+                                </label>
+                                <select id="simEvAccount" class="inline-input" style="width: 100%; box-sizing: border-box; font-size: 13px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-input); color: var(--text-main);">
+                                    <option value="">${window.i18n.t('sim_event_account_projected')}</option>
+                                    ${this.accounts.map(a => `<option value="${a.id}" ${ev.account_id === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
+                                </select>
                             </div>
 
                             <div>
@@ -3099,6 +3153,7 @@ window.SimulatorView = {
         const start_date = document.getElementById('simEvStartDate').value;
         const duration_months = parseInt(document.getElementById('simEvDuration').value) || 1;
         const notes = document.getElementById('simEvNotes').value.trim();
+        const accountValue = document.getElementById('simEvAccount').value;
 
         if (!label || !start_date) return;
 
@@ -3106,6 +3161,7 @@ window.SimulatorView = {
             label,
             event_type,
             amount,
+            account_id: accountValue ? parseInt(accountValue) : null,
             start_date,
             duration_months,
             notes,

@@ -6,9 +6,11 @@ Inclut : projection dépenses variables, saisonnalité, inflation, bandes de con
 import logging
 import json
 import math
+import statistics
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 from calendar import monthrange
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Account, Transaction, RecurrenceTemplate, Scenario, ScenarioEvent
@@ -64,6 +66,123 @@ def _add_months(sourcedate: date, months: int) -> date:
     month = month % 12 + 1
     day = min(sourcedate.day, monthrange(year, month)[1])
     return date(year, month, day)
+
+
+# Mode organisation : part des flux de l'année à partir de laquelle une opération isolée est jugée exceptionnelle,
+# selon la sensibilité aux valeurs extrêmes (5 = rien n'est écarté)
+ORG_EXCEPTIONAL_SHARE = {1: 0.05, 2: 0.10, 3: 0.15, 4: 0.25}
+# Une organisation vit sur un cycle annuel (dotation, chèques-vacances, colis de fin d'année)
+ORG_VARIABLE_WINDOW_MONTHS = 12
+PERSONAL_VARIABLE_WINDOW_MONTHS = 6
+
+
+def _elapsed_months(first_activity: Optional[date], window_start: date, window_end: date) -> int:
+    """Mois complets écoulés dans la fenêtre depuis la première opération de la trésorerie."""
+    if not first_activity:
+        return 0
+    start = max(first_activity, window_start)
+    return max(0, (window_end.year - start.year) * 12 + window_end.month - start.month)
+
+
+def _isolated_exceptional_ids(db: Session, txs: list, outlier_sens: int, first_activity: Optional[date], window_end: date) -> set:
+    """Mode organisation : les grosses opérations sont normales. Seule est écartée une opération qui pèse lourd
+    sur l'année et qu'aucune opération comparable n'accompagne depuis trois ans. Sans deux ans d'historique, rien
+    ne permet de dire qu'elle ne reviendra pas : elle reste comptée."""
+    share = ORG_EXCEPTIONAL_SHARE.get(outlier_sens)
+    if not share or not first_activity or first_activity > _add_months(window_end, -24):
+        return set()
+    threshold = share * sum(abs(t.amount) for t in txs)
+    isolated = set()
+    for t in txs:
+        amount = abs(t.amount)
+        if amount <= 0 or amount < threshold:
+            continue
+        peers = db.query(Transaction.id).filter(
+            Transaction.id != t.id,
+            Transaction.type == t.type,
+            func.abs(Transaction.amount) >= 0.5 * amount,
+            Transaction.date_operation >= _add_months(t.date_operation, -36),
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        )
+        peers = peers.filter(Transaction.category == t.category) if t.category else peers.filter(Transaction.description == t.description)
+        if peers.first() is None:
+            isolated.add(t.id)
+    return isolated
+
+
+def _personal_variable_outlier_ids(txs: list, outlier_sens: int) -> set:
+    """Mode personnel : les achats exceptionnels (véhicule, gros électroménager) ne doivent pas gonfler la moyenne.
+    Triple condition : au-delà de la barrière statistique (IQR), d'un seuil absolu et de N fois la médiane."""
+    cfg = {
+        1: {"iqr_mult": 1.5, "min_thresh": 150.0, "median_mult": 2.0},
+        2: {"iqr_mult": 2.0, "min_thresh": 250.0, "median_mult": 3.0},
+        3: {"iqr_mult": 2.5, "min_thresh": 400.0, "median_mult": 4.0},
+        4: {"iqr_mult": 3.5, "min_thresh": 800.0, "median_mult": 6.0},
+    }.get(outlier_sens)
+    if not cfg or len(txs) < 5:
+        return set()
+    amounts = sorted(abs(t.amount) for t in txs)
+    q1 = amounts[len(amounts) // 4]
+    q3 = amounts[3 * len(amounts) // 4]
+    upper_fence = q3 + cfg["iqr_mult"] * (q3 - q1)
+    median_amt = statistics.median(amounts)
+    return {
+        t.id for t in txs
+        if abs(t.amount) > upper_fence and abs(t.amount) > cfg["min_thresh"] and abs(t.amount) > cfg["median_mult"] * median_amt
+    }
+
+
+def _variable_expenses_in_window(db: Session, window_start: date, window_end: date, treasury_ids: set, target_ids: set,
+                                 outlier_sens: int, org_mode: bool, first_activity: Optional[date]) -> tuple:
+    """Dépenses variables du périmètre sur la fenêtre : (retenues, écartées). Les dépenses exceptionnelles se jugent
+    sur toute la trésorerie, pour que la somme des comptes redonne le global."""
+    query = db.query(Transaction).filter(
+        Transaction.type == "expense_var",
+        Transaction.date_operation >= window_start,
+        Transaction.date_operation < window_end,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    )
+    if treasury_ids:
+        query = query.filter(
+            Transaction.from_account_id.in_(treasury_ids),
+            (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(treasury_ids))
+        )
+    treasury_txs = query.all()
+    excluded_ids = (
+        _isolated_exceptional_ids(db, treasury_txs, outlier_sens, first_activity, window_end)
+        if org_mode else _personal_variable_outlier_ids(treasury_txs, outlier_sens)
+    )
+    target_txs = [t for t in treasury_txs if not target_ids or t.from_account_id in target_ids]
+    return [t for t in target_txs if t.id not in excluded_ids], [t for t in target_txs if t.id in excluded_ids]
+
+
+def _monthly_envelope_equivalent(budget) -> float:
+    """Montant mensuel d'une enveloppe selon sa période (voir Budget.monthly_amount). Une enveloppe sans terme ou
+    sans fenêtre n'a pas de rythme mensuel : elle ne renseigne pas sur la dépense courante."""
+    amount = float(budget.monthly_amount or 0.0)
+    if budget.period == "yearly":
+        return amount / 12.0
+    if budget.period == "custom" and budget.start_date and budget.end_date:
+        months = (budget.end_date.year - budget.start_date.year) * 12 + budget.end_date.month - budget.start_date.month + 1
+        return amount / max(1, months)
+    if budget.period in ("indefinite", "custom"):
+        return 0.0
+    return amount
+
+
+def _cold_start_variable_expense(db: Session, today: date) -> float:
+    """Dépense variable mensuelle de départ quand la trésorerie n'a aucun historique : les enveloppes de dépenses
+    libres ramenées au mois. Les enveloppes de charges fixes sont déjà projetées par les récurrences."""
+    from app.models import Budget, BudgetCategory
+    from app.services.budget_service import _fixed_envelope_ids, is_org_mode
+
+    budgets = db.query(Budget).filter(Budget.envelope_type == "spending", Budget.is_closed == False).all()
+    cats_by_budget = {
+        b.id: [bc.category_name for bc in db.query(BudgetCategory).filter(BudgetCategory.budget_id == b.id).all()]
+        for b in budgets
+    }
+    fixed_ids = _fixed_envelope_ids(db, budgets, cats_by_budget, today) if not is_org_mode(db) else set()
+    return sum(_monthly_envelope_equivalent(b) for b in budgets if b.id not in fixed_ids)
 
 
 def run_simulation(
@@ -145,6 +264,11 @@ def run_simulation(
         initial_balance = sum(balances.get(a.id, 0.0) for a in target_accounts)
 
     target_acc_ids = {a.id for a in target_accounts}
+    liquid_acc_ids = {a.id for a in db.query(Account.id).filter(
+        Account.is_closed == False,
+        Account.type != "Prêt / Emprunt"
+    ).all()}
+    is_whole_treasury = account_id is None or target_acc_ids >= liquid_acc_ids
 
     # 2. Récupération des événements de simulation
     events_to_apply = []
@@ -200,6 +324,9 @@ def run_simulation(
                     "is_active": is_active,
                     "notes": ev.get("notes")
                 })
+
+    # Un événement rattaché à un compte ne concerne que ce compte ; sans compte, il suit la projection affichée
+    events_to_apply = [ev for ev in events_to_apply if not ev.get("account_id") or ev["account_id"] in target_acc_ids]
 
     # 3. Pré-chargement des récurrences actives pour génération des instances virtuelles
     active_recurrences = db.query(RecurrenceTemplate).filter(
@@ -260,82 +387,49 @@ def run_simulation(
     except Exception as e:
         logger.warning(f"[Simulateur] Impossible d'estimer la paie automatique: {e}")
 
-    # Vérifier si une récurrence active correspond déjà au salaire principal (pour éviter le double compte)
+    # Vérifier si une récurrence active du périmètre porte déjà le salaire principal (pour éviter le double compte)
     is_salary_in_recurrence = any(
-        r.type == "income" and r.amount >= (0.6 * predicted_salary)
+        r.type == "income" and r.amount >= (0.6 * predicted_salary) and r.to_account_id in target_acc_ids
         for r in active_recurrences
     ) if predicted_salary > 0 else False
 
-    # ── 3B. Projection des dépenses variables (moyenne glissante 6 mois + saisonnalité) ──
+    # ── 3B. Projection des dépenses variables (moyenne glissante + saisonnalité) ──
+    from app.services.budget_service import is_org_mode
+    org_mode = is_org_mode(db)
+    treasury_ids = liquid_acc_ids | target_acc_ids
+    current_month_start = date(today.year, today.month, 1)
+    twelve_months_ago = _add_months(current_month_start, -12)
+
+    # Toutes les moyennes se calculent sur les mois écoulés de la trésorerie entière : la somme des comptes redonne le global
+    first_activity_query = db.query(func.min(Transaction.date_operation)).filter(
+        Transaction.date_operation < current_month_start,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    )
+    if treasury_ids:
+        first_activity_query = first_activity_query.filter(
+            Transaction.from_account_id.in_(treasury_ids) | Transaction.to_account_id.in_(treasury_ids)
+        )
+    first_activity = first_activity_query.scalar()
+
     avg_variable_expense = 0.0
     variable_expense_stddev = 0.0
     seasonal_expense_coefficients = {}  # mois_calendaire (1..12) -> coefficient multiplicateur
     variable_expense_history_months = 0
     seasonal_history_months = 0
+    excluded_outlier_txs = []
+    excluded_outliers_count = 0
+    excluded_outliers_total = 0.0
+    recurring_variable_share = {}  # recurrence_id -> part de cette récurrence dans la moyenne mensuelle
 
     try:
-        # Moyenne glissante sur les 6 derniers mois complets
-        six_months_ago = _add_months(date(today.year, today.month, 1), -6)
-        current_month_start = date(today.year, today.month, 1)
-
-        var_exp_query = db.query(Transaction).filter(
-            Transaction.type == "expense_var",
-            Transaction.date_operation >= six_months_ago,
-            Transaction.date_operation < current_month_start,
-            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        variable_window_start = _add_months(
+            current_month_start, -(ORG_VARIABLE_WINDOW_MONTHS if org_mode else PERSONAL_VARIABLE_WINDOW_MONTHS)
         )
-        if target_acc_ids:
-            var_exp_query = var_exp_query.filter(
-                Transaction.from_account_id.in_(target_acc_ids),
-                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
-            )
-        var_exp_txs = var_exp_query.all()
-
-        # ── Filtrage des outliers (IQR) paramétrable selon outlier_sens (1..5) ──
-        # Les achats exceptionnels (véhicule, gros électroménager) ne doivent pas
-        # gonfler artificiellement la moyenne des dépenses variables projetées.
-        exp_outlier_cfg = {
-            1: {"iqr_mult": 1.5, "min_thresh": 150.0, "median_mult": 2.0},
-            2: {"iqr_mult": 2.0, "min_thresh": 250.0, "median_mult": 3.0},
-            3: {"iqr_mult": 2.5, "min_thresh": 400.0, "median_mult": 4.0},
-            4: {"iqr_mult": 3.5, "min_thresh": 800.0, "median_mult": 6.0},
-            5: {"iqr_mult": 999999.0, "min_thresh": 999999999.0, "median_mult": 999999.0}
-        }
-        var_cfg = exp_outlier_cfg.get(outlier_sens, exp_outlier_cfg[2])
-
-        excluded_outlier_txs = []
-        filtered_var_txs = list(var_exp_txs)
-
-        if len(var_exp_txs) >= 5 and outlier_sens < 5:
-            amounts = sorted([abs(t.amount) for t in var_exp_txs])
-            q1 = amounts[len(amounts) // 4]
-            q3 = amounts[3 * len(amounts) // 4]
-            iqr = q3 - q1
-            upper_fence = q3 + var_cfg["iqr_mult"] * iqr
-            import statistics as _stats
-            median_amt = _stats.median(amounts)
-
-            filtered_var_txs = []
-            for t in var_exp_txs:
-                amt = abs(t.amount)
-                # Triple condition pour classifier comme outlier :
-                #  1. Dépasse le fence statistique (IQR selon sensibilité)
-                #  2. Montant absolu > seuil plancher
-                #  3. Montant > N× la médiane (vraiment exceptionnel)
-                is_outlier = (
-                    amt > upper_fence
-                    and amt > var_cfg["min_thresh"]
-                    and amt > var_cfg["median_mult"] * median_amt
-                )
-                if is_outlier:
-                    excluded_outlier_txs.append(t)
-                    logger.info(
-                        f"[Simulateur] Outlier exclu de la projection variable : "
-                        f"{t.description} — {amt:.2f} € "
-                        f"(sensibilité={outlier_sens}, fence={upper_fence:.2f}, médiane={median_amt:.2f})"
-                    )
-                else:
-                    filtered_var_txs.append(t)
+        filtered_var_txs, excluded_outlier_txs = _variable_expenses_in_window(
+            db, variable_window_start, current_month_start, treasury_ids, target_acc_ids, outlier_sens, org_mode, first_activity
+        )
+        for t in excluded_outlier_txs:
+            logger.info(f"[Simulateur] Outlier exclu de la projection variable : {t.description} — {abs(t.amount):.2f} € (sensibilité={outlier_sens})")
 
         # Regrouper par mois (après filtrage outliers)
         var_by_month = {}
@@ -344,56 +438,33 @@ def run_simulation(
             var_by_month.setdefault(key, 0.0)
             var_by_month[key] += abs(t.amount)
 
-        variable_expense_history_months = len(var_by_month)
         excluded_outliers_count = len(excluded_outlier_txs)
         excluded_outliers_total = sum(abs(t.amount) for t in excluded_outlier_txs)
 
         if var_by_month:
-            monthly_amounts = list(var_by_month.values())
+            # Un mois écoulé sans dépense compte dans la moyenne
+            variable_expense_history_months = max(
+                len(var_by_month), _elapsed_months(first_activity, variable_window_start, current_month_start)
+            )
+            monthly_amounts = list(var_by_month.values()) + [0.0] * (variable_expense_history_months - len(var_by_month))
             avg_variable_expense = sum(monthly_amounts) / len(monthly_amounts)
             if len(monthly_amounts) >= 2:
                 variance = sum((x - avg_variable_expense) ** 2 for x in monthly_amounts) / (len(monthly_amounts) - 1)
                 variable_expense_stddev = math.sqrt(variance)
+            for t in filtered_var_txs:
+                if t.recurrence_id:
+                    recurring_variable_share[t.recurrence_id] = recurring_variable_share.get(t.recurrence_id, 0.0) + abs(t.amount) / len(monthly_amounts)
             logger.info(
-                f"[Simulateur] Dépenses variables - moyenne 6 mois: {avg_variable_expense:.2f} €, "
-                f"écart-type: {variable_expense_stddev:.2f} €, mois analysés: {len(monthly_amounts)}"
+                f"[Simulateur] Dépenses variables - moyenne {len(monthly_amounts)} mois: {avg_variable_expense:.2f} €, "
+                f"écart-type: {variable_expense_stddev:.2f} €"
                 f"{f', outliers exclus: {excluded_outliers_count} ({excluded_outliers_total:.2f} €)' if excluded_outliers_count else ''}"
             )
 
         # ── Saisonnalité sur 12 derniers mois (profil par mois calendaire 1-12 avec filtrage outliers) ──
         # Restreint strictement aux dépenses variables (expense_var), les charges fixes ayant leur propre calendrier
-        twelve_months_ago = _add_months(date(today.year, today.month, 1), -12)
-        seasonal_query = db.query(Transaction).filter(
-            Transaction.type == "expense_var",
-            Transaction.date_operation >= twelve_months_ago,
-            Transaction.date_operation < current_month_start,
-            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        filtered_seasonal_txs, _ = _variable_expenses_in_window(
+            db, twelve_months_ago, current_month_start, treasury_ids, target_acc_ids, outlier_sens, org_mode, first_activity
         )
-        if target_acc_ids:
-            seasonal_query = seasonal_query.filter(
-                Transaction.from_account_id.in_(target_acc_ids),
-                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
-            )
-        seasonal_txs = seasonal_query.all()
-
-        # Filtrage outliers sur 12 mois pour des profils mensuels cohérents
-        filtered_seasonal_txs = list(seasonal_txs)
-        if len(seasonal_txs) >= 5 and outlier_sens < 5:
-            amounts_seas = sorted([abs(t.amount) for t in seasonal_txs])
-            q1_s = amounts_seas[len(amounts_seas) // 4]
-            q3_s = amounts_seas[3 * len(amounts_seas) // 4]
-            iqr_s = q3_s - q1_s
-            upper_fence_s = q3_s + var_cfg["iqr_mult"] * iqr_s
-            import statistics as _stats
-            median_s = _stats.median(amounts_seas)
-            filtered_seasonal_txs = [
-                t for t in seasonal_txs
-                if not (
-                    abs(t.amount) > upper_fence_s
-                    and abs(t.amount) > var_cfg["min_thresh"]
-                    and abs(t.amount) > var_cfg["median_mult"] * median_s
-                )
-            ]
 
         # Regrouper par (année, mois) pour dénombrer les mois d'historique effectifs
         seasonal_monthly_sums = {}
@@ -457,6 +528,8 @@ def run_simulation(
     # ── 3C. Calcul de l'empreinte historique réelle (Revenus réels complets & Charges fixes réelles observées) ──
     historical_real_income_avg = 0.0
     historical_real_fixed_avg = 0.0
+    income_history_months = 0
+    fixed_history_months = 0
     seasonal_real_income_by_calendar_month = {}
     seasonal_real_fixed_by_calendar_month = {}
     excluded_income_outliers_count = 0
@@ -476,24 +549,31 @@ def run_simulation(
             main_acc = get_main_account(db)
             pay_account_id = main_acc.id if main_acc else None
 
-    predicted_salary_for_account = predicted_salary if (not target_acc_ids or (pay_account_id and pay_account_id in target_acc_ids)) else 0.0
+    receives_salary = not target_acc_ids or bool(pay_account_id and pay_account_id in target_acc_ids)
+
+    # Mode organisation : pas de salaire. Les recettes (dotation annuelle…) reviennent aux mois où elles ont été perçues.
+    predicted_salary_for_account = predicted_salary if (receives_salary and not org_mode) else 0.0
+
+    # Compte qui reçoit un revenu personnalisé : celui de la paie, sinon le compte principal
+    income_account_id = pay_account_id
+    if not income_account_id:
+        main_acc = get_main_account(db)
+        income_account_id = main_acc.id if main_acc else None
+    custom_income_applies = is_whole_treasury or income_account_id in target_acc_ids
+
+    def salary_floor_for_month(calendar_month: int) -> float:
+        if org_mode:
+            return seasonal_real_income_by_calendar_month.get(calendar_month, 0.0)
+        return predicted_salary_for_account
 
     # ── Cascade intelligente si aucun historique de dépenses variables (Cold Start) ──
-    if avg_variable_expense == 0.0:
-        from app.models import Budget
-        active_spending_budgets = db.query(Budget).filter(
-            Budget.envelope_type == "spending",
-            Budget.is_closed == False
-        ).all()
-        total_budgets_limit = sum(b.monthly_amount for b in active_spending_budgets if b.monthly_amount)
-        if total_budgets_limit > 0:
-            avg_variable_expense = float(total_budgets_limit)
+    # Réservée à la trésorerie entière : un compte précis sans dépense variable n'en a simplement pas.
+    if avg_variable_expense == 0.0 and is_whole_treasury:
+        avg_variable_expense = _cold_start_variable_expense(db, today)
+        if avg_variable_expense > 0:
             logger.info(f"[Simulateur] Cascade: Dépenses variables initialisées via les enveloppes budgétaires ({avg_variable_expense:.2f} €/mois)")
 
     try:
-        twelve_months_ago = _add_months(date(today.year, today.month, 1), -12)
-        current_month_start = date(today.year, today.month, 1)
-
         # 1. Revenus réels observés (tous flux entrants réels de type income sur 12 mois)
         real_inc_query = db.query(Transaction).filter(
             Transaction.type == "income",
@@ -501,10 +581,10 @@ def run_simulation(
             Transaction.date_operation < current_month_start,
             (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
         )
-        if target_acc_ids:
+        if treasury_ids:
             real_inc_query = real_inc_query.filter(
-                Transaction.to_account_id.in_(target_acc_ids),
-                (Transaction.from_account_id.is_(None) | ~Transaction.from_account_id.in_(target_acc_ids))
+                Transaction.to_account_id.in_(treasury_ids),
+                (Transaction.from_account_id.is_(None) | ~Transaction.from_account_id.in_(treasury_ids))
             )
         real_inc_txs = real_inc_query.all()
 
@@ -520,7 +600,11 @@ def run_simulation(
 
         filtered_inc_txs = list(real_inc_txs)
         excluded_inc_outliers = []
-        if len(real_inc_txs) >= 4 and outlier_sens < 5:
+        if org_mode:
+            isolated_income_ids = _isolated_exceptional_ids(db, real_inc_txs, outlier_sens, first_activity, current_month_start)
+            filtered_inc_txs = [t for t in real_inc_txs if t.id not in isolated_income_ids]
+            excluded_inc_outliers = [t for t in real_inc_txs if t.id in isolated_income_ids]
+        elif len(real_inc_txs) >= 4 and outlier_sens < 5:
             inc_amounts = sorted([abs(t.amount) for t in real_inc_txs])
             q1_inc = inc_amounts[len(inc_amounts) // 4]
             q3_inc = inc_amounts[3 * len(inc_amounts) // 4]
@@ -564,6 +648,11 @@ def run_simulation(
                 else:
                     filtered_inc_txs.append(t)
 
+        # Les rentrées exceptionnelles se jugent sur toute la trésorerie, le périmètre vient ensuite
+        if target_acc_ids:
+            filtered_inc_txs = [t for t in filtered_inc_txs if t.to_account_id in target_acc_ids]
+            excluded_inc_outliers = [t for t in excluded_inc_outliers if t.to_account_id in target_acc_ids]
+
         excluded_income_outliers_count = len(excluded_inc_outliers)
         excluded_income_outliers_total = sum(abs(t.amount) for t in excluded_inc_outliers)
 
@@ -574,7 +663,10 @@ def run_simulation(
             inc_by_month[k] += abs(t.amount)
 
         if inc_by_month:
-            historical_real_income_avg = sum(inc_by_month.values()) / len(inc_by_month)
+            # Une recette ponctuelle se répartit sur la période, et un mois sans recette au cours d'une année complète
+            # reste un mois sans recette
+            income_history_months = max(len(inc_by_month), _elapsed_months(first_activity, twelve_months_ago, current_month_start))
+            historical_real_income_avg = sum(inc_by_month.values()) / income_history_months
             seasonal_inc_by_cal = {}
             for (yr, mo), total_m_inc in inc_by_month.items():
                 seasonal_inc_by_cal.setdefault(mo, []).append(total_m_inc)
@@ -591,7 +683,7 @@ def run_simulation(
         if target_acc_ids:
             real_fix_query = real_fix_query.filter(
                 Transaction.from_account_id.in_(target_acc_ids),
-                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(target_acc_ids))
+                (Transaction.to_account_id.is_(None) | ~Transaction.to_account_id.in_(treasury_ids))
             )
         real_fix_txs = real_fix_query.all()
 
@@ -602,7 +694,8 @@ def run_simulation(
             fix_by_month[k] += abs(t.amount)
 
         if fix_by_month:
-            historical_real_fixed_avg = sum(fix_by_month.values()) / len(fix_by_month)
+            fixed_history_months = max(len(fix_by_month), _elapsed_months(first_activity, twelve_months_ago, current_month_start))
+            historical_real_fixed_avg = sum(fix_by_month.values()) / fixed_history_months
             seasonal_fix_by_cal = {}
             for (yr, mo), total_m_fix in fix_by_month.items():
                 seasonal_fix_by_cal.setdefault(mo, []).append(total_m_fix)
@@ -616,6 +709,33 @@ def run_simulation(
     except Exception as e:
         logger.warning(f"[Simulateur] Erreur calcul empreinte historique: {e}")
         historical_real_net_avg = (predicted_salary_for_account or 0.0) - avg_variable_expense
+
+    # Mode organisation : recettes déjà reçues ce mois-ci, et virements habituels entre comptes (cycle annuel)
+    income_received_this_month = 0.0
+    org_transfers_in_by_month = {}
+    org_transfers_out_by_month = {}
+    if org_mode:
+        received_query = db.query(func.sum(func.abs(Transaction.amount))).filter(
+            Transaction.type == "income",
+            Transaction.reconciliation_date.isnot(None),
+            Transaction.date_operation >= current_month_start,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        )
+        if target_acc_ids:
+            received_query = received_query.filter(Transaction.to_account_id.in_(target_acc_ids))
+        income_received_this_month = float(received_query.scalar() or 0.0)
+
+        for t in db.query(Transaction).filter(
+            Transaction.type == "transfer",
+            Transaction.date_operation >= twelve_months_ago,
+            Transaction.date_operation < current_month_start,
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+        ).all():
+            month_key = t.date_operation.month
+            if t.to_account_id in target_acc_ids and t.from_account_id not in target_acc_ids:
+                org_transfers_in_by_month[month_key] = org_transfers_in_by_month.get(month_key, 0.0) + abs(t.amount)
+            elif t.from_account_id in target_acc_ids and t.to_account_id not in target_acc_ids:
+                org_transfers_out_by_month[month_key] = org_transfers_out_by_month.get(month_key, 0.0) + abs(t.amount)
 
     # ── 3D. Normalisation du taux d'inflation ──
     inflation_rate = max(0.0, min(float(inflation_rate or 0.0), 0.20))  # Plafonné à 20%
@@ -680,13 +800,15 @@ def run_simulation(
 
         # 2. Transactions déjà saisies en DB mais non encore rapprochées
         # (seules ces transactions doivent impacter le solde initial, car les rapprochées y sont déjà intégrées)
+        # Le mois 0 reprend aussi les mois passés : leurs opérations non rapprochées ne sont pas dans le solde de départ
         tx_query = db.query(Transaction).filter(
             Transaction.reconciliation_date == None,
-            Transaction.date_operation >= first_day,
             Transaction.date_operation <= last_day,
             (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
             (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         )
+        if m_offset > 0:
+            tx_query = tx_query.filter(Transaction.date_operation >= first_day)
         existing_txs = tx_query.all()
 
         baseline_income = 0.0
@@ -695,6 +817,12 @@ def run_simulation(
         existing_income_total = 0.0
         existing_fixed_total = 0.0
         existing_var_total = 0.0
+        # Virements prévus franchissant le périmètre : absents de l'historique de recettes et de charges
+        planned_transfers_in = 0.0
+        planned_transfers_out = 0.0
+        # Récurrences variables de ce mois, déjà comprises dans la moyenne : leur part n'est pas projetée une seconde fois
+        recurring_variable_overlap = 0.0
+        recurring_variable_counted = set()
 
         for t in existing_txs:
             # Filtrer par compte cible si applicable (flux externes réels uniquement)
@@ -703,10 +831,18 @@ def run_simulation(
 
             if (t.type == "income" or (t.type == "transfer" and is_in)) and is_in:
                 existing_income_total += abs(t.amount)
+                if t.type == "transfer":
+                    planned_transfers_in += abs(t.amount)
             elif (t.type in ("expense_fixed", "transfer") and is_out):
                 existing_fixed_total += abs(t.amount)
+                if t.type == "transfer":
+                    planned_transfers_out += abs(t.amount)
             elif t.type == "expense_var" and is_out:
                 existing_var_total += abs(t.amount)
+                # Au mois 0, une échéance déjà passée n'entre pas dans le prorata des jours restants
+                if t.recurrence_id in recurring_variable_share and t.recurrence_id not in recurring_variable_counted and (m_offset > 0 or t.date_operation > today):
+                    recurring_variable_counted.add(t.recurrence_id)
+                    recurring_variable_overlap += recurring_variable_share[t.recurrence_id]
 
         # 3. Calcul des récurrences théoriques pour ce mois m
         theoretical_fixed_for_month = 0.0
@@ -795,56 +931,98 @@ def run_simulation(
                 sim_rec_occurrences[rec.id] = sim_rec_occurrences.get(rec.id, 0) + 1
                 if is_incoming:
                     theoretical_income_for_month += effective_amt
+                    if rec.type == "transfer":
+                        planned_transfers_in += effective_amt
                 elif is_outgoing:
                     theoretical_fixed_for_month += effective_amt
+                    if rec.type == "transfer":
+                        planned_transfers_out += effective_amt
+                    if rec.id in recurring_variable_share:
+                        # Comptée en charge théorique à hauteur du curseur de prudence (intégralement au mois 0)
+                        recurring_variable_overlap += recurring_variable_share[rec.id] * (1.0 if m_offset == 0 else conservative_weight)
+
+        # Mode organisation : un virement de l'an dernier revient au même mois, sauf s'il est déjà prévu
+        if org_mode and m_offset > 0:
+            usual_transfer_in = max(0.0, org_transfers_in_by_month.get(m, 0.0) - planned_transfers_in)
+            usual_transfer_out = max(0.0, org_transfers_out_by_month.get(m, 0.0) - planned_transfers_out)
+            planned_transfers_in += usual_transfer_in
+            theoretical_income_for_month += usual_transfer_in
+            planned_transfers_out += usual_transfer_out
+            theoretical_fixed_for_month += usual_transfer_out
 
         # 4. Charges fixes projetées :
         total_contractual_fixed = existing_fixed_total + theoretical_fixed_for_month
         if m_offset == 0:
             # Pour le mois 0 : le solde initial intègre déjà les charges passées rapprochées.
-            # On ajoute uniquement les récurrences théoriques restantes d'ici la fin du mois
-            blended_fixed_for_month = theoretical_fixed_for_month
-            baseline_expense = theoretical_fixed_for_month
+            # Restent les charges saisies non rapprochées et les récurrences théoriques d'ici la fin du mois
+            blended_fixed_for_month = total_contractual_fixed
+            baseline_expense = total_contractual_fixed
         else:
             # Pour les mois futurs : interpolation continue entre réel saisonnier et total contractuel théorique
-            real_fixed_ref = seasonal_real_fixed_by_calendar_month.get(m, historical_real_fixed_avg if historical_real_fixed_avg > 0 else total_contractual_fixed)
+            if m in seasonal_real_fixed_by_calendar_month:
+                real_fixed_ref = seasonal_real_fixed_by_calendar_month[m] + planned_transfers_out
+            elif fixed_history_months >= 12:
+                real_fixed_ref = planned_transfers_out
+            elif historical_real_fixed_avg > 0:
+                real_fixed_ref = historical_real_fixed_avg + planned_transfers_out
+            else:
+                real_fixed_ref = total_contractual_fixed
             blended_fixed_for_month = (1.0 - conservative_weight) * real_fixed_ref + conservative_weight * total_contractual_fixed
             baseline_expense = blended_fixed_for_month
 
         # 5. Revenus projetés : interpolation continue entre réel et socle contractuel/salaire
         total_contractual_income = existing_income_total + theoretical_income_for_month
-        cons_income_ref = predicted_salary_for_account + (total_contractual_income if not is_salary_in_recurrence else 0.0)
+        salary_floor = salary_floor_for_month(m)
+        if org_mode:
+            # Les recettes planifiées recoupent celles de l'an dernier : on retient la plus haute des deux références
+            if m_offset == 0:
+                salary_floor = max(0.0, salary_floor - income_received_this_month)
+            cons_income_ref = max(total_contractual_income - planned_transfers_in, salary_floor) + planned_transfers_in
+        else:
+            cons_income_ref = total_contractual_income + (salary_floor if not is_salary_in_recurrence else 0.0)
 
         if income_mode in ("historical_n1", "auto"):
             # 1. Recettes réelles de l'année précédente (saisonnier mois par mois)
-            real_income_ref = seasonal_real_income_by_calendar_month.get(m, historical_real_income_avg if historical_real_income_avg > 0 else cons_income_ref)
+            if m in seasonal_real_income_by_calendar_month:
+                real_income_ref = seasonal_real_income_by_calendar_month[m] + planned_transfers_in
+            elif income_history_months >= 12:
+                real_income_ref = planned_transfers_in
+            elif historical_real_income_avg > 0:
+                real_income_ref = historical_real_income_avg + planned_transfers_in
+            else:
+                real_income_ref = cons_income_ref
             blended_income = (1.0 - conservative_weight) * real_income_ref + conservative_weight * cons_income_ref
         elif income_mode in ("average", "historical_avg"):
             # 2. Recettes moyennes (moyenne mensuelle sur les 12 derniers mois ou mois existants)
-            real_income_ref = historical_real_income_avg if historical_real_income_avg > 0 else cons_income_ref
+            real_income_ref = historical_real_income_avg + planned_transfers_in if historical_real_income_avg > 0 else cons_income_ref
             blended_income = (1.0 - conservative_weight) * real_income_ref + conservative_weight * cons_income_ref
         elif income_mode == "custom":
-            # 3. Montant personnalisé
-            blended_income = float(custom_income_amount or 0.0)
+            # 3. Montant personnalisé, sur le compte qui reçoit les revenus
+            blended_income = (float(custom_income_amount or 0.0) if custom_income_applies else 0.0) + planned_transfers_in
         elif income_mode == "none":
-            # 4. Désactivé (Scénario zéro salaire)
-            blended_income = 0.0
+            # 4. Désactivé (Scénario zéro salaire) : restent les virements prévus
+            blended_income = planned_transfers_in
         else:
             blended_income = cons_income_ref
 
         if m_offset == 0:
-            if is_current_month_pay_received:
+            if org_mode and income_mode in ("historical_n1", "auto", "average", "historical_avg"):
+                baseline_income = cons_income_ref
+            elif is_current_month_pay_received and not org_mode:
                 baseline_income = total_contractual_income
             else:
                 has_main_salary = any(
-                    t.type == "income" and abs(t.amount) >= (0.6 * (predicted_salary_for_account or 1000.0))
+                    t.type == "income" and abs(t.amount) >= (0.6 * salary_floor) and t.date_operation >= first_day
                     for t in existing_txs
                     if (not target_acc_ids or t.to_account_id in target_acc_ids)
-                ) if predicted_salary_for_account > 0 else False
-                if not is_salary_in_recurrence and not has_main_salary:
-                    baseline_income = total_contractual_income + (predicted_salary_for_account or blended_income)
-                else:
+                ) if salary_floor > 0 else False
+                if is_salary_in_recurrence or has_main_salary:
                     baseline_income = total_contractual_income
+                elif salary_floor > 0 and not org_mode:
+                    baseline_income = total_contractual_income + salary_floor
+                else:
+                    # blended_income contient déjà les recettes prévues du mois
+                    baseline_income = max(total_contractual_income, blended_income)
         else:
             baseline_income = blended_income
 
@@ -859,6 +1037,7 @@ def run_simulation(
                 base_variable_projected = avg_variable_expense * seasonal_coeff_m * prorata_m0
             else:
                 base_variable_projected = avg_variable_expense * seasonal_coeff_m
+            base_variable_projected = max(0.0, base_variable_projected - recurring_variable_overlap)
 
             # Appliquer le curseur d'effort budgétaire utilisateur (-100% à +50%)
             var_adj_factor = max(0.0, 1.0 + float(variable_expense_adjustment_pct or 0.0))
@@ -968,10 +1147,7 @@ def run_simulation(
         optimistic_simulated = current_simulated_bal + sigma_cumul
         pessimistic_simulated = current_simulated_bal - sigma_cumul
 
-        if m_offset == 0:
-            fixed_expense_actual = theoretical_fixed_for_month
-        else:
-            fixed_expense_actual = blended_fixed_for_month
+        fixed_expense_actual = blended_fixed_for_month
         var_expense_actual = existing_var_total + variable_expense_projected
         inflation_delta_actual = inflation_delta if (inflation_rate > 0 and m_offset > 0) else 0.0
 
@@ -1079,8 +1255,8 @@ def run_simulation(
         projection_sources.append(f"seasonality:{seasonality_mode}:{int(round(seasonality_intensity * 100))}%")
     if inflation_rate > 0:
         projection_sources.append(f"inflation_rate:{inflation_rate}")
-    if predicted_salary > 0:
-        projection_sources.append(f"predicted_salary:{predicted_salary:.2f}")
+    if predicted_salary_for_account > 0:
+        projection_sources.append(f"predicted_salary:{predicted_salary_for_account:.2f}")
 
     return {
         "horizon_months": horizon_months,
@@ -1088,7 +1264,7 @@ def run_simulation(
         "custom_income_amount": custom_income_amount,
         "inflation_rate": inflation_rate,
         "variable_expense_adjustment_pct": variable_expense_adjustment_pct,
-        "predicted_salary": round(predicted_salary, 2),
+        "predicted_salary": round(predicted_salary_for_account, 2),
         "initial_balance": round(initial_balance, 2),
         "baseline_final_balance": round(current_baseline_bal, 2),
         "simulated_final_balance": round(current_simulated_bal, 2),
