@@ -82,6 +82,12 @@ async def _run_profile_cycle(pid: str) -> None:
             await loop.run_in_executor(None, run_background_analysis, db, pid)
         except Exception as b_eval_err:
             logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
+        try:
+            from app.services.forecast_tracking import record_period_forecasts
+            await asyncio.get_running_loop().run_in_executor(None, record_period_forecasts, db, pid)
+        except Exception as forecast_err:
+            db.rollback()
+            logger.warning(f"[BankScheduler] Prévision de la période non enregistrée pour le profil '{pid}': {forecast_err}")
     finally:
         db.close()
 

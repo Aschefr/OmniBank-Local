@@ -44,6 +44,13 @@ def get_forecast_summary(account_id: Optional[int] = None, db: Session = Depends
     return result
 
 
+@router.get("/forecast-tracking")
+def get_forecast_tracking_route(account_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Le réel comparé à la prévision enregistrée pour la période en cours (Cockpit)."""
+    from app.services.forecast_tracking import get_forecast_tracking
+    return get_forecast_tracking(db, account_id=account_id)
+
+
 # ─── Modèles Prédéfinis (Presets) ─────────────────────────────────────────────
 @router.get("/presets")
 def list_presets():

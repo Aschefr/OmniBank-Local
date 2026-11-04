@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index, CheckConstraint
+from sqlalchemy import UniqueConstraint, Column, Integer, String, Float, Boolean, Date, ForeignKey, DateTime, Text, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -130,6 +130,21 @@ class RecurrenceTemplate(Base):
     
     from_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
     to_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+
+class ForecastSnapshot(Base):
+    """Prévision figée d'une période, pour comparer le réel à ce qui était prévu sur le Cockpit."""
+    __tablename__ = "forecast_snapshots"
+    __table_args__ = (UniqueConstraint("scope", "period_start", name="uq_forecast_snapshot_scope_period"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope = Column(String, nullable=False)  # "all" ou "account:<id>"
+    period_kind = Column(String, nullable=False)  # "cycle", "month" ou "exercise"
+    period_start = Column(Date, nullable=False)
+    period_end = Column(Date, nullable=False)
+    created_on = Column(Date, nullable=False)
+    points = Column(Text, nullable=False)  # JSON : [{date, balance, tolerance}]
+    recent_history = Column(Boolean, default=False)
+
 
 class Budget(Base):
     """Enveloppe budgétaire (spending), projet ou tirelire (savings)."""
