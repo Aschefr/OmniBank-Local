@@ -48,10 +48,12 @@ All notable changes to this project will be documented in this file.
 - **PDF export on phones**: the preview shows the sheet with its real layout, scaled to the screen width, with whole amounts and cut lines in the right place. The Print and Add a page break buttons no longer overflow.
 - **PDF export: a readable transactions table**: the text size adapts to the number of columns and headers wrap instead of being cut.
 - **PDF export: account balances**: the account summary showed 0.00 € for every account, and the income statement showed zero cash and zero reserve. The real balances now appear, and cash follows the accounts in the report without counting loans. The figures band now reads "Expenses" and "Net result", matching what it totals. The income statement and certification texts follow the interface language.
-- **Simulator: a more prudent Recommended mode**: it now only removes exceptional purchases above 800 €. Repairs and everyday purchases stay in the average. Advanced mode keeps the setting free, with levels renamed to say what they do.
+- **Simulator: a realistic Recommended mode**: it forecasts from known income and charges, plus what your history shows as regular (refunds, sales, bonuses, charges without a recurrence). It only removes exceptional purchases above 800 € and reads everyday spending over 18 months. A one-off loan or win does not count as income. Advanced mode keeps the setting free, with levels renamed to say what they do.
 - **Simulator: the prudence slider works in organisation mode**: at its maximum, it keeps only the income that also came the year before, at the lower of the two years, and uses the expenses of the more expensive year. A grant no longer spreads over every month when the slider is low.
 - **Simulator: current month and recent profiles**: with income disabled or custom, the current month no longer counts the expected pay. With under 4 months of history, envelopes serve as a guide and a message says so. A recurring charge entered as a negative amount stays a charge.
 - **Header and titles on phones**: in organisation mode, the profile, role and bell fit on screen, with the logo alone when space is short. The Trends and Analytics titles no longer slide under the header.
+- **Simulator: a simpler advanced panel**: a "This year's scenario" slider goes from a good year to a hard blow and shows what it changes, a second slider tests a change in spending, and the balance moves right beside them. Other settings fit in three lists and a field. Old advanced settings restart from Recommended mode.
+- **Simulator: Salary raise model**: it adds a monthly gain and opens its form directly to enter the amount and date.
 
 ## [1.3.0] - 2026-11-01
 
