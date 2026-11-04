@@ -152,7 +152,7 @@ window.AutopilotView = {
                     labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions',
                     label: 'Suggestions de recalibrage mensuel',
                     descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc',
-                    desc: 'Calcule des propositions d\'ajustement lissé (filtre EMA 3-6 mois) pour vos budgets sous ou sur-consommés.'
+                    desc: 'Signale les enveloppes mensuelles dépassées, ou utilisées à moins de 60 %, trois périodes de suite, et propose un nouveau plafond à valider.'
                 },
                 {
                     key: 'auto_create_budget_envelopes',

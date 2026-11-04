@@ -843,7 +843,7 @@ window.BankSyncView = {
                         <input type="checkbox" id="masterPwSyncOnUnlockCheck" checked />
                         <span data-i18n="bank_sync_on_unlock_label">${window.i18n ? window.i18n.t('bank_sync_on_unlock_label') : 'Synchro au déverrouillage'}</span>
                     </label>
-                    <span style="font-size: 12px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé immédiat'}</span>
+                    <span style="font-size: 12px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé si nécessaire'}</span>
                 </div>
 
                 <div id="masterPwModalError" style="display: none; color: #ef4444; font-size: 12px; margin-bottom: 14px; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 8px;"></div>
