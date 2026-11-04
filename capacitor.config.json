@@ -5,10 +5,7 @@
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "http",
-    "cleartext": true,
-    "allowNavigation": [
-      "*"
-    ]
+    "cleartext": true
   },
   "ios": {
     "contentInset": "automatic",

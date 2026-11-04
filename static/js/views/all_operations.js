@@ -816,7 +816,7 @@ window.AllOperationsView = {
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-'}</td>
                 <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
                 <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
-                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}">${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
+                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}"${tx.attachments && !tx.attachments.includes(',') ? ` style="cursor:pointer;" onclick="event.stopPropagation(); window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\'")}')"` : ''}>${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {
@@ -1005,15 +1005,9 @@ window.AllOperationsView = {
         this.scrollToAndHighlight(txId, cssClass);
     },
 
-    async _openAttachment(path) {
-        const fileUrl = `${window.location.origin}/${path}`;
-        if (window.__TAURI_INTERNALS__) {
-            try {
-                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await API.withSession(fileUrl) });
-            } catch(err) { console.error('Shell open failed', err); }
-        } else {
-            await API.openWithSession(fileUrl);
-        }
+    async _openAttachment(attachments) {
+        // Plusieurs fichiers : le trombone ouvre le premier, la fiche de l'opération les liste tous
+        await API.openFile(attachments.split(',')[0]);
     },
 
     async toggleReconciliation(id) {

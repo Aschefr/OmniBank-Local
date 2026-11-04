@@ -160,9 +160,33 @@ const API = {
     },
     /** L'onglet s'ouvre avant l'attente du ticket : après coup, le navigateur pourrait le bloquer. */
     async openWithSession(url) {
+        // Capacitor : window.open renvoie la fenêtre de l'application, l'onglet préparé la remplacerait
+        if (this.isCapacitor()) {
+            window.open(await this.withSession(url), '_blank');
+            return;
+        }
         const tab = window.open('', '_blank');
         const target = await this.withSession(url);
         if (tab) tab.location.href = target;
+    },
+    isCapacitor() {
+        return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    },
+    /** URL d'un fichier du serveur ouvert hors de l'application : location.origin n'est pas le serveur dans Capacitor. */
+    fileUrl(path) {
+        const url = this.fullUrl(`/${path.replace(/^\/+/, '')}`);
+        return url.startsWith('/') ? `${window.location.origin}${url}` : url;
+    },
+    /** Ouvre un fichier du serveur (pièce jointe) dans le navigateur ou le lecteur du système. */
+    async openFile(path) {
+        const url = this.fileUrl(path);
+        if (window.__TAURI_INTERNALS__) {
+            try {
+                await window.__TAURI_INTERNALS__.invoke('plugin:shell|open', { path: await this.withSession(url) });
+            } catch(err) { console.error('Shell open failed', err); }
+        } else {
+            await this.openWithSession(url);
+        }
     },
     fullUrl(endpoint) {
         const base = this.getBaseUrl();
@@ -214,7 +238,7 @@ const API = {
         // Auto-expire après 500ms pour éviter les données stale
         promise.finally(() => {
             setTimeout(() => { delete this._inflight[cacheKey]; }, 500);
-        });
+        }).catch(() => {}); // L'appelant reçoit l'erreur par `promise` : cette chaîne ne doit pas la signaler une 2e fois
 
         return promise;
     },
@@ -528,6 +552,8 @@ if (typeof window._originalFetch === 'undefined') {
                 p = Promise.resolve(p).then(res => {
                     if (res.status === 401) {
                         res.clone().json().then(body => {
+                            // Requête partie avant un déverrouillage : son refus ne doit pas effacer le nouveau jeton
+                            if (API.getSessionToken() !== sessionToken) return;
                             if (body && body.code === 'pin_required' && window.app && typeof window.app.handlePinRequired === 'function') {
                                 window.app.handlePinRequired();
                             }
