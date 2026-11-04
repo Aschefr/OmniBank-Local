@@ -292,8 +292,7 @@
     --border-color: #e2e8f0 !important;
     background-color: #ffffff !important;
     color: #0f172a !important;
-    width: 100%;
-    max-width: 840px;
+    width: 774px; /* 718 px de contenu imprimé + 56 px de marges d'aperçu ; réduite par zoom si le volet est plus étroit */
     min-height: 1120px !important;
     height: auto !important;
     flex-shrink: 0 !important;
@@ -633,6 +632,12 @@
     }
     .export-config-pane.hidden-pane {
         display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #exportPdfModal .btn {
+        white-space: nowrap;
     }
 }
 

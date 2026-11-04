@@ -910,40 +910,11 @@ window.AnalyticsView = {
         const savedTitleFontSize = ProfileStorage.get('print_settings_title_font_size') || 'medium';
         const savedTableFontSize = ProfileStorage.get('print_settings_table_font_size') || 'medium';
 
-        let typesHtml = types.map(type => {
-            const translatedType = window.app.getTypeLabel(type);
-            const cats = Object.keys(this.data.by_type[type].categories || {}).sort();
-            const typeChecked = savedTypes.includes(type);
-            const typePageBreak = ProfileStorage.get(`print_type_pagebreak_${type}`) === 'true';
-
-            const catsHtml = cats.map(cat => {
-                const catChecked = !savedCats || savedCats.includes(cat);
-                return `
-                <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
-                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''} onchange="window.AnalyticsView._saveExportCategorySelection()"> ${cat}
-                </label>`;
-            }).join('');
-
-            return `
-            <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
-                        <input type="checkbox" class="export-type-cb" value="${type}" ${typeChecked ? 'checked' : ''} onchange="
-                            const cbs = this.parentElement.parentElement.parentElement.querySelectorAll('.export-cat-cb');
-                            cbs.forEach(cb => cb.checked = this.checked);
-                            window.AnalyticsView._saveExportCategorySelection();
-                        "> ${translatedType}
-                    </label>
-                    <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer; background:rgba(0,0,0,0.04); padding:2px 8px; border-radius:4px;" title="${window.i18n.t('export_type_pagebreak_tooltip') || 'Insérer un saut de page avant ce tableau'}">
-                        <input type="checkbox" class="export-type-pagebreak-cb" data-type="${type}" ${typePageBreak ? 'checked' : ''} onchange="ProfileStorage.set('print_type_pagebreak_${type}', this.checked); window.AnalyticsView.triggerLivePreviewUpdate();">
-                        <span>✂️ ${window.i18n.t('export_type_pagebreak') || 'Saut de page avant'}</span>
-                    </label>
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:6px;">
-                    ${catsHtml}
-                </div>
-            </div>`;
-        }).join('');
+        const typesHtml = this._renderExportTypeFilters(
+            this.data.by_type,
+            type => savedTypes.includes(type),
+            cat => !savedCats || savedCats.includes(cat)
+        );
 
         const allCols = [
             { id: 'dateSaisie', label: window.i18n.t('col_date_entry') },
@@ -1056,7 +1027,7 @@ window.AnalyticsView = {
                             <span>👁 ${window.i18n.t('export_include_inactive_cats') || 'Inclure les catégories inactives sur la période (présentes dans les totaux annuels)'}</span>
                         </label>
                     </div>
-                    ${typesHtml}`
+                    <div id="exportTypeFilters">${typesHtml}</div>`
             },
             transactions_list: {
                 title: `📑 ${window.i18n.t('export_sec_transactions_list') || 'Détail des opérations'}`,
@@ -1298,7 +1269,60 @@ window.AnalyticsView = {
         this.triggerLivePreviewUpdate();
     },
 
+    _renderExportTypeFilters(byType, isTypeChecked, isCatChecked) {
+        return Object.keys(byType).map(type => {
+            const translatedType = window.app.getTypeLabel(type);
+            const cats = Object.keys(byType[type].categories || {}).sort();
+            const typeChecked = isTypeChecked(type);
+            const typePageBreak = ProfileStorage.get(`print_type_pagebreak_${type}`) === 'true';
+
+            const catsHtml = cats.map(cat => {
+                const catChecked = isCatChecked(cat, type);
+                return `
+                <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
+                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''} onchange="window.AnalyticsView._saveExportCategorySelection()"> ${cat}
+                </label>`;
+            }).join('');
+
+            return `
+            <div style="margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer;">
+                        <input type="checkbox" class="export-type-cb" value="${type}" ${typeChecked ? 'checked' : ''} onchange="
+                            const cbs = this.parentElement.parentElement.parentElement.querySelectorAll('.export-cat-cb');
+                            cbs.forEach(cb => cb.checked = this.checked);
+                            window.AnalyticsView._saveExportCategorySelection();
+                        "> ${translatedType}
+                    </label>
+                    <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer; background:rgba(0,0,0,0.04); padding:2px 8px; border-radius:4px;" title="${window.i18n.t('export_type_pagebreak_tooltip') || 'Insérer un saut de page avant ce tableau'}">
+                        <input type="checkbox" class="export-type-pagebreak-cb" data-type="${type}" ${typePageBreak ? 'checked' : ''} onchange="ProfileStorage.set('print_type_pagebreak_${type}', this.checked); window.AnalyticsView.triggerLivePreviewUpdate();">
+                        <span>✂️ ${window.i18n.t('export_type_pagebreak') || 'Saut de page avant'}</span>
+                    </label>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:6px;">
+                    ${catsHtml}
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    /** Une nouvelle période peut apporter des types et catégories : ils arrivent cochés, les choix déjà faits restent. */
+    _syncExportTypeFilters(byType) {
+        const container = document.getElementById('exportTypeFilters');
+        if (!container || !byType) return;
+        const uncheckedTypes = new Set(Array.from(container.querySelectorAll('.export-type-cb:not(:checked)')).map(cb => cb.value));
+        const uncheckedCats = new Set(Array.from(container.querySelectorAll('.export-cat-cb:not(:checked)')).map(cb => `${cb.getAttribute('data-type')}|${cb.value}`));
+        container.innerHTML = this._renderExportTypeFilters(
+            byType,
+            type => !uncheckedTypes.has(type),
+            (cat, type) => !uncheckedCats.has(`${type}|${cat}`)
+        );
+    },
+
     _initExportModalListeners(modal) {
+        const previewPane = modal.querySelector('#exportPreviewPane');
+        if (previewPane) new ResizeObserver(() => this._fitPreviewSheets()).observe(previewPane);
+
         if (!modal) return;
         const configPane = modal.querySelector('#exportConfigPane');
         if (!configPane) return;
@@ -1460,7 +1484,7 @@ window.AnalyticsView = {
     async _fetchExportAuxiliaryData() {
         try {
             const [accs, budgets, transactions] = await Promise.all([
-                API.get('/api/accounts/'),
+                API.get('/api/stats/accounts'),
                 API.get('/api/budgets/'),
                 API.get('/api/transactions/?limit=10000')
             ]);
@@ -1506,6 +1530,7 @@ window.AnalyticsView = {
             const res = await API.get(url);
             if (res && res.by_type) {
                 this._cachedPrintData = res;
+                this._syncExportTypeFilters(res.by_type);
             }
         } catch (e) {
             console.error("Error refreshing export data", e);
@@ -1545,46 +1570,92 @@ window.AnalyticsView = {
         // Épuration directe du DOM pour masquer/supprimer les catégories/types/colonnes non sélectionnés
         this._applyReportDOMFilters(container, options);
 
-        // Insertion des repères visuels de coupe physique si une feuille dépasse la hauteur A4 (~1120px)
-        const a4PhysicalHeight = 1120;
+        // Repères de coupe : là où l'impression passera réellement à la page suivante
+        this._fitPreviewSheets();
         let estimatedTotalPages = 0;
         const sheets = container.querySelectorAll('.export-paper-sheet');
 
         sheets.forEach(sheet => {
-            const h = sheet.offsetHeight;
-            const subPages = Math.max(1, Math.ceil(h / a4PhysicalHeight));
-            estimatedTotalPages += subPages;
-
-            if (h > 1200) {
-                let cutPos = a4PhysicalHeight;
-                while (cutPos < h - 120) {
-                    const marker = document.createElement('div');
-                    marker.className = 'export-a4-overflow-marker no-print';
-                    marker.style.top = `${cutPos}px`;
-                    marker.innerHTML = `
-                        <div class="export-a4-overflow-cut-line"></div>
-                        <div class="export-a4-overflow-cut-badge">
-                            <span>${window.i18n.t('export_page_cut_indicator') || '✂️ Ligne de coupe physique A4 (Page suivante à l\'impression)'}</span>
-                            <small>— ${window.i18n.t('export_page_cut_hint') || 'Insérez un saut de page pour maîtriser la séparation'}</small>
-                        </div>
-                    `;
-                    sheet.appendChild(marker);
-                    cutPos += a4PhysicalHeight;
-                }
-            }
+            const breaks = this._estimatePrintBreaks(sheet);
+            estimatedTotalPages += breaks.length + 1;
+            const wrapper = sheet.querySelector('.export-page-content-wrapper');
+            breaks.forEach(cutPos => {
+                const marker = document.createElement('div');
+                marker.className = 'export-a4-overflow-marker no-print';
+                marker.style.top = `${cutPos + (wrapper ? wrapper.offsetTop : 0)}px`;
+                marker.innerHTML = `
+                    <div class="export-a4-overflow-cut-line"></div>
+                    <div class="export-a4-overflow-cut-badge">
+                        <span>${window.i18n.t('export_page_cut_indicator') || '✂️ Ligne de coupe physique A4 (Page suivante à l\'impression)'}</span>
+                        <small>— ${window.i18n.t('export_page_cut_hint') || 'Insérez un saut de page pour maîtriser la séparation'}</small>
+                    </div>
+                `;
+                sheet.appendChild(marker);
+            });
         });
 
         const pageCountBadge = modal.querySelector('#exportPageCountBadge');
         if (pageCountBadge) {
             const displayCount = Math.max(sheets.length, estimatedTotalPages);
             if (displayCount > 1) {
-                pageCountBadge.textContent = (window.i18n.t('export_page_count_badge') || '{count} pages A4').replace('{count}', displayCount);
+                pageCountBadge.textContent = (window.i18n.t('export_page_count_badge') || '≈ {count} pages A4').replace('{count}', displayCount);
             } else {
-                pageCountBadge.textContent = window.i18n.t('export_page_single_badge') || '1 page A4';
+                pageCountBadge.textContent = window.i18n.t('export_page_single_badge') || '≈ 1 page A4';
             }
         }
 
         if (status) status.textContent = '✓ ' + (window.i18n.t('export_preview_live_badge') || 'Temps réel');
+    },
+
+    /** La feuille garde sa largeur d'impression, donc la même mise en page que le PDF : elle est réduite pour tenir dans un volet étroit. */
+    _fitPreviewSheets() {
+        const container = document.getElementById('exportPaperContainer');
+        if (!container || !container.clientWidth) return;
+        const SHEET_WIDTH = 774;
+        const zoom = container.clientWidth < SHEET_WIDTH ? container.clientWidth / SHEET_WIDTH : 1;
+        container.querySelectorAll('.export-paper-sheet').forEach(sheet => { sheet.style.zoom = zoom; });
+    },
+
+    /** Positions où le contenu d'une feuille change de page : blocs insécables et lignes de tableau, en-têtes répétés. */
+    _estimatePrintBreaks(sheet) {
+        const PAGE_HEIGHT = 1047; // A4 à 96 ppp moins les marges d'impression de 10 mm
+        const wrapper = sheet.querySelector('.export-page-content-wrapper');
+        if (!wrapper) return [];
+        const atoms = [];
+        const collect = (parent) => {
+            for (const child of parent.children) {
+                const cs = getComputedStyle(child);
+                if (cs.display === 'none') continue;
+                const keepTogether = cs.breakInside === 'avoid' || cs.pageBreakInside === 'avoid' || child.tagName === 'TR' || child.tagName === 'svg';
+                if (!keepTogether && child.children.length) collect(child);
+                else atoms.push(child);
+            }
+        };
+        collect(wrapper);
+
+        // Les positions mesurées à l'écran sont réduites par le zoom de la feuille
+        const scale = parseFloat(sheet.style.zoom) || 1;
+        const origin = wrapper.getBoundingClientRect().top;
+        const breaks = [];
+        let pageTop = 0;
+        let repeated = 0;
+        atoms.forEach(atom => {
+            const rect = atom.getBoundingClientRect();
+            if (!rect.height) return;
+            const top = (rect.top - origin) / scale;
+            const bottom = (rect.bottom - origin) / scale;
+            if (bottom - pageTop + repeated > PAGE_HEIGHT && top > pageTop) {
+                // Le titre d'un tableau part avec sa première ligne
+                const titleAbove = atom.closest('[data-type]')?.querySelector('.analytics-card-header');
+                const titleTop = titleAbove && atom.closest('thead') ? (titleAbove.getBoundingClientRect().top - origin) / scale : null;
+                const cut = titleTop !== null && titleTop > pageTop ? titleTop : top;
+                breaks.push(cut);
+                pageTop = cut;
+                const head = atom.closest('tbody') ? atom.closest('table').tHead : null;
+                repeated = head ? head.getBoundingClientRect().height / scale : 0;
+            }
+        });
+        return breaks;
     },
 
     _gatherExportOptions(modal) {
@@ -1625,6 +1696,8 @@ window.AnalyticsView = {
         const sectionCards = Array.from(modal.querySelectorAll('.export-section-card'));
         const orderedSectionIds = sectionCards.map(card => card.getAttribute('data-section-id'));
 
+        const typesWithExclusions = [...new Set(Array.from(modal.querySelectorAll('.export-cat-cb:not(:checked)')).map(cb => cb.getAttribute('data-type')))];
+
         const typePageBreaks = {};
         modal.querySelectorAll('.export-type-pagebreak-cb').forEach(cb => {
             typePageBreaks[cb.getAttribute('data-type')] = cb.checked;
@@ -1641,6 +1714,7 @@ window.AnalyticsView = {
             selectedTypes,
             selectedCats,
             selectedCols,
+            typesWithExclusions,
             includeInactive,
             includeDetails,
             includePieChart,
@@ -1729,26 +1803,26 @@ window.AnalyticsView = {
                     min-height: 1120px !important;
                     flex-shrink: 0 !important;
                 }
-                #printContainer *, .export-paper-sheet *, .export-paper-page * {
+                #printContainer *, #exportPaperContainer .export-paper-sheet *, .export-paper-page * {
                     --bg-surface: #ffffff !important;
                     --text-main: #0f172a !important;
                     --text-muted: #64748b !important;
                     --border-color: #e2e8f0 !important;
                 }
-                #printContainer h1, .export-paper-sheet h1,
-                #printContainer h2, .export-paper-sheet h2,
-                #printContainer h3, .export-paper-sheet h3,
-                #printContainer h4, .export-paper-sheet h4,
-                #printContainer strong, .export-paper-sheet strong {
+                #printContainer h1, #exportPaperContainer .export-paper-sheet h1,
+                #printContainer h2, #exportPaperContainer .export-paper-sheet h2,
+                #printContainer h3, #exportPaperContainer .export-paper-sheet h3,
+                #printContainer h4, #exportPaperContainer .export-paper-sheet h4,
+                #printContainer strong, #exportPaperContainer .export-paper-sheet strong {
                     color: #0f172a !important;
                 }
-                #printContainer h1, .export-paper-sheet h1 { font-size: var(--print-title-size) !important; }
-                #printContainer h2, .export-paper-sheet h2 { font-size: var(--print-title-size) !important; }
-                #printContainer h3, .export-paper-sheet h3 { font-size: calc(var(--print-title-size) * 0.8) !important; }
-                #printContainer .print-hide, .export-paper-sheet .print-hide {
+                #printContainer h1, #exportPaperContainer .export-paper-sheet h1 { font-size: var(--print-title-size) !important; }
+                #printContainer h2, #exportPaperContainer .export-paper-sheet h2 { font-size: var(--print-title-size) !important; }
+                #printContainer h3, #exportPaperContainer .export-paper-sheet h3 { font-size: calc(var(--print-title-size) * 0.8) !important; }
+                #printContainer .print-hide, #exportPaperContainer .export-paper-sheet .print-hide {
                     display: none !important;
                 }
-                #printContainer .data-table, .export-paper-sheet .data-table {
+                #printContainer .data-table, #exportPaperContainer .export-paper-sheet .data-table {
                     background-color: #ffffff !important;
                     color: #0f172a !important;
                     width: 100% !important;
@@ -1759,7 +1833,7 @@ window.AnalyticsView = {
                     page-break-inside: auto !important;
                     break-inside: auto !important;
                 }
-                #printContainer .data-table th, .export-paper-sheet .data-table th {
+                #printContainer .data-table th, #exportPaperContainer .export-paper-sheet .data-table th {
                     background-color: #f8fafc !important;
                     color: #0f172a !important;
                     border-color: #e2e8f0 !important;
@@ -1771,7 +1845,7 @@ window.AnalyticsView = {
                     overflow: visible !important;
                     text-overflow: clip !important;
                 }
-                #printContainer .data-table td, .export-paper-sheet .data-table td {
+                #printContainer .data-table td, #exportPaperContainer .export-paper-sheet .data-table td {
                     color: #0f172a !important;
                     border-color: #f1f5f9 !important;
                     padding: 3px 2px !important;
@@ -1782,7 +1856,7 @@ window.AnalyticsView = {
                     overflow: visible !important;
                     text-overflow: clip !important;
                 }
-                #printContainer .data-table th[data-col-type="month"], .export-paper-sheet .data-table th[data-col-type="month"] {
+                #printContainer .data-table th[data-col-type="month"], #exportPaperContainer .export-paper-sheet .data-table th[data-col-type="month"] {
                     min-width: 0 !important;
                     text-align: right !important;
                     padding: 4px 2px !important;
@@ -1791,9 +1865,9 @@ window.AnalyticsView = {
                     white-space: nowrap !important;
                     text-overflow: clip !important;
                 }
-                #printContainer .data-table td[data-col-type="month"], .export-paper-sheet .data-table td[data-col-type="month"],
-                #printContainer .data-table th[data-col-type="year"], .export-paper-sheet .data-table th[data-col-type="year"],
-                #printContainer .data-table td[data-col-type="year"], .export-paper-sheet .data-table td[data-col-type="year"] {
+                #printContainer .data-table td[data-col-type="month"], #exportPaperContainer .export-paper-sheet .data-table td[data-col-type="month"],
+                #printContainer .data-table th[data-col-type="year"], #exportPaperContainer .export-paper-sheet .data-table th[data-col-type="year"],
+                #printContainer .data-table td[data-col-type="year"], #exportPaperContainer .export-paper-sheet .data-table td[data-col-type="year"] {
                     min-width: 0 !important;
                     text-align: right !important;
                     padding: 3px 2px !important;
@@ -1803,14 +1877,14 @@ window.AnalyticsView = {
                     white-space: nowrap !important;
                     text-overflow: clip !important;
                 }
-                #printContainer .data-table td[data-col-type="month"] span, .export-paper-sheet .data-table td[data-col-type="month"] span,
-                #printContainer .data-table td[data-col-type="year"] span, .export-paper-sheet .data-table td[data-col-type="year"] span {
+                #printContainer .data-table td[data-col-type="month"] span, #exportPaperContainer .export-paper-sheet .data-table td[data-col-type="month"] span,
+                #printContainer .data-table td[data-col-type="year"] span, #exportPaperContainer .export-paper-sheet .data-table td[data-col-type="year"] span {
                     font-size: var(--print-table-size) !important;
                     letter-spacing: -0.3px !important;
                     white-space: nowrap !important;
                 }
-                #printContainer .data-table th[data-col-type="cat"], .export-paper-sheet .data-table th[data-col-type="cat"],
-                #printContainer [data-type] .data-table td:first-child, .export-paper-sheet [data-type] .data-table td:first-child { 
+                #printContainer .data-table th[data-col-type="cat"], #exportPaperContainer .export-paper-sheet .data-table th[data-col-type="cat"],
+                #printContainer [data-type] .data-table td:first-child, #exportPaperContainer .export-paper-sheet [data-type] .data-table td:first-child { 
                     font-size: calc(var(--print-table-size) + 0.5px) !important; 
                     font-weight: 600 !important;
                     background-color: #ffffff !important;
@@ -1824,41 +1898,42 @@ window.AnalyticsView = {
                     white-space: normal !important;
                     overflow-wrap: anywhere !important;
                 }
-                #printContainer [data-type] > div > span, .export-paper-sheet [data-type] > div > span { 
+                #printContainer [data-type] > div > span, #exportPaperContainer .export-paper-sheet [data-type] > div > span { 
                     font-size: calc(var(--print-table-size) + 3px) !important; 
                     color: #0f172a !important;
                 }
-                #printContainer .analytics-card-title, .export-paper-sheet .analytics-card-title,
-                #printContainer .analytics-card-total, .export-paper-sheet .analytics-card-total {
+                #printContainer .analytics-card-title, #exportPaperContainer .export-paper-sheet .analytics-card-title,
+                #printContainer .analytics-card-total, #exportPaperContainer .export-paper-sheet .analytics-card-total {
                     color: #0f172a !important;
                 }
-                #printContainer .export-transactions-detail-block, .export-paper-sheet .export-transactions-detail-block {
+                #printContainer .export-transactions-detail-block, #exportPaperContainer .export-paper-sheet .export-transactions-detail-block {
                     width: 100% !important;
                     max-width: 100% !important;
                     box-sizing: border-box !important;
                     overflow-x: hidden !important;
                 }
-                #printContainer .export-tx-table, .export-paper-sheet .export-tx-table {
+                #printContainer .export-tx-table, #exportPaperContainer .export-paper-sheet .export-tx-table {
                     table-layout: fixed !important;
                     width: 100% !important;
                     max-width: 100% !important;
                     border-collapse: collapse !important;
                     box-sizing: border-box !important;
                 }
-                #printContainer .export-tx-table th, .export-paper-sheet .export-tx-table th {
-                    font-size: 8px !important;
-                    padding: 3px 4px !important;
+                #printContainer .export-tx-table th, #exportPaperContainer .export-paper-sheet .export-tx-table th {
+                    font-size: var(--print-tx-size, 8px) !important;
+                    padding: 3px var(--print-tx-pad, 4px) !important;
                     text-align: left !important;
                     background-color: #f8fafc !important;
                     color: #0f172a !important;
                     border-bottom: 1px solid #e2e8f0 !important;
                     box-sizing: border-box !important;
                     overflow: hidden !important;
-                    text-overflow: ellipsis !important;
-                    white-space: nowrap !important;
+                    white-space: normal !important;
+                    vertical-align: bottom !important;
+                    line-height: 1.15 !important;
                 }
-                #printContainer .export-tx-table td, .export-paper-sheet .export-tx-table td {
-                    font-size: 8px !important;
+                #printContainer .export-tx-table td, #exportPaperContainer .export-paper-sheet .export-tx-table td {
+                    font-size: var(--print-tx-size, 8px) !important;
                     padding: 2.5px 4px !important;
                     color: #0f172a !important;
                     border-bottom: 1px solid #f1f5f9 !important;
@@ -1871,8 +1946,8 @@ window.AnalyticsView = {
                     min-width: 0 !important;
                     max-width: none !important;
                 }
-                #printContainer .export-tx-table td:first-child, .export-paper-sheet .export-tx-table td:first-child {
-                    font-size: 8px !important;
+                #printContainer .export-tx-table td:first-child, #exportPaperContainer .export-paper-sheet .export-tx-table td:first-child {
+                    font-size: var(--print-tx-size, 8px) !important;
                     font-weight: normal !important;
                     width: auto !important;
                     min-width: 0 !important;
@@ -1880,8 +1955,8 @@ window.AnalyticsView = {
                     padding: 2.5px 4px !important;
                     box-shadow: none !important;
                 }
-                #printContainer .export-tx-table th.amt, .export-paper-sheet .export-tx-table th.amt,
-                #printContainer .export-tx-table td.amt, .export-paper-sheet .export-tx-table td.amt {
+                #printContainer .export-tx-table th.amt, #exportPaperContainer .export-paper-sheet .export-tx-table th.amt,
+                #printContainer .export-tx-table td.amt, #exportPaperContainer .export-paper-sheet .export-tx-table td.amt {
                     text-align: right !important;
                     font-variant-numeric: tabular-nums !important;
                 }
@@ -1899,17 +1974,22 @@ window.AnalyticsView = {
                     page-break-after: auto !important;
                     break-after: auto !important;
                 }
-                #printContainer [data-type], .export-paper-sheet [data-type] {
+                /* Un titre de tableau reste avec son tableau */
+                #printContainer .analytics-card-header {
+                    break-after: avoid !important;
+                    page-break-after: avoid !important;
+                }
+                #printContainer [data-type], #exportPaperContainer .export-paper-sheet [data-type] {
                     display: block !important;
                     page-break-inside: auto !important;
                     break-inside: auto !important;
                 }
-                #printContainer .data-table, .export-paper-sheet .data-table {
+                #printContainer .data-table, #exportPaperContainer .export-paper-sheet .data-table {
                     min-width: 0 !important;
                     page-break-inside: auto !important;
                     break-inside: auto !important;
                 }
-                #printContainer .data-table tr, .export-paper-sheet .data-table tr {
+                #printContainer .data-table tr, #exportPaperContainer .export-paper-sheet .data-table tr {
                     page-break-inside: avoid !important;
                     break-inside: avoid !important;
                 }
@@ -1918,6 +1998,9 @@ window.AnalyticsView = {
                     visibility: hidden !important;
                 }
                 @media print {
+                    #printContainer {
+                        min-height: 0 !important;
+                    }
                     .export-paper-sheet, #exportPaperSheet, .export-paper-page {
                         background-image: none !important;
                         box-shadow: none !important;
@@ -1985,11 +2068,11 @@ window.AnalyticsView = {
                 <div style="font-size:16px; font-weight:800; color:#10b981; margin-top:2px;">${formatCurrency(printTotalIncome)}</div>
             </div>
             <div style="flex:1; min-width:140px; background:#fef2f2; border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px;">
-                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#ef4444;">${window.i18n.t('type_expense_fixed') || 'Dépenses'}</div>
+                <div data-kpi-label="expense" style="font-size:10px; font-weight:700; text-transform:uppercase; color:#ef4444;">${window.i18n.t('export_kpi_expenses') || 'Dépenses'}</div>
                 <div style="font-size:16px; font-weight:800; color:#ef4444; margin-top:2px;">${formatCurrency(printTotalExpense)}</div>
             </div>
             <div style="flex:1; min-width:140px; background:#eef2ff; border:1px solid rgba(99,102,241,0.3); border-radius:8px; padding:10px 14px;">
-                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:#4f46e5;">${window.i18n.t('stat_net_worth') || 'Résultat Net'}</div>
+                <div data-kpi-label="net" style="font-size:10px; font-weight:700; text-transform:uppercase; color:#4f46e5;">${window.i18n.t('export_kpi_net') || 'Résultat net'}</div>
                 <div style="font-size:16px; font-weight:800; color:${printNetResult >= 0 ? '#10b981' : '#ef4444'}; margin-top:2px;">${formatCurrency(printNetResult)}</div>
             </div>
         </div>`;
@@ -2024,7 +2107,9 @@ window.AnalyticsView = {
         // 4. Balances table
         let balancesHtml = '';
         const activeAccounts = (accounts || []).filter(a => !a.is_closed);
-        const balanceAccounts = activeAccounts.filter(a => !selectedBalanceIds.length || selectedBalanceIds.includes(a.id));
+        const balanceAccounts = activeAccounts.filter(a =>
+            (!selectedBalanceIds.length || selectedBalanceIds.includes(a.id))
+            && (!exportAccIds || !exportAccIds.length || exportAccIds.includes(a.id)));
         if (balanceAccounts.length > 0) {
             const totalBalance = balanceAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
             const balanceRows = balanceAccounts.map(a => {
@@ -2037,7 +2122,7 @@ window.AnalyticsView = {
             }).join('');
 
             balancesHtml = `
-            <div style="margin-bottom:24px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid;background:#ffffff;">
+            <div data-export-balances style="margin-bottom:24px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;page-break-inside:avoid;background:#ffffff;">
                 <div style="background:#f8fafc;padding:10px 16px;border-bottom:1px solid #e2e8f0;">
                     <strong style="font-size:13px;color:#0f172a;">${window.i18n.t('export_balance_title') || 'Situation des comptes'}</strong>
                     <span style="float:right;font-size:11px;color:#64748b;">${new Date().toLocaleDateString(window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -2089,6 +2174,7 @@ window.AnalyticsView = {
         let txHtml = '';
         if (includeDetails) {
             let filteredTx = (allTx || []).filter(tx => {
+                if (tx.is_skipped) return false;
                 const dateStr = tx.date_operation || '';
                 const yr = dateStr.split('-')[0];
                 if (useCustomRange) {
@@ -2114,17 +2200,17 @@ window.AnalyticsView = {
                 const colWeightMap = {
                     dateSaisie: 9,
                     date: 9,
-                    desc: 26,
-                    type: 13,
-                    cat: 16,
+                    desc: 24,
+                    type: 11,
+                    cat: 14,
                     amount: 11,
-                    recon: 9,
-                    budget: 14,
-                    depuis: 11,
-                    vers: 11,
-                    recurrence: 6,
-                    slip: 8,
-                    attachments: 6
+                    recon: 11,
+                    budget: 12,
+                    depuis: 10,
+                    vers: 10,
+                    recurrence: 11,
+                    slip: 11,
+                    attachments: 9
                 };
                 const totalWeight = selectedCols.reduce((sum, col) => sum + (colWeightMap[col] || 10), 0) || 1;
                 const getWidthPct = col => (((colWeightMap[col] || 10) / totalWeight) * 100).toFixed(1) + '%';
@@ -2183,7 +2269,7 @@ window.AnalyticsView = {
                     <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#0f172a;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
                         📑 ${window.i18n.t('export_sec_transactions_list') || 'Détail des opérations'} (${filteredTx.length})
                     </div>
-                    <table class="data-table export-tx-table" style="width:100%; border-collapse:collapse; font-size:8px;">
+                    <table class="data-table export-tx-table" style="--print-tx-size:${selectedCols.length >= 10 ? 6.5 : selectedCols.length >= 8 ? 7 : 8}px;--print-tx-pad:${selectedCols.length >= 10 ? 2 : 4}px;width:100%; border-collapse:collapse; font-size:8px;">
                         <thead><tr style="background:#f8fafc; color:#0f172a;">${ths}</tr></thead>
                         <tbody>${trs}</tbody>
                     </table>
@@ -2262,7 +2348,7 @@ window.AnalyticsView = {
 
         startNewPage();
         if (pages.length === 0) {
-            pages.push(['<div style="color:#64748b;font-style:italic;padding:20px;text-align:center;">Aucune section sélectionnée</div>']);
+            pages.push(['<div style="color:#64748b;font-style:italic;padding:20px;text-align:center;">' + (window.i18n.t('export_no_section') || 'Aucune section sélectionnée') + '</div>']);
         }
 
         const totalPages = pages.length;
@@ -2308,7 +2394,7 @@ window.AnalyticsView = {
     },
 
     _generateCompteResultatAgHTML(options) {
-        const { printData, selectedCats, accounts, selectedBalanceIds, months, customStart, customEnd, selectedYear, useCustomRange } = options;
+        const { printData, selectedCats, accounts, selectedBalanceIds, exportAccIds, months, customStart, customEnd, selectedYear, useCustomRange } = options;
         const by_type = printData?.by_type;
         if (!by_type) return '';
 
@@ -2336,7 +2422,9 @@ window.AnalyticsView = {
         const statusLabel = isSurplus ? (window.i18n.t('export_org_surplus') || 'EXCÉDENT') : (window.i18n.t('export_org_deficit') || 'DÉFICIT');
         const netResultColor = isSurplus ? '#10b981' : '#ef4444';
 
-        const activeAccounts = (accounts || []).filter(a => !a.is_closed && (!selectedBalanceIds || !selectedBalanceIds.length || selectedBalanceIds.includes(a.id)));
+        const activeAccounts = (accounts || []).filter(a => !a.is_closed && !a.is_loan
+            && (!selectedBalanceIds || !selectedBalanceIds.length || selectedBalanceIds.includes(a.id))
+            && (!exportAccIds || !exportAccIds.length || exportAccIds.includes(a.id)));
         const totalCash = activeAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
         const numMonths = (months && months.length > 0) ? months.length : 12;
         const avgMonthlyExpense = totalOperatingExpense / numMonths;
@@ -2354,7 +2442,7 @@ window.AnalyticsView = {
                     <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#10b981;font-weight:600;">${formatCurrency(amt)} <span style="font-size:9px;color:#94a3b8;font-weight:400;">(${pct}%)</span></td>
                 </tr>`;
             }).join('')
-            : `<tr><td colspan="2" style="padding:8px;text-align:center;color:#94a3b8;font-style:italic;">Aucune recette sur la période</td></tr>`;
+            : `<tr><td colspan="2" style="padding:8px;text-align:center;color:#94a3b8;font-style:italic;">${window.i18n.t('export_org_no_income') || 'Aucune recette sur la période'}</td></tr>`;
 
         const expenseRowsHtml = expenseEntries.length > 0
             ? expenseEntries.map(([cat, amt]) => {
@@ -2364,7 +2452,7 @@ window.AnalyticsView = {
                     <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#ef4444;font-weight:600;">${formatCurrency(amt)} <span style="font-size:9px;color:#94a3b8;font-weight:400;">(${pct}%)</span></td>
                 </tr>`;
             }).join('')
-            : `<tr><td colspan="2" style="padding:8px;text-align:center;color:#94a3b8;font-style:italic;">Aucune dépense sur la période</td></tr>`;
+            : `<tr><td colspan="2" style="padding:8px;text-align:center;color:#94a3b8;font-style:italic;">${window.i18n.t('export_org_no_expense') || 'Aucune dépense sur la période'}</td></tr>`;
 
         return `
         <div style="margin-bottom:24px; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; page-break-inside:avoid; background:#ffffff;">
@@ -2381,7 +2469,7 @@ window.AnalyticsView = {
                         <tbody>${incomeRowsHtml}</tbody>
                         <tfoot>
                             <tr style="font-weight:700; border-top:1px solid #e2e8f0; background:#f0fdf4;">
-                                <td style="padding:6px; color:#0f172a;">Total Produits</td>
+                                <td style="padding:6px; color:#0f172a;">${window.i18n.t('export_org_total_income') || 'Total Produits'}</td>
                                 <td style="text-align:right; padding:6px; color:#10b981;">${formatCurrency(totalOperatingIncome)}</td>
                             </tr>
                         </tfoot>
@@ -2395,7 +2483,7 @@ window.AnalyticsView = {
                         <tbody>${expenseRowsHtml}</tbody>
                         <tfoot>
                             <tr style="font-weight:700; border-top:1px solid #e2e8f0; background:#fef2f2;">
-                                <td style="padding:6px; color:#0f172a;">Total Charges</td>
+                                <td style="padding:6px; color:#0f172a;">${window.i18n.t('export_org_total_expense') || 'Total Charges'}</td>
                                 <td style="text-align:right; padding:6px; color:#ef4444;">${formatCurrency(totalOperatingExpense)}</td>
                             </tr>
                         </tfoot>
@@ -2408,8 +2496,8 @@ window.AnalyticsView = {
                     <span style="font-size:15px; font-weight:800; color:${netResultColor}; margin-left:6px;">${formatCurrency(netResult)}</span>
                 </div>
                 <div style="font-size:11px; color:#64748b; display:flex; gap:16px;">
-                    <span>${window.i18n.t('export_org_runway_metric') || 'Réserve opérationnelle'} : <strong style="color:#0f172a;">${runwayMonths} mois</strong></span>
-                    <span>Trésorerie disponible : <strong style="color:#0f172a;">${formatCurrency(totalCash)}</strong></span>
+                    <span>${window.i18n.t('export_org_runway_metric') || 'Réserve opérationnelle'} : <strong style="color:#0f172a;">${(window.i18n.t('export_org_runway_months') || '{count} mois').replace('{count}', runwayMonths)}</strong></span>
+                    <span>${window.i18n.t('export_org_available_cash') || 'Trésorerie disponible'} : <strong data-export-cash style="color:#0f172a;">${formatCurrency(totalCash)}</strong></span>
                 </div>
             </div>
         </div>`;
@@ -2426,7 +2514,9 @@ window.AnalyticsView = {
         }
         const isSurplus = netResult >= 0;
         const netFormatted = formatCurrency(Math.abs(netResult));
-        const statusWord = isSurplus ? 'un excédent' : 'un déficit';
+        const treasurerStatement = isSurplus
+            ? (window.i18n.t('export_org_treasurer_surplus') || 'Arrêté sincère et conforme faisant apparaître un excédent net de {amount}.')
+            : (window.i18n.t('export_org_treasurer_deficit') || 'Arrêté sincère et conforme faisant apparaître un déficit net de {amount}.');
 
         return `
         <div style="margin-top:24px; padding:16px 20px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; page-break-inside:avoid;">
@@ -2435,7 +2525,7 @@ window.AnalyticsView = {
             </div>
             <p style="font-size:11px; color:#64748b; line-height:1.5; margin:0 0 16px 0;">
                 ${window.i18n.t('export_org_quitus_text') || 'Le présent rapport financier a été certifié conforme aux comptes et écritures d\'OmniBank et soumis à l\'approbation de l\'Assemblée Générale Ordinaire.'}
-                ${agDate ? ` — <strong style="color:#0f172a;">Assemblée Générale du ${formatDate(agDate)}</strong>.` : ''}
+                ${agDate ? ` — <strong style="color:#0f172a;">${(window.i18n.t('export_org_ag_of') || 'Assemblée Générale du {date}').replace('{date}', formatDate(agDate))}</strong>.` : ''}
             </p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
                 <div style="border:1px dashed #cbd5e1; border-radius:8px; padding:12px; background:#fff;">
@@ -2443,10 +2533,10 @@ window.AnalyticsView = {
                         ${window.i18n.t('export_org_sign_treasurer') || 'Le / La Trésorier(e)'}
                     </div>
                     <div style="font-size:10px; color:#64748b; margin-bottom:30px;">
-                        Arrêté sincère et conforme faisant apparaître ${statusWord} net de <strong style="color:#0f172a;">${netFormatted}</strong>.
+                        ${treasurerStatement.replace('{amount}', `<strong style="color:#0f172a;">${netFormatted}</strong>`)}
                     </div>
                     <div style="border-top:1px dotted #cbd5e1; padding-top:4px; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
-                        <span>Date & Signature</span>
+                        <span>${window.i18n.t('export_org_date_signature') || 'Date & Signature'}</span>
                     </div>
                 </div>
                 <div style="border:1px dashed #cbd5e1; border-radius:8px; padding:12px; background:#fff;">
@@ -2454,10 +2544,10 @@ window.AnalyticsView = {
                         ${window.i18n.t('export_org_sign_president') || 'Le / La Président(e)'}
                     </div>
                     <div style="font-size:10px; color:#64748b; margin-bottom:30px;">
-                        Quitus approuvé et accordé par l\'Assemblée Générale pour l\'exercice clos.
+                        ${window.i18n.t('export_org_president_statement') || 'Quitus approuvé et accordé par l\'Assemblée Générale pour l\'exercice clos.'}
                     </div>
                     <div style="border-top:1px dotted #cbd5e1; padding-top:4px; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between;">
-                        <span>Date & Signature</span>
+                        <span>${window.i18n.t('export_org_date_signature') || 'Date & Signature'}</span>
                     </div>
                 </div>
             </div>
@@ -2465,7 +2555,7 @@ window.AnalyticsView = {
     },
 
     _applyReportDOMFilters(targetEl, options) {
-        const { selectedTypes, selectedCats, includeInactive, printData, tabMode, selectedYear, selectedYearsTotals } = options;
+        const { selectedTypes, selectedCats, includeInactive, printData, tabMode, selectedYear, selectedYearsTotals, typesWithExclusions = [] } = options;
 
         const effectiveSelectedTypes = includeInactive && printData && printData.inactive_types
             ? [...selectedTypes, ...Object.keys(printData.inactive_types)]
@@ -2476,7 +2566,7 @@ window.AnalyticsView = {
                 el.remove();
             } else {
                 el.querySelectorAll('tr[data-category]').forEach(tr => {
-                    if (tr.hasAttribute('data-inactive') && includeInactive) return;
+                    if (tr.hasAttribute('data-inactive') && includeInactive && !typesWithExclusions.includes(el.getAttribute('data-type'))) return;
                     if (!selectedCats.includes(tr.getAttribute('data-category'))) {
                         tr.remove();
                     }
@@ -3051,7 +3141,7 @@ window.AnalyticsView = {
                 </span>
                 <div style="display:flex; gap:12px; font-size:11px; font-weight:600;">
                     <span style="color:#10b981;">■ ${window.i18n.t('type_income') || 'Recettes'}</span>
-                    <span style="color:#ef4444;">■ ${window.i18n.t('type_expense_fixed') || 'Dépenses'}</span>
+                    <span style="color:#ef4444;">■ ${window.i18n.t('export_kpi_expenses') || 'Dépenses'}</span>
                 </div>
             </div>
             <svg width="100%" height="160" viewBox="0 0 580 160" style="overflow:visible;">
