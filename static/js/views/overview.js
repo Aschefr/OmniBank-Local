@@ -184,6 +184,27 @@ window.OverviewView = {
         return isEn ? text : text.replace(/^1 /, '1er ');
     },
 
+    /** Le repère de rythme, à partir de la projection affichée sur le Cockpit. */
+    _trackingPace(data) {
+        const pace = data.pace;
+        if (!pace) return null;
+        const t = window.i18n.t.bind(window.i18n);
+        const money = value => this._trackingEuro(value);
+        if (pace.kind === 'exercise') {
+            if (pace.engageable < 0) return { level: 'warning', text: t('cockpit_track_pace_org_over').replace('{amount}', money(pace.engageable)) };
+            const text = t('cockpit_track_pace_org').replace('{amount}', money(pace.engageable));
+            return { level: pace.engageable < pace.expected_spending ? 'warning' : 'calm', text };
+        }
+        if (!this._stats || !pace.days_left) return null;
+        const known = this._calculateProjection(this._stats).projectedEnd;
+        if (known < 0) return { level: 'warning', text: t('cockpit_track_pace_over').replace('{amount}', money(known)) };
+        if (pace.usual_per_day * pace.days_left <= known) return { level: 'calm', text: t('cockpit_track_pace_ok') };
+        const text = t('cockpit_track_pace_tight')
+            .replace('{usual}', Math.round(pace.usual_per_day).toLocaleString(window.i18n?.lang === 'en' ? 'en-US' : 'fr-FR'))
+            .replace('{allowed}', Math.round(known / pace.days_left).toLocaleString(window.i18n?.lang === 'en' ? 'en-US' : 'fr-FR'));
+        return { level: 'warning', text };
+    },
+
     _renderForecastTracking() {
         const container = document.getElementById('ovCockpitTracking');
         if (!container) return;
@@ -209,6 +230,8 @@ window.OverviewView = {
         const created = t('cockpit_track_recorded').replace('{date}', this._trackingDate(data.created_on, true));
         const notes = [created];
         if (data.recent_history) notes.push(t('cockpit_track_recent'));
+        const pace = this._trackingPace(data);
+        const projectionLabel = this._stats ? this._calculateProjection(this._stats).titleText : '';
 
         const stored = window.ProfileStorage?.get('ov_tracking_open');
         const open = (stored === null || stored === undefined || stored === '') ? window.innerWidth > 768 : stored === 'true';
@@ -224,6 +247,7 @@ window.OverviewView = {
                     ${escapeHtml(open ? t('cockpit_track_hide') : t('cockpit_track_show'))}
                 </button>
             </div>
+            ${pace ? `<p class="cockpit-tracking-pace is-${pace.level}">${escapeHtml(pace.text)}</p>` : ''}
             ${open ? `
             <div class="cockpit-tracking-chart"><canvas id="ovTrackingCanvas" role="img" aria-label="${escapeHtml(`${title} : ${statusText}`)}"></canvas></div>
             <div class="cockpit-tracking-foot">
@@ -232,7 +256,8 @@ window.OverviewView = {
                     <span class="cockpit-tracking-key is-forecast"></span>${escapeHtml(t('cockpit_track_legend_forecast'))}
                 </span>
                 <span class="cockpit-tracking-note">${escapeHtml(notes.join(' · '))}</span>
-            </div>` : ''}
+            </div>
+            ${projectionLabel ? `<p class="cockpit-tracking-explain">${escapeHtml(t(isExercise ? 'cockpit_track_explain_org' : 'cockpit_track_explain').replace('{label}', projectionLabel))}</p>` : ''}` : ''}
         `;
         if (open) this._drawForecastTracking(data);
     },

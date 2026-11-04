@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.models import Account, ForecastSnapshot, GlobalConfig, RecurrenceTemplate, Transaction
 from app.services.budget_service import budget_period, is_org_mode
 from app.services.finance_engine import calculate_balances, predict_next_paycheck
-from app.services.simulator_engine import _add_months, _recurrence_amount_for_month, run_simulation
+from app.services.simulator_engine import RECENT_HISTORY_MONTHS, _add_months, _recurrence_amount_for_month, run_simulation
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +273,33 @@ def record_period_forecasts(db: Session, profile_id: str, now: Optional[datetime
     return created
 
 
+def _spending_pace(db: Session, account_id: Optional[int], kind: str, end: date, today: date) -> Optional[dict]:
+    """Le rythme de dépenses d'aujourd'hui, recalculé à chaque demande : contrairement à la prévision, il doit suivre la
+    situation. Rien tant que l'historique est trop court pour parler de rythme."""
+    if end <= today:
+        return None
+    if kind == "exercise":
+        months = (end.year - today.year) * 12 + end.month - today.month + 1
+        run = _recommended_run(db, account_id, months)
+        if int(run.get("variable_expense_history_months") or 0) < RECENT_HISTORY_MONTHS:
+            return None
+        monthly = run.get("monthly_data") or []
+        if not monthly:
+            return None
+        expected = sum(float(m.get("baseline_variable") or 0.0) for m in monthly)
+        return {
+            "kind": "exercise",
+            "expected_spending": round(expected, 2),
+            "engageable": round(float(monthly[-1]["baseline_end_balance"]) + expected, 2),
+        }
+    run = _recommended_run(db, account_id, 2)
+    if run.get("recent_history"):
+        return None
+    usual_spending = max(0.0, float(run.get("avg_variable_expense") or 0.0) - float(run.get("recurring_variable_monthly") or 0.0))
+    net_per_month = usual_spending + float(run.get("unplanned_fixed_avg") or 0.0) - float(run.get("other_income_avg") or 0.0)
+    return {"kind": "cycle", "usual_per_day": round(net_per_month / DAYS_PER_MONTH, 2), "days_left": (end - today).days}
+
+
 def get_forecast_tracking(db: Session, account_id: Optional[int] = None, today: Optional[date] = None) -> dict:
     today = today or date.today()
     ids = _scope_ids(db, account_id)
@@ -303,4 +330,5 @@ def get_forecast_tracking(db: Session, account_id: Optional[int] = None, today: 
         "gap": gap,
         "tolerance": tolerance,
         "status": status,
+        "pace": _spending_pace(db, account_id, snapshot.period_kind, snapshot.period_end, today),
     }
