@@ -34,6 +34,8 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **Pièces jointes dans l'application mobile** : ouvrir une pièce jointe pouvait remplacer l'application par une page d'erreur. Les fichiers s'ouvrent désormais dans le navigateur de votre téléphone, depuis le trombone du Journal et de l'Historique ou depuis la fiche de l'opération. Les liens qui quittent l'application, comme les exports CSV et le signalement d'un problème, s'y ouvrent aussi. Avec plusieurs fichiers, le trombone ouvre la fiche qui les liste tous.
 - **Export CSV** : une seule opération sans date de saisie faisait échouer tout l'export. Il fonctionne désormais normalement et reprend alors la date de l'opération.
 - **Sauvegardes dans l'application mobile** : télécharger une sauvegarde depuis l'application semblait fonctionner mais n'enregistrait rien. Elle se télécharge désormais par le navigateur de votre téléphone.
+- **Boutons principaux lisibles quelle que soit la couleur du profil** : les boutons principaux gardaient un texte blanc quelle que soit la couleur du profil, difficile à lire sur du rose, du vert ou de l'orange. Le texte passe désormais du blanc au sombre pour rester lisible.
+- **Automatismes des budgets mieux expliqués** : la fenêtre des automatismes, les réglages de l'Auto-Pilote et l'assistant de démarrage décrivaient encore l'ancien lissage mensuel et le moment où l'analyse s'exécute. Ils correspondent désormais à ce qui se passe réellement, et la documentation des budgets a été réécrite.
 
 ## [1.3.0] - 2026-11-01
 
