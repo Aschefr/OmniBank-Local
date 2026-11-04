@@ -54,6 +54,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 - **En-tête et titres sur téléphone** : en mode organisation, le profil, le rôle et la cloche tiennent à l'écran, le logo restant seul quand la place manque. Les titres de Tendances et d'Analyses ne passent plus sous l'en-tête.
 - **Simulateur : un panneau avancé plus simple** : un curseur « Scénario de l'année » va de l'année favorable au coup dur et montre ce qu'il change, un second curseur teste un changement de dépenses, et le solde bouge juste à côté. Les autres réglages tiennent dans trois listes et un champ. Les anciens réglages du mode avancé repartent du mode Conseillé.
 - **Simulateur : modèle Augmentation de salaire** : il ajoute un gain mensuel et ouvre directement sa fiche pour saisir le montant et la date.
+- **Cockpit : le réel face à la prévision** : une carte compare votre solde à la prévision enregistrée pour la période, en mode personnel sur le cycle de paie et en mode organisation sur l'exercice. La prévision est enregistrée en tâche de fond dès le début de la période, et le réel s'affiche depuis ce début. Une phrase dit où vous en êtes, avec une marge de tolérance pour ne pas alerter pour rien. La courbe se masque, et elle est repliée par défaut sur téléphone.
 
 ## [1.3.0] - 2026-11-01
 
