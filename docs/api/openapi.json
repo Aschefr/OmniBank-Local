@@ -2331,6 +2331,116 @@
         }
       }
     },
+    "/api/chat/prompt/personality-default": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Get Default Personality",
+        "description": "Textes par défaut des couches modifiables, pour les boutons « Restaurer » de Configuration.\nLe guide de l'interface dépend de la langue (libellés affichés à l'écran).",
+        "operationId": "get_default_personality_api_chat_prompt_personality_default_get",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr",
+              "title": "Lang"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chat/prompt/preview": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Preview System Prompt",
+        "description": "Prompt système final tel qu'envoyé au modèle, couche par couche, avec une estimation en tokens.",
+        "operationId": "preview_system_prompt_api_chat_prompt_preview_get",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "advisor",
+              "title": "Role"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr",
+              "title": "Lang"
+            }
+          },
+          {
+            "name": "user_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chat/sessions": {
       "get": {
         "tags": [
@@ -2752,6 +2862,16 @@
               ],
               "title": "User Name"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr",
+              "title": "Lang"
+            }
           }
         ],
         "responses": {
@@ -2925,6 +3045,16 @@
               "type": "integer",
               "title": "Id"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr",
+              "title": "Lang"
+            }
           }
         ],
         "requestBody": {
@@ -3053,7 +3183,7 @@
           "chat"
         ],
         "summary": "Recover Message Actions",
-        "description": "Détecte et extrait les actions promises dans le texte d'un message assistant,\nmet à jour le contenu du message en base et retourne les actions pour affichage immédiat.",
+        "description": "Bouton « Générer les cartes d'actions » : redemande au modèle l'appel d'outil de l'action annoncée\ndans un message assistant, ajoute les cartes au message en base et les retourne pour affichage immédiat.",
         "operationId": "recover_message_actions_api_chat_messages__id__recover_actions_post",
         "parameters": [
           {
@@ -3063,6 +3193,16 @@
             "schema": {
               "type": "integer",
               "title": "Id"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "fr",
+              "title": "Lang"
             }
           }
         ],
@@ -4499,6 +4639,15 @@
               "type": "string",
               "title": "Period Filter"
             }
+          },
+          {
+            "name": "cycle_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Cycle Offset"
+            }
           }
         ],
         "responses": {
@@ -4542,6 +4691,128 @@
         }
       }
     },
+    "/api/budgets/preview_transactions": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Preview Budget Transactions",
+        "description": "Opérations des catégories choisies dans le formulaire, avant enregistrement de l'enveloppe.",
+        "operationId": "preview_budget_transactions_api_budgets_preview_transactions_get",
+        "parameters": [
+          {
+            "name": "categories",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "title": "Categories"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "monthly",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "account_ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "default": [],
+              "title": "Account Ids"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Year"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "date_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Date Start"
+            }
+          },
+          {
+            "name": "date_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Date End"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Start Date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "End Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/budgets/{budget_id}/transactions": {
       "get": {
         "tags": [
@@ -4575,6 +4846,24 @@
             "schema": {
               "type": "integer",
               "title": "Month"
+            }
+          },
+          {
+            "name": "date_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Date Start"
+            }
+          },
+          {
+            "name": "date_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Date End"
             }
           }
         ],
@@ -5297,6 +5586,65 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/budgets/autopilot/auto-create/activate": {
+      "post": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Activate Budget Auto Creation",
+        "description": "Applique l'auto-création dès son activation, sans attendre le prochain cycle.",
+        "operationId": "activate_budget_auto_creation_api_budgets_autopilot_auto_create_activate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/budgets/autopilot/auto-notice": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Get Budget Auto Notice",
+        "description": "Ce que l'auto-création a ajouté et que l'utilisateur n'a pas encore validé.",
+        "operationId": "get_budget_auto_notice_api_budgets_autopilot_auto_notice_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/budgets/autopilot/auto-notice/dismiss": {
+      "post": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Dismiss Budget Auto Notice",
+        "operationId": "dismiss_budget_auto_notice_api_budgets_autopilot_auto_notice_dismiss_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -7088,6 +7436,26 @@
         }
       }
     },
+    "/api/profiles/session-ticket": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Api Session Ticket",
+        "description": "Ticket à usage unique pour les URL ouvertes hors fetch (EventSource, téléchargements, navigateur externe).",
+        "operationId": "api_session_ticket_api_profiles_session_ticket_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/profiles/{profile_id}/pin/recover": {
       "post": {
         "tags": [
@@ -8385,22 +8753,6 @@
               "type": "integer",
               "title": "Conn Id"
             }
-          },
-          {
-            "name": "vault_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Vault Token"
-            }
           }
         ],
         "responses": {
@@ -8588,22 +8940,6 @@
             }
           },
           {
-            "name": "vault_token",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Vault Token"
-            }
-          },
-          {
             "name": "since_days",
             "in": "query",
             "required": false,
@@ -8702,7 +9038,25 @@
                   "type": "null"
                 }
               ],
+              "deprecated": true,
               "title": "Token"
+            },
+            "deprecated": true
+          },
+          {
+            "name": "X-OmniBank-Vault-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Omnibank-Vault-Token"
             }
           }
         ],
@@ -8752,7 +9106,25 @@
                   "type": "null"
                 }
               ],
+              "deprecated": true,
               "title": "Token"
+            },
+            "deprecated": true
+          },
+          {
+            "name": "X-OmniBank-Vault-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Omnibank-Vault-Token"
             }
           }
         ],
@@ -10940,7 +11312,7 @@
           "system"
         ],
         "summary": "Historique des versions et notes de publication",
-        "description": "Return parsed release notes from local CHANGELOG.md with full history.",
+        "description": "Return parsed release notes from local CHANGELOG.md with full history (translated notes when CHANGELOG.<lang>.md has them).",
         "operationId": "get_changelog_api_changelog_get",
         "parameters": [
           {
@@ -10950,6 +11322,15 @@
             "schema": {
               "type": "string",
               "title": "Version"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Lang"
             }
           }
         ],
@@ -12454,6 +12835,28 @@
             ],
             "title": "Last Bank Sync At"
           },
+          "labels_refined_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels Refined At"
+          },
+          "background_changed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background Changed At"
+          },
           "last_execution_at": {
             "anyOf": [
               {
@@ -13443,14 +13846,17 @@
       },
       "BulkDeleteRequest": {
         "properties": {
-          "target_type": {
-            "type": "string",
-            "title": "Target Type"
+          "budget_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Budget Ids"
           }
         },
         "type": "object",
         "required": [
-          "target_type"
+          "budget_ids"
         ],
         "title": "BulkDeleteRequest"
       },
