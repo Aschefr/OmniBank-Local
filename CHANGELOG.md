@@ -34,7 +34,7 @@ All notable changes to this project will be documented in this file.
 - **Attachments in the Mobile App**: Opening an attachment could replace the app with an error page. Files now open in your phone's browser, from the paperclip in the Journal and History or from the transaction form. Links that leave the app, such as CSV exports and bug reports, also open there. With several files, the paperclip opens the form that lists them all.
 - **CSV Export**: A single transaction without an entry date made the whole export fail. It now exports normally, using the transaction date in that case.
 - **Backups in the Mobile App**: Downloading a backup from the app appeared to work but saved nothing. It now downloads through your phone's browser.
-- **Readable Main Buttons With Any Profile Color**: The main buttons kept white text whatever the profile color, which was hard to read on pink, green or orange. The text now switches between white and dark to stay readable.
+- **Readable Main Buttons With Any Profile Color**: White text on the main buttons was hard to read with a pink, green or orange profile color. The button background now darkens just enough to keep the white text readable.
 - **Budget Automations Explained Correctly**: The Automations window, the Auto-Pilot settings and the setup assistant still described the old monthly smoothing and when the analysis runs. They now match what actually happens, and the budget documentation has been rewritten.
 
 ## [1.3.0] - 2026-11-01
