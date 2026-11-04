@@ -361,7 +361,7 @@ def _organisation_with_yearly_grant(db, amount=50000.0):
 def test_organisation_yearly_grant_is_a_yearly_income(db):
     _organisation_with_yearly_grant(db)
 
-    res = _run(db, COURANT)
+    res = _run(db, COURANT, weight=0.0)
     grant_month = _month_start(-3).month
     by_month = {int(m["month"][5:]): m["baseline_income"] for m in res["monthly_data"]}
 
@@ -520,7 +520,7 @@ def test_organisation_income_does_not_depend_on_the_pay_day(db):
     _tx(db, -3, 60000.0, "income", to_acc=COURANT, category="Dotation", day=12)
     db.commit()
 
-    months = _run(db, COURANT)["monthly_data"]
+    months = _run(db, COURANT, weight=0.0)["monthly_data"]
 
     assert sum(m["baseline_income"] for m in months) == pytest.approx(60000.0)
 
@@ -533,10 +533,222 @@ def test_organisation_sets_aside_an_isolated_exceptional_income(db):
     _tx(db, -5, 20000.0, "income", to_acc=COURANT, category="Don exceptionnel", day=12)
     db.commit()
 
-    res = _run(db, COURANT)
+    res = _run(db, COURANT, weight=0.0)
 
     assert res["excluded_income_outliers_count"] == 1
     assert sum(m["baseline_income"] for m in res["monthly_data"]) == pytest.approx(60000.0)
+
+
+# ── Curseur de prudence en mode organisation ─────────────────
+
+def _org_two_years(db, last_grant=60000.0, previous_grant=50000.0, last_exp=1000.0, previous_exp=1000.0):
+    _organisation(db)
+    _tx(db, -3, last_grant, "income", to_acc=COURANT, category="Dotation", day=12)
+    _tx(db, -15, previous_grant, "income", to_acc=COURANT, category="Dotation", day=12)
+    for offset in range(-12, 0):
+        _tx(db, offset, last_exp, "expense_var", from_acc=COURANT, category="Sorties", day=5)
+    for offset in range(-24, -12):
+        _tx(db, offset, previous_exp, "expense_var", from_acc=COURANT, category="Sorties", day=5)
+    db.commit()
+
+
+def _yearly_income(res):
+    return sum(m["baseline_income"] for m in res["monthly_data"])
+
+
+def test_organisation_prudence_keeps_the_lowest_grant_of_two_years(db):
+    _org_two_years(db)
+
+    assert _yearly_income(_run(db, COURANT, weight=0.0)) == pytest.approx(60000.0)
+    assert _yearly_income(_run(db, COURANT, weight=1.0)) == pytest.approx(50000.0)
+    assert _yearly_income(_run(db, COURANT, weight=0.5)) == pytest.approx(55000.0)
+
+
+def test_organisation_prudence_drops_income_that_did_not_come_back(db):
+    _org_two_years(db, previous_grant=60000.0)
+    _tx(db, -2, 5000.0, "income", to_acc=COURANT, category="Partenariat", day=12)
+    db.commit()
+
+    assert _yearly_income(_run(db, COURANT, weight=0.0, outlier_sensitivity=5)) == pytest.approx(65000.0)
+    # La référence perd la part de la recette qui n'est pas revenue
+    assert _yearly_income(_run(db, COURANT, weight=1.0, outlier_sensitivity=5)) == pytest.approx(65000.0 * 60000.0 / 65000.0)
+
+
+def test_organisation_prudence_uses_the_most_expensive_year(db):
+    _org_two_years(db, previous_exp=1500.0)
+
+    real = _run(db, COURANT, weight=0.0)["monthly_data"][1]["baseline_expense"]
+    prudent = _run(db, COURANT, weight=1.0)["monthly_data"][1]["baseline_expense"]
+
+    assert real == pytest.approx(1000.0)
+    assert prudent == pytest.approx(1500.0)
+
+
+def test_organisation_prudence_does_not_erase_fixed_charges(db):
+    _organisation(db)
+    _tx(db, -3, 50000.0, "income", to_acc=COURANT, category="Dotation", day=12)
+    for offset in range(-12, 0):
+        _tx(db, offset, 800.0, "expense_fixed", from_acc=COURANT, category="Loyer", day=5)
+    db.commit()
+
+    assert _run(db, COURANT, weight=1.0)["monthly_data"][1]["baseline_expense"] >= 800.0
+
+
+def test_organisation_prudence_applies_a_margin_without_a_year_to_compare(db):
+    _organisation(db)
+    _org_small_expenses(db, months=6)
+    _tx(db, -3, 60000.0, "income", to_acc=COURANT, category="Dotation", day=12)
+    db.commit()
+
+    assert _yearly_income(_run(db, COURANT, weight=0.0)) == pytest.approx(60000.0)
+    assert _yearly_income(_run(db, COURANT, weight=1.0)) == pytest.approx(54000.0)
+
+
+@pytest.mark.parametrize("weight", [0.0, 0.5, 1.0])
+def test_organisation_prudence_keeps_accounts_summing_to_the_global(db, weight):
+    _org_two_years(db, previous_exp=1200.0)
+    _tx(db, -4, 3000.0, "income", to_acc=LIVRET, category="Interets", day=12)
+    _tx(db, -16, 2000.0, "income", to_acc=LIVRET, category="Interets", day=12)
+    db.commit()
+
+    whole = _run(db, weight=weight)["simulated_final_balance"]
+    parts = sum(_run(db, acc, weight=weight)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole)
+
+
+# ── Mode conseillé : seuls les achats hors norme sortent de la moyenne ──
+
+def _regular_spending_with_big_purchases(db):
+    _salary_history(db, months=6)
+    for offset in range(-6, 0):
+        for day in (3, 8, 13, 18, 23):
+            _tx(db, offset, 30.0, "expense_var", from_acc=COURANT, category="Courses", day=day)
+    _tx(db, -2, 500.0, "expense_var", from_acc=COURANT, category="Garage", day=20)
+    _tx(db, -3, 18000.0, "expense_var", from_acc=COURANT, category="Voiture", day=20)
+    db.commit()
+
+
+def test_default_sensitivity_only_removes_exceptional_purchases(db):
+    _regular_spending_with_big_purchases(db)
+
+    res = run_simulation(db=db, horizon_months=12, account_id=COURANT, conservative_weight=1.0)
+
+    assert res["outlier_sensitivity"] == 4
+    assert res["excluded_outliers_count"] == 1
+    assert res["excluded_outliers_total"] == pytest.approx(18000.0)
+    assert res["avg_variable_expense"] == pytest.approx((30.0 * 5 * 6 + 500.0) / 6, abs=0.01)
+
+
+def test_user_can_still_filter_harder_or_keep_everything(db):
+    _regular_spending_with_big_purchases(db)
+
+    assert _run(db, COURANT, outlier_sensitivity=2)["excluded_outliers_total"] == pytest.approx(18500.0)
+    assert _run(db, COURANT, outlier_sensitivity=5)["excluded_outliers_total"] == 0.0
+
+
+def test_planned_expense_is_never_exceptional(db):
+    db.add(RecurrenceTemplate(id=7, description="Impot", amount=2000.0, type="expense_var", frequency="Monthly", day_of_month=2, from_account_id=COURANT))
+    _salary_history(db, months=6)
+    for offset in range(-6, 0):
+        for day in (3, 8, 13, 18, 23):
+            _tx(db, offset, 30.0, "expense_var", from_acc=COURANT, category="Courses", day=day)
+        _tx(db, offset, 2000.0, "expense_var", from_acc=COURANT, category="Impots", day=2, recurrence_id=7)
+    db.commit()
+
+    assert _run(db, COURANT, outlier_sensitivity=1)["excluded_outliers_count"] == 0
+
+
+# ── Revenu désactivé ou personnalisé : le mois en cours ──────
+
+def _pay_not_received_yet(db):
+    _salary_history(db)
+    db.commit()
+
+
+def test_no_income_mode_does_not_count_the_expected_pay_this_month(db):
+    _pay_not_received_yet(db)
+
+    assert _run(db, COURANT, income_mode="none")["monthly_data"][0]["baseline_income"] == 0.0
+
+
+def test_custom_income_replaces_the_expected_pay_this_month(db):
+    _pay_not_received_yet(db)
+
+    month = _run(db, COURANT, income_mode="custom", custom_income_amount=3000.0)["monthly_data"][0]
+
+    assert month["baseline_income"] == pytest.approx(3000.0)
+
+
+def test_custom_income_is_not_added_when_the_pay_already_arrived(db):
+    _salary_history(db)
+    today = date.today()
+    db.add(Transaction(date_saisie=today, date_operation=today, description="Paie", amount=SALAIRE, type="income",
+                       to_account_id=COURANT, is_salary=True, category="Salaire", reconciliation_date=today))
+    db.commit()
+
+    month = _run(db, COURANT, income_mode="custom", custom_income_amount=3000.0)["monthly_data"][0]
+
+    assert month["baseline_income"] == 0.0
+
+
+# ── Historique récent ────────────────────────────────────────
+
+def _young_profile(db):
+    db.add(Budget(name="Courses", monthly_amount=500.0, period="monthly", envelope_type="spending"))
+    _tx(db, -2, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    _tx(db, -1, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    _tx(db, -2, 50.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    db.commit()
+
+
+def test_recent_history_completes_expenses_with_envelopes(db):
+    _young_profile(db)
+
+    res = _run(db)
+
+    assert res["recent_history"] is True
+    assert res["avg_variable_expense"] == pytest.approx(500.0)
+
+
+def test_recent_history_keeps_accounts_summing_to_the_global(db):
+    _young_profile(db)
+
+    whole = _run(db)["simulated_final_balance"]
+    parts = sum(_run(db, acc)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert _run(db, LIVRET)["avg_variable_expense"] == 0.0
+    assert parts == pytest.approx(whole)
+
+
+def test_recent_history_keeps_observed_spending_above_envelopes(db):
+    _young_profile(db)
+    _tx(db, -1, 1950.0, "expense_var", from_acc=COURANT, category="Travaux", day=6)
+    db.commit()
+
+    res = _run(db, outlier_sensitivity=5)
+
+    assert res["avg_variable_expense"] == pytest.approx(1000.0)
+
+
+def test_expense_recurrence_entered_as_negative_is_still_an_expense(db):
+    _salary_history(db)
+    db.add(RecurrenceTemplate(description="Loyer", amount=-800.0, type="expense_fixed", frequency="Monthly", day_of_month=2, from_account_id=COURANT))
+    db.commit()
+
+    assert _run(db, COURANT)["monthly_data"][1]["baseline_expense"] == pytest.approx(800.0)
+
+
+def test_long_history_ignores_envelopes(db):
+    _salary_history(db, months=8)
+    _expense_history(db, months=8, amount=100.0)
+    db.add(Budget(name="Courses", monthly_amount=900.0, period="monthly", envelope_type="spending"))
+    db.commit()
+
+    res = _run(db)
+
+    assert res["recent_history"] is False
+    assert res["avg_variable_expense"] == pytest.approx(100.0)
 
 
 def test_organisation_month_zero_ignores_income_already_received(db):

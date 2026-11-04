@@ -526,7 +526,7 @@ def test_salary_not_excluded_as_income_outlier():
     ))
     db.commit()
 
-    res = run_simulation(db=db, horizon_months=6, account_id=1)
+    res = run_simulation(db=db, horizon_months=6, account_id=1, outlier_sensitivity=2)
     db.close()
 
     # Le vrai outlier exceptionnel de 10k€ doit être exclu
@@ -892,7 +892,7 @@ def test_simulator_config_persistence_and_defaults():
         assert cfg["sim_conservative_weight"] == "0.20"
         assert cfg["sim_seasonality_mode"] == "disabled"
         assert cfg["sim_seasonality_intensity"] == "1.0"
-        assert cfg["sim_outlier_sensitivity"] == "2"
+        assert cfg["sim_outlier_sensitivity"] == "4"
 
         # 2. Modifier les paramètres via set_config
         set_config({

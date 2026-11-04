@@ -96,7 +96,7 @@ window.SimulatorView = {
         const customIncomeAmt = (savedCustom && savedCustom !== 'null' && savedCustom !== '') ? parseFloat(savedCustom) : null;
         const customInflation = parseFloat(getSetting('sim_custom_inflation_rate', getSetting('sim_inflation_rate', '0.0'))) || 0.0;
         const customVarAdj = parseFloat(getSetting('sim_custom_var_expense_adj', getSetting('sim_var_expense_adj', '0.0'))) || 0.0;
-        const customOutlierSens = parseInt(getSetting('sim_custom_outlier_sensitivity', getSetting('sim_outlier_sensitivity', '2'))) || 2;
+        const customOutlierSens = parseInt(getSetting('sim_custom_outlier_sensitivity', getSetting('sim_outlier_sensitivity', '4'))) || 4;
         const rawCustomSeasonality = getSetting('sim_custom_seasonality_mode', getSetting('sim_seasonality_mode', 'disabled'));
         const customSeasonality = ['disabled', 'historical', 'preset_standard'].includes(rawCustomSeasonality) ? rawCustomSeasonality : 'disabled';
         const savedSeasIntensity = getSetting('sim_custom_seasonality_intensity', getSetting('sim_seasonality_intensity', '1.0'));
@@ -108,9 +108,11 @@ window.SimulatorView = {
             this.customIncomeAmount = null;
             this.inflationRate = 0.0;
             this.varExpenseAdjustmentPct = 0.0;
-            this.outlierSensitivity = 2;
+            this.outlierSensitivity = 4;
             this.seasonalityMode = 'disabled';
             this.seasonalityIntensity = 1.0;
+            // Le Cockpit lit ce réglage côté serveur : il suit le mode conseillé
+            if (getSetting('sim_outlier_sensitivity', '4') !== '4') this._batchSaveParams({ sim_outlier_sensitivity: '4' });
         } else {
             this.conservativeWeight = isNaN(customWeight) ? 0.20 : customWeight;
             this.incomeMode = customIncomeMode;
@@ -285,7 +287,7 @@ window.SimulatorView = {
                 inflation_rate: this.inflationRate || 0.0,
                 variable_expense_adjustment_pct: this.varExpenseAdjustmentPct || 0.0,
                 conservative_weight: (typeof this.conservativeWeight === 'number') ? this.conservativeWeight : 0.0,
-                outlier_sensitivity: this.outlierSensitivity || 2,
+                outlier_sensitivity: this.outlierSensitivity || 4,
                 seasonality_mode: this.seasonalityMode || 'disabled',
                 seasonality_intensity: (typeof this.seasonalityIntensity === 'number') ? this.seasonalityIntensity : 1.0
             };
@@ -326,7 +328,7 @@ window.SimulatorView = {
             : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
         compactSummaryParts.push(`💼 ${incomeBadge}`);
         if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
-        const outlierLevel = this.outlierSensitivity || 2;
+        const outlierLevel = this.outlierSensitivity || 4;
         const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
         const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
         compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
@@ -1075,17 +1077,17 @@ window.SimulatorView = {
                                     <span style="font-size:14px;">🧹</span>
                                     <span data-i18n="sim_outlier_title">${window.i18n.t('sim_outlier_title')}</span>
                                 </label>
-                                <button type="button" id="simOutlierBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setOutlierSensitivity(2)" title="${window.i18n.t('sim_outlier_desc_2')}" style="color:${(this.outlierSensitivity || 2) === 1 ? '#ef4444' : ((this.outlierSensitivity || 2) === 2 ? '#10b981' : ((this.outlierSensitivity || 2) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 2) === 4 ? '#f59e0b' : 'var(--text-muted)')))};">
-                                    ${this.getOutlierSensitivityLabel(this.outlierSensitivity || 2)}
+                                <button type="button" id="simOutlierBadge" class="sim-slider-badge-btn" onclick="window.SimulatorView.setOutlierSensitivity(4)" title="${window.i18n.t('sim_outlier_desc_2')}" style="color:${(this.outlierSensitivity || 4) === 1 ? '#ef4444' : ((this.outlierSensitivity || 4) === 2 ? '#10b981' : ((this.outlierSensitivity || 4) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 4) === 4 ? '#f59e0b' : 'var(--text-muted)')))};">
+                                    ${this.getOutlierSensitivityLabel(this.outlierSensitivity || 4)}
                                 </button>
                             </div>
                             <div style="display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;">
                                 <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(1)" title="${window.i18n.t('sim_outlier_desc_1')}">🧹 <span data-i18n="sim_outlier_badge_strict">${window.i18n.t('sim_outlier_badge_strict')}</span></button>
-                                <input type="range" id="simOutlierSlider" class="sim-range-input" min="1" max="5" step="1" value="${this.outlierSensitivity || 2}" oninput="window.SimulatorView.onOutlierSensitivityInput(this.value)" onchange="window.SimulatorView.onOutlierSensitivityChange(this.value)">
+                                <input type="range" id="simOutlierSlider" class="sim-range-input" min="1" max="5" step="1" value="${this.outlierSensitivity || 4}" oninput="window.SimulatorView.onOutlierSensitivityInput(this.value)" onchange="window.SimulatorView.onOutlierSensitivityChange(this.value)">
                                 <button type="button" class="sim-slider-label-btn" onclick="window.SimulatorView.setOutlierSensitivity(5)" title="${window.i18n.t('sim_outlier_desc_5')}">📦 <span data-i18n="sim_outlier_badge_full">${window.i18n.t('sim_outlier_badge_full')}</span></button>
                             </div>
                             <div id="simOutlierExplainer" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-top:4px;padding:6px 9px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border-color);">
-                                ${this.getOutlierSensitivityExplainer(this.outlierSensitivity || 2, (data && data.excluded_outliers_count) || 0, (data && data.excluded_outliers_total) || 0)}
+                                ${this.getOutlierSensitivityExplainer(this.outlierSensitivity || 4, (data && data.excluded_outliers_count) || 0, (data && data.excluded_outliers_total) || 0)}
                             </div>
                         </div>
                     </div>
@@ -1414,6 +1416,9 @@ window.SimulatorView = {
         }
 
         // Outlier exclusion info (expenses & incomes)
+        if (data.recent_history) {
+            items.push(`<span style="display:flex;align-items:center;gap:4px;">🌱 ${t('sim_transparency_recent_history')}</span>`);
+        }
         if (data.excluded_outliers_count > 0) {
             items.push(`<span style="display:flex;align-items:center;gap:4px;">⚡ ${t('sim_transparency_outliers').replace('{count}', data.excluded_outliers_count).replace('{total}', data.excluded_outliers_total.toLocaleString('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2}))}</span>`);
         }
@@ -2109,25 +2114,25 @@ window.SimulatorView = {
     getOutlierSensitivityLabel(level) {
         const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
         const map = {
-            1: t('ai_outlier_level_1', 'Strict (Régulier pur)'),
-            2: t('ai_outlier_level_2', 'Prudent (Équilibre)'),
-            3: t('ai_outlier_level_3', 'Équilibré'),
-            4: t('ai_outlier_level_4', 'Permissif'),
-            5: t('ai_outlier_level_5', 'Intégral (Tout inclure)')
+            1: t('sim_outlier_level_1', 'Filtre très fort'),
+            2: t('sim_outlier_level_2', 'Filtre fort'),
+            3: t('sim_outlier_level_3', 'Filtre moyen'),
+            4: t('sim_outlier_level_4', 'Gros achats seulement'),
+            5: t('sim_outlier_level_5', 'Tout inclure')
         };
-        return map[level] || map[2];
+        return map[level] || map[4];
     },
 
     getOutlierSensitivityExplainer(level, excludedCount = 0, excludedTotal = 0) {
         const t = (k, fallback) => (window.i18n && window.i18n.t) ? window.i18n.t(k) : fallback;
         const descMap = {
             1: t('sim_outlier_desc_1', 'Filtre maximal : écarte tout achat inhabituel ou imprévu même modéré (> 250 €).'),
-            2: t('sim_outlier_desc_2', 'Recommandé : filtre les gros achats et imprévus majeurs (> 400 €) pour des dépenses régulières réalistes.'),
+            2: t('sim_outlier_desc_2', 'Filtre fort : écarte les achats de matériel, paiements en plusieurs fois et imprévus (> 250 €).'),
             3: t('sim_outlier_desc_3', 'Filtre IQR standard : écarte uniquement les anomalies statistiques évidentes (> 600 €).'),
-            4: t('sim_outlier_desc_4', 'Permissif : ne filtre que les dépenses géantes hors norme (> 1 200 €).'),
+            4: t('sim_outlier_desc_4', 'Conseillé : ne retire que les achats hors norme (> 800 €), le reste compte comme dépense courante.'),
             5: t('sim_outlier_desc_5', 'Intégral : conserve 100% des dépenses historiques sans aucun filtrage.')
         };
-        const desc = descMap[level] || descMap[2];
+        const desc = descMap[level] || descMap[4];
         const isEn = (window.i18n && window.i18n.lang === 'en');
         const formattedTotal = Math.round(excludedTotal).toLocaleString(isEn ? 'en-US' : 'fr-FR');
         const badgeText = window.i18n.tp
@@ -2141,7 +2146,7 @@ window.SimulatorView = {
     },
 
     onOutlierSensitivityInput(val) {
-        const intVal = Math.min(5, Math.max(1, parseInt(val) || 2));
+        const intVal = Math.min(5, Math.max(1, parseInt(val) || 4));
         this.outlierSensitivity = intVal;
         this._onCustomParamTouch();
         const badge = document.getElementById('simOutlierBadge');
@@ -2170,7 +2175,7 @@ window.SimulatorView = {
     },
 
     async setOutlierSensitivity(level) {
-        const intVal = Math.min(5, Math.max(1, parseInt(level) || 2));
+        const intVal = Math.min(5, Math.max(1, parseInt(level) || 4));
         this.outlierSensitivity = intVal;
         this._onCustomParamTouch();
         const slider = document.getElementById('simOutlierSlider');
@@ -2186,7 +2191,7 @@ window.SimulatorView = {
     },
 
     async onOutlierSensitivityChange(val) {
-        const intVal = Math.min(5, Math.max(1, parseInt(val) || 2));
+        const intVal = Math.min(5, Math.max(1, parseInt(val) || 4));
         this.outlierSensitivity = intVal;
         this._saveParam('sim_outlier_sensitivity', this.outlierSensitivity);
         await this.runSimulation();
@@ -2331,7 +2336,7 @@ window.SimulatorView = {
             this.inflationRate = 0.0;
             this.seasonalityMode = 'disabled';
             this.seasonalityIntensity = 1.0;
-            this.outlierSensitivity = 2;
+            this.outlierSensitivity = 4;
 
             this._batchSaveParams({
                 sim_conservative_weight: '1.0',
@@ -2341,7 +2346,7 @@ window.SimulatorView = {
                 sim_inflation_rate: '0.0',
                 sim_seasonality_mode: 'disabled',
                 sim_seasonality_intensity: '1.0',
-                sim_outlier_sensitivity: '2'
+                sim_outlier_sensitivity: '4'
             });
 
             await this.runSimulation();
@@ -2581,7 +2586,7 @@ window.SimulatorView = {
                 : (this.incomeMode === 'average' ? `${window.i18n.t('sim_income_badge_average') || 'Moyenne'}${avgIncome > 0 ? ` (~${avgIncome.toLocaleString('fr-FR')} €)` : ''}` : (this.incomeMode === 'custom' ? `${(this.customIncomeAmount || 0).toLocaleString('fr-FR')} €` : (window.i18n.t('sim_income_badge_zero') || 'Zéro salaire')));
             compactSummaryParts.push(`💼 ${incomeBadge}`);
             if (this.inflationRate > 0) compactSummaryParts.push(`📈 ${(this.inflationRate * 100).toFixed(1)}%`);
-            const outlierLevel = this.outlierSensitivity || 2;
+            const outlierLevel = this.outlierSensitivity || 4;
             const outlierLabel = this.getOutlierSensitivityLabel(outlierLevel);
             const excCount = (data && data.excluded_outliers_count) ? data.excluded_outliers_count : 0;
             compactSummaryParts.push(`🧹 ${outlierLabel}${excCount > 0 ? ` (${excCount})` : ''}`);
@@ -2603,18 +2608,18 @@ window.SimulatorView = {
         // Update Outlier Explainer & Badge
         const outlierBadge = document.getElementById('simOutlierBadge');
         if (outlierBadge) {
-            outlierBadge.textContent = this.getOutlierSensitivityLabel(this.outlierSensitivity || 2);
-            outlierBadge.style.color = (this.outlierSensitivity || 2) === 1 ? '#ef4444' : ((this.outlierSensitivity || 2) === 2 ? '#10b981' : ((this.outlierSensitivity || 2) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 2) === 4 ? '#f59e0b' : 'var(--text-muted)')));
+            outlierBadge.textContent = this.getOutlierSensitivityLabel(this.outlierSensitivity || 4);
+            outlierBadge.style.color = (this.outlierSensitivity || 4) === 1 ? '#ef4444' : ((this.outlierSensitivity || 4) === 2 ? '#10b981' : ((this.outlierSensitivity || 4) === 3 ? '#3b82f6' : ((this.outlierSensitivity || 4) === 4 ? '#f59e0b' : 'var(--text-muted)')));
         }
         const outlierExplainer = document.getElementById('simOutlierExplainer');
         if (outlierExplainer) {
             const excCount = (data && data.excluded_outliers_count) || 0;
             const excTotal = (data && data.excluded_outliers_total) || 0;
-            outlierExplainer.innerHTML = this.getOutlierSensitivityExplainer(this.outlierSensitivity || 2, excCount, excTotal);
+            outlierExplainer.innerHTML = this.getOutlierSensitivityExplainer(this.outlierSensitivity || 4, excCount, excTotal);
         }
         const outlierSlider = document.getElementById('simOutlierSlider');
         if (outlierSlider && document.activeElement !== outlierSlider) {
-            outlierSlider.value = this.outlierSensitivity || 2;
+            outlierSlider.value = this.outlierSensitivity || 4;
         }
 
         // Update Seasonality Explainer, Badge & Slider
