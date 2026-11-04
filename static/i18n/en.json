@@ -2562,6 +2562,7 @@
   "overview_autopilot_popover_title": "Auto-Pilot Mode",
   "overview_autopilot_recent_actions": "Recent Autonomous Actions",
   "overview_autopilot_timer_chip_ondemand": "On next import",
+  "overview_autopilot_timer_chip_paused": "Paused",
   "overview_autopilot_toggled_off": "Auto-Pilot mode paused",
   "overview_autopilot_toggled_on": "Auto-Pilot mode activated",
   "overview_autopilot_tolerance": "Tolerance",

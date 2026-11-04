@@ -9,7 +9,7 @@
 @import url('./base/layout.css?v=94');
 
 /* 2. Reusable UI Components */
-@import url('./components/buttons.css?v=82');
+@import url('./components/buttons.css?v=83');
 @import url('./components/forms.css?v=84');
 @import url('./components/modals.css?v=96');
 @import url('./components/tables.css?v=82');
@@ -24,15 +24,15 @@
 @import url('./views/bank_sync.css?v=82');
 @import url('./views/recurrences.css?v=98');
 @import url('./views/chat.css?v=83');
-@import url('./views/settings.css?v=93');
-@import url('./views/autopilot.css?v=86');
+@import url('./views/settings.css?v=94');
+@import url('./views/autopilot.css?v=89');
 @import url('./views/cockpit.css?v=82');
 
 /* 4. Themes & Overrides */
 @import url('./themes/titanium.css?v=82');
 @import url('./themes/previews.css?v=82');
-@import url('./themes/executive_overrides.css?v=82');
+@import url('./themes/executive_overrides.css?v=83');
 
 /* 5. Responsive & Media Queries */
-@import url('./responsive/mobile.css?v=101');
+@import url('./responsive/mobile.css?v=104');
 @import url('./responsive/print.css?v=82');

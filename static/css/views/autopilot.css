@@ -3323,3 +3323,25 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 .ap-chain > :not(:first-child) {
     flex-shrink: 0;
 }
+
+@media (max-width: 480px) {
+    .ap-decision-badge-wrap {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .ap-decision-badge-wrap .ov-ap-decision-badge,
+    .ap-reason-badge {
+        max-width: 100%;
+        height: auto !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        overflow-wrap: anywhere;
+        text-overflow: clip !important;
+    }
+}
+
+#apPaginationBar .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
