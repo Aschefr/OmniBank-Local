@@ -598,18 +598,23 @@ window.OverviewView = {
             this._apCountdownInterval = null;
         }
 
-        const updateTick = () => {
+        const setTimerChip = (text) => {
             const timerChip = document.getElementById('ovAutopilotTimerChip');
+            if (!timerChip) return;
+            timerChip.textContent = text;
+            timerChip.style.display = 'inline-flex';
+            // Sur téléphone, cette pastille prend la place du libellé
+            document.getElementById('ovAutopilotBtn')?.classList.add('has-chip');
+        };
+
+        const updateTick = () => {
             const popoverBadge = document.getElementById('ovApNextCountdownBadge');
 
             if (!this._apStatus) return;
             const isEnabled = !!this._apStatus.is_enabled;
 
             if (!isEnabled) {
-                if (timerChip) {
-                    timerChip.textContent = '⏸️ ' + (window.i18n.t('overview_autopilot_btn_inactive') || 'En veille');
-                    timerChip.style.display = 'inline-flex';
-                }
+                setTimerChip('⏸️ ' + (window.i18n.t('overview_autopilot_timer_chip_paused') || 'En veille'));
                 return;
             }
 
@@ -624,10 +629,7 @@ window.OverviewView = {
                 if (popoverBadge) {
                     popoverBadge.textContent = '⏳ ' + formatted;
                 }
-                if (timerChip) {
-                    timerChip.textContent = '⏳ ' + formattedShort;
-                    timerChip.style.display = 'inline-flex';
-                }
+                setTimerChip('⏳ ' + formattedShort);
 
                 if (remSec === 0 && !this._apSyncTriggered) {
                     this._apSyncTriggered = true;
@@ -640,10 +642,7 @@ window.OverviewView = {
                     }, 3500);
                 }
             } else {
-                if (timerChip) {
-                    timerChip.textContent = '⚡ ' + (window.i18n.t('overview_autopilot_timer_chip_ondemand') || 'Au prochain import');
-                    timerChip.style.display = 'inline-flex';
-                }
+                setTimerChip('⚡ ' + (window.i18n.t('overview_autopilot_timer_chip_ondemand') || 'Au prochain import'));
             }
         };
 

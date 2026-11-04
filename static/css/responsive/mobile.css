@@ -1608,6 +1608,10 @@ select.inline-input:focus option:checked {
         white-space: nowrap !important;
     }
 
+    .overview-autopilot-btn.has-chip .overview-autopilot-timer-chip {
+        min-width: 0 !important;
+    }
+
     .overview-bank-sync-btn {
         flex: 1 1 0 !important;
         height: 36px !important;
@@ -1951,6 +1955,7 @@ select.inline-input:focus option:checked {
 
     .overview-trend-mode-toggle {
         display: flex;
+        flex-wrap: wrap;
         width: 100%;
         justify-content: space-between;
         gap: 4px;
@@ -5907,4 +5912,61 @@ button, .btn, .nav-btn, [role="button"] {
     .mpf-grid2 {
         grid-template-columns: 1fr !important;
     }
+}
+
+/* Bouton Auto-Pilote du Cockpit : l'icône et la pastille d'état remplacent le libellé sur téléphone */
+@media (max-width: 600px) {
+    .overview-autopilot-btn.has-chip .overview-autopilot-label {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        clip-path: inset(50%) !important;
+    }
+
+    .overview-autopilot-btn.has-chip .overview-autopilot-icon,
+    .overview-autopilot-btn.has-chip .overview-autopilot-dot,
+    .overview-autopilot-btn.has-chip .overview-autopilot-badge {
+        flex-shrink: 0 !important;
+    }
+
+    .overview-autopilot-btn.has-chip .overview-autopilot-timer-chip {
+        display: block !important;
+        flex-shrink: 1 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+}
+
+@media (max-width: 430px) {
+    .overview-autopilot-btn.has-chip .overview-autopilot-dot {
+        display: none !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .overview-autopilot-btn.has-chip {
+        padding: 0 6px !important;
+    }
+}
+
+@media (max-width: 375px) {
+    .overview-autopilot-btn.has-chip .overview-autopilot-icon {
+        display: none !important;
+    }
+}
+
+/* Filtres sur écran intermédiaire : à la ligne plutôt qu'un défilement sans repère */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .view-filter-group {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+    }
+}
+
+/* Simulateur : les deux modes gardent leur texte entier */
+#simModeToggleGroup .btn {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    overflow: visible !important;
 }
