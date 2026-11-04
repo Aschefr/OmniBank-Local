@@ -14,12 +14,17 @@ Le **Simulateur What-If** d'OmniBank permet d'anticiper l'impact de décisions f
    - Visualisation d'une fourchette haute et basse (intervalles de confiance à $\pm 1\sigma$ et $\pm 2\sigma$).
 3. **Profils de Saisonnalité** :
    - Intégration des variations annuelles régulières : pic estival de vacances (juillet/août) et dépenses de fin d'année / fêtes (décembre).
-4. **Curseur de Prudence** :
-   - Permet d'injecter une marge de sécurité réglable sur les dépenses courantes imprévues.
-   - En mode organisation, le maximum ne garde que les recettes revenues l'année d'avant, au plus bas des deux années, et retient les dépenses de l'année la plus chère. Sans année complète pour comparer, il applique une marge de 10 %.
-5. **Dépenses exceptionnelles** :
-   - Le mode Conseillé ne retire que les achats hors norme (plus de 800 €). Le mode Avancé permet de filtrer davantage ou de tout inclure.
-6. **Historique récent** :
+4. **Mode Avancé** :
+   - Il part du mode Conseillé. Le curseur « Scénario de l'année » va de l'année favorable au coup dur.
+   - Année favorable : la meilleure des deux dernières années pour les recettes hors salaire, la moins chère pour les dépenses courantes. Elle demande deux ans d'historique.
+   - Coup dur : plus de recettes hors salaire, dépenses courantes +20 %, inflation 2 %/an. Le salaire reste. En organisation : seules les recettes revenues deux années de suite, et un écart de dépenses aussi grand que celui constaté entre les deux années.
+   - Le second curseur, « Et si vous changiez vos dépenses courantes ? », va de −50 % à +30 %. Plus de réglages : gros achats passés, revenus, rythme des dépenses, inflation en plus.
+   - Une augmentation de salaire se simule avec le modèle prédéfini « Augmentation de salaire ».
+5. **Mode Conseillé** :
+   - Une prévision réaliste : salaire, récurrences et charges connus, plus ce que l'historique montre de régulier (remboursements, ventes, primes, charges sans récurrence). Une recette unique, comme un prêt ou un gain, ne compte pas. En organisation : les recettes et dépenses de la dernière année, à leur mois. Un gros achat futur n'est jamais prévu.
+6. **Dépenses exceptionnelles** :
+   - Le mode Conseillé ne retire que les achats hors norme (plus de 800 €) et lit les dépenses courantes sur 18 mois. Le mode Avancé permet de filtrer davantage ou de tout inclure.
+7. **Historique récent** :
    - Avec moins de 4 mois d'historique, les enveloppes servent de repère si elles dépassent les dépenses saisies. La projection reste à prendre avec recul tant que les dépenses courantes ne sont pas toutes saisies.
 
 ## 3. Scénarios et Événements de Vie

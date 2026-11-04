@@ -99,7 +99,7 @@ test.describe('Simulateur : compte cible', () => {
     await expect(sources).toHaveCount(1);
     const text = await sources.evaluate(el => el.textContent);
     expect(text).not.toContain('0 €/');
-    const expected = await page.evaluate(() => window.i18n.t('sim_transparency_conservative_no_salary'));
+    const expected = await page.evaluate(() => window.i18n.t('sim_transparency_recommended_no_other'));
     expect(text).toContain(expected);
   });
 
@@ -113,6 +113,54 @@ test.describe('Simulateur : compte cible', () => {
 
     const html = await page.evaluate(() => window.SimulatorView.renderMonthlyTable(window.SimulatorView.simulationData));
     expect(html).not.toMatch(/[-+]\s*0,00/);
+  });
+
+  test('15.07 - Le curseur de scénario change le solde affiché à côté, et le mode conseillé le remet à zéro', async ({ page }) => {
+    await openSimulator(page);
+    await page.evaluate(() => window.SimulatorView.setSimMode('advanced'));
+    await page.waitForSelector('#simScenarioSlider');
+    await page.evaluate(() => window.SimulatorView.setScenarioLevel(0));
+    await page.waitForFunction(() => window.SimulatorView.simulationData.scenario.level === 0);
+
+    const sent = [];
+    page.on('request', r => { if (r.url().includes('/api/simulator/run')) sent.push(r.postDataJSON()); });
+    const shown = () => page.evaluate(() => document.getElementById('simScenarioReadout').textContent);
+    const before = await shown();
+
+    await page.evaluate(() => {
+      const slider = document.getElementById('simScenarioSlider');
+      slider.value = 100;
+      slider.dispatchEvent(new Event('input'));
+    });
+    await expect(page.locator('#simScenarioLabel')).toHaveText(await page.evaluate(() => window.i18n.t('sim_adv_level_hard')));
+    await page.waitForFunction(() => window.SimulatorView.simulationData.scenario.level === 1);
+    expect(sent.some(body => body.projection_profile === 'recommended' && body.scenario_level === 1)).toBeTruthy();
+    await expect.poll(shown).not.toBe(before);
+
+    await page.evaluate(() => window.SimulatorView.setSimMode('recommended'));
+    await page.waitForFunction(() => window.SimulatorView.simulationData.scenario.level === 0);
+    expect(sent[sent.length - 1].scenario_level).toBe(0);
+  });
+
+  test('15.08 - Ouvert directement en mode avancé, le panneau suit le premier calcul', async ({ page }) => {
+    await openSimulator(page);
+    await page.evaluate(() => window.SimulatorView.setSimMode('advanced'));
+    await page.waitForSelector('#simScenarioSlider');
+    await page.evaluate(() => { window.SimulatorView.simulationData = null; window.SimulatorView.render(); });
+    await page.evaluate(() => window.SimulatorView.runSimulation());
+    await page.evaluate(() => window.SimulatorView.updateLiveSimulationView(false));
+    await page.evaluate(() => window.SimulatorView.onHorizonChange('6'));
+
+    const panel = await page.evaluate(() => ({
+      label: document.querySelector('.sim-adv-result span').textContent,
+      favorable: window.SimulatorView.simulationData.scenario.favorable_available,
+      min: document.getElementById('simScenarioSlider').min,
+    }));
+    expect(panel.label).toContain('6');
+    expect(panel.min).toBe(panel.favorable ? '-100' : '0');
+
+    await page.evaluate(() => window.SimulatorView.onHorizonChange('12'));
+    await page.evaluate(() => window.SimulatorView.setSimMode('recommended'));
   });
 
   test('15.06 - Sur téléphone, rien de coupé ni de caché', async ({ page }) => {
@@ -136,17 +184,17 @@ test.describe('Simulateur : compte cible', () => {
     expect(layout.stripButtonRight).toBeLessThanOrEqual(layout.stripRight);
     expect(layout.titleRight).toBeLessThanOrEqual(360);
 
-    await page.evaluate(() => {
-      window.SimulatorView.setSimMode('advanced');
-      if (!document.getElementById('simAdvancedBody').classList.contains('open')) window.SimulatorView.toggleSection('advanced');
-    });
+    await page.evaluate(() => window.SimulatorView.setSimMode('advanced'));
+    await page.waitForSelector('#simScenarioSlider');
+    await page.evaluate(() => { document.querySelector('.sim-adv-details').open = true; });
     const advanced = await page.evaluate(() => {
-      const strip = document.querySelector('.sim-advanced-strip');
-      const button = strip.querySelector('button');
-      return { width: strip.clientWidth, content: strip.scrollWidth, buttonClient: button.clientHeight, buttonContent: button.scrollHeight };
+      const panel = document.querySelector('.sim-adv');
+      const select = document.getElementById('simIncomeModeSelect').getBoundingClientRect();
+      return { width: panel.clientWidth, content: panel.scrollWidth, selectRight: select.right, viewport: innerWidth, resultRight: document.getElementById('simAdvResultValue').getBoundingClientRect().right };
     });
     expect(advanced.content).toBeLessThanOrEqual(advanced.width);
-    expect(advanced.buttonContent).toBeLessThanOrEqual(advanced.buttonClient);
+    expect(advanced.selectRight).toBeLessThanOrEqual(advanced.viewport);
+    expect(advanced.resultRight).toBeLessThanOrEqual(advanced.viewport);
     await page.evaluate(() => window.SimulatorView.setSimMode('recommended'));
 
     await page.evaluate(() => {

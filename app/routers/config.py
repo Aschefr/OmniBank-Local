@@ -35,6 +35,7 @@ CONFIG_DEFAULTS = {
     "sim_conservative_weight": "0.20",
     "sim_var_expense_adj": "0.0",
     "sim_outlier_sensitivity": "4",
+    "sim_scenario_level": "0",
     "sim_seasonality_mode": "disabled",
     "sim_seasonality_intensity": "1.0",
     "sim_income_mode": "historical_n1",

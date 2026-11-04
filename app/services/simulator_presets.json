@@ -1,5 +1,32 @@
 [
     {
+        "id": "salary_raise",
+        "i18n_key": "sim_preset_salary_raise",
+        "name": "Augmentation de salaire",
+        "name_fr": "Augmentation de salaire",
+        "name_en": "Salary raise",
+        "description": "Un gain mensuel à partir de la date de votre choix",
+        "desc_fr": "Un gain mensuel à partir de la date de votre choix",
+        "desc_en": "A monthly gain from the date of your choice",
+        "color": "#10b981",
+        "personal_only": true,
+        "start_next_month": true,
+        "edit_after_apply": true,
+        "events": [
+            {
+                "label": "Augmentation de salaire",
+                "label_fr": "Augmentation de salaire",
+                "label_en": "Salary raise",
+                "event_type": "recurring_income",
+                "amount": 100.0,
+                "duration_months": 36,
+                "notes": "Montant et date à ajuster",
+                "notes_fr": "Montant et date à ajuster",
+                "notes_en": "Adjust the amount and date"
+            }
+        ]
+    },
+    {
         "id": "vehicle_project",
         "i18n_key": "sim_preset_vehicle",
         "name": "Achat Véhicule",

@@ -876,3 +876,438 @@ def test_theoretical_recurring_variable_expense_is_not_counted_twice(db):
     month = _run(db, COURANT)["monthly_data"][1]
 
     assert month["baseline_expense"] == pytest.approx(1000.0)
+
+
+# ── Mode conseillé : une prévision qui ressemble à l'historique ──
+
+def _rec(db, account_id=None, horizon=12, **kw):
+    return run_simulation(db=db, horizon_months=horizon, account_id=account_id, projection_profile="recommended", income_mode="auto", **kw)
+
+
+def _steady_life(db, months=24):
+    for offset in range(-months, 0):
+        _tx(db, offset, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+        _tx(db, offset, 500.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+
+
+def test_recommended_counts_regular_income_from_history(db):
+    _steady_life(db)
+    for offset in (-2, -5, -8, -11):
+        _tx(db, offset, 300.0, "income", to_acc=COURANT, category="Remboursement", day=20)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["other_income_avg"] == pytest.approx(100.0)
+    assert res["monthly_data"][2]["baseline_income"] == pytest.approx(SALAIRE + 100.0)
+    assert res["projection_profile"] == "recommended"
+
+
+def test_recommended_ignores_a_one_off_loan_or_win(db):
+    _steady_life(db)
+    _tx(db, -3, 8000.0, "income", to_acc=COURANT, category="Emprunt", day=20)
+    _tx(db, -4, 1500.0, "income", to_acc=COURANT, category="Gains", day=20)
+    db.commit()
+
+    assert _rec(db, COURANT)["other_income_avg"] == 0.0
+
+
+def test_recommended_counts_a_yearly_bonus_seen_the_year_before(db):
+    _steady_life(db)
+    _tx(db, -2, 1800.0, "income", to_acc=COURANT, category="Prime", day=20)
+    _tx(db, -14, 1800.0, "income", to_acc=COURANT, category="Prime", day=20)
+    db.commit()
+
+    assert _rec(db, COURANT)["other_income_avg"] == pytest.approx(150.0)
+
+
+def test_recommended_does_not_count_planned_income_twice(db):
+    _steady_life(db)
+    db.add(RecurrenceTemplate(description="Aide", amount=150.0, type="income", frequency="Monthly", day_of_month=3, to_account_id=COURANT, category="Aide"))
+    for offset in range(-12, 0):
+        _tx(db, offset, 150.0, "income", to_acc=COURANT, category="Aide", day=3)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["other_income_avg"] == 0.0
+    assert res["monthly_data"][2]["baseline_income"] == pytest.approx(SALAIRE + 150.0)
+
+
+def test_recommended_includes_fixed_charges_without_a_recurrence(db):
+    _steady_life(db)
+    for offset in range(-6, 0):
+        _tx(db, offset, 90.0, "expense_fixed", from_acc=COURANT, category="Mutuelle", day=8)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["unplanned_fixed_avg"] == pytest.approx(90.0)
+    assert res["monthly_data"][2]["baseline_expense"] == pytest.approx(590.0)
+
+
+def test_recommended_does_not_count_a_planned_charge_twice(db):
+    _steady_life(db)
+    db.add(RecurrenceTemplate(description="Mutuelle", amount=90.0, type="expense_fixed", frequency="Monthly", day_of_month=8, from_account_id=COURANT, category="Mutuelle"))
+    for offset in range(-6, 0):
+        _tx(db, offset, 90.0, "expense_fixed", from_acc=COURANT, category="Mutuelle", day=8)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["unplanned_fixed_avg"] == 0.0
+    assert res["monthly_data"][2]["baseline_expense"] == pytest.approx(590.0)
+
+
+def test_recommended_reads_everyday_spending_over_eighteen_months(db):
+    for offset in range(-18, -6):
+        _tx(db, offset, 900.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    for offset in range(-6, 0):
+        _tx(db, offset, 300.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    db.commit()
+
+    assert _rec(db, COURANT)["avg_variable_expense"] == pytest.approx(700.0)
+
+
+def test_recommended_is_above_the_stress_test_when_history_shows_more_income(db):
+    _steady_life(db)
+    for offset in range(-12, 0):
+        _tx(db, offset, 200.0, "income", to_acc=COURANT, category="Ventes", day=20)
+    db.commit()
+
+    recommended = _rec(db, COURANT)["simulated_final_balance"]
+    stress = _run(db, COURANT, weight=1.0)["simulated_final_balance"]
+
+    assert recommended > stress
+
+
+@pytest.mark.parametrize("org", [False, True])
+def test_recommended_keeps_accounts_summing_to_the_global(db, org):
+    if org:
+        _organisation(db)
+    _steady_life(db)
+    for offset in (-2, -6, -14):
+        _tx(db, offset, 300.0, "income", to_acc=LIVRET, category="Interets", day=20)
+        _tx(db, offset, 200.0, "income", to_acc=COURANT, category="Interets", day=20)
+    for offset in range(-6, 0):
+        _tx(db, offset, 60.0, "expense_fixed", from_acc=LIVRET, category="Frais", day=8)
+    db.commit()
+
+    whole = _rec(db)["simulated_final_balance"]
+    parts = sum(_rec(db, acc)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole, abs=0.05)
+
+
+def test_recommended_organisation_follows_the_last_year(db):
+    _org_two_years(db)
+
+    res = _rec(db, COURANT)
+
+    # Pas de stress-test : la dotation de la dernière année, à son mois
+    assert sum(m["baseline_income"] for m in res["monthly_data"]) == pytest.approx(60000.0)
+    assert res["monthly_data"][1]["baseline_expense"] == pytest.approx(1000.0)
+
+
+# ── Mode conseillé : historique court ou vide ────────────────
+
+def test_recommended_empty_profile_stays_flat(db):
+    res = _rec(db)
+
+    assert res["simulated_final_balance"] == pytest.approx(res["initial_balance"])
+    assert res["other_income_avg"] == 0.0
+
+
+def test_recommended_recurrences_only(db):
+    db.add_all([
+        RecurrenceTemplate(description="Paie", amount=SALAIRE, type="income", frequency="Monthly", day_of_month=28, to_account_id=COURANT, category="Salaire"),
+        RecurrenceTemplate(description="Loyer", amount=700.0, type="expense_fixed", frequency="Monthly", day_of_month=2, from_account_id=COURANT, category="Loyer"),
+    ])
+    db.commit()
+
+    month = _rec(db, COURANT)["monthly_data"][2]
+
+    assert month["baseline_income"] == pytest.approx(SALAIRE)
+    assert month["baseline_expense"] == pytest.approx(700.0)
+
+
+def test_recommended_envelopes_only(db):
+    db.add(Budget(name="Courses", monthly_amount=400.0, period="monthly", envelope_type="spending"))
+    db.commit()
+
+    assert _rec(db)["avg_variable_expense"] == pytest.approx(400.0)
+
+
+def test_recommended_current_month_only_uses_what_is_already_spent(db):
+    today = date.today()
+    db.add(Transaction(date_saisie=today, date_operation=today, description="Courses", amount=250.0, type="expense_var",
+                       from_account_id=COURANT, category="Courses", reconciliation_date=today))
+    db.commit()
+
+    assert _rec(db)["avg_variable_expense"] == pytest.approx(250.0)
+
+
+def test_recommended_one_month_of_history(db):
+    _tx(db, -1, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    _tx(db, -1, 400.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["recent_history"] is True
+    assert res["avg_variable_expense"] == pytest.approx(400.0)
+    assert res["monthly_data"][2]["baseline_income"] == pytest.approx(SALAIRE)
+    assert res["other_income_avg"] == 0.0
+
+
+def test_short_history_does_not_turn_a_second_pay_into_a_bonus(db):
+    _tx(db, -1, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=2)
+    _tx(db, -1, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=28)
+    db.commit()
+
+    assert _rec(db, COURANT)["other_income_avg"] == 0.0
+
+
+def test_big_purchase_among_few_operations_is_not_the_usual_spending(db):
+    _tx(db, -1, 6000.0, "expense_var", from_acc=COURANT, category="Voiture", day=5)
+    _tx(db, -1, 40.0, "expense_var", from_acc=COURANT, category="Courses", day=6)
+    _tx(db, -1, 60.0, "expense_var", from_acc=COURANT, category="Courses", day=7)
+    db.commit()
+
+    res = _rec(db, COURANT)
+
+    assert res["excluded_outliers_total"] == pytest.approx(6000.0)
+    assert res["avg_variable_expense"] == pytest.approx(100.0)
+
+
+def test_recent_recommended_keeps_accounts_summing_to_the_global(db):
+    db.add(Budget(name="Courses", monthly_amount=500.0, period="monthly", envelope_type="spending"))
+    _tx(db, -2, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    _tx(db, -1, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    _tx(db, -2, 50.0, "expense_var", from_acc=LIVRET, category="Courses", day=5)
+    db.commit()
+
+    whole = _rec(db)["simulated_final_balance"]
+    parts = sum(_rec(db, acc)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole, abs=0.05)
+
+
+def test_young_organisation_regular_income_comes_back_every_month(db):
+    _organisation(db)
+    for offset in range(-3, 0):
+        _tx(db, offset, 1000.0, "income", to_acc=COURANT, category="Cotisations", day=12)
+        _tx(db, offset, 900.0, "expense_var", from_acc=COURANT, category="Sorties", day=5)
+    db.commit()
+
+    months = _rec(db, COURANT)["monthly_data"]
+
+    assert all(m["baseline_income"] == pytest.approx(1000.0) for m in months[1:])
+
+
+def test_young_organisation_single_grant_does_not_spread(db):
+    _organisation(db)
+    _tx(db, -3, 50000.0, "income", to_acc=COURANT, category="Dotation", day=12)
+    db.commit()
+
+    assert sum(m["baseline_income"] for m in _rec(db, COURANT)["monthly_data"]) == pytest.approx(50000.0)
+
+
+# ── Curseur de scénario du mode conseillé ────────────────────
+
+def _two_years_of_life(db):
+    for offset in range(-24, 0):
+        _tx(db, offset, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    for offset in range(-12, 0):
+        _tx(db, offset, 500.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    for offset in range(-24, -12):
+        _tx(db, offset, 300.0, "expense_var", from_acc=COURANT, category="Courses", day=5)
+    for offset in (-2, -5, -8, -11):
+        _tx(db, offset, 300.0, "income", to_acc=COURANT, category="Ventes", day=20)
+    for offset in (-14, -16, -18, -20, -22, -23):
+        _tx(db, offset, 300.0, "income", to_acc=COURANT, category="Ventes", day=20)
+    db.commit()
+
+
+def test_scenario_at_zero_is_the_recommended_forecast(db):
+    _two_years_of_life(db)
+
+    assert _rec(db, COURANT, scenario_level=0.0)["simulated_final_balance"] == pytest.approx(_rec(db, COURANT)["simulated_final_balance"])
+
+
+def test_hard_blow_removes_extra_income_and_raises_spending_and_inflation(db):
+    _two_years_of_life(db)
+
+    base = _rec(db, COURANT)
+    res = _rec(db, COURANT, scenario_level=1.0)
+
+    assert base["other_income_avg"] == pytest.approx(100.0)
+    assert res["other_income_avg"] == 0.0
+    assert res["scenario"]["expense_factor"] == pytest.approx(1.20)
+    assert res["scenario"]["expense_month"] == pytest.approx(base["avg_variable_expense"] * 1.20, abs=0.01)
+    assert res["scenario"]["inflation_rate"] == pytest.approx(0.02)
+    assert res["simulated_final_balance"] < base["simulated_final_balance"]
+    # Le salaire reste : le coup dur n'est pas une perte d'emploi
+    assert res["monthly_data"][2]["baseline_income"] == pytest.approx(SALAIRE)
+
+
+def test_hard_blow_is_proportional(db):
+    _two_years_of_life(db)
+
+    half = _rec(db, COURANT, scenario_level=0.5)
+
+    assert half["other_income_avg"] == pytest.approx(50.0)
+    assert half["scenario"]["expense_factor"] == pytest.approx(1.10)
+    assert half["scenario"]["inflation_rate"] == pytest.approx(0.01)
+
+
+def test_favorable_year_uses_the_best_of_the_last_two_years(db):
+    _two_years_of_life(db)
+
+    base = _rec(db, COURANT)
+    res = _rec(db, COURANT, scenario_level=-1.0)
+
+    assert res["scenario"]["favorable_available"] is True
+    # 6 ventes l'année d'avant contre 4 : 150 €/mois au lieu de 100
+    assert res["other_income_avg"] == pytest.approx(150.0)
+    # L'année la moins chère : 300 €/mois
+    assert res["scenario"]["expense_month"] == pytest.approx(300.0, abs=0.01)
+    assert res["simulated_final_balance"] > base["simulated_final_balance"]
+
+
+def test_favorable_year_cannot_be_invented_without_two_years(db):
+    _steady_life(db, months=8)
+    db.commit()
+
+    base = _rec(db, COURANT)
+    res = _rec(db, COURANT, scenario_level=-1.0)
+
+    assert res["scenario"]["favorable_available"] is False
+    assert res["scenario"]["level"] == 0.0
+    assert res["simulated_final_balance"] == pytest.approx(base["simulated_final_balance"])
+
+
+def test_scenario_on_an_empty_profile_stays_flat(db):
+    for level in (-1.0, 1.0):
+        res = _rec(db, scenario_level=level)
+        assert res["simulated_final_balance"] == pytest.approx(res["initial_balance"])
+
+
+def test_hard_blow_works_on_a_recent_profile(db):
+    _young_profile(db)
+
+    base = _rec(db)
+    res = _rec(db, scenario_level=1.0)
+
+    assert res["scenario"]["expense_month"] == pytest.approx(600.0)
+    assert res["simulated_final_balance"] < base["simulated_final_balance"]
+
+
+@pytest.mark.parametrize("level", [-1.0, -0.5, 0.5, 1.0])
+@pytest.mark.parametrize("org", [False, True])
+def test_scenario_keeps_accounts_summing_to_the_global(db, level, org):
+    if org:
+        _organisation(db)
+    _two_years_of_life(db)
+    for offset in (-3, -15):
+        _tx(db, offset, 400.0, "income", to_acc=LIVRET, category="Interets", day=20)
+    for offset in (-6, -7, -18):
+        _tx(db, offset, 90.0, "expense_var", from_acc=LIVRET, category="Frais", day=8)
+    db.commit()
+
+    whole = _rec(db, scenario_level=level)["simulated_final_balance"]
+    parts = sum(_rec(db, acc, scenario_level=level)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole, abs=0.05)
+
+
+def test_organisation_hard_blow_uses_the_gap_between_the_two_years(db):
+    _org_two_years(db, last_exp=1200.0, previous_exp=1000.0)
+
+    base = _rec(db, COURANT)
+    res = _rec(db, COURANT, scenario_level=1.0)
+
+    assert sum(m["baseline_income"] for m in res["monthly_data"]) == pytest.approx(50000.0)
+    assert res["scenario"]["expense_factor"] == pytest.approx(1.20)
+    assert res["scenario"]["uncertain_income_year"] == 0.0
+    assert base["scenario"]["uncertain_income_year"] == pytest.approx(10000.0)
+
+
+def test_organisation_favorable_year(db):
+    _org_two_years(db, last_grant=50000.0, previous_grant=60000.0, last_exp=1200.0, previous_exp=1000.0)
+
+    res = _rec(db, COURANT, scenario_level=-1.0)
+
+    assert sum(m["baseline_income"] for m in res["monthly_data"]) == pytest.approx(60000.0)
+    assert res["scenario"]["expense_month"] == pytest.approx(1000.0, abs=0.01)
+
+
+def test_young_organisation_hard_blow_uses_the_margin(db):
+    _organisation(db)
+    _tx(db, -3, 60000.0, "income", to_acc=COURANT, category="Dotation", day=12)
+    _org_small_expenses(db, months=6)
+    db.commit()
+
+    res = _rec(db, COURANT, scenario_level=1.0)
+
+    assert res["scenario"]["favorable_available"] is False
+    assert sum(m["baseline_income"] for m in res["monthly_data"]) == pytest.approx(54000.0)
+    assert res["scenario"]["expense_factor"] == pytest.approx(1.10)
+
+
+def test_average_income_mode_in_recommended_uses_the_average(db):
+    _steady_life(db)
+    for offset in range(-12, 0):
+        _tx(db, offset, 200.0, "income", to_acc=COURANT, category="Ventes", day=20)
+    db.commit()
+
+    month = _rec_mode(db, "average")["monthly_data"][2]
+
+    assert month["baseline_income"] == pytest.approx(SALAIRE + 200.0)
+
+
+def _rec_mode(db, mode):
+    return run_simulation(db=db, horizon_months=12, account_id=COURANT, projection_profile="recommended", income_mode=mode)
+
+
+def test_scenario_is_ignored_outside_recommended(db):
+    _two_years_of_life(db)
+
+    plain = _run(db, COURANT, weight=0.5)["simulated_final_balance"]
+
+    assert _run(db, COURANT, weight=0.5, scenario_level=1.0)["simulated_final_balance"] == pytest.approx(plain)
+
+
+def test_favorable_year_does_not_count_an_old_salary_as_extra_income(db):
+    # Seuls les derniers salaires portent le repère : les plus anciens restent des salaires
+    for offset in range(-24, -12):
+        _tx(db, offset, SALAIRE, "income", to_acc=COURANT, category="Salaire", day=15)
+    for offset in range(-12, 0):
+        _tx(db, offset, SALAIRE, "income", to_acc=COURANT, is_salary=True, category="Salaire", day=15)
+    for offset in (-2, -5, -14, -17):
+        _tx(db, offset, 120.0, "income", to_acc=COURANT, category="Ventes", day=20)
+    db.commit()
+
+    assert _rec(db, COURANT, scenario_level=-1.0)["other_income_avg"] == pytest.approx(20.0)
+
+
+def test_inflation_keeps_accounts_summing_to_the_global(db):
+    _steady_life(db)
+    db.add(RecurrenceTemplate(description="Credit auto", amount=300.0, type="expense_fixed", frequency="Monthly", day_of_month=3, from_account_id=COURANT, category="Credit"))
+    db.commit()
+
+    whole = _rec(db, inflation_rate=0.05)["simulated_final_balance"]
+    parts = sum(_rec(db, acc, inflation_rate=0.05)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole, abs=0.05)
+
+
+def test_inflation_does_not_grow_savings_transfers(db):
+    _steady_life(db)
+    _monthly_transfer(db)
+    db.commit()
+
+    whole = _rec(db, inflation_rate=0.05)["simulated_final_balance"]
+    parts = sum(_rec(db, acc, inflation_rate=0.05)["simulated_final_balance"] for acc in (COURANT, LIVRET, VIDE))
+
+    assert parts == pytest.approx(whole, abs=0.05)
