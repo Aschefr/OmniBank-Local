@@ -1,6 +1,6 @@
 # 🎯 Page Documentation: Budgets, Envelopes & Auto-Pilot
 
-The **Budgets** page manages personal finances using the **Budget Envelope Method**. It pairs real-time visual progress monitoring with a local-first **Budget Auto-Pilot** engine capable of discovering orphan categories, enriching existing envelopes, and suggesting smoothed monthly recalibrations, operating 100% autonomously or assisted by a local AI model.
+The **Budgets** page tracks day-to-day spending using the **budget envelope method**. It opens on pending suggestions, the current period and a one-line summary of what needs attention. The **budget Auto-Pilot** spots categories without an envelope and limits worth reviewing, using the built-in engine or a local AI.
 
 ---
 
@@ -13,140 +13,108 @@ The **Budgets** page manages personal finances using the **Budget Envelope Metho
 *Detailed view of an envelope's consumption and associated transactions.*
 
 ![Budget Edit](../../../screenshots/05_budgets_detail_edition.png)
-*Modal for editing and locking budget envelope caps.*
+*Editing and locking a budget envelope.*
 
 ![Ollama AI Suggestions](../../../screenshots/05_budgets_suggestion_ia.png)
-*Budget recommendation module and interactive review modal.*
+*Budget suggestions.*
 
 ---
 
-## 🛠️ Principles & Visual Features
+## 🛠️ Tracking Your Envelopes
 
-### 1. The Budget Envelope Method
-A budget envelope represents an **intentional monthly spending ceiling** assigned to one or more expense categories (e.g., *Food & Groceries*, *Mobility & Fuel*, *Leisure & Outings*).
-- **Three-tier dynamic progress bar:**
-  - 🟢 **Green (0% to 80%):** Spending pace under control.
-  - 🟠 **Orange (81% to 99%):** Attention threshold reached, approaching ceiling.
-  - 🔴 **Red (≥ 100%):** Budget exceeded.
-- **Remaining balance:** Real-time calculation of remaining amount and consumed percentage.
+### 1. The Envelope Method
+An envelope is a **spending limit** assigned to one or more categories (e.g. *Groceries*, *Transport*). An expense counts in a single envelope: a category already tracked by another envelope over the same period cannot be added, and a spending envelope needs at least one category.
 
-### 2. Side Panel for Transaction Inspection
-Clicking on an envelope card opens a contextual side panel without navigating away. It exhaustively lists all actual transactions recorded during the current month for the envelope's categories, letting you quickly spot cost drivers.
+### 2. Periods and Groups
+- **Personal mode:** monthly envelopes follow your **pay cycle**, like the Cockpit, not the calendar month.
+- **Organisation mode:** nothing depends on pay, envelopes are grouped by account and finished ones move to the end of the list.
+- **Groups:** each group (pay cycle, yearly, long term…) starts with its total, the same as in the sidebar, then lists its envelopes as compact rows sorted by urgency. Yearly envelopes are viewed year by year.
+- **Planned charges:** envelopes whose spending mostly comes from your recurring transactions are grouped here, collapsed. They are left out of totals by default, and an option adds them back.
 
-### 3. Sanitized Envelope Locking (`🔒`)
-Any envelope can be locked via its edit modal. A locked envelope:
-- Displays a prominent lock icon `🔒`.
-- Is **strictly quarantined**: the Auto-Pilot engine is prohibited from proposing any ceiling changes (ideal for fixed, non-negotiable costs like rent, mortgage, or insurance).
+### 3. Reading an Envelope
+Each row shows **spent to date** against the limit, transactions still **planned**, an **expected pace** marker and a plain status ("57.74 € over", "98.47 € left").
 
-### 4. Zero-F5 Reactivity (100% Real-Time)
-The budget interface is fully reactive: creating envelopes, validating suggestions, closing, or editing immediately updates the view via internal DOM `CustomEvent` hooks without ever requiring a manual page refresh (F5).
+A **notification** is sent when an envelope reaches 90% and when it goes over, once per envelope and period.
 
----
+### 4. Detail and Editing
+Clicking an envelope opens its detail: the gauge, then its transactions, with a "planned" tag on upcoming ones.
+- **Edit:** while editing, the right column shows the transactions tracked by the checked categories, updated at each change. Categories already tracked by another envelope are gathered at the end of the list and cannot be checked.
+- **Use as limit:** takes the categories' usual spending (average over the last 12 months).
+- **Raise to …:** offered only when the envelope is over its limit.
+- **Pin:** shows the envelope at the top of the sidebar.
+- **Lock (`🔒`):** Auto-Pilot no longer suggests any limit change for this envelope, and it no longer follows recurring charges.
 
-## 🤖 The Budget Auto-Pilot & Automations Module
+### 5. The Tools Menu
+- **Automations:** budget Auto-Pilot settings.
+- **Envelope suggestions:** the suggestions side panel.
+- **Customize display:** pinned envelopes, displayed totals and short names in the sidebar.
+- **Delete several envelopes…:** one choice per group, nothing checked at first, the total on the button and a warning for piggy bank deposits. "Undo" restores everything at once: envelopes, categories, deposits and pending suggestions.
 
-Accessible from the top toolbar via the **`⚙️ Automations`** button or directly from the suggestions notification banner, this module governs the application's budget intelligence.
-
-### 1. Choice of Suggestion Engine
-Users can select their preferred analysis engine:
-* **⚙️ Deterministic Engine (Default, Recommended):**
-  - Runs **100% offline**, with zero hardware requirements or network calls.
-  - Instantaneous (< 50 ms) execution via statistical Winsorizing and thematic clustering algorithms.
-* **🤖 Local AI-Assisted Engine (Ollama):**
-  - Powered by a local Ollama instance running on your machine (e.g., `gemma4:e4b`, `mistral`, `llama3`).
-  - Semantically analyzes category descriptions to create natural groupings.
-  - **Zero-crash automatic fallback:** If Ollama is offline or unavailable, the system silently and seamlessly falls back to the deterministic engine without throwing errors or interrupting workflow.
+### 6. Updates Without Reloading
+Changes appear without reloading the page. Envelopes and suggestions added by the background analysis also appear on the open page, about ten seconds later. The update waits while you are typing or a window is open.
 
 ---
 
-## 🧠 Two-Pillar Algorithmic Architecture
+## 🧭 The Suggestions Panel
 
-The budget Auto-Pilot evaluates finances across two distinct, safeguarded pillars:
+**Tools > Envelope suggestions** opens a panel next to your envelopes. Suggestions from the built-in engine appear immediately, with a summary line: what they cost per month and what remains of your pay or income.
 
-### Pillar A: Envelope Discovery & Intelligent Enrichment
+- **Three groups:** additions to your envelopes, limits to review, new envelopes. Each suggestion shows its categories, an editable amount and a few example transactions.
+- **Refine with AI:** optional, and shown only when an AI is configured. When it does not answer, suggestions are clearly presented as coming from the built-in engine.
+- **Adjust the amounts:** three plain levels (tight, usual, with headroom).
+- **Dismiss:** removes a suggestion. You can find it in the history and reactivate it from there.
+- **Main button:** it says what it will do ("Create 3 and complete 1"). The page then scrolls to the changed envelopes and highlights them.
 
-Pillar A inspects expense categories currently not covered by any active envelope (*orphan categories*).
+"Review" on the Auto-Pilot banner and the "Suggested limit" badge on an envelope open this same panel.
 
-1. **Intelligent Envelope Enrichment:**
-   - Instead of cluttering your dashboard with redundant micro-envelopes (e.g. creating an isolated envelope for "Bakery" when "Food & Groceries" already exists), the engine identifies thematic affinity.
-   - It proposes to **attach the orphan category to an existing envelope** and adjust its ceiling by the observed monthly average.
-2. **Cohesive Envelope Creation:**
-   - For orphan categories without an existing thematic match, the engine groups related categories together (e.g. *Mobility* grouping *Gasoline*, *Tolls*, *Parking*).
-3. **🛡️ The One-Off Expense Safeguard ($\ge 2$ Observed Months):**
+---
+
+## 🤖 The Budget Auto-Pilot
+
+Its settings are in **Tools > Automations**.
+
+### When Does the Analysis Run?
+- **Continuously:** about once a minute, the background analysis looks for new regular categories and checks envelope alerts.
+- **At each new period** (pay cycle, or month in organisation mode): it spots the limits to review.
+- **On startup:** first analysis about 15 seconds after launch, catching up if a period was missed.
+- **On demand:** with the **Run analysis now** button.
+
+### The Engine
+- **Deterministic (default):** works with no AI and no network connection.
+- **AI-assisted:** reads the meaning of categories to form groups. If it does not answer, the deterministic engine takes over.
+
+### Part A: Categories Without an Envelope
+
+1. **Addition to an existing envelope:** a category that fits an envelope is suggested as an addition, and the limit grows by the suggested amount, starting from the current limit. Never into a planned-charges envelope.
+2. **New envelope:** related categories are grouped into a coherent envelope.
+3. **Free spending only:** planned charges, such as a loan or a subscription, are already tracked by your recurring transactions and are flagged separately.
+4. **🛡️ At least 2 months of spending:**
    > [!IMPORTANT]
-   > **Golden Rule of Rest-to-Live Protection:**
-   > To qualify for envelope creation or enrichment, an expense category must show debits across **at least 2 distinct calendar months**.
-   > 
-   > **Why is this safeguard essential?**
-   > If the algorithm created a monthly envelope for an isolated, one-time purchase (such as a €1,500 home appliance or an isolated €50 birthday gift that occurred only once), it would establish a recurring phantom expense that **artificially reduces your monthly Rest to Live balance forever**. The system requires proof of an ongoing habit before proposing a recurring budget.
-4. **Configurable Floor Threshold:**
-   - Default set to **€30.00**, preventing unnecessary budget proposals for negligible minor expenses.
-5. **Persistent Rejection (`DISMISSED`):**
-   - Dismissing a suggestion (`[Dismiss]`) permanently records the decision in the audit log. The category will never be suggested again in future analyses.
+   > A category is only auto-created, or suggested with high confidence, with spending in **at least 2 distinct months**. A monthly envelope created for a one-off purchase would lower your Remaining Budget every month for no reason.
+5. **Dismissed suggestions:** a dismissed category is not suggested again, unless you reactivate it from the history.
+
+**Auto-create without confirmation:** this option directly creates envelopes for the regular categories detected, including pending suggestions. A message at the top of the page lists what was created until you click "Got it". A category you remove from an envelope comes back as a simple suggestion.
+
+### Part B: Limits to Review
+
+A limit is a target: it does not follow spending month after month. Auto-Pilot suggests a new limit only if a monthly envelope was **exceeded**, or **less than 60% used**, in each of the **last 3 completed periods**.
+
+- **Suggested amount:** the median spending of these 3 periods, rounded up to €5.
+- **Minimum gap:** no suggestion if the gap is under €5 or under 5% of the limit.
+- **Frequency:** once per period. Unhandled suggestions from the previous period are replaced.
+- **Approval:** a suggested limit is **never applied on its own**.
+- **Exclusions:** piggy banks, projects, yearly or dated envelopes, locked envelopes, fixed-charge envelopes.
+
+### Limits That Follow Recurring Charges
+With this option, when the amount of a recurring charge changes, the limit of the monthly or yearly envelope that tracks it adjusts in proportion to the charge's frequency. Dated envelopes, projects, piggy banks and locked envelopes are not affected.
+
+### Messages After an Analysis
+- *"No adjustment or new envelope needed at the moment"*: your limits match your spending, and spending outside envelopes does not meet the conditions yet.
+- *"{count} budget recommendation(s) identified"*: suggestions are waiting in the suggestions panel.
 
 ---
 
-### Pillar B: Smoothed Monthly Recalibration (EMA Smoothing)
+## 🔒 Traceability
 
-Pillar B monitors active spending envelopes to gently adapt ceilings to changing lifestyle realities.
-
-1. **Anti-Thrashing Periodic Cadence:**
-   - Recalibration evaluations run automatically on the **1st of each month** or upon pay cycle rollovers.
-   - They can also be triggered at any time on demand using the **`⚡ Run Analysis`** button.
-2. **Exponential Moving Average (EMA) Formula:**
-   - To prevent jarring fluctuations, suggested adjustments are smoothed over a 3 to 6-month lookback window with an inertia factor $\alpha = 0.20$:
-     $$\text{Suggestion}_{t} = (1 - \alpha) \cdot \text{Budget}_{\text{current}} + \alpha \cdot \overline{\text{Spending}}_{\text{historical}}$$
-   - Historical spending values are pre-processed using **Winsorizing** to filter out temporary spending spikes (e.g. an unusual travel dinner).
-3. **Double Drift Guard:**
-   - **Monthly limit:** A suggested adjustment can never exceed $\pm 10\%$ from one month to the next.
-   - **Annual limit:** Cumulative drift cannot exceed $\pm 25\%$ relative to the reference annual budget (`base_annual_amount`).
-4. **$\pm 2\%$ Significance Threshold:**
-   - If the difference between the current budget and the smoothed projection is under 2%, no recommendation is made, eliminating trivial cent-level noise.
-5. **Absolute Quarantines:**
-   - **Savings** envelopes (`savings`), **Project** envelopes (`is_project`), annual envelopes, and **Locked** envelopes (`is_locked`) are strictly excluded from automated recalibrations.
-
----
-
-## 💬 Understanding Notifications & System Responses
-
-When clicking **`⚡ Run Analysis`** in the automations dialog:
-
-### 1. Info Toast: *"ℹ️ No adjustment or new envelope needed at this time."*
-This message signifies that your budget setup is **healthy, stable, and optimal**. It triggers when:
-- **Existing envelopes are properly calibrated:** Your actual spending closely aligns with your ceilings (variance $< 2\%$).
-- **Unbudgeted expenses are strictly isolated:** All unbudgeted categories only appear in a **single calendar month**. Under the $\ge 2$ months safeguard, the system refuses to establish an unnecessary permanent budget for a one-time charge.
-
-### 2. Success Toast: *"{count} budget recommendation(s) identified"*
-This indicates actionable, vetted observations:
-- A genuine, prolonged shift in spending habits warrants an envelope ceiling update.
-- A new recurring expense pattern has persisted across at least 2 distinct months and merits an envelope attachment or new budget.
-
----
-
-## 📋 Interactive Suggestion Review Dialog
-
-When recommendations are generated, a subtle banner appears on the Budgets page. Clicking **`Review Suggestions`** opens an interactive dialog:
-
-### 1. Visual Comparison Elements
-- **Origin badge:** `⚙️ Deterministic`, `🤖 Local AI`, or `🔗 Enrichment`.
-- **Numerical diff:** Current amount $\to$ Suggested amount with percentage delta ($\Delta\%$).
-- **Explanation:** Plain-text financial reasoning explaining why the change is recommended.
-- **Category breakdown:** Subcategories included along with their observed historical averages.
-
-### 2. Available Actions
-- **`[Apply]` (1-click):** Applies the adjustment or creates the envelope structure immediately, backed by full Undo/Redo tracking.
-- **`[Dismiss]`:** Permanently rejects the recommendation and logs it as `DISMISSED`.
-- **`[Apply All]`:** Approves all proposed recommendations in the batch in one step.
-
-### 3. Mobile Responsive Layout
-On mobile devices and tablets, the review dialog adapts responsively:
-- Stacked touch cards with smooth vertical scrolling.
-- Fixed `✕` close button anchored top-right.
-- Full-width touch buttons optimized for thumb navigation.
-
----
-
-## 🔒 Sovereignty, Auditing & Traceability
-
-- **Zero Cloud & Local Data:** All statistical analyses, clustering, and Ollama queries execute 100% on your machine. Financial transactions, amounts, and metadata never leave your device.
-- **Decision Audit Log (`AutopilotDecisionLog`):** Every suggestion generated, applied, or rejected is stamped and stored in the local SQLite database with its complete `snapshot`, ensuring complete transparency and accountability.
+- **Local data:** the built-in engine runs entirely on your server.
+- **Audit log:** each suggestion issued, applied or dismissed is timestamped and kept in the profile's database with its full snapshot. Applied actions can be undone.

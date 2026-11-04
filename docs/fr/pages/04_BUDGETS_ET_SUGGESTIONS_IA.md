@@ -1,6 +1,6 @@
 # 🎯 Documentation Page : Budgets, Enveloppes & Auto-Pilote
 
-La page **Budgets** permet de piloter ses finances personnelles selon la méthode des **Enveloppes Budgétaires**. Elle associe un suivi visuel en temps réel à un moteur d'**Auto-Pilote budgétaire** local-first capable d'identifier les catégories orphelines, d'enrichir les enveloppes existantes et de suggérer des recalibrages mensuels lissés, de façon 100% autonome ou assistée par IA locale.
+La page **Budgets** sert à suivre ses dépenses au quotidien selon la méthode des **enveloppes budgétaires**. Elle s'ouvre sur les suggestions en attente, la période en cours et une ligne qui résume ce qui demande attention. L'**Auto-Pilote budgétaire** repère les catégories sans enveloppe et les plafonds à revoir, avec le moteur intégré ou une IA locale.
 
 ---
 
@@ -13,140 +13,108 @@ La page **Budgets** permet de piloter ses finances personnelles selon la méthod
 *Détail de la consommation d'une enveloppe et liste des dépenses associées.*
 
 ![Édition d'un Budget](../../../screenshots/05_budgets_detail_edition.png)
-*Modale de modification et de verrouillage d'une enveloppe budgétaire.*
+*Modification et verrouillage d'une enveloppe budgétaire.*
 
 ![Suggestions IA Ollama](../../../screenshots/05_budgets_suggestion_ia.png)
-*Module de propositions budgétaires et modale de révision interactive.*
+*Propositions budgétaires.*
 
 ---
 
-## 🛠️ Principes & Fonctionnalités Visuelles
+## 🛠️ Suivre ses enveloppes
 
-### 1. La Méthode des Enveloppes Budgétaires
-Une enveloppe budgétaire est un **plafond intentionnel de dépense** alloué pour un mois à une ou plusieurs catégories (ex: *Alimentation & Courses*, *Mobilité & Transports*, *Loisirs & Sorties*).
-- **Jauge tricolore de progression dynamique :**
-  - 🟢 **Vert (0% à 80%) :** Rythme de dépense maîtrisé.
-  - 🟠 **Orange (81% à 99%) :** Seuil d'attention atteint, approche du plafond.
-  - 🔴 **Rouge (≥ 100%) :** Dépassement de budget constaté.
-- **Reste à dépenser :** Calcul en temps réel du solde restant et du pourcentage consommé.
+### 1. La méthode des enveloppes
+Une enveloppe est un **plafond de dépense** attribué à une ou plusieurs catégories (ex : *Alimentation & Courses*, *Mobilité & Transports*). Une dépense ne compte que dans une seule enveloppe : une catégorie déjà suivie par une autre enveloppe sur la même période ne peut pas y être ajoutée, et une enveloppe de dépenses doit avoir au moins une catégorie.
 
-### 2. Tiroir Latéral de Consultation des Dépenses
-En cliquant sur une carte d'enveloppe, un panneau latéral contextuel s'ouvre sans quitter la page. Il liste exhaustivement toutes les transactions réelles du mois imputées aux catégories de cette enveloppe, permettant d'identifier immédiatement les postes de surcoût.
+### 2. Périodes et groupes
+- **Mode personnel :** les enveloppes mensuelles suivent votre **cycle de paie**, comme le Cockpit, et non le mois calendaire.
+- **Mode organisation :** rien ne dépend de la paie, les enveloppes sont regroupées par compte et celles qui sont terminées passent en fin de liste.
+- **Groupes :** chaque groupe (cycle, annuelles, long terme…) commence par son total, le même que dans la barre latérale, puis présente ses enveloppes en lignes compactes triées par urgence. Les enveloppes annuelles se consultent année par année.
+- **Charges prévues :** les enveloppes dont l'essentiel des dépenses vient de vos récurrences y sont regroupées, repliées. Elles ne comptent pas dans les totaux par défaut, et une option permet de les réintégrer.
 
-### 3. Verrouillage Sanctuarisé (`🔒`)
-Chaque enveloppe peut être verrouillée via son formulaire d'édition. Une enveloppe verrouillée :
-- Est visuellement identifiée par une icône de cadenas `🔒`.
-- Est **strictement sanctuarisée** : le moteur d'Auto-Pilote a l'interdiction formelle de proposer le moindre ajustement de son plafond (idéal pour les charges fixes intangibles comme le loyer ou les assurances).
+### 3. Lire une enveloppe
+Chaque ligne indique le **dépensé à ce jour** face au plafond, les opérations encore **prévues**, un repère du **rythme attendu** et un état en clair (« Dépassée de 57,74 € », « Reste 98,47 € »).
 
-### 4. Réactivité Zéro F5 (100% Temps Réel)
-L'interface des budgets est entièrement réactive : tout ajout d'enveloppe, validation de suggestion, clôture ou modification met à jour l'affichage instantanément via des événements DOM internes (`CustomEvent`), sans nécessiter le moindre rafraîchissement manuel de la page (F5).
+Une **notification** est envoyée quand une enveloppe atteint 90 %, puis quand elle est dépassée, une seule fois par enveloppe et par période.
 
----
+### 4. Détail et modification
+Cliquer sur une enveloppe ouvre son détail : la jauge, puis ses opérations, avec la mention « prévue » pour celles à venir.
+- **Modifier :** pendant la modification, la colonne de droite montre les opérations que suivent les catégories cochées, mises à jour à chaque changement. Les catégories déjà suivies par une autre enveloppe sont rassemblées en fin de liste et ne peuvent pas être cochées.
+- **Reprendre comme plafond :** reprend la dépense habituelle des catégories (moyenne des 12 derniers mois).
+- **Relever à … :** proposé seulement quand l'enveloppe est dépassée.
+- **Épingler :** affiche l'enveloppe en tête de la barre latérale.
+- **Verrouiller (`🔒`) :** l'Auto-Pilote ne propose plus aucun changement de plafond pour cette enveloppe, et elle ne suit plus les récurrences.
 
-## 🤖 Le Module Auto-Pilote & Automatismes des Budgets
+### 5. Le menu Outils
+- **Automatismes :** réglages de l'Auto-Pilote budgétaire.
+- **Suggestions d'enveloppes :** panneau latéral de propositions.
+- **Personnaliser l'affichage :** enveloppes épinglées, totaux affichés et noms courts dans la barre latérale.
+- **Supprimer plusieurs enveloppes… :** un choix par groupe, rien de coché au départ, le total sur le bouton et un avertissement pour les dépôts des tirelires. « Annuler » restaure tout d'un coup : enveloppes, catégories, dépôts et suggestions en attente.
 
-Accessible depuis la barre d'outils supérieure via le bouton **`⚙️ Automatismes`** ou directement depuis le bandeau de notification des suggestions, ce module pilote l'intelligence budgétaire de l'application.
-
-### 1. Choix du Moteur de Suggestion
-L'utilisateur peut choisir son moteur d'analyse :
-* **⚙️ Moteur Déterministe (Par défaut, Recommandé) :**
-  - Fonctionne **100% hors-ligne**, sans aucun prérequis matériel ni connexion réseau.
-  - Instantané (< 50 millisecondes) grâce à des algorithmes mathématiques de clustering thématique et de lissage statistique Winsorisé.
-* **🤖 Moteur Assisté par IA Locale (Ollama) :**
-  - S'appuie sur une instance Ollama exécutée localement sur votre machine (modèle `gemma4:e4b`, `mistral`, `llama3`, etc.).
-  - Analyse sémantiquement les intitulés de catégories pour former des regroupements intuitifs.
-  - **Repli automatique zéro-erreur :** Si Ollama n'est pas démarré ou ne répond pas, le système bascule de manière totalement transparente sur le moteur déterministe sans jamais bloquer l'application ni générer d'erreur.
+### 6. Mise à jour sans rechargement
+Les changements s'affichent sans recharger la page. Les enveloppes et propositions ajoutées par l'analyse de fond apparaissent aussi sur la page ouverte, une dizaine de secondes plus tard. La mise à jour attend si vous êtes en train de saisir ou si une fenêtre est ouverte.
 
 ---
 
-## 🧠 Les Deux Volets d'Analyse Algorithmique
+## 🧭 Le panneau de suggestions
 
-L'Auto-Pilote des budgets analyse vos finances selon deux volets complémentaires et hermétiquement protégés par des garde-fous stricts :
+**Outils > Suggestions d'enveloppes** ouvre un panneau à côté de vos enveloppes. Les propositions du moteur intégré s'affichent aussitôt, avec une ligne de synthèse : ce qu'elles coûtent par mois et ce qu'il reste sur votre paie ou vos recettes.
 
-### Volet A : Découverte de Nouvelles Enveloppes & Enrichissement Intelligent
+- **Trois groupes :** ajouts à vos enveloppes, plafonds à revoir, nouvelles enveloppes. Chaque proposition montre ses catégories, un montant modifiable et quelques exemples d'opérations.
+- **Affiner avec l'IA :** facultatif, et affiché seulement si une IA est configurée. Quand elle ne répond pas, les propositions sont clairement présentées comme venant du moteur intégré.
+- **Ajuster les montants :** trois niveaux en clair (au plus juste, habituel, avec marge).
+- **Écarter :** retire une proposition. Vous la retrouvez dans l'historique, d'où elle peut être réactivée.
+- **Bouton principal :** il dit ce qu'il va faire (« Créer 3 et compléter 1 »). La page défile ensuite jusqu'aux enveloppes modifiées et les met en évidence.
 
-Le Volet A inspecte les catégories de dépenses non couvertes par un budget existant (*catégories orphelines*).
+« Examiner » dans le bandeau de l'Auto-Pilote et la pastille « Plafond proposé » d'une enveloppe ouvrent ce même panneau.
 
-1. **Enrichissement des enveloppes existantes :**
-   - Plutôt que d'encombrer votre tableau de bord avec une multitude de micro-enveloppes individuelles (ex: créer une enveloppe dédiée pour « Boulangerie » alors qu'il existe déjà « Alimentation & Courses »), le moteur détecte l'affinité thématique.
-   - Il propose alors de **rattacher la catégorie à l'enveloppe existante** et de rehausser le plafond du montant mensuel moyen observé.
-2. **Création d'enveloppes groupées :**
-   - Pour les catégories orphelines n'ayant pas d'équivalent existant, le moteur regroupe les catégories affines au sein d'enveloppes cohérentes (ex: *Mobilité* regroupant *Essence*, *Péage*, *Parking*).
-3. **🛡️ Le Garde-Fou Anti-Dépenses Ponctuelles ($\ge 2$ mois observés) :**
+---
+
+## 🤖 L'Auto-Pilote budgétaire
+
+Ses réglages se trouvent dans **Outils > Automatismes**.
+
+### Quand l'analyse s'exécute-t-elle ?
+- **En continu :** environ chaque minute, l'analyse de fond cherche les nouvelles catégories régulières et vérifie les alertes d'enveloppes.
+- **À chaque nouvelle période** (cycle de paie, ou mois en mode organisation) : elle repère les plafonds à revoir.
+- **Au lancement :** première analyse environ 15 secondes après le démarrage, avec rattrapage si une période a été manquée.
+- **À la demande :** avec le bouton **Lancer une analyse maintenant**.
+
+### Le moteur
+- **Déterministe (par défaut) :** fonctionne sans IA ni connexion réseau.
+- **Assisté par IA :** analyse le sens des catégories pour former des regroupements. S'il ne répond pas, le moteur déterministe prend le relais.
+
+### Volet A : catégories sans enveloppe
+
+1. **Ajout à une enveloppe existante :** une catégorie qui a sa place dans une enveloppe y est proposée en ajout, et le plafond augmente du montant proposé, à partir du plafond actuel. Jamais dans une enveloppe de charges prévues.
+2. **Nouvelle enveloppe :** les catégories proches sont regroupées dans une enveloppe cohérente.
+3. **Dépenses libres uniquement :** les charges prévues, comme un prêt ou un abonnement, sont déjà suivies par vos récurrences et sont signalées à part.
+4. **🛡️ Au moins 2 mois de dépenses :**
    > [!IMPORTANT]
-   > **Règle d'or de la protection du Reste à Vivre :**
-   > Pour qu'une catégorie soit éligible à la création d'une enveloppe ou à un enrichissement, elle doit obligatoirement présenter des dépenses sur **au moins 2 mois distincts**.
-   > 
-   > **Pourquoi ce garde-fou est indispensable ?**
-   > Si l'algorithme créait un budget mensuel pour un achat ponctuel isolé (par exemple un achat exceptionnel d'électroménager de 1 500 € ou un cadeau d'anniversaire à 50 € survenu un seul mois), cela créerait une charge récurrente mensuelle fantôme qui **amputerait artificiellement votre Reste à Vivre chaque mois**. Le système exige donc la preuve d'une habitude récurrente avant de proposer un budget.
-4. **Seuil plancher configurable :**
-   - Par défaut fixé à **30,00 €**, il évite la création de budgets superflus pour des dépenses dérisoires ou anecdotiques.
-5. **Refus persistant (`DISMISSED`) :**
-   - Lorsqu'une suggestion est refusée par l'utilisateur (`[Ignorer]`), la décision est gravée dans le journal d'audit. La catégorie ne sera plus jamais reproposée lors des analyses suivantes, garantissant une expérience sans harcèlement.
+   > Une catégorie n'est créée automatiquement, ou proposée avec une confiance élevée, qu'avec des dépenses sur **au moins 2 mois distincts**. Une enveloppe mensuelle créée pour un achat isolé réduirait votre Reste à Vivre chaque mois sans raison.
+5. **Propositions écartées :** une catégorie écartée n'est plus reproposée, sauf si vous la réactivez depuis l'historique.
+
+**Auto-création sans validation :** cette option crée directement les enveloppes des catégories régulières détectées, y compris les propositions en attente. Un message en tête de la page récapitule les créations jusqu'à ce que vous cliquiez sur « Compris ». Une catégorie que vous retirez d'une enveloppe revient comme simple proposition.
+
+### Volet B : plafonds à revoir
+
+Un plafond est un objectif : il ne suit pas la dépense mois après mois. L'Auto-Pilote propose un nouveau plafond seulement si une enveloppe mensuelle a été **dépassée**, ou **utilisée à moins de 60 %**, sur chacune des **3 dernières périodes terminées**.
+
+- **Montant proposé :** la dépense médiane de ces 3 périodes, arrondie à 5 € au-dessus.
+- **Écart minimal :** aucune proposition si l'écart est inférieur à 5 € ou à 5 % du plafond.
+- **Fréquence :** une fois par période. Les propositions non traitées de la période précédente sont remplacées.
+- **Validation :** une proposition de plafond n'est **jamais appliquée seule**.
+- **Exclusions :** tirelires, projets, enveloppes annuelles ou datées, enveloppes verrouillées, enveloppes de charges fixes.
+
+### Plafonds qui suivent les récurrences
+Avec cette option, quand le montant d'une charge récurrente change, le plafond de l'enveloppe mensuelle ou annuelle qui la suit s'ajuste en proportion de la fréquence de la charge. Les enveloppes datées, les projets, les tirelires et les enveloppes verrouillées ne sont pas concernés.
+
+### Les messages après une analyse
+- *« Aucun ajustement ni nouvelle enveloppe nécessaire pour le moment »* : vos plafonds correspondent à vos dépenses, et les dépenses hors enveloppes ne remplissent pas encore les conditions.
+- *« {count} recommandation(s) budgétaire(s) identifiée(s) »* : des propositions vous attendent dans le panneau de suggestions.
 
 ---
 
-### Volet B : Recalibrage Mensuel Amorti des Enveloppes (Lissage EMA)
+## 🔒 Traçabilité
 
-Le Volet B surveille les enveloppes de dépenses actives pour adapter les plafonds à l'évolution réelle de votre mode de vie.
-
-1. **Cadence Périodique Anti-Thrashing :**
-   - L'analyse de recalibrage s'exécute automatiquement au **1er de chaque mois** ou lors du renouvellement du cycle de paie.
-   - Elle peut également être exécutée à tout moment à la demande via le bouton **`⚡ Lancer l'analyse`**.
-2. **Formule de Lissage Exponentiel (EMA) :**
-   - Pour éviter les à-coups brutaux, le nouveau montant suggéré est lissé sur une fenêtre glissante de 3 à 6 mois avec un coefficient d'amortissement $\alpha = 0.20$ :
-     $$\text{Suggestion}_{t} = (1 - \alpha) \cdot \text{Budget}_{\text{actuel}} + \alpha \cdot \overline{\text{Dépenses}}_{\text{historiques}}$$
-   - Les dépenses sont préalablement traitées par **Winsorizing** pour neutraliser les pics anormaux (ex: une note de restaurant inhabituelle lors d'un déplacement).
-3. **Double Plafond de Dérive (Drift Guard) :**
-   - **Plafond mensuel :** Une variation ne peut jamais excéder $\pm 10\%$ d'un mois sur l'autre.
-   - **Plafond annuel :** La dérive cumulée ne peut jamais dépasser $\pm 25\%$ par rapport au budget de référence annuel (`base_annual_amount`).
-4. **Seuil de Significativité de $\pm 2\%$ :**
-   - Si l'écart entre le budget actuel et la projection lissée est inférieur à 2%, aucune suggestion n'est émise. Cela élimine le bruit pour des variations de quelques centimes.
-5. **Exclusions Absolues :**
-   - Les enveloppes de type **Épargne** (`savings`), les enveloppes de **Projet** (`is_project`), les enveloppes annuelles et les enveloppes **Verrouillées** (`is_locked`) sont totalement exclues de tout recalibrage automatique.
-
----
-
-## 💬 Comprendre les Messages et Notifications
-
-Lorsque vous cliquez sur le bouton **`⚡ Lancer l'analyse`** dans la modale d'automatismes :
-
-### 1. Message d'information : *"ℹ️ Aucun ajustement ni nouvelle enveloppe nécessaire pour le moment."*
-Ce message indique que votre configuration financière est **saine, stable et optimale**. Il s'affiche lorsque :
-- **Vos enveloppes existantes sont bien calibrées :** Vos dépenses réelles correspondent déjà à vos plafonds (écart $< 2\%$).
-- **Les dépenses hors enveloppes sont ponctuelles :** Toutes les catégories non budgétées n'ont été observées que sur **un seul mois**. Grâce au filtre de sécurité des 2 mois, le système refuse de créer un budget pérenne inutile pour une dépense isolée.
-
-### 2. Message de succès : *"{count} recommandation(s) budgétaire(s) identifiée(s)"*
-Ce message confirme que des actions pertinentes ont été détectées :
-- Une dérive durable de vos dépenses réelles nécessite un ajustement de plafond.
-- Une nouvelle habitude de consommation s'est confirmée sur au moins 2 mois et mérite une enveloppe dédiée ou un enrichissement.
-
----
-
-## 📋 Sas de Revue Interactive des Suggestions
-
-Lorsque des suggestions sont disponibles, un bandeau discret apparaît sur la page Budgets. En cliquant sur **`Examiner les suggestions`**, une modale interactive s'ouvre :
-
-### 1. Éléments Comparatifs Visuels
-- **Badge d'origine :** `⚙️ Déterministe`, `🤖 IA Locale` ou `🔗 Enrichissement`.
-- **Comparaison chiffrée :** Montant actuel $\to$ Montant suggéré avec calcul du delta en pourcentage ($\Delta\%$).
-- **Justification explicative en français :** Détail clair de la raison économique de la recommandation.
-- **Ventilation par catégorie :** Liste des sous-catégories concernées avec leurs moyennes historiques observées.
-
-### 2. Actions Disponibles
-- **`[Appliquer]` (1-clic) :** Met à jour l'enveloppe ou crée la nouvelle structure instantanément. L'action est enregistrée dans l'historique et bénéficie du support Annuler/Rétablir (Undo/Redo).
-- **`[Ignorer]` :** Rejette la proposition et la classe en `DISMISSED` de manière persistante.
-- **`[Tout appliquer]` :** Valide l'ensemble des recommandations du lot en une seule opération.
-
-### 3. Ergonomie Mobile Responsive
-Sur smartphone ou tablette, la modale de révision s'adapte automatiquement :
-- Affichage sous forme de cartes tactiles empilées avec défilement fluide.
-- Bouton de fermeture `✕` ancré en haut à droite.
-- Boutons d'action pleine largeur facilement actionnables au pouce.
-
----
-
-## 🔒 Souveraineté, Audit et Traçabilité
-
-- **Zéro Cloud & Données Locales :** Toutes les analyses statistiques, clustering et inférences Ollama sont exécutées à 100% sur votre machine. Aucune coordonnée bancaire, montant ou transaction ne quitte votre terminal.
-- **Journal d'Audit (`AutopilotDecisionLog`) :** Chaque suggestion émise, appliquée ou rejetée est horodatée et archivée en base SQLite locale avec son instantané complet (`snapshot`), garantissant une transparence totale des décisions de l'Auto-Pilote.
+- **Données locales :** le moteur intégré s'exécute entièrement sur votre serveur.
+- **Journal d'audit :** chaque suggestion émise, appliquée ou écartée est horodatée et conservée dans la base du profil avec son instantané complet. Les actions appliquées peuvent être annulées.
