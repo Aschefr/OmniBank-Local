@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **Statements after a long absence 🔄**: "Fetch online" always went back exactly 30 days, so any longer absence left a gap in your statements. It now goes back to the last transaction processed on each account, up to 75 days.
+- **No more lost bank lines**: A new statement replaced the previous one even when some of its lines had not been processed. Those lines are now handled with the new statement, unless you dismissed them or the integrity guard blocked that statement.
+- **Reconciled transactions keep the bank amount**: A transaction linked to a forecast with a different amount kept the forecast amount, which made the reconciled balance wrong. It now takes the bank amount. Transactions reconciled before this update are not changed.
+- **Exact amounts are matched first**: A statement line with a close amount could take the forecast of another line (10 € on the 72 € forecast), which then took a third one. Lines whose exact amount exists now choose their forecast first.
+- **Fewer false duplicates**: A bank line is no longer suspected of duplicating a forecast already linked to another line of the same statement, and it now counts in the reconciled balance.
+- **Bank amount in the review**: Auto-Pilot's review now shows the bank amount next to the forecast amount when they differ, and the correction window shows the bank amount next to the bank label.
+
 ## [1.4.1] - 2026-11-05
 
 ### Fixed & Ergonomics

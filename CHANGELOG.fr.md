@@ -2,6 +2,16 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Corrections & ergonomie
+- **Relevés après une longue absence 🔄** : « Relever en ligne » remontait toujours à 30 jours exactement, si bien qu'une absence plus longue laissait un trou dans vos relevés. Il remonte désormais jusqu'à la dernière opération traitée de chaque compte, dans la limite de 75 jours.
+- **Plus de lignes bancaires perdues** : un nouveau relevé remplaçait le précédent même si certaines de ses lignes n'avaient pas été traitées. Elles sont désormais traitées avec le nouveau relevé, sauf si vous les avez écartées ou si le garde-fou d'intégrité avait bloqué ce relevé.
+- **Les opérations rapprochées gardent le montant de la banque** : une opération liée à une prévision de montant différent conservait le montant prévu, ce qui faussait le solde rapproché. Elle prend désormais le montant bancaire. Les opérations rapprochées avant cette mise à jour ne sont pas modifiées.
+- **Les montants exacts sont rapprochés d'abord** : une ligne de montant voisin pouvait prendre la prévision d'une autre (10 € sur la prévision de 72 €), qui en prenait alors une troisième. Les lignes dont le montant exact existe choisissent désormais leur prévision en premier.
+- **Moins de faux doublons** : une ligne bancaire n'est plus soupçonnée de doublonner une prévision déjà liée à une autre ligne du même relevé, et elle compte désormais dans le solde rapproché.
+- **Le montant bancaire dans la revue** : la revue de l'Auto-Pilote affiche le montant de la banque face au montant prévu quand ils diffèrent, et la fenêtre de correction affiche le montant bancaire à côté du libellé de la banque.
+
 ## [1.4.1] - 2026-11-05
 
 ### Corrections & ergonomie
