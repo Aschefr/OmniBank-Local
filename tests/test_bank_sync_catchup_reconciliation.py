@@ -369,3 +369,45 @@ def test_review_queue_without_reconciliation_has_no_amounts(db):
     item = get_review_queue(db)[0]
 
     assert item["bank_amount"] is None and item["forecast_amount"] is None
+
+
+def test_line_weeks_after_a_pointed_one_of_same_amount_is_not_absorbed(db, bank):
+    """Un abonnement de même montant, 17 jours après une opération déjà pointée : c'est une nouvelle ligne."""
+    db.add(Transaction(
+        description="Abonnement", amount=25.99, type="expense_var", category="Abonnements",
+        date_operation=days_ago(40), reconciliation_date=days_ago(38), from_account_id=1,
+        csv_id="woob_coming_fake_0001_ancien",
+    ))
+    db.commit()
+    bank([(days_ago(23), -25.99, "X1208 ABONNEMENT DUBLIN")])
+
+    run_statement(db, catch_up=True)
+
+    assert db.query(Transaction).filter(Transaction.amount == 25.99).count() == 2
+    assert calculate_balances(db, only_reconciled=True)[1] == round(1000 - 2 * 25.99, 2)
+
+
+def test_manual_entry_pointed_weeks_before_its_debit_is_still_recognised(db, bank):
+    """Une saisie manuelle pointée trois semaines avant son débit reste reconnue : pas de doublon (règle des 30 jours)."""
+    db.add(Transaction(
+        description="Saisie manuelle", amount=42.0, type="expense_var", category="Divers",
+        date_operation=days_ago(30), reconciliation_date=days_ago(30), from_account_id=1,
+    ))
+    db.commit()
+    bank([(days_ago(9), -42.0, "SAISIE MANUELLE")])
+
+    run_statement(db)
+
+    assert db.query(Transaction).filter(Transaction.amount == 42.0).count() == 1
+
+
+def test_purchase_from_the_same_merchant_as_a_small_forecast_is_not_suspect(db, bank):
+    """Un achat de 81,70 € chez le marchand d'un abonnement prévu à 9,95 € n'est pas ce prélèvement."""
+    add_forecast(db, "Audible Amazon", 9.95, days_ago(26), category="Abonnements")
+    bank([(days_ago(20), -81.7, "AMAZON PAYMENTS EUROPE S C A AMA")])
+
+    run_statement(db)
+
+    line = db.query(Transaction).filter(Transaction.amount == 81.7).one()
+    assert line.reconciliation_date is not None
+    assert db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.action.like("%DUPLICATE%")).count() == 0
