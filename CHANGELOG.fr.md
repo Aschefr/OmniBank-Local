@@ -5,7 +5,8 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 ## [Unreleased]
 
 ### Corrections & ergonomie
-- **Docker : modules bancaires vérifiés avant installation 🔒** : l'image Docker ne contenait pas l'outil dont woob se sert pour contrôler la signature des modules bancaires qu'il télécharge, ils étaient donc installés sans ce contrôle. L'image l'inclut désormais, avec les clés de signature attendues, et refuse un module dont la signature ne correspond pas. L'application Windows n'est pas encore couverte par ce correctif.
+- **Modules bancaires vérifiés avant installation, sur Docker et Windows 🔒** : les modules bancaires sont téléchargés par woob, qui sautait le contrôle de leur signature si l'outil nécessaire manquait : ils étaient donc installés sans contrôle. L'image Docker et l'application Windows vérifient désormais chaque module avec les clés de signature attendues et refusent celui dont la signature ne correspond pas, en gardant la version déjà installée. Sur Windows, les modules installés avant cette mise à jour sont retéléchargés et contrôlés à leur prochain usage.
+- **Modules bancaires enfin actualisables ⚙️** : la liste des modules disponibles n'était téléchargée qu'une fois, si bien que leurs correctifs n'arrivaient jamais sur les installations existantes. Les installations ayant une connexion bancaire l'actualisent désormais une fois par jour ; une panne réseau ou une liste refusée ne touche pas aux modules qui fonctionnent.
 
 ## [1.4.0] - 2026-11-05
 
