@@ -4,6 +4,8 @@
  */
 window.LicenseManager = {
     _resolve: null,  // Promise resolve for modal flow
+    CONTRACT_VERSION: '2.0',
+    QUOTE_MAILTO: 'mailto:contact@amify-studio.fr?subject=Devis%20licence%20OmniBank%20Mode%20Organisation',
 
     /**
      * Opens the license modal and returns a Promise that resolves
@@ -18,6 +20,7 @@ window.LicenseManager = {
             // Clear previous state
             document.getElementById('licenseEmail').value = '';
             document.getElementById('licenseKey').value = '';
+            document.getElementById('licenseAcceptContract').checked = false;
             const err = document.getElementById('licenseError');
             if (err) { err.style.display = 'none'; err.textContent = ''; }
 
@@ -45,11 +48,16 @@ window.LicenseManager = {
             return;
         }
 
+        if (!document.getElementById('licenseAcceptContract')?.checked) {
+            if (err) { err.textContent = window.i18n.t('license_contract_required'); err.style.display = 'block'; }
+            return;
+        }
+
         const btn = document.getElementById('licenseActivateBtn');
         if (btn) btn.disabled = true;
 
         try {
-            const res = await API.post('/api/license/activate', { email, key });
+            const res = await API.post('/api/license/activate', { email, key, contract_version: this.CONTRACT_VERSION });
             if (res.active) {
                 document.getElementById('licenseModal').style.display = 'none';
                 showToast(window.i18n.t('license_activated'), 'success');
@@ -66,6 +74,32 @@ window.LicenseManager = {
         } finally {
             if (btn) btn.disabled = false;
         }
+    },
+
+    async showContract() {
+        const modal = document.getElementById('licenseContractModal');
+        const body = document.getElementById('licenseContractBody');
+        if (!modal || !body) return;
+        window.i18n.translateDOM(modal);
+        modal.style.display = 'flex';
+        try {
+            const res = await fetch(`/static/legal/LICENSE_ORGANISATION.md?v=${this.CONTRACT_VERSION}`);
+            if (!res.ok) throw new Error(res.status);
+            body.innerHTML = DOMPurify.sanitize(marked.parse(await res.text()));
+            body.scrollTop = 0;
+        } catch (e) {
+            body.textContent = window.i18n.t('license_contract_error');
+        }
+    },
+
+    closeContract() {
+        document.getElementById('licenseContractModal').style.display = 'none';
+    },
+
+    // Au démarrage : le mode Organisation a disparu sans que personne ne l'ait coupé, on dit pourquoi
+    async notifyIfBlocked() {
+        const status = await this.getStatus();
+        if (status.org_mode_blocked) showToast(window.i18n.t('license_blocked_toast'), 'warning', 10000);
     },
 
     async getStatus() {

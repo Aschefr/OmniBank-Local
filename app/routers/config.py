@@ -5,6 +5,7 @@ import httpx
 
 from app.database import get_db
 from app.models import GlobalConfig
+from app.services import license_service
 from app.schemas.api_schemas import ConfigItem
 from app.services import stats_cache
 
@@ -57,13 +58,16 @@ CONFIG_DEFAULTS = {
 @router.get("/")
 def get_all_config(db: Session = Depends(get_db)):
     configs = db.query(GlobalConfig).all()
-    res = {c.key: c.value for c in configs}
+    res = {c.key: c.value for c in configs if c.key not in RESTRICTED_CONFIG_KEYS}
     for k, v in CONFIG_DEFAULTS.items():
         if k not in res:
             res[k] = v
+    # Sans licence valable, l'application se comporte et s'affiche en mode personnel
+    if str(res.get("enable_org_mode", "")).lower() == "true" and not license_service.is_license_active(db):
+        res["enable_org_mode"] = "false"
     return res
 
-RESTRICTED_CONFIG_KEYS = {"license_key", "license_email"}
+RESTRICTED_CONFIG_KEYS = {"license_key", "license_email", "license_contract_version", "license_contract_accepted_at"}
 
 @router.post("/")
 def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
@@ -72,6 +76,8 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
             status_code=403,
             detail="La gestion de la licence s'effectue exclusivement via /api/license/activate."
         )
+    if str(data.get("enable_org_mode", "")).lower() == "true" and not license_service.is_license_active(db):
+        raise HTTPException(status_code=403, detail="Le mode Organisation nécessite une licence valable.")
     for key, value in data.items():
         conf = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
         if conf:

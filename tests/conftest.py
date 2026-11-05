@@ -166,3 +166,11 @@ def reset_test_environment():
         pass
     stats_cache.invalidate()
 
+
+@pytest.fixture(autouse=True)
+def _license_active_by_default(request, reset_test_environment, monkeypatch):
+    """La licence a ses propres tests (marqueur real_license) : ailleurs, le mode Organisation fonctionne comme en production."""
+    if request.node.get_closest_marker("real_license"):
+        return
+    from app.services import license_service
+    monkeypatch.setattr(license_service, "is_license_active", lambda db: True)

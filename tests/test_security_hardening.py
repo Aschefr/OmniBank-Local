@@ -105,7 +105,7 @@ class TestCORSPolicy:
 
 # ── FIX-10 : Legacy License OMNI- Passive Migration ────────────────
 class TestLicensePassiveMigration:
-    """Vérifie que les licences OMNI- déjà stockées en BDD restent actives."""
+    """Seules les anciennes clés OMNI- connues restent actives : le préfixe seul ne suffit plus."""
 
     @pytest.fixture
     def license_db(self):
@@ -120,18 +120,18 @@ class TestLicensePassiveMigration:
         yield db
         db.close()
 
-    def test_omni_legacy_key_remains_active(self, license_db):
-        """Un utilisateur avec une clé OMNI- stockée doit rester activé."""
+    def test_unknown_omni_key_is_not_active(self, license_db):
+        """Une clé OMNI- inventée, écrite dans la base, ne doit pas activer la licence."""
         from app.models import GlobalConfig
-        from app.routers.license import license_status
+        from app.services.license_service import license_status
 
         license_db.add(GlobalConfig(key="license_key", value="OMNI-ABCD-1234-EFGH"))
         license_db.add(GlobalConfig(key="license_email", value="user@example.com"))
         license_db.commit()
 
-        result = license_status(db=license_db)
-        assert result["active"] is True
-        assert result["email"] == "user@example.com"
+        result = license_status(license_db)
+        assert result["active"] is False
+        assert result["email"] is None
 
     def test_new_omni_key_activation_blocked(self):
         """Les nouvelles activations avec des clés OMNI- doivent être refusées."""

@@ -4,7 +4,9 @@ import sys
 import shutil
 import subprocess
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
 from pydantic import BaseModel
 from typing import Optional
 
@@ -59,8 +61,11 @@ def get_shared_mode():
 
 
 @router.post("/shared-mode")
-def enable_shared_mode(req: SharedModeRequest):
+def enable_shared_mode(req: SharedModeRequest, db: Session = Depends(get_db)):
     """Enable shared mode: copy DB to target and create markers."""
+    from app.services import license_service
+    if not license_service.is_license_active(db):
+        raise HTTPException(status_code=403, detail="Le mode partagé nécessite une licence valable.")
     source_dir = _current_data_dir()
     source_db = os.path.join(source_dir, 'omnibank.db')
     pd = _programdata_dir()

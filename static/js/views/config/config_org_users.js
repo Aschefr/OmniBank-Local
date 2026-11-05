@@ -65,59 +65,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         }
     },
 
-    // ── Phase 10: License-gated Org Mode ─────────────────────────────
-    async _onOrgModeToggle() {
-        const chk = document.getElementById('conf_enable_org_mode');
-        if (!chk) return;
-
-        if (chk.checked) {
-            // Trying to enable org mode → check license first
-            const status = await window.LicenseManager.getStatus();
-            if (!status.active) {
-                // No license → open license modal
-                const activated = await window.LicenseManager.open();
-                if (!activated) {
-                    // User cancelled → uncheck
-                    chk.checked = false;
-                    return;
-                }
-            }
-        }
-        // License OK (or disabling) → proceed with save
-        this.save();
-        this._refreshLicenseStatus();
-    },
-
-    async _refreshLicenseStatus() {
-        const el = document.getElementById('configLicenseStatus');
-        if (!el) return;
-        const status = await window.LicenseManager.getStatus();
-        if (status.active) {
-            el.style.display = 'flex';
-            el.style.alignItems = 'center';
-            el.style.gap = '10px';
-            el.innerHTML = `
-                <span class="license-badge active">✅ ${window.i18n.t('license_active')} — ${status.email}</span>
-                <button class="btn btn-danger-outline" style="padding:4px 12px;font-size:12px;" onclick="window.ConfigView._deactivateLicense()">${window.i18n.t('license_btn_deactivate')}</button>
-            `;
-        } else {
-            const isOrgOn = document.getElementById('conf_enable_org_mode')?.checked;
-            el.style.display = isOrgOn ? 'block' : 'none';
-            el.innerHTML = `<span class="license-badge inactive">❌ ${window.i18n.t('license_inactive')}</span>`;
-        }
-        // Also refresh shared mode panel (depends on license state)
-        this._refreshSharedModePanel();
-    },
-
-    async _deactivateLicense() {
-        await window.LicenseManager.deactivate();
-        // Also uncheck org mode
-        const chk = document.getElementById('conf_enable_org_mode');
-        if (chk) chk.checked = false;
-        this.save();
-        this._refreshLicenseStatus();
-    },
-
     // ── Improvement 03: Shared Mode ──────────────────────────────────
     async _refreshSharedModePanel() {
         const panel = document.getElementById('configSharedModePanel');

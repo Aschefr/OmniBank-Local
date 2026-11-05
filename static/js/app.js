@@ -163,6 +163,7 @@ class App {
                 badge.textContent = `v${version}`;
                 this._appVersion = version;
                 this._appVersionLoaded = true;
+                window.LicenseManager?.notifyIfBlocked();
                 // Auto-show changelog after update (one-time per version)
                 if (window.ProfileStorage) {
                     const lastSeen = window.ProfileStorage.get('omni_last_seen_version');

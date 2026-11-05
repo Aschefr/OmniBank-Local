@@ -32,7 +32,6 @@ The **Configuration** page gathers global application settings, Ollama AI integr
 - **"Enable Bi-Monthly Recurrences" Toggle**: Enables support for twice-monthly salary and recurring schedules.
 - **"Enable File Attachments" Toggle**: Enables uploading receipt/invoice files (PDF, images) attached to transactions.
 - **"Enable Check Slip Numbers" Toggle**: Adds a check slip number input field for check transactions.
-- **"Enable Organization Mode (CSE/Associations)" Toggle**: Unlocks multi-user role tracking and audit logs for collective entities (requires a license key).
 
 ---
 
@@ -44,8 +43,13 @@ The **Configuration** page gathers global application settings, Ollama AI integr
 
 ### 👥 4. Organization Mode & License Key
 
-- **Obtaining a License**: Organization Mode perpetual licenses are acquired by contacting Publisher **Amify Studio** (`contact@amify-studio.fr` — [amify-studio.fr](https://amify-studio.fr)). Full legal and pricing terms are detailed in the official [Organization License](../../LICENSE_ORGANISATION.md).
-- **"License Key" Field**: Enter your license key delivered by Amify Studio to activate the module.
+The **Organisation mode and license** card in the General tab groups the toggle, the license status and the actions.
+
+- **"Enable Organization Mode (CSE/Associations)" Toggle**: Unlocks the financial year, audit logs and multi-user tracking. Without a license, it opens the key entry window.
+- **Obtaining a License**: €800 once per organization, no subscription, version 1 updates included, VAT not applicable (art. 293 B of the French General Tax Code). A later major version (2.0) needs a separate license, and the version you bought stays usable. Request a quote at `contact@amify-studio.fr`; the key is sent by email once the bank transfer is received. Terms are in the [license agreement](../../../static/legal/LICENSE_ORGANISATION.md) (in French), also available through the **Read the agreement** button.
+- **"Enter my key" Button**: Asks for the email, the key, and acceptance of the agreement.
+- **"Deactivate license" Button**: Turns Organization Mode off on this profile after confirmation. An old-format key cannot be activated again once deactivated.
+- **Without a valid license**: The app returns to personal mode, a message says so, and data stays untouched and accessible.
 - **"Organization Users" Panel (`org_users`)**:
   - **"User Name" Input + "+ Add User" Button**: Creates organization user profiles (e.g., *President*, *Treasurer*) to trace action audit logs on shared workstations.
 

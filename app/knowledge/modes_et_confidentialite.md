@@ -13,6 +13,7 @@ OmniBank est une application conçue selon le principe **Local-First & Zero-Clou
 2. **Mode Organisation (Licence Pro / CSE / Associations)** :
    - Conçu pour les structures collectives, trésoriers d'associations ou comités d'entreprise.
    - Gestion multi-utilisateurs avec rôles d'accès, exercice comptable civil ou personnalisé, journalisation fine des écritures et ventilation analytique.
+   - Licence : 800 € en une fois par organisation, sans abonnement, mises à jour de la version 1 incluses, TVA non applicable (art. 293 B du CGI), sur devis auprès de contact@amify-studio.fr. Sans licence valable, l'application repasse en mode personnel et les données restent accessibles.
 
 ## 3. Mode Privé (.privacy-blur)
 - Le **Mode Privé** permet de masquer instantanément l'ensemble des montants, soldes bancaires et indicateurs chiffrés à l'écran par un flou optique sécurisé.

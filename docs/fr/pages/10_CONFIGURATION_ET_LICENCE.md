@@ -32,7 +32,6 @@ La page **Configuration** regroupe tous les réglages généraux d'OmniBank Loca
 - **Interrupteur "Activer la récurrence bi-mensuelle"** : Active la prise en charge des échéances et salaires versés deux fois par mois.
 - **Interrupteur "Activer les documents joints"** : Ajoute la possibilité de joindre des fichiers (factures, reçus PDF ou images) sur chaque opération.
 - **Interrupteur "Activer les bordereaux de chèques"** : Ajoute un champ dédié à la saisie du numéro de bordereau lors de la création d'un chèque.
-- **Interrupteur "Activer le Mode Organisation (Association/CSE)"** : Débloque le suivi d'audit et la gestion multi-utilisateur pour les structures collectives (nécessite une clé de licence).
 
 ---
 
@@ -44,8 +43,13 @@ La page **Configuration** regroupe tous les réglages généraux d'OmniBank Loca
 
 ### 👥 4. Mode Organisation & Clé de Licence
 
-- **Obtention d'une Licence** : La licence du Mode Organisation s'acquiert en contactant l'Éditeur **Amify Studio** (`contact@amify-studio.fr` — [amify-studio.fr](https://amify-studio.fr)). Les détails juridiques et tarifaires sont consultables dans la [Licence Organisation](../../LICENSE_ORGANISATION.md).
-- **Champ "Clé de Licence"** : Permet de saisir la clé délivrée par Amify Studio pour activer les fonctionnalités d'association/CSE.
+La carte **Mode Organisation et licence** de l'onglet Général regroupe l'interrupteur, l'état de la licence et les actions.
+
+- **Interrupteur "Activer le mode Organisation (Association/CSE)"** : Débloque l'exercice comptable, le suivi d'audit et la gestion multi-utilisateur. Sans licence, il ouvre la fenêtre de saisie de la clé.
+- **Obtention d'une Licence** : 800 € en une fois par organisation, sans abonnement, mises à jour de la version 1 incluses, TVA non applicable (art. 293 B du CGI). Une version majeure suivante (2.0) fait l'objet d'une licence distincte, et la version achetée reste utilisable. Demandez un devis à `contact@amify-studio.fr` ; la clé est envoyée par e-mail après réception du virement. Les conditions figurent dans le [contrat de licence](../../../static/legal/LICENSE_ORGANISATION.md), accessible aussi par le bouton **Lire le contrat**.
+- **Bouton "Saisir ma clé"** : Demande l'e-mail, la clé, et l'acceptation du contrat.
+- **Bouton "Désactiver la licence"** : Coupe le mode Organisation sur ce profil après confirmation. Une clé d'ancien format désactivée ne peut plus être réactivée.
+- **Sans licence valable** : L'application repasse en mode personnel, un message l'indique, et les données restent intactes et accessibles.
 - **Panneau "Gestion des Utilisateurs" (`org_users`)** :
   - **Champ "Nom de l'utilisateur" + Bouton "+ Ajouter l'utilisateur"** : Ajoute des profils d'utilisateurs (ex: *Président*, *Trésorier*) pour tracer l'historique d'audit des modifications sur les postes partagés.
 

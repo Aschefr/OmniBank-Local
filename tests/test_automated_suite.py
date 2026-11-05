@@ -751,14 +751,14 @@ def test_license_validation_flow():
     # 5. Activate with valid Ed25519 signature (pre-generated for test@example.com)
     # Public key: rlAgxcf0MapA13+WZi5CpGg42HhjTth/O40yV5qTxgY=
     valid_key = "zuQ9Y6lxxTsi1hOJgjoi/P3RX1F1lf+NWHXOuspxBo3kxaUw/RZs4ksxv0eU40FLTe90CpIRDDKGxfJzpEXbAA=="
-    res = client.post("/api/license/activate", json={"email": "test@example.com", "key": valid_key})
+    res = client.post("/api/license/activate", json={"email": "test@example.com", "key": valid_key, "contract_version": "2.0"})
     assert res.status_code == 200
-    assert res.json() == {"active": True, "email": "test@example.com"}
+    assert res.json()["active"] is True and res.json()["email"] == "test@example.com"
 
     # 6. Verify status is active
     res = client.get("/api/license/status")
     assert res.status_code == 200
-    assert res.json() == {"active": True, "email": "test@example.com"}
+    assert res.json()["active"] is True and res.json()["email"] == "test@example.com"
 
     # 7. Deactivate
     res = client.post("/api/license/deactivate")
@@ -769,7 +769,7 @@ def test_license_validation_flow():
     res = client.get("/api/license/status")
     assert res.json() == {"active": False, "email": None}
 
-    # 9. Test Passive Migration: directly insert an old OMNI- key into the database
+    # 9. An invented OMNI- key written directly in the database stays refused
     db = TestingSessionLocal()
     from app.models import GlobalConfig
     db.add(GlobalConfig(key="license_key", value="OMNI-LEGACY-KEY"))
@@ -777,10 +777,9 @@ def test_license_validation_flow():
     db.commit()
     db.close()
 
-    # Verify status is active due to passive migration
     res = client.get("/api/license/status")
     assert res.status_code == 200
-    assert res.json() == {"active": True, "email": "legacy@example.com"}
+    assert res.json() == {"active": False, "email": None}
 
 
 # ==============================================================================
