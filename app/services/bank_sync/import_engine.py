@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.models import Transaction
 from app.services.chat.ollama_client import get_ollama_config
 from app.services.finance_engine import calculate_balances
-from app.services.reconciliation_engine import check_reconciliation
+from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
 from app.services.smart_label_service import resolve_smart_labels_batch
 
 logger = logging.getLogger(__name__)
@@ -121,6 +121,9 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                     except Exception as err:
                         logger.warning(f"[BankSync] Erreur passe 1 exact matching: {err}")
 
+            if local_acc_id:
+                reserve_exact_amount_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag, excluded_by_csv=rejected_by_csv)
+
             # Passe 2 : Prédictions, rapprochements flous et règles métier pour les opérations restantes
             for i, tx in enumerate(tx_list):
                 tx_copy = dict(tx)
@@ -167,6 +170,8 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                     tx_copy["matched_db_id"] = rec_info.get("id")
                     tx_copy["db_description"] = rec_info.get("description")
                     tx_copy["match_score"] = rec_info.get("match_score", 0)
+                    tx_copy["is_amount_deviant"] = bool(rec_info.get("is_amount_deviant"))
+                    tx_copy["original_forecast_amount"] = rec_info.get("original_forecast_amount")
                     if rec_info.get("category"):
                         tx_copy["category"] = tx_copy.get("category") or rec_info.get("category")
                         tx_copy["db_category"] = rec_info.get("category")
@@ -174,6 +179,8 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                         tx_copy["type"] = rec_info.get("type")
                         tx_copy["db_type"] = rec_info.get("type")
                 else:
+                    tx_copy["is_amount_deviant"] = False
+                    tx_copy["original_forecast_amount"] = None
                     tx_copy["is_reconciled"] = False
                     tx_copy["already_reconciled"] = False
                     tx_copy["is_mirror_transfer"] = False

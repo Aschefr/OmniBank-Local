@@ -1594,6 +1594,16 @@ window.AutopilotView = {
         }
     },
 
+    _reviewAmountGap(item) {
+        if (item.bank_amount == null || item.forecast_amount == null) return '';
+        if (Math.abs(item.bank_amount - item.forecast_amount) < 0.005) return '';
+        const euro = value => typeof formatCurrency === 'function' ? formatCurrency(value) : `${Number(value).toFixed(2)} €`;
+        const text = (window.i18n ? window.i18n.t('autopilot_review_bank_vs_forecast') : 'Banque {bank} · Prévu {forecast}')
+            .replace('{bank}', euro(item.bank_amount))
+            .replace('{forecast}', euro(item.forecast_amount));
+        return `<div class="privacy-blur" style="font-size: 12px; font-weight: 600; color: #f59e0b; margin-top: 3px;">${escapeHtml(text)}</div>`;
+    },
+
     renderReviewQueue() {
         const container = document.getElementById('apReviewListContainer');
         const pill = document.getElementById('apReviewSummaryPill');
@@ -1668,6 +1678,7 @@ window.AutopilotView = {
                                 <td class="ap-col-desc" style="padding: 10px; vertical-align: middle; min-width: 0; overflow: hidden;">
                                     <div style="font-weight: 600; font-size: 13px; color: var(--text-main); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.description || item.raw_description || '')}</div>
                                     ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                    ${this._reviewAmountGap(item)}
                                     ${bestCandidate ? `
                                         <div class="candidate-forecast-pill" style="margin-top: 6px; font-size: 12px; background: rgba(99,102,241,0.08); padding: 4px 8px 4px 10px; border-radius: 6px; border: 1px dashed rgba(99,102,241,0.3); display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; max-width: 100%; box-sizing: border-box;">
                                             <span class="candidate-forecast-pill-content" style="display: inline-flex; align-items: center; gap: 5px; min-width: 0; flex: 1; overflow: hidden;">
@@ -1747,6 +1758,7 @@ window.AutopilotView = {
                             <div>
                                 <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); word-break: break-word; line-height: 1.35;">${escapeHtml(item.description || item.raw_description || '')}</div>
                                 ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 3px; word-break: break-all;">${escapeHtml(item.raw_description)}</div>` : ''}
+                                ${this._reviewAmountGap(item)}
                             </div>
 
                             ${bestCandidate ? `

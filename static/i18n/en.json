@@ -416,6 +416,7 @@
   "autopilot_recurrence_hike_propagated": "Perennial rate hike detected ({old} € → {new} €): template and future forecasts updated",
   "autopilot_recurrence_promoted": "Regular subscription promoted to recurring template ({count} consecutive months)",
   "autopilot_review_action_btn": "To review",
+  "autopilot_review_bank_vs_forecast": "Bank {bank} · Forecast {forecast}",
   "autopilot_review_btn_confirm": "Validate",
   "autopilot_review_btn_confirm_standalone": "Keep as-is",
   "autopilot_review_btn_confirm_standalone_tooltip": "Record as an independent standalone transaction without linking to the forecast",

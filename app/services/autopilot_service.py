@@ -399,6 +399,14 @@ def process_incoming_batch(
     except Exception as sl_err:
         logger.warning(f"[AutoPilot] Avertissement lors de la résolution smart labels du lot: {sl_err}")
 
+    # Prévisions déjà attribuées à une ligne de ce relevé : elles ne sont plus disponibles pour une autre ligne
+    batch_matched_ids = {
+        tx["matched_db_id"]
+        for acc in preview_data.get("accounts", [])
+        for tx in acc.get("transactions", [])
+        if tx.get("matched_db_id")
+    }
+
     # 2.B Évaluation du rapprochement pour les transactions non encore annotées
     try:
         from app.services.reconciliation_engine import check_reconciliation
@@ -426,7 +434,8 @@ def process_incoming_batch(
                         account_id=acc_id,
                         is_coming=bool(tx.get("is_coming", False)),
                         bank_label=lbl,
-                        csv_id=c_id
+                        csv_id=c_id,
+                        matched_ids=batch_matched_ids
                     )
                     if rec_info and rec_info.get("id"):
                         is_already = bool(rec_info.get("already_reconciled", False))
@@ -463,6 +472,7 @@ def process_incoming_batch(
                             else:
                                 auto_commit_allowed = bool(rec_info.get("auto_committed", True))
                                 if auto_commit_allowed:
+                                    batch_matched_ids.add(rec_info["id"])
                                     tx["is_reconciled"] = True
                                     tx["already_reconciled"] = False
                                     tx["matched_db_id"] = rec_info["id"]
@@ -509,7 +519,7 @@ def process_incoming_batch(
     rules_learned_count = 0
     pending_count = 0
     total_count = 0
-    seen_suspected_dup_ids = set()
+    seen_suspected_dup_ids = set(batch_matched_ids)
 
     residual_accounts = []
     import copy
@@ -2429,6 +2439,19 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
     return results[:limit]
 
 
+def _reconciled_amounts(raw_snapshot: Optional[str]) -> tuple:
+    """(montant bancaire, montant prévu) d'un rapprochement, d'après sa décision. (None, None) si la décision ne le dit pas."""
+    try:
+        snap = json.loads(raw_snapshot or "{}")
+        raw_amount = snap["bank_tx"]["raw_amount"]
+        forecast = snap.get("original_amount")
+        if forecast is None:
+            forecast = snap["before"]["amount"]
+        return abs(float(raw_amount)), abs(float(forecast))
+    except (ValueError, KeyError, TypeError):
+        return None, None
+
+
 def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """Retourne la liste des transactions nécessitant une revue manuelle (needs_review == True)."""
     from app.models import Transaction, Account, AutopilotDecisionLog
@@ -2454,10 +2477,22 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
         ).all()
         recon_entity_ids = {r[0] for r in recon_decs}
 
+    # Montants du rapprochement : ceux de la ligne bancaire et de la prévision, qui peuvent différer
+    amounts_by_tx = {}
+    if recon_entity_ids:
+        recon_logs = db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.entity_id.in_(recon_entity_ids),
+            AutopilotDecisionLog.decision_type == "reconciliation",
+            AutopilotDecisionLog.is_undone == False
+        ).order_by(AutopilotDecisionLog.id).all()
+        for log in recon_logs:
+            amounts_by_tx[log.entity_id] = _reconciled_amounts(log.raw_snapshot)
+
     results = []
     for t in txs:
         acc_id = t.from_account_id or t.to_account_id
         acc = accounts.get(acc_id)
+        bank_amount, forecast_amount = amounts_by_tx.get(t.id, (None, None))
         # Ne chercher des prévisions candidates QUE si la transaction n'est pas déjà liée à une prévision existante
         candidates = []
         if t.id not in recon_entity_ids:
@@ -2468,6 +2503,8 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
             "raw_description": t.raw_description or t.description,
             "description": t.description,
             "amount": t.amount,
+            "bank_amount": bank_amount,
+            "forecast_amount": forecast_amount,
             "type": t.type,
             "category": t.category,
             "account_id": acc_id,

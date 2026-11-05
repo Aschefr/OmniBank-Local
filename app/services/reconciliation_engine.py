@@ -4,7 +4,7 @@ Extrait de csv_parser.py pour éliminer la dépendance inversée service -> rout
 et servir de brique unifiée au mode Auto-Pilote.
 """
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
@@ -244,7 +244,8 @@ def check_reconciliation(
     is_coming: bool = False,
     bank_label: Optional[str] = None,
     csv_id: Optional[str] = None,
-    exact_only: bool = False
+    exact_only: bool = False,
+    allow_deviant: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
     Vérifie si une transaction correspondante existe en base via un score composite (0-100 pts):
@@ -619,7 +620,7 @@ def check_reconciliation(
         return recon_match
 
     # 2.C : Si aucun match exact en montant, tenter l'auto-liaison tolérante sur récurrence active
-    deviant_match = _find_deviant_recurrence()
+    deviant_match = _find_deviant_recurrence() if allow_deviant else None
     if deviant_match:
         return deviant_match
 
@@ -735,3 +736,41 @@ def check_reconciliation(
             }
 
     return None
+
+
+def reserve_exact_amount_matches(
+    db: Session,
+    lines: List[Dict[str, Any]],
+    results: List[Optional[Dict[str, Any]]],
+    matched_ids: Set[int],
+    account_id: Optional[int],
+    is_coming: bool = False,
+    excluded_by_csv: Optional[Dict[str, Set[int]]] = None
+) -> None:
+    """
+    Sert d'abord les lignes dont le montant existe en base, sans la tolérance des montants fluctuants.
+    Sinon, une ligne plus ancienne au montant voisin prend la prévision d'une autre (-10 € sur la prévision de 72 €),
+    qui se rabat à son tour sur une autre prévision. Remplit `results` et `matched_ids` en place.
+    """
+    for i, line in enumerate(lines):
+        if results[i] is not None or line.get("raw_amount") is None or not line.get("date_operation"):
+            continue
+        csv_id = line.get("csv_id")
+        try:
+            rec_info = check_reconciliation(
+                db,
+                date.fromisoformat(str(line["date_operation"])[:10]),
+                float(line["raw_amount"]),
+                matched_ids=set(matched_ids) | (excluded_by_csv or {}).get(csv_id, set()),
+                account_id=account_id,
+                is_coming=is_coming,
+                bank_label=line.get("raw_description") or line.get("description"),
+                csv_id=csv_id,
+                allow_deviant=False
+            )
+        except Exception as err:
+            logger.warning(f"[Reconciliation] Erreur sur la passe des montants exacts: {err}")
+            continue
+        if rec_info and rec_info.get("id"):
+            results[i] = rec_info
+            matched_ids.add(rec_info["id"])

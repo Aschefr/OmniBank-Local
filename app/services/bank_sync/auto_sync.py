@@ -155,7 +155,8 @@ def execute_auto_sync_for_connection(
             master_password=master_password,
             since_days=30,
             event_callback=_on_fetch_event,
-            defer_ai=True
+            defer_ai=True,
+            catch_up=True
         )
         from app.services.autopilot_service import process_incoming_batch
         _set_sync_phase(pid, "classify")

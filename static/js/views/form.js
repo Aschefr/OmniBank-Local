@@ -451,7 +451,11 @@ window.FormView = {
                 const rawForJs = rawDesc.replace(/'/g, "\\'");
                 const origLabel = window.i18n ? window.i18n.t('smart_label_orig_bank') || 'En banque :' : 'En banque :';
                 const restoreLabel = window.i18n ? window.i18n.t('smart_label_restore') || 'Restaurer' : 'Restaurer';
-                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong> <button type="button" onclick="document.getElementById('op_desc').value='${rawForJs}'; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
+                const reviewItem = (window.AutopilotView?._reviewQueue || []).find(item => item.id === tx.id);
+                const bankAmount = reviewItem && reviewItem.bank_amount != null && typeof formatCurrency === 'function'
+                    ? ` <strong class="privacy-blur" style="color:var(--text-main); font-style:normal;">${formatCurrency(reviewItem.bank_amount)}</strong>`
+                    : '';
+                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong>${bankAmount} <button type="button" onclick="document.getElementById('op_desc').value='${rawForJs}'; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
                 rawHintEl.style.display = 'block';
             } else {
                 rawHintEl.style.display = 'none';
