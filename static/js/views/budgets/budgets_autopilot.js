@@ -881,10 +881,14 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         if (!items.length) return '';
         const t = (key, fallback) => (window.i18n && window.i18n.t(key)) || fallback;
         const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        // Un ajout de catégorie montre de combien le plafond a monté, pas seulement sa nouvelle valeur
+        const cap = (it) => (!it.created && it.old_amount != null && Math.abs(it.old_amount - it.amount) >= 0.01)
+            ? t('bv_auto_notice_cap_raised', 'plafond {from} → {amount}').split('{from}').join(formatCurrency(it.old_amount)).split('{amount}').join(formatCurrency(it.amount))
+            : t('bv_auto_notice_cap', 'plafond {amount}').split('{amount}').join(formatCurrency(it.amount));
         const rows = items.map(it => `
                         <li class="bv-auto-item">
                             <button type="button" class="bv-auto-name" onclick="window.BudgetsView.openAutoNoticeEnvelope(${Number(it.budget_id)})">${esc(it.name)}</button>
-                            <span class="bv-auto-meta">${it.created ? t('bv_auto_notice_created', 'Nouvelle enveloppe') : t('bv_auto_notice_extended', 'Catégorie ajoutée')} · <span class="privacy-blur">${t('bv_auto_notice_cap', 'plafond {amount}').split('{amount}').join(formatCurrency(it.amount))}</span></span>
+                            <span class="bv-auto-meta">${it.created ? t('bv_auto_notice_created', 'Nouvelle enveloppe') : t('bv_auto_notice_extended', 'Catégorie ajoutée')} · <span class="privacy-blur">${cap(it)}</span></span>
                             <span class="bv-auto-cats">${it.categories.map(esc).join(', ')}</span>
                         </li>`).join('');
         return `
