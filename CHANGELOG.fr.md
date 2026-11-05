@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.4.2] - 2026-11-05
 
 ### Corrections & ergonomie
 - **Relevés après une longue absence 🔄** : « Relever en ligne » remontait toujours à 30 jours exactement, si bien qu'une absence plus longue laissait un trou dans vos relevés. Il remonte désormais jusqu'à la dernière opération traitée de chaque compte, dans la limite de 75 jours.

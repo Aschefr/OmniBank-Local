@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.4.2] - 2026-11-05
 
 ### Fixed & Ergonomics
 - **Statements after a long absence 🔄**: "Fetch online" always went back exactly 30 days, so any longer absence left a gap in your statements. It now goes back to the last transaction processed on each account, up to 75 days.
