@@ -14,6 +14,7 @@ import time
 from typing import Any, List, Optional
 
 from woob.core import Woob
+from woob.exceptions import ModuleInstallError
 from woob.tools.storage import StandardStorage
 
 from app.database import DATA_DIR
@@ -21,8 +22,16 @@ from app.schemas.bank_sync_schemas import (
     BackendConfigField,
     BankBackendInfo,
 )
+from app.services.bank_sync.woob_trust import (
+    index_path,
+    install_woob_guards,
+    keyring_outdated,
+    refresh_module_index,
+)
 
 logger = logging.getLogger(__name__)
+
+install_woob_guards()
 
 # Cache singleton pour l'instance Woob et son stockage persistant
 _WOOB_INSTANCE: Optional[Woob] = None
@@ -31,13 +40,79 @@ _STORAGE_LOCK = threading.Lock()
 _BACKENDS_CACHE: Optional[List[BankBackendInfo]] = None
 _CACHE_TIMESTAMP: float = 0
 
+_WOOB_LOCK = threading.Lock()
+_INDEX_REFRESH_LOCK = threading.Lock()
+_INDEX_MAX_AGE_SECONDS = 24 * 3600
+_INDEX_RETRY_SECONDS = 300
+_LAST_INDEX_ATTEMPT: float = 0
+
 
 def get_woob() -> Woob:
-    """Retourne une instance Woob réutilisable."""
+    """Retourne une instance Woob réutilisable, avec son index de modules dès qu'il est disponible."""
     global _WOOB_INSTANCE
-    if _WOOB_INSTANCE is None:
-        _WOOB_INSTANCE = Woob()
-    return _WOOB_INSTANCE
+    with _WOOB_LOCK:
+        if _WOOB_INSTANCE is None:
+            _WOOB_INSTANCE = Woob()
+        w = _WOOB_INSTANCE
+    if not w.repositories.repositories:
+        refresh_index_if_due(w)
+    return w
+
+
+def _index_is_due(w: Woob) -> bool:
+    if not w.repositories.repositories or keyring_outdated(w.repositories):
+        return True
+    try:
+        return time.time() - os.path.getmtime(index_path(w.repositories)) >= _INDEX_MAX_AGE_SECONDS
+    except OSError:
+        return True
+
+
+def refresh_index_if_due(w: Woob) -> bool:
+    """Actualise l'index des modules s'il a plus d'un jour. Un échec est réessayé après 5 minutes, sans rien casser."""
+    global _LAST_INDEX_ATTEMPT, _BACKENDS_CACHE
+    if not _INDEX_REFRESH_LOCK.acquire(blocking=False):
+        return False
+    try:
+        if not _index_is_due(w) or time.time() - _LAST_INDEX_ATTEMPT < _INDEX_RETRY_SECONDS:
+            return False
+        _LAST_INDEX_ATTEMPT = time.time()
+        refreshed = refresh_module_index(w.repositories)
+        if refreshed:
+            _BACKENDS_CACHE = None
+        return refreshed
+    except Exception as e:
+        logger.warning(f"[BankSync] Actualisation de l'index des modules ignorée : {e}")
+        return False
+    finally:
+        _INDEX_REFRESH_LOCK.release()
+
+
+def has_bank_connection() -> bool:
+    """Vrai si un profil utilise la synchronisation bancaire : les autres n'ont pas à contacter le dépôt woob."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app.database import get_engine
+    from app.models import BankConnection
+    from app.profile_manager import load_profiles_data
+
+    for prof in load_profiles_data().get("profiles", []):
+        db = sessionmaker(bind=get_engine(prof["id"]))()
+        try:
+            if db.query(BankConnection.id).first():
+                return True
+        finally:
+            db.close()
+    return False
+
+
+def refresh_index_for_bank_users() -> None:
+    """Actualisation périodique, à lancer quand aucun module n'est en cours de chargement ou de relevé."""
+    try:
+        if has_bank_connection():
+            refresh_index_if_due(get_woob())
+    except Exception as e:
+        logger.warning(f"[BankSync] Actualisation de l'index des modules ignorée : {e}")
 
 
 def get_woob_storage() -> StandardStorage:
@@ -55,6 +130,8 @@ def _apply_module_hotfixes(w: Woob, backend_name: str, backend: Any = None):
     # S'assurer que le module requis est bien installé localement avant d'appliquer un correctif
     try:
         w.repositories.install(backend_name)
+    except ModuleInstallError as e:
+        logger.warning(f"[BankSync] Module '{backend_name}' non installé ou non mis à jour : {e}")
     except Exception as e:
         logger.debug(f"[BankSync] Module install check notice ({backend_name}): {e}")
 
@@ -281,6 +358,8 @@ def init_known_bank_hotfixes():
     """Précharge et applique les correctifs connus au démarrage en arrière-plan sans bloquer l'application."""
     def _worker():
         try:
+            # Au démarrage, aucun module n'est encore chargé : le bon moment pour en changer de version
+            refresh_index_for_bank_users()
             w = get_woob()
             for b in ("cragr", "boursorama"):
                 try:

@@ -15,6 +15,7 @@ datas = [
     ('../../package.json', '.'),
     ('../../app/services/simulator_presets.json', 'app/services'),
     ('../../app/knowledge', 'app/knowledge'),
+    ('../../docker/woob-keyring', 'woob-keyring'),
 ] + woob_datas + pycountry_datas + html2text_datas + yaml_datas + unidecode_datas + lxml_datas
 
 hiddenimports = list(set(
