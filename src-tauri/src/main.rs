@@ -48,6 +48,7 @@ fn kill_sidecar(state: &SidecarState) {
 ///   - Caches d'extraction PyInstaller --onefile (_MEI* avec marqueur omnibank-api.exe)
 ///   - Fichiers update*.msi téléchargés par tauri-plugin-updater dans %TEMP%
 ///   - Fichiers OmniBank*.msi dans %LOCALAPPDATA%\Temp
+///   - Dossiers OmniBank-X.Y.Z-updater-* de tauri-plugin-updater, chacun avec une copie du MSI
 ///
 /// JAMAIS touchés : base de données, licence, configuration utilisateur.
 fn cleanup_old_update_artifacts() {
@@ -102,7 +103,52 @@ fn cleanup_old_update_artifacts() {
         }
     }
 
+    // 4. Dossiers de téléchargement de l'updater dans %TEMP%. Un dossier récent peut servir à une
+    //    mise à jour en cours : il attend le lancement suivant.
+    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !is_updater_dir_name(&entry.file_name().to_string_lossy()) || !path.is_dir() {
+                continue;
+            }
+            let old_enough = entry.metadata().and_then(|m| m.modified()).ok()
+                .and_then(|modified| modified.elapsed().ok())
+                .is_some_and(|age| age >= UPDATER_DIR_MIN_AGE);
+            if old_enough {
+                eprintln!("[cleanup] Suppression dossier de mise à jour: {:?}", path);
+                let _ = std::fs::remove_dir_all(&path);
+            }
+        }
+    }
+
     eprintln!("[cleanup] Nettoyage post-MAJ terminé.");
+}
+
+const UPDATER_DIR_MIN_AGE: Duration = Duration::from_secs(3600);
+
+/// Nom d'un dossier de téléchargement de tauri-plugin-updater : `OmniBank-<version>-updater-<suffixe>`.
+fn is_updater_dir_name(name: &str) -> bool {
+    name.strip_prefix("OmniBank-")
+        .and_then(|rest| rest.split_once("-updater-"))
+        .is_some_and(|(version, suffix)| {
+            !suffix.is_empty() && version.starts_with(|c: char| c.is_ascii_digit())
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_updater_dir_name;
+
+    #[test]
+    fn only_updater_download_folders_match() {
+        assert!(is_updater_dir_name("OmniBank-1.1.8-updater-wipZRw"));
+        assert!(is_updater_dir_name("OmniBank-1.4.1-updater-a"));
+        assert!(!is_updater_dir_name("OmniBank-1.1.8-updater-"));
+        assert!(!is_updater_dir_name("OmniBank-updater-abc"));
+        assert!(!is_updater_dir_name("OmniBank-1.1.8"));
+        assert!(!is_updater_dir_name("omnibank_test_data_1"));
+        assert!(!is_updater_dir_name("Autre-1.1.8-updater-abc"));
+    }
 }
 
 
