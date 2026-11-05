@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHk3d0dNL1hTWGRTTTdNOGxyY1pmNHRCRnU0RGlDNmkwSDV2S1FXVUwxeXlSaXc5WjNHSjVsdXkvSk1ReDRTVUZwTGF0cWY2d2pTa0VCK2pGcGdTMGc0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzODkxNDMxCWZpbGU6T21uaUJhbmtfMS40LjBfeDY0X2ZyLUZSLm1zaQpQc25PTXpMVDNjSVFiZk13LzdMcUp4NVhhQmJyWitBOE5VQ2hJbE9CU3RtTi85ZXBFMURsaU9tTlhtbFVLS1FmbkRvUUQ2ZnExY2txVXVBd09nMHdDQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.4.0/OmniBank_1.4.0_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDcvN0RBc1NxVDZYODVud25xeG51c0ZHazFwbXpLVHRTWEt3MkNEVWNlNEhGZ1BjaFVTNHFLSkk5RmtweVFJQ092cmZYaTByMHM3djA0NHhUUUx3YVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzODk5OTgzCWZpbGU6T21uaUJhbmtfMS40LjFfeDY0X2ZyLUZSLm1zaQpaTCtJZmpOTHB6TmhXRWVGM0tuWTUrUTVndGxvQXRwd0xqVlg0Zkp4c1JNdnhQVk0xZFVvWWpDMVEzS2NJOVZicVhobDJnbllYcGs5OGNvWGdxOHlBQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.4.1/OmniBank_1.4.1_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-05T15:10:32Z",
-    "version":  "1.4.0",
-    "notes":  "Budgets redesign, realistic Simulator, actual against forecast on the Cockpit, faster statements, Organisation Mode license"
+    "pub_date":  "2026-11-05T17:33:03Z",
+    "version":  "1.4.1",
+    "notes":  "Bank modules verified before installation, on Docker and Windows"
 }
