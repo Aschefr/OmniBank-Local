@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **Start a new series from a recurring transaction 🔁**: When you edit a transaction that belongs to a recurring series, a third choice, "Start a new series", lets it leave its series and start a new one with the same frequency and duration, for example when "Taxes - 2025 balance" becomes "Taxes - 2026 balance". The old series keeps a skipped occurrence in its place, so it is not recreated, and its upcoming occurrences stay as they are; Undo puts everything back.
+- **Period trend without the Simulator 📈**: The Cockpit's "Period trend" curve now shows even when the Simulator is turned off, like the "Next Month Outlook" cards.
+
+### Fixed & Ergonomics
+- **Statement notifications only when there is something to do 🔔**: A statement sent a notification even when nothing had changed. It now notifies only for new transactions or transactions to reconcile or check; failed banks and two-factor requests are still notified, and the button and the time of the last statement still update. The statement summary also counts the transactions Auto-Pilot handled on its own, which it used to report as zero.
+- **Bank modules: a revoked or expired signing key is now refused 🔒**: A module signed with a subkey whose main key was revoked or had expired was still accepted. It is now refused, as gpg does.
+
 ## [1.4.2] - 2026-11-05
 
 ### Fixed & Ergonomics
