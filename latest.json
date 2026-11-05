@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDlTSytiV1ZSUy8xdzlqU2g1VHJ1SVZWZk5GUXZIa2tCZUNON2tQV0ZWMXQ0Z0w1YU1RQW9CdE9CdzhUYUxOTVRvQS9iT0RaN3UzUGYwN0lJSkNVK2djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTA4MTI4CWZpbGU6T21uaUJhbmtfMS40LjJfeDY0X2ZyLUZSLm1zaQpqekQ1OFZrR3RZSWxwMjN5L3VZMDJtNW9sczZKNTIyaURjUTRsMjBhVnA4TnZqcGM5aEZiM2VTUkNYbUtHYWw2TEhSMEtoV3NTR21Xdk1YOWNrRmxCUT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.4.2/OmniBank_1.4.2_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDgzMHBQOUYwY1JHV0U3VGtEUkoxa3hYcHJVbmhzaVcxblBqcS9EVVRvK3pPU3JxbUxlSDVQUEI0RjlOZkpkS1pKY3dYRldocmZ1bitKNDRxcUlaU0FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTE1OTY1CWZpbGU6T21uaUJhbmtfMS40LjNfeDY0X2ZyLUZSLm1zaQpYeWswUVFCclFWMTg0bncyRUZ6dnkzUGpEMkRCWHVLeDdlNWFnK21NVEM0cU1VcDZ4dENnUFROcGxYS3hCWXdXY2M1dTZtTWp6VzJVOUF4OEp0dUJDdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.4.3/OmniBank_1.4.3_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-05T19:48:48Z",
-    "version":  "1.4.2",
-    "notes":  "Reliable statements after an absence and reconciliation fixes"
+    "pub_date":  "2026-11-05T21:59:25Z",
+    "version":  "1.4.3",
+    "notes":  "Envelope cap fix after statements, new series from a recurring transaction, quieter notifications"
 }
