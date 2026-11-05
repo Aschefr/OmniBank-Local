@@ -404,10 +404,15 @@ def check_reconciliation(
         recon_match, recon_score, recon_collision = best_scored_tx(recon_query_filtered.all(), target_dt, bank_label, db=db, is_coming=is_coming)
         if recon_match and recon_score >= 60:
             cand_dt = recon_match.date_operation
-            if cand_dt and is_coming:
+            if cand_dt:
+                # Une saisie manuelle pointée peut précéder son débit de plusieurs semaines (30 jours). Une opération
+                # déjà liée à une autre ligne de la banque ne l'est qu'à quelques jours près : au-delà, c'est l'abonnement
+                # d'un autre mois, et la ligne bancaire serait absorbée sans compter dans le solde
                 delta_days = abs((target_dt - cand_dt).days)
-                if delta_days > 2:
-                    logger.debug(f"[Reconciliation] Candidat déjà pointé écarté car delta={delta_days}j > 2j pour op à venir")
+                linked_to_bank_line = bool(recon_match.csv_id and str(recon_match.csv_id).startswith("woob_"))
+                max_days = 2 if is_coming else (7 if linked_to_bank_line else 30)
+                if delta_days > max_days:
+                    logger.debug(f"[Reconciliation] Candidat déjà pointé écarté car delta={delta_days}j > {max_days}j")
                     return None
 
             is_mirror = bool(

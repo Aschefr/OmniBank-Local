@@ -890,6 +890,11 @@ def process_incoming_batch(
                         cand_fluct = fluct_q.all()
                         raw_bank_lbl = tx.get("raw_description") or tx.get("description") or ""
                         for cand in cand_fluct:
+                            # Même marchand mais montant sans rapport (un achat de 81,70 € face à un abonnement de 9,95 €) :
+                            # ce n'est pas la même opération
+                            cand_amt = abs(float(cand.amount or 0.0))
+                            if not (cand_amt > 0 and cand_amt / 3.0 <= amt <= cand_amt * 3.0):
+                                continue
                             has_rec = (cand.recurrence_id is not None)
                             txt_sc = 0
                             try:
