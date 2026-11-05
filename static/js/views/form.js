@@ -1395,6 +1395,8 @@ window.FormView = {
             // Edit Mode
             if (isRecurrent || (this.currentTxBase && this.currentTxBase.recurrence_id)) {
                 // Show propagate modal
+                const newSeriesBtn = document.getElementById('btnPropagateNewSeries');
+                if (newSeriesBtn) newSeriesBtn.style.display = this.currentTxBase?.recurrence_id ? '' : 'none';
                 document.getElementById('propagateConfirmModal').style.display = 'flex';
                 return; // Pauses save until confirmation
             } else {
@@ -1435,7 +1437,13 @@ window.FormView = {
         this.executeSave(propagate);
     },
 
-    async executeSave(propagate) {
+    /** L'opération quitte sa série et en démarre une nouvelle ; l'ancienne série et ses occurrences restent telles quelles. */
+    confirmNewSeries() {
+        document.getElementById('propagateConfirmModal').style.display = 'none';
+        this.executeSave(false, { newSeries: true });
+    },
+
+    async executeSave(propagate, { newSeries = false } = {}) {
         const saveBtn = document.getElementById('op_save_btn');
         return window.withButtonLoading(saveBtn, async () => {
             try {
@@ -1481,6 +1489,9 @@ window.FormView = {
                             } catch(e) {}
                         }
                         showToast(window.i18n ? (window.i18n.t('autopilot_override_success') || 'Opération mise à jour et règle apprise') : 'Opération mise à jour et règle apprise', 'success');
+                    }
+                    if (newSeries && this.currentTxId) {
+                        await API.post(`/api/transactions/${this.currentTxId}/new-series`, {});
                     }
 
                     this.close();
@@ -1551,7 +1562,7 @@ window.FormView = {
 
             if (this.currentTxId) {
                 // UPDATE
-                const res = await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}`, this.pendingSaveData);
+                const res = await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}${newSeries ? '&new_series=true' : ''}`, this.pendingSaveData);
                 actionId = res.action_id;
 
                 

@@ -421,15 +421,19 @@ def test_background_and_cockpit_share_the_same_forecast(db, fresh_background):
     assert db.query(ForecastSnapshot).count() == count
 
 
-def test_background_skips_an_empty_profile_and_a_disabled_simulator(db, fresh_background):
+def test_background_skips_an_empty_profile(db, fresh_background):
     assert record_period_forecasts(db, "vide") == 0
+    assert db.query(ForecastSnapshot).count() == 0
 
+
+def test_background_and_curve_work_with_the_simulator_disabled(db, fresh_background):
+    """La courbe du Cockpit ne dépend pas du Simulateur : elle s'enregistre et s'affiche même s'il est désactivé."""
     _life(db)
     db.add(GlobalConfig(key="enable_simulator", value="false"))
     db.commit()
 
-    assert record_period_forecasts(db, "desactive") == 0
-    assert db.query(ForecastSnapshot).count() == 0
+    assert record_period_forecasts(db, "desactive") == 3
+    assert get_forecast_tracking(db)["available"] is True
 
 
 # ── Le rythme de dépenses ───────────────────────────────────

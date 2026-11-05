@@ -885,6 +885,7 @@
             <div class="modal-actions" style="display: flex; flex-direction: column; gap: 10px;">
                 <button id="btnPropagateAll" class="btn btn-primary" style="width:100%" onclick="window.FormView.confirmPropagate(true)" data-i18n="btn_propagate_all">Toutes les futures (et le modèle)</button>
                 <button id="btnPropagateSingle" class="btn btn-secondary" style="width:100%" onclick="window.FormView.confirmPropagate(false)" data-i18n="btn_propagate_single">Seulement celle-ci</button>
+                <button id="btnPropagateNewSeries" class="btn btn-secondary" style="width:100%" onclick="window.FormView.confirmNewSeries()" data-i18n="btn_propagate_new_series" data-i18n-title="btn_propagate_new_series_hint" title="Celle-ci quitte sa série et en démarre une nouvelle, avec la même fréquence et la même durée. L'ancienne série et ses occurrences restent telles quelles.">Créer une nouvelle série</button>
                 <button class="btn btn-danger" style="width:100%" onclick="document.getElementById('propagateConfirmModal').style.display='none'" data-i18n="btn_cancel">Annuler</button>
             </div>
         </div>
@@ -1019,7 +1020,7 @@
     <script src="/static/js/views/chat.js?v=152"></script>
 
 
-    <script src="/static/js/views/form.js?v=7"></script>
+    <script src="/static/js/views/form.js?v=8"></script>
     <script src="/static/js/views/import_wizard.js?v=6"></script>
     <script src="/static/js/floating_header.js?v=2"></script>
     <script src="/static/js/views/analytics.js?v=12"></script>
@@ -1396,7 +1397,7 @@
     <script src="/static/js/views/budgets/budgets_suggest.js?v=4"></script>
     <script src="/static/js/views/budgets.js?v=3"></script>
     <script src="/static/js/views/trends.js?v=5"></script>
-    <script src="/static/js/views/overview.js?v=22"></script>
+    <script src="/static/js/views/overview.js?v=23"></script>
     <script src="/static/js/views/simulator.js?v=42"></script>
     <script src="/static/js/views/bank_sync.js?v=9"></script>
     <script src="/static/js/views/bank_sync_vault.js?v=7"></script>

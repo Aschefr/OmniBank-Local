@@ -994,6 +994,8 @@
   "btn_ok": "Compris",
   "btn_propagate_all": "Toutes les futures (et le modèle)",
   "btn_propagate_down": "Propager vers le bas ⬇️",
+  "btn_propagate_new_series": "Créer une nouvelle série",
+  "btn_propagate_new_series_hint": "Celle-ci quitte sa série et en démarre une nouvelle, avec la même fréquence et la même durée. L'ancienne série et ses occurrences restent telles quelles.",
   "btn_propagate_single": "Seulement celle-ci",
   "btn_reactivate": "Réactiver",
   "btn_reanalyze": "Réanalyser",
