@@ -31,7 +31,7 @@ LEGACY_PREFIX = "OMNI-"
 CONTRACT_VERSION = "2.0"
 
 # Licences révoquées (rétractation, revente) : la liste part avec les mises à jour, l'application reste hors ligne
-REVOKED_LICENSE_IDS = frozenset()
+REVOKED_LICENSE_IDS = frozenset({"OB-2026-0001"})  # OB-2026-0001 : clé de test, jamais vendue
 
 # Empreintes SHA-256 de « e-mail\nclé » des anciennes clés encore valables : la clé elle-même n'est pas dans le dépôt
 LEGACY_KEY_HASHES = frozenset({
