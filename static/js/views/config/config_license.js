@@ -31,7 +31,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         if (!el) return;
         const status = await window.LicenseManager.getStatus();
         const t = key => window.i18n.t(key);
-        const contractBtn = `<button class="btn btn-secondary" onclick="window.LicenseManager.showContract()">${t('license_btn_contract')}</button>`;
 
         if (status.active) {
             const details = [status.id, status.org, status.email].filter(Boolean).map(window.escapeHtml).join(' · ');
@@ -42,7 +41,6 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 </div>
                 ${status.kind === 'legacy' ? `<p class="license-hint">${t('license_legacy_note')}</p>` : ''}
                 <div class="license-actions">
-                    ${contractBtn}
                     <button class="btn btn-danger-outline" onclick="window.ConfigView._deactivateLicense()">${t('license_btn_deactivate')}</button>
                 </div>`;
         } else {
@@ -51,12 +49,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 <div class="license-status-line">
                     <span class="license-badge inactive">${t('license_inactive')}</span>
                 </div>
-                <p class="license-hint">${t('license_offer')}</p>
-                <p class="license-hint">${t('license_how_to_buy')}</p>
+                <p class="license-hint">${t('license_off_sale')}</p>
                 <div class="license-actions">
                     <button class="btn btn-primary" onclick="window.ConfigView._enterLicenseKey()">${t('license_btn_enter_key')}</button>
-                    <a class="btn btn-secondary" href="${window.LicenseManager.QUOTE_MAILTO}">${t('license_btn_quote')}</a>
-                    ${contractBtn}
                 </div>`;
         }
         // Le panneau du mode partagé dépend aussi de la licence
