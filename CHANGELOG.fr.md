@@ -2,11 +2,12 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.4.1] - 2026-11-05
 
 ### Corrections & ergonomie
 - **Modules bancaires vérifiés avant installation, sur Docker et Windows 🔒** : les modules bancaires sont téléchargés par woob, qui sautait le contrôle de leur signature si l'outil nécessaire manquait : ils étaient donc installés sans contrôle. L'image Docker et l'application Windows vérifient désormais chaque module avec les clés de signature attendues et refusent celui dont la signature ne correspond pas, en gardant la version déjà installée. Sur Windows, les modules installés avant cette mise à jour sont retéléchargés et contrôlés à leur prochain usage.
 - **Modules bancaires enfin actualisables ⚙️** : la liste des modules disponibles n'était téléchargée qu'une fois, si bien que leurs correctifs n'arrivaient jamais sur les installations existantes. Les installations ayant une connexion bancaire l'actualisent désormais une fois par jour ; une panne réseau ou une liste refusée ne touche pas aux modules qui fonctionnent.
+- **Les mises à jour Windows font leur ménage** : chaque mise à jour automatique laissait un dossier contenant une copie de l'installateur dans le dossier temporaire de Windows, ce qui pouvait atteindre plusieurs gigaoctets. Ils sont désormais supprimés au démarrage de l'application.
 
 ## [1.4.0] - 2026-11-05
 

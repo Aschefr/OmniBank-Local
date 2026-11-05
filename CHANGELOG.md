@@ -2,11 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.4.1] - 2026-11-05
 
 ### Fixed & Ergonomics
 - **Bank modules now verified before installation, on Docker and Windows 🔒**: Bank modules are downloaded by woob, which skipped their signature check when the right tool was missing, so they were installed unchecked. The Docker image and the Windows app now check every module against the expected signing keys and refuse one whose signature does not match, keeping the version already installed. On Windows, modules installed before this update are downloaded again and checked the next time they are used.
 - **Bank modules can now update ⚙️**: The list of available modules was only downloaded once, so module fixes never reached existing installations. Installations with a bank connection now refresh it once a day; a network failure or a refused list leaves the working modules untouched.
+- **Windows updates clean up after themselves**: Each automatic update left a folder with a copy of the installer in the Windows temporary folder, which could add up to several gigabytes. They are now removed when the app starts.
 
 ## [1.4.0] - 2026-11-05
 
