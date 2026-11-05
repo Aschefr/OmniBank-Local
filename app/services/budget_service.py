@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from app.models import Budget, BudgetCategory, BudgetAllocation, Transaction, Account, GlobalConfig, AutopilotDecisionLog
 from app.services.history_service import delete_budgets, record_action, snapshot_entity
 from app.services.stats_utils import winsorize_values
+from app.services.smart_label.categories import is_fallback_category
 
 logger = logging.getLogger(__name__)
 
@@ -1167,9 +1168,12 @@ def get_unbudgeted_categories(db: Session, lookback_months: int = 3) -> List[str
     )
     active_set = {row[0] for row in active_cats_q.all()}
 
+    # La catégorie filet de sécurité (« Dépenses diverses ») range les lignes pas encore classées : son
+    # montant n'est pas une habitude de dépense, et il fond dès que l'IA ou l'utilisateur les classe.
     orphan = [
         c for c in sorted(active_set - budgeted_set)
         if c.strip().lower() not in excluded_names
+        and not is_fallback_category(c)
         and not any(kw in c.strip().lower() for kw in transfer_and_loan_keywords)
     ]
     logger.debug(f"[Budgets] Catégories variables orphelines récentes détectées : {len(orphan)} ({orphan[:5]}...)")
@@ -1238,6 +1242,39 @@ def _get_monthly_spending_for_category(db: Session, category: str, lookback_mont
         cursor += relativedelta(months=1)
 
     return result
+
+
+def _category_spending_stats(db: Session, category: str) -> Optional[dict]:
+    """Dépense mensuelle typique d'une catégorie sur les 3 derniers mois, ou None sans dépense sur au moins
+    2 mois. Sert à proposer une enveloppe, et à recalculer une proposition au moment de l'appliquer."""
+    monthly_vals = _get_monthly_spending_for_category(db, category, lookback_months=3)
+    non_zero = [v for v in monthly_vals if v > 0]
+    if len(non_zero) < 2:
+        return None
+    cleaned, _, _ = winsorize_values(non_zero, sensitivity=3)
+    avg = sum(cleaned) / len(cleaned) if cleaned else 0.0
+    if avg <= 0:
+        return None
+    return {
+        "monthly_values": [round(v, 2) for v in monthly_vals],
+        "observed_months": len(non_zero),
+        "avg_monthly": round(avg, 2),
+        "suggested_amount": round(avg, 2),
+    }
+
+
+def _live_enrichment(db: Session, snap: dict) -> Optional[dict]:
+    """Proposition d'ajout de catégorie recalculée sur les opérations actuelles. Entre l'analyse et
+    l'application, l'IA ou l'utilisateur a pu reclasser ces opérations : juste après un relevé, les lignes
+    pas encore classées sont dans la catégorie filet de sécurité. None si l'ajout n'a plus lieu d'être."""
+    cat = snap.get("new_category") or snap.get("category")
+    if not cat or is_fallback_category(cat):
+        return None
+    stats = _category_spending_stats(db, cat)
+    if not stats:
+        return None
+    return {**snap, "additional_amount": stats["suggested_amount"], "avg_monthly": stats["avg_monthly"],
+            "observed_months": stats["observed_months"], "monthly_values": stats["monthly_values"]}
 
 
 def _call_ollama_for_budget_grouping(cats: List[str], cat_stats: dict, ollama_cfg: dict,
@@ -1723,15 +1760,22 @@ def get_held_back_proposals(db: Session, pending: List[dict]) -> List[str]:
 
 
 AUTO_NOTICE_KEY = "budget_auto_notice"
+# Auteur des changements de l'auto-création dans l'Historique : sans lui, ils paraissaient faits à la main
+AUTO_ENVELOPES_USER = "Automatisme (Enveloppes)"
 
 
-def _note_auto_applied(db: Session, applied: list, kind: str, name: str, budget_id: int, categories: list) -> None:
+def _note_auto_applied(db: Session, applied: list, kind: str, name: str, budget_id: int, categories: list,
+                       old_amount: Optional[float] = None) -> None:
     """Retient ce que l'auto-création vient d'appliquer. Elle tourne aussi en fond : le récapitulatif reste
-    sur la page Budgets jusqu'à ce que l'utilisateur le valide."""
+    sur la page Budgets jusqu'à ce que l'utilisateur le valide. old_amount : plafond d'avant un ajout de
+    catégorie, pour montrer de combien il a monté."""
     applied.append({"type": kind, "name": name, "budget_id": budget_id, "categories": list(categories)})
     row = db.query(GlobalConfig).filter(GlobalConfig.key == AUTO_NOTICE_KEY).first()
     items = _json_list(row.value if row else None)
-    items.append({"type": kind, "budget_id": budget_id, "categories": list(categories)})
+    item = {"type": kind, "budget_id": budget_id, "categories": list(categories)}
+    if old_amount is not None:
+        item["old_amount"] = round(float(old_amount), 2)
+    items.append(item)
     _set_config(db, AUTO_NOTICE_KEY, json.dumps(items, ensure_ascii=False))
     db.flush()
 
@@ -1759,9 +1803,11 @@ def get_auto_applied_notice(db: Session) -> List[dict]:
             continue
         entry = merged.setdefault(budget.id, {
             "budget_id": budget.id, "name": budget.name, "amount": budget.monthly_amount or 0.0,
-            "created": False, "categories": [],
+            "created": False, "categories": [], "old_amount": item.get("old_amount"),
         })
         entry["created"] = entry["created"] or item.get("type") == "creation"
+        if entry["created"]:
+            entry["old_amount"] = None
         entry["categories"].extend(c for c in added if c not in entry["categories"])
     return list(merged.values())
 
@@ -1789,8 +1835,11 @@ def _proposal_is_outdated(db: Session, decision: AutopilotDecisionLog) -> bool:
         if not target_id or not db.query(Budget.id).filter(Budget.id == target_id, Budget.is_closed == False).first():
             return True
         new_cat = snap.get("new_category") or snap.get("category")
-        return bool(new_cat and db.query(BudgetCategory.id).filter(
-            BudgetCategory.budget_id == target_id, BudgetCategory.category_name == new_cat).first())
+        if new_cat and db.query(BudgetCategory.id).filter(
+                BudgetCategory.budget_id == target_id, BudgetCategory.category_name == new_cat).first():
+            return True
+        # Ses opérations ont été reclassées depuis l'analyse : rien à ajouter au plafond
+        return _live_enrichment(db, snap) is None
     cats = snap.get("categories") or ([snap["category"]] if snap.get("category") else [])
     return bool(cats) and _categories_have_envelope(db, cats)
 
@@ -1823,7 +1872,7 @@ def _settle_pending_envelope_proposals(db: Session, auto_create: bool, known: se
             if target and target.is_locked:
                 continue
         try:
-            result = apply_budget_suggestion(db, suggestion["decision_id"])
+            result = apply_budget_suggestion(db, suggestion["decision_id"], user_name=AUTO_ENVELOPES_USER)
         except HTTPException as e:
             # Une enveloppe suit déjà une de ces catégories : ses autres catégories seront réanalysées
             db.rollback()
@@ -1834,7 +1883,8 @@ def _settle_pending_envelope_proposals(db: Session, auto_create: bool, known: se
             logger.info(f"[AutoPilot Budgets] Proposition {suggestion['decision_id']} retirée : {e.detail}")
             continue
         known.update(cats)
-        _note_auto_applied(db, applied, result["type"], result["name"], result["budget_id"], cats)
+        _note_auto_applied(db, applied, result["type"], result["name"], result["budget_id"], cats,
+                           old_amount=result.get("old_amount") if result["type"] == "enrichment" else None)
     _save_auto_known_categories(db, known)
     db.commit()
 
@@ -1944,19 +1994,9 @@ def suggest_new_envelopes(
     # Calculer les métriques d'historique de chaque catégorie éligible (avec filtre strict >= 2 mois)
     cat_stats = {}
     for cat in eligible_cats:
-        monthly_vals = _get_monthly_spending_for_category(db, cat, lookback_months=3)
-        non_zero = [v for v in monthly_vals if v > 0]
-        if len(non_zero) < 2:
-            continue
-        cleaned, _, _ = winsorize_values(non_zero, sensitivity=3)
-        avg = sum(cleaned) / len(cleaned) if cleaned else 0.0
-        if avg > 0:
-            cat_stats[cat] = {
-                "monthly_values": [round(v, 2) for v in monthly_vals],
-                "observed_months": len(non_zero),
-                "avg_monthly": round(avg, 2),
-                "suggested_amount": round(avg, 2),
-            }
+        stats = _category_spending_stats(db, cat)
+        if stats:
+            cat_stats[cat] = stats
 
     # Enrichir les catégories ambiguës avec des hints contextuels extraits des transactions récentes
     for cat in cat_stats:
@@ -2078,10 +2118,11 @@ def suggest_new_envelopes(
                 b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
                 snapshot = _json.dumps({**_json.loads(snapshot), "current_amount": current_amount, "suggested_amount": new_amount})
                 db.flush()
-                record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db))
+                record_action(db, "budget", b.id, "UPDATE", old_snap, snapshot_entity(b, db), user_name=AUTO_ENVELOPES_USER)
                 action_status = "AUTO_COMMIT"
                 known_categories.add(prop["new_category"])
-                _note_auto_applied(db, applied, "enrichment", b.name, b.id, [prop["new_category"]])
+                _note_auto_applied(db, applied, "enrichment", b.name, b.id, [prop["new_category"]],
+                                   old_amount=current_amount)
                 logger.info(f"[AutoPilot Budgets] Auto-enrichissement de l'enveloppe '{b.name}' avec '{prop['new_category']}' ({new_amount} €).")
 
         decision = AutopilotDecisionLog(
@@ -2158,7 +2199,7 @@ def suggest_new_envelopes(
             for c in cats:
                 db.add(BudgetCategory(budget_id=b.id, category_name=c))
             db.flush()
-            record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+            record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db), user_name=AUTO_ENVELOPES_USER)
             action_status = "AUTO_COMMIT"
             created_budget_id = b.id
             known_categories.update(cats)
@@ -2790,7 +2831,13 @@ def get_all_pending_budget_suggestions(db: Session) -> List[dict]:
                 entry["current_amount"] = live.monthly_amount or 0.0
                 entry["period"] = live.period
                 if entry_type == "enrichment":
-                    entry["additional_amount"] = _enrichment_increment(snap, live)
+                    fresh = _live_enrichment(db, snap)
+                    if fresh is None:
+                        # Opérations reclassées depuis l'analyse : la proposition n'a plus d'objet
+                        d.action = "EXPIRED"
+                        continue
+                    entry.update({k: fresh[k] for k in ("avg_monthly", "observed_months", "monthly_values")})
+                    entry["additional_amount"] = _enrichment_increment(fresh, live)
                     entry["suggested_amount"] = round(entry["current_amount"] + entry["additional_amount"], 2)
                     entry["name"] = entry["target_budget_name"] = live.name
                 else:
@@ -2867,8 +2914,10 @@ def _enrichment_increment(snap: dict, budget: Budget) -> float:
     return round(monthly * 12 if budget.period == "yearly" else monthly, 2)
 
 
-def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Optional[float] = None) -> dict:
-    """Approuve une suggestion budgétaire : crée l'enveloppe, applique le recalibrage ou enrichit l'enveloppe."""
+def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Optional[float] = None,
+                            user_name: Optional[str] = None) -> dict:
+    """Approuve une suggestion budgétaire : crée l'enveloppe, applique le recalibrage ou enrichit l'enveloppe.
+    user_name : auteur inscrit dans l'Historique quand ce n'est pas l'utilisateur (auto-création)."""
     import json as _json
 
     decision = db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id == decision_id).first()
@@ -2917,7 +2966,7 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
             db.add(BudgetCategory(budget_id=b.id, category_name=c))
         db.flush()
 
-        action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db))
+        action_id = record_action(db, "budget", b.id, "CREATE", None, snapshot_entity(b, db), user_name=user_name)
         decision.action = "AUTO_COMMIT"
         decision.entity_id = b.id
         db.commit()
@@ -2947,6 +2996,17 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         if not new_cat:
             raise HTTPException(status_code=400, detail="Catégorie à rattacher manquante.")
 
+        if custom_amount is None:
+            # Sans montant choisi par l'utilisateur, le plafond monte d'après les opérations actuelles, pas
+            # d'après celles du moment de l'analyse
+            fresh = _live_enrichment(db, snap)
+            if fresh is None:
+                decision.action = "EXPIRED"
+                db.commit()
+                raise HTTPException(status_code=409, detail=f"« {new_cat} » n'a plus assez de dépenses pour compléter "
+                                                            "cette enveloppe : ses opérations ont été reclassées.")
+            snap = fresh
+
         conflicts = category_conflicts(db, [new_cat], b.period, b.start_date, b.end_date,
                                        parse_account_ids(b.account_ids), exclude_id=b.id)
         if conflicts:
@@ -2973,8 +3033,10 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
         db.flush()
 
-        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db), user_name=user_name)
         decision.action = "AUTO_COMMIT"
+        # Ce qui a vraiment été appliqué : l'annulation depuis le centre de contrôle repart de ce plafond
+        decision.raw_snapshot = _json.dumps({**snap, "current_amount": old_amount, "suggested_amount": new_amount})
         db.commit()
 
         logger.info(f"[AutoPilot Budgets] Enveloppe '{b.name}' enrichie avec la catégorie '{new_cat}' (nouveau plafond: {new_amount} €).")
@@ -3009,7 +3071,7 @@ def apply_budget_suggestion(db: Session, decision_id: int, custom_amount: Option
         b.base_annual_amount = new_amount if b.period == "yearly" else new_amount * 12
         db.flush()
 
-        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db))
+        action_id = record_action(db, "budget", b.id, "UPDATE", old_snapshot, snapshot_entity(b, db), user_name=user_name)
         decision.action = "AUTO_COMMIT"
         db.commit()
 

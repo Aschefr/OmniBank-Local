@@ -3852,6 +3852,7 @@
   "bv_auto_notice_created": "Nouvelle enveloppe",
   "bv_auto_notice_extended": "Catégorie ajoutée",
   "bv_auto_notice_cap": "plafond {amount}",
+  "bv_auto_notice_cap_raised": "plafond {from} → {amount}",
   "bv_auto_notice_hint": "Vous pouvez les modifier ou les supprimer : une catégorie que vous retirez revient comme simple proposition.",
   "bv_auto_notice_history": "Voir l'historique",
   "bv_fixed_monthly": "Mensuelles",

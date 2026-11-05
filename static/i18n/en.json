@@ -3852,6 +3852,7 @@
   "bv_auto_notice_created": "New envelope",
   "bv_auto_notice_extended": "Category added",
   "bv_auto_notice_cap": "cap {amount}",
+  "bv_auto_notice_cap_raised": "cap {from} → {amount}",
   "bv_auto_notice_hint": "You can edit or delete them: a category you remove comes back as a plain proposal.",
   "bv_auto_notice_history": "View history",
   "bv_fixed_monthly": "Monthly",

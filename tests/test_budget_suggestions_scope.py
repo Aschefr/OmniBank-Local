@@ -222,6 +222,7 @@ def test_no_reference_income_means_no_reduction(db, monkeypatch):
 
 def _enrichment(db, budget, cat, current, add):
     from app.models import AutopilotDecisionLog
+    _spend(db, cat, add)  # l'ajout est recalculé sur les opérations au moment de l'appliquer
     d = AutopilotDecisionLog(batch_id="t", decision_type="budget_enrichment_suggestion", action="SUGGESTED",
                              entity_type="budget", entity_id=budget.id, conn_id=-1,
                              raw_snapshot=json.dumps({"target_budget_id": budget.id, "target_budget_name": budget.name,
