@@ -17,6 +17,9 @@ if __name__ == "__main__":
     # so that relative imports and paths resolve correctly
     if getattr(sys, 'frozen', False):
         os.chdir(os.path.dirname(sys.executable))
+        # Tauri lit la sortie en UTF-8 et ignore toute autre ligne : sans cela, les messages accentués disparaissent
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     from app.main import app
     uvicorn.run(app, host="127.0.0.1", port=8434, log_level="info")

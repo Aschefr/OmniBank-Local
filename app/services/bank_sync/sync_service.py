@@ -40,6 +40,7 @@ from app.services.bank_sync.woob_adapter import (
 from app.services.bank_sync.woob_adapter import (
     get_woob as default_get_woob,
     get_woob_storage as default_get_woob_storage,
+    refresh_index_if_due,
 )
 from app.services.credential_vault import CredentialVault
 from app.services.history_service import record_action, snapshot_entity
@@ -177,9 +178,13 @@ class BankSyncService:
         Gère les flux 2FA interactifs si un session_id et event_callback sont fournis.
         """
         w = _get_woob()
-        # Assurer l'installation du module si nécessaire
+        # Assurer l'installation du module si nécessaire, depuis un index récent : l'utilisateur
+        # ajoute une banque, le contact avec le dépôt est donc attendu
         try:
+            refresh_index_if_due(w)
             w.repositories.install(backend_name)
+        except ModuleInstallError as e:
+            logger.warning(f"[BankSync] Module '{backend_name}' non installé : {e}")
         except Exception as e:
             logger.debug(f"[BankSync] Module install notice: {e}")
 

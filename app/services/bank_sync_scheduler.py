@@ -118,6 +118,10 @@ async def bank_sync_scheduler_loop():
                 except Exception as p_err:
                     logger.warning(f"[BankScheduler] Erreur inspection profil '{pid}': {p_err}")
 
+            # Entre deux cycles de relevés : un serveur qui reste allumé des semaines doit aussi en profiter
+            from app.services.bank_sync.woob_adapter import refresh_index_for_bank_users
+            await asyncio.get_running_loop().run_in_executor(None, refresh_index_for_bank_users)
+
         except asyncio.CancelledError:
             logger.info("[BankScheduler] Arrêt du scheduler demandé")
             break

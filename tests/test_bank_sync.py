@@ -2534,10 +2534,10 @@ def test_check_reconciliation_prefers_close_unreconciled_over_far_reconciled_rec
 
 def test_cragr_hotfix_client_id_mire_options():
     """Verify that _apply_module_hotfixes patches cragr AppConfigPage to read clientId from mireOptions."""
-    from woob.core import Woob
+    from app.services.bank_sync.woob_adapter import get_woob
     from app.services.bank_sync_service import _apply_module_hotfixes
 
-    w = Woob()
+    w = get_woob()
     _apply_module_hotfixes(w, "cragr")
 
     import sys
@@ -2580,10 +2580,10 @@ def test_cragr_hotfix_client_id_mire_options():
 
 def test_cragr_hotfix_backend_instance_and_other_banks():
     """Verify that _apply_module_hotfixes patches classes on backend.browser and does not affect other backends."""
-    from woob.core import Woob
+    from app.services.bank_sync.woob_adapter import get_woob
     from app.services.bank_sync_service import _apply_module_hotfixes
 
-    w = Woob()
+    w = get_woob()
     
     # Test on a custom backend mock
     class DummyPage:

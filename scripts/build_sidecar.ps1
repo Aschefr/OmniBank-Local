@@ -30,6 +30,7 @@ if (-not $SkipBuild) {
         --add-data "package.json;." `
         --add-data "CHANGELOG.md;." `
         --add-data "CHANGELOG.fr.md;." `
+        --add-data "docker/woob-keyring;woob-keyring" `
         --hidden-import "uvicorn" `
         --hidden-import "uvicorn.config" `
         --hidden-import "uvicorn.main" `
@@ -128,6 +129,7 @@ if (-not $SkipBuild) {
         --add-data "package.json;." `
         --add-data "CHANGELOG.md;." `
         --add-data "CHANGELOG.fr.md;." `
+        --add-data "docker/woob-keyring;woob-keyring" `
         --hidden-import "uvicorn" `
         --hidden-import "uvicorn.config" `
         --hidden-import "uvicorn.main" `
