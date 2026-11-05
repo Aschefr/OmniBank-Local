@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.4.3] - 2026-11-05
 
 ### Added & Improved
 - **Start a new series from a recurring transaction 🔁**: When you edit a transaction that belongs to a recurring series, a third choice, "Start a new series", lets it leave its series and start a new one with the same frequency and duration, for example when "Taxes - 2025 balance" becomes "Taxes - 2026 balance". The old series keeps a skipped occurrence in its place, so it is not recreated, and its upcoming occurrences stay as they are; Undo puts everything back.

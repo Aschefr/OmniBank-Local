@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.4.3] - 2026-11-05
 
 ### Ajouts & améliorations
 - **Créer une nouvelle série depuis une opération récurrente 🔁** : quand vous modifiez une opération d'une série récurrente, un troisième choix, « Créer une nouvelle série », lui fait quitter sa série pour en démarrer une nouvelle, avec la même fréquence et la même durée, par exemple quand « Impôts - Complément 2025 » devient « Impôts - Complément 2026 ». L'ancienne série garde à sa place une occurrence ignorée, pour ne pas la recréer, et ses occurrences à venir restent telles quelles ; Annuler remet tout en place.
