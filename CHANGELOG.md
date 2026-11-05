@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed & Ergonomics
-- **Docker: bank modules now verified before installation 🔒**: The Docker image lacked the tool woob uses to check the signature of the bank modules it downloads, so they were installed without that check. The image now includes it along with the expected signing keys, and refuses a module whose signature does not match. The Windows app is not covered by this fix yet.
+- **Bank modules now verified before installation, on Docker and Windows 🔒**: Bank modules are downloaded by woob, which skipped their signature check when the right tool was missing, so they were installed unchecked. The Docker image and the Windows app now check every module against the expected signing keys and refuse one whose signature does not match, keeping the version already installed. On Windows, modules installed before this update are downloaded again and checked the next time they are used.
+- **Bank modules can now update ⚙️**: The list of available modules was only downloaded once, so module fixes never reached existing installations. Installations with a bank connection now refresh it once a day; a network failure or a refused list leaves the working modules untouched.
 
 ## [1.4.0] - 2026-11-05
 
