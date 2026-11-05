@@ -704,6 +704,8 @@ def extract_all_sections_parsed(
                 "orphan_account_name": match_info.get("orphan_account_name") if match_info else None,
                 "matched_db_id": match_info["id"] if match_info else None,
                 "match_score": match_info.get("match_score", 0) if match_info else 0,
+                "is_amount_deviant": bool(match_info and match_info.get("is_amount_deviant")),
+                "original_forecast_amount": match_info.get("original_forecast_amount") if match_info else None,
                 "category": None,
                 "is_coming": False,
                 "attachments": attachments,

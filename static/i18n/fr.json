@@ -416,6 +416,7 @@
   "autopilot_recurrence_hike_propagated": "Hausse tarifaire pérenne détectée ({old} € → {new} €) : modèle et prévisions futures actualisés",
   "autopilot_recurrence_promoted": "Abonnement régulier officialisé en modèle récurrent ({count} mois consécutifs)",
   "autopilot_review_action_btn": "À vérifier",
+  "autopilot_review_bank_vs_forecast": "Banque {bank} · Prévu {forecast}",
   "autopilot_review_btn_confirm": "Valider",
   "autopilot_review_btn_confirm_standalone": "Valider telle quelle",
   "autopilot_review_btn_confirm_standalone_tooltip": "Enregistrer comme opération indépendante sans la lier à la prévision",

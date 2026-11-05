@@ -11,6 +11,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from woob.core import Woob
 from woob.exceptions import (
@@ -83,6 +84,25 @@ def _safe_unload_backend(w: Any, instance_name: str):
                 instances.pop(instance_name, None)
         except Exception as err:
             logger.debug(f"[BankSync] Erreur lors du déchargement de '{instance_name}': {err}")
+
+
+MAX_CATCH_UP_DAYS = 75
+CATCH_UP_MARGIN_DAYS = 7
+
+
+def _catch_up_days(db: Session, account_id: int, base_days: int) -> int:
+    """Jours à relever pour ne rien manquer depuis la dernière ligne traitée du compte, avec une marge pour les lignes
+    arrivées en retard. Borné : au-delà, on repasserait sur d'anciennes lignes pointées sans empreinte bancaire,
+    qui ne se reconnaissent plus et reviendraient en doublon."""
+    today = date.today()
+    last_line = db.query(func.max(Transaction.date_operation)).filter(
+        Transaction.reconciliation_date.isnot(None),
+        Transaction.date_operation <= today,
+        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id),
+    ).scalar()
+    if not last_line:
+        return base_days
+    return max(base_days, min((today - last_line).days + CATCH_UP_MARGIN_DAYS, MAX_CATCH_UP_DAYS))
 
 
 def evaluate_historical_fingerprint(
@@ -330,14 +350,16 @@ class BankSyncService:
         since_days: int = 90,
         event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
         session_id: Optional[str] = None,
-        defer_ai: bool = False
+        defer_ai: bool = False,
+        catch_up: bool = False
     ) -> Dict[str, Any]:
         """
         Récupère les transactions distantes sans les enregistrer, et calcule les correspondances
         de rapprochement (déjà rapprochées, à rapprocher, à ajouter) pour prévisualisation dans la modale.
         defer_ai : ne pas attendre l'IA ; les opérations à lui soumettre sont marquées (voir label_refine).
+        catch_up : après une absence, remonter chaque compte jusqu'à sa dernière ligne traitée (voir _catch_up_days).
         """
-        from app.services.reconciliation_engine import check_reconciliation
+        from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
 
         if not master_password:
             raise Exception("Coffre-fort verrouillé : veuillez déverrouiller votre coffre pour synchroniser vos comptes.")
@@ -464,7 +486,6 @@ class BankSyncService:
             _t_start = time.time()
             raw_accounts = _get_accounts_with_2fa()
             logger.info(f"[BankSync] '{connection.label}' : connexion + liste des comptes en {time.time() - _t_start:.1f}s")
-            cutoff_date = date.today() - timedelta(days=since_days)
 
             matched_ids_global = set()
             accounts_preview = []
@@ -482,6 +503,7 @@ class BankSyncService:
                     continue
 
                 acc_label = _clean_str(getattr(acc, "label", None), remote_id)
+                cutoff_date = date.today() - timedelta(days=_catch_up_days(db, local_acc.id, since_days) if catch_up else since_days)
 
                 raw_bal = getattr(acc, "balance", None)
                 try:
@@ -560,6 +582,27 @@ class BankSyncService:
                 except Exception as hist_err:
                     logger.warning(f"[BankSync] Erreur lecture historique de {acc_label}: {hist_err}")
 
+                # Lignes non traitées du relevé précédent, plus anciennes que ce que la banque vient de renvoyer :
+                # elles ne doivent pas se perdre, même si la banque remonte moins loin que demandé
+                from app.services.bank_sync.pending_store import unprocessed_lines_before
+                known_csv_ids = {item["csv_id"] for item in history_raw}
+                covered_from = min((item["tx_date_obj"] for item in history_raw), default=date.today() + timedelta(days=1))
+                for line in unprocessed_lines_before(db, connection.id, local_acc.id, covered_from):
+                    if line["csv_id"] not in known_csv_ids:
+                        history_raw.append({
+                            "date_operation": line["date_operation"],
+                            "tx_date_obj": date.fromisoformat(line["date_operation"][:10]),
+                            "description": line.get("raw_description") or line.get("description"),
+                            "raw_description": line.get("raw_description") or line.get("description"),
+                            "amount": abs(float(line["raw_amount"])),
+                            "raw_amount": float(line["raw_amount"]),
+                            "csv_id": line["csv_id"],
+                            "account_id": local_acc.id,
+                            "account_name": local_acc.name,
+                            "remote_id": remote_id,
+                            "is_coming": False
+                        })
+
                 _t_hist = time.time() - _t_acc
                 coming_raw = []
                 # Récupération des opérations à venir (cartes à débit immédiat en attente, prélèvements programmés)
@@ -629,6 +672,8 @@ class BankSyncService:
                             history_rec[i] = rec_info
                             matched_ids_global.add(rec_info.get("id"))
 
+                reserve_exact_amount_matches(db, history_raw, history_rec, matched_ids_global, local_acc.id)
+
                 for i, item in enumerate(history_raw):
                     tx_date = item["tx_date_obj"]
                     raw_amount = item["raw_amount"]
@@ -686,6 +731,8 @@ class BankSyncService:
                         "matched_db_id": matched_id,
                         "db_description": db_desc,
                         "match_score": match_score,
+                        "is_amount_deviant": bool(rec_info and rec_info.get("is_amount_deviant")),
+                        "original_forecast_amount": rec_info.get("original_forecast_amount") if rec_info else None,
                         "category": rec_cat,
                         "db_category": rec_cat,
                         "csv_id": item["csv_id"],
@@ -713,6 +760,8 @@ class BankSyncService:
                         if rec_info and rec_info.get("id"):
                             coming_rec[i] = rec_info
                             matched_ids_global.add(rec_info.get("id"))
+
+                reserve_exact_amount_matches(db, coming_raw, coming_rec, matched_ids_global, local_acc.id, is_coming=True)
 
                 for i, item in enumerate(coming_raw):
                     tx_date = item["tx_date_obj"]
@@ -771,6 +820,8 @@ class BankSyncService:
                         "matched_db_id": matched_id,
                         "db_description": db_desc,
                         "match_score": match_score,
+                        "is_amount_deviant": bool(rec_info and rec_info.get("is_amount_deviant")),
+                        "original_forecast_amount": rec_info.get("original_forecast_amount") if rec_info else None,
                         "category": rec_cat,
                         "db_category": rec_cat,
                         "csv_id": item["csv_id"],

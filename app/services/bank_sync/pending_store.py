@@ -242,7 +242,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     Garantit l'unicité stricte par compte en conservant systématiquement la version la plus récente.
     """
     global _PENDING_SYNC_DATA
-    from app.services.reconciliation_engine import check_reconciliation
+    from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
     from datetime import date, timedelta
     total_matches = 0
     total_confirmed_matches = 0
@@ -398,6 +398,9 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                     except Exception as err:
                         logger.warning(f"[BankScheduler] Erreur passe 1 exact matching: {err}")
 
+            if local_acc_id:
+                reserve_exact_amount_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag)
+
             # Passe 2 : Prédictions, rapprochements flous et règles métier pour les opérations restantes
             for i, tx in enumerate(tx_list):
                 tx_copy = dict(tx)
@@ -448,7 +451,11 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
                     if rec_info.get("type"):
                         tx_copy["type"] = rec_info.get("type")
                     tx_copy["match_score"] = rec_info.get("match_score", 0)
+                    tx_copy["is_amount_deviant"] = bool(rec_info.get("is_amount_deviant"))
+                    tx_copy["original_forecast_amount"] = rec_info.get("original_forecast_amount")
                 else:
+                    tx_copy["is_amount_deviant"] = False
+                    tx_copy["original_forecast_amount"] = None
                     tx_copy["is_reconciled"] = False
                     tx_copy["already_reconciled"] = False
                     tx_copy["is_mirror_transfer"] = False
@@ -586,6 +593,32 @@ def save_pending_sync_data(db: Session, conn_id: int, preview_data: Dict[str, An
         stats_cache.invalidate(pid)
     except Exception as e:
         logger.warning(f"[BankScheduler] Erreur de sauvegarde du cache pending: {e}")
+
+
+def unprocessed_lines_before(db: Session, conn_id: int, account_id: int, cutoff, profile_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Lignes du relevé en attente, plus anciennes que `cutoff`, que le nouveau relevé ne reprend donc pas. Ni les opérations
+    à venir, périmées, ni ce que l'utilisateur a écarté, ni un relevé bloqué par le garde-fou d'empreinte."""
+    raw = _get_config_value(db, "bank_pending_sync_cache", "")
+    if not raw:
+        return []
+    try:
+        entry = json.loads(raw).get(str(_normalize_conn_id(conn_id))) or {}
+    except (ValueError, AttributeError):
+        return []
+    dismissed = get_dismissed_transactions(db, profile_id=profile_id)
+    lines = []
+    for acc in entry.get("accounts", []):
+        if acc.get("account_id") != account_id or acc.get("is_suspicious_statement"):
+            continue
+        for tx in acc.get("transactions", []):
+            csv_id = tx.get("csv_id")
+            if not csv_id or csv_id in dismissed or not tx.get("date_operation") or tx.get("raw_amount") is None:
+                continue
+            if any(tx.get(flag) for flag in ("is_coming", "already_reconciled", "is_dismissed", "is_auto_dismissed", "_excluded", "_blocked_by_guard")):
+                continue
+            if str(tx["date_operation"])[:10] < cutoff.isoformat():
+                lines.append(tx)
+    return lines
 
 
 def clear_pending_sync_for_conn(db: Session, conn_id: int, profile_id: Optional[str] = None):

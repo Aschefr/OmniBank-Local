@@ -510,6 +510,8 @@ class AutopilotReviewItem(BaseModel):
     raw_description: Optional[str] = None
     description: str
     amount: float
+    bank_amount: Optional[float] = None
+    forecast_amount: Optional[float] = None
     type: str
     category: Optional[str] = None
     account_id: Optional[int] = None
