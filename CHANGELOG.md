@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - **Reconciled transactions keep the bank amount**: A transaction linked to a forecast with a different amount kept the forecast amount, which made the reconciled balance wrong. It now takes the bank amount. Transactions reconciled before this update are not changed.
 - **Exact amounts are matched first**: A statement line with a close amount could take the forecast of another line (10 € on the 72 € forecast), which then took a third one. Lines whose exact amount exists now choose their forecast first.
 - **Fewer false duplicates**: A bank line is no longer suspected of duplicating a forecast already linked to another line of the same statement, and it now counts in the reconciled balance.
+- **A recurring payment is no longer swallowed by the previous one**: A bank line could be taken for a transaction of the same amount already linked to another bank line up to 30 days earlier, such as the previous month's subscription, and was then left out of the reconciled balance. Such a transaction is now recognised as the same line only within a few days; a transaction you entered and reconciled yourself keeps the 30-day tolerance.
+- **A purchase is no longer mistaken for a subscription from the same merchant**: A purchase was suspected of duplicating a forecast from the same merchant whatever its amount (81.70 € against a 9.95 € subscription) and stayed out of the reconciled balance. The amounts must now be close.
 - **Bank amount in the review**: Auto-Pilot's review now shows the bank amount next to the forecast amount when they differ, and the correction window shows the bank amount next to the bank label.
 
 ## [1.4.1] - 2026-11-05
