@@ -724,8 +724,8 @@ async def save_batch(data: dict, request: Request, db: Session = Depends(get_db)
     account_id = data.get("account_id")
     csv_absolute_path = data.get("csv_absolute_path")
 
-    org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-    is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+    from app.services.budget_service import is_org_mode as _org_mode_active
+    is_org_mode = _org_mode_active(db)
 
     user_name = data.get("user_name") or request.headers.get("x-user-name")
     if user_name:

@@ -19,7 +19,7 @@ def main():
     # Dupliquer i18n et img sous www/static/ pour compatibilité totale des chemins absolus /static/...
     www_static = os.path.join(WWW_DIR, "static")
     os.makedirs(www_static, exist_ok=True)
-    for sub in ("i18n", "img", "vendor", "css", "js"):
+    for sub in ("i18n", "img", "vendor", "css", "js", "legal"):
         src_sub = os.path.join(STATIC_DIR, sub)
         dst_sub = os.path.join(www_static, sub)
         if os.path.exists(src_sub):

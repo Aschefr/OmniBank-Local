@@ -5,6 +5,7 @@ CRUD sans mot de passe — identification par simple sélection.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.models import OrgUser
 from app.schemas.api_schemas import OrgUserCreate, OrgUserUpdate, OrgUserOut
@@ -89,6 +90,11 @@ def ensure_default_user(db: Session = Depends(get_db)):
         return existing
     default_user = OrgUser(name="Trésorier", is_active=True, sort_order=0)
     db.add(default_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Deux appels simultanés à la première activation : l'autre vient de le créer
+        db.rollback()
+        return db.query(OrgUser).filter(OrgUser.name == "Trésorier").first()
     db.refresh(default_user)
     return default_user

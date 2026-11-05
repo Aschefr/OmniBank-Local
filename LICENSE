@@ -1,19 +1,45 @@
-AMIFY STUDIO SOURCE-AVAILABLE LICENSE
-
+LICENCE D'OMNIBANK
 Copyright (c) 2026 Amify Studio (https://amify-studio.fr)
 
-This software and its source code are made available by Amify Studio under the following terms and conditions. By downloading, installing, running, or using this software, you agree to be bound by this License.
+La version française ci-dessous fait foi. An English translation follows.
 
-1. PERSONAL USE LICENSE
-Subject to the terms of this License, Amify Studio grants you a non-exclusive, non-transferable, royalty-free license to download, install, run, and modify the software solely for your own personal, individual, and private self-hosting purposes.
+Le code source d'OmniBank est consultable publiquement, mais il n'est pas sous licence libre. Amify Studio vous accorde les droits ci-dessous. Tout autre usage est réservé.
 
-2. COMMERCIAL & ORGANIZATIONAL RESTRICTIONS
-Any use of this software by or for the benefit of an entity, organization, non-profit association, works council (CSE), company, or commercial enterprise (including but not limited to the use of "Organization Mode" features) is strictly prohibited unless you have obtained a valid commercial license key from Amify Studio.
+1. USAGE PERSONNEL
+Vous pouvez gratuitement télécharger, installer, exécuter et modifier le logiciel pour vos besoins personnels et privés, en tant que personne physique, y compris en l'hébergeant vous-même.
 
-3. REDISTRIBUTION & MODIFICATION RESTRICTIONS
-- You may modify the source code for your personal use.
-- You may not distribute, host for third parties (as SaaS), sell, lease, sublicense, or redistribute this software, modified or unmodified, to any third party without the prior written consent of Amify Studio.
-- Any copy or modified version of this software must retain this copyright notice and license.
+2. ORGANISATIONS
+L'utilisation du logiciel par ou pour une organisation (association, comité social et économique, société, collectivité ou autre structure), ou dans le cadre d'une activité professionnelle, notamment celle du Mode Organisation, nécessite une licence acquise auprès d'Amify Studio. Cette licence est régie par le contrat de licence du Mode Organisation (static/legal/LICENSE_ORGANISATION.md). Pour obtenir un devis : contact@amify-studio.fr.
 
-4. DISCLAIMER OF WARRANTY
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+3. REDISTRIBUTION
+Sauf accord écrit d'Amify Studio, vous ne pouvez pas distribuer, vendre, louer ou sous-licencier le logiciel, modifié ou non, ni le proposer à des tiers sous forme de service hébergé. Toute copie doit conserver la présente licence et la mention de copyright.
+
+4. GARANTIE ET RESPONSABILITÉ
+Le logiciel est mis à disposition gratuitement au titre de la présente licence, tel quel, sans garantie particulière. Il est de votre responsabilité de sauvegarder vos données et de vérifier les informations qu'il affiche. Il ne constitue pas un conseil financier, comptable ou fiscal.
+Dans la mesure permise par la loi, Amify Studio n'est pas responsable des dommages liés à cet usage gratuit, sauf faute lourde ou dolosive et sauf dommages corporels. Rien dans la présente licence ne limite les droits que la loi reconnaît aux consommateurs.
+
+5. DROIT APPLICABLE
+La présente licence est soumise au droit français. Les droits reconnus à l'utilisateur légitime d'un logiciel par l'article L. 122-6-1 du code de la propriété intellectuelle sont réservés.
+
+--------------------------------------------------------------------------------
+
+OMNIBANK LICENSE (English translation, for information)
+Copyright (c) 2026 Amify Studio (https://amify-studio.fr)
+
+OmniBank's source code is publicly available, but it is not under an open source license. Amify Studio grants you the rights below. All other use is reserved.
+
+1. PERSONAL USE
+You may download, install, run and modify the software free of charge for your personal and private needs, as an individual, including by hosting it yourself.
+
+2. ORGANIZATIONS
+Use of the software by or for an organization (association, works council, company, public body or other entity), or as part of a professional activity, including use of Organization Mode, requires a license obtained from Amify Studio. That license is governed by the Organization Mode license agreement (static/legal/LICENSE_ORGANISATION.md, in French). To request a quote: contact@amify-studio.fr.
+
+3. REDISTRIBUTION
+Unless Amify Studio agrees in writing, you may not distribute, sell, lease or sublicense the software, modified or not, or offer it to third parties as a hosted service. Every copy must keep this license and the copyright notice.
+
+4. WARRANTY AND LIABILITY
+The software is made available free of charge under this license, as is, with no particular warranty. You are responsible for backing up your data and checking the information it displays. It is not financial, accounting or tax advice.
+To the extent permitted by law, Amify Studio is not liable for damages related to this free use, except for gross negligence or willful misconduct and for bodily injury. Nothing in this license limits the rights the law grants to consumers.
+
+5. GOVERNING LAW
+This license is governed by French law. The rights granted to the lawful user of a software by Article L. 122-6-1 of the French Intellectual Property Code are reserved.

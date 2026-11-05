@@ -147,20 +147,28 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         </label>
                         <label class="config-toggle-row">
                             <span class="toggle-switch">
-                                <input type="checkbox" id="conf_enable_org_mode" onchange="window.ConfigView._onOrgModeToggle()">
-                                <span class="slider"></span>
-                            </span>
-                            <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
-                        </label>
-                        <label class="config-toggle-row">
-                            <span class="toggle-switch">
                                 <input type="checkbox" id="conf_enable_simulator" onchange="window.ConfigView.save()">
                                 <span class="slider"></span>
                             </span>
                             <span data-i18n="config_opt_simulator">Activer le simulateur de projets & What-If</span>
                         </label>
                     </div>
-                    <div id="configLicenseStatus" style="margin-top: 8px; display: none;"></div>
+                </div>
+
+                <!-- Organisation mode and license -->
+                <div class="config-card" id="configOrgLicenseCard">
+                    <h3><span class="config-h-icon"><svg class="config-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span> <span data-i18n="config_org_card_title">Mode Organisation et licence</span></h3>
+                    <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 15px;" data-i18n="config_org_card_desc">
+                        ${window.i18n.t('config_org_card_desc')}
+                    </p>
+                    <label class="config-toggle-row">
+                        <span class="toggle-switch">
+                            <input type="checkbox" id="conf_enable_org_mode" onchange="window.ConfigView._onOrgModeToggle()">
+                            <span class="slider"></span>
+                        </span>
+                        <span data-i18n="config_opt_org_mode">Activer le mode Organisation (Association/CSE)</span>
+                    </label>
+                    <div id="configLicenseStatus" class="license-status"></div>
                 </div>
 
                 <!-- General Settings (Recurrences) -->

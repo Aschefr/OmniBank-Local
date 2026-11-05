@@ -86,7 +86,7 @@ OmniBank propose un **mode organisation** conçu pour les associations, comités
 *   **📋 Audit intégré** : Chaque opération enregistre automatiquement qui l'a créée et qui l'a modifiée en dernier.
 *   **🔑 Licence requise** : L'activation du mode organisation nécessite une clé de licence.
 
-> Pour obtenir une licence, ouvrez une **[Issue sur GitHub](https://github.com/Aschefr/OmniBank-Local/issues)**.
+> Licence : 800 € en une fois par organisation, sans abonnement, mises à jour de la version 1 incluses. TVA non applicable (art. 293 B du CGI). Demandez un devis à **contact@amify-studio.fr**. [Lire le contrat](static/legal/LICENSE_ORGANISATION.md).
 
 ---
 
@@ -210,7 +210,7 @@ OmniBank includes an **organization mode** designed for non-profits, sports club
 *   **📋 Built-in audit trail**: Every transaction automatically logs who created it and who modified it last.
 *   **🔑 License required**: Activating Organization Mode requires a valid license key.
 
-> To obtain a license, open an **[Issue on GitHub](https://github.com/Aschefr/OmniBank-Local/issues)**.
+> License: €800 once per organization, no subscription, version 1 updates included. VAT not applicable (art. 293 B of the French General Tax Code). Request a quote at **contact@amify-studio.fr**. [Read the agreement](static/legal/LICENSE_ORGANISATION.md) (in French).
 
 ---
 

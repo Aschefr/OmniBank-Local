@@ -902,8 +902,8 @@ class BankSyncService:
         is_manual = (not conn or connection_id == -1)
 
         from app.models import GlobalConfig
-        org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-        is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+        from app.services.budget_service import is_org_mode as _org_mode_active
+        is_org_mode = _org_mode_active(db)
 
         lang_code = (lang or "fr").lower()[:2]
         if lang_code == "en":

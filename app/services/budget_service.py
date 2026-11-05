@@ -152,8 +152,8 @@ def budget_display_prefs(db: Session) -> dict:
 
 
 def is_org_mode(db: Session) -> bool:
-    row = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-    return bool(row and str(row.value).strip().lower() == "true")
+    from app.services import license_service
+    return license_service.org_mode_requested(db) and license_service.is_license_active(db)
 
 
 def budget_period(db: Session, offset: int = 0, today: Optional[date] = None) -> dict:
@@ -981,8 +981,7 @@ def get_budget_capacity_data(db: Session):
     start_of_year = date(today.year, 1, 1)
     remaining_months = 12 - today.month
 
-    org_mode_conf = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-    is_org_mode = (org_mode_conf and org_mode_conf.value == "true")
+    org_mode_active = is_org_mode(db)
     
     income_txs = db.query(Transaction.amount, Transaction.date_operation).filter(
         Transaction.type == "income",
@@ -995,7 +994,7 @@ def get_budget_capacity_data(db: Session):
     
     avg_monthly_income = 0.0
     paycheck_data = None
-    if not is_org_mode:
+    if not org_mode_active:
         from app.services.finance_engine import predict_next_paycheck
         paycheck_data = predict_next_paycheck(db)
         if paycheck_data and paycheck_data.get("amount", 0.0) > 0:
@@ -1041,7 +1040,7 @@ def get_budget_capacity_data(db: Session):
     yearly_details_fr = ""
     yearly_details_en = ""
 
-    if is_org_mode or avg_monthly_income == round(six_month_income / 6.0, 2):
+    if org_mode_active or avg_monthly_income == round(six_month_income / 6.0, 2):
         fallback_avg_income = round(six_month_income / 6.0, 2)
         if fallback_avg_income > 0:
             avg_monthly_income = fallback_avg_income
@@ -1050,7 +1049,7 @@ def get_budget_capacity_data(db: Session):
         monthly_details_en = "Based on the 6-month rolling average of receipts (aligned with spending analysis)."
         yearly_details_fr = f"Recettes réelles de l'année en cours (YTD : {round(ytd_income, 2):,.2f} €) + recettes moyennes pour les {remaining_months} mois restants ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €).".replace(",", " ").replace(".", ",")
         yearly_details_en = f"Actual YTD receipts ({round(ytd_income, 2):,.2f} €) + average receipts for remaining {remaining_months} months ({remaining_months} × {round(avg_monthly_income, 2):,.2f} €)."
-    elif not is_org_mode and avg_monthly_income > 0 and paycheck_data and paycheck_data.get("amount", 0.0) > 0:
+    elif not org_mode_active and avg_monthly_income > 0 and paycheck_data and paycheck_data.get("amount", 0.0) > 0:
         monthly_details_fr = "Basé sur votre salaire mensuel prédit / configuré."
         monthly_details_en = "Based on your predicted / configured monthly salary."
         

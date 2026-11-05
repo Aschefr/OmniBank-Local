@@ -1829,6 +1829,114 @@
     background: rgba(255, 86, 48, 0.15);
     color: var(--danger);
 }
+.license-status {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.license-status-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.license-details {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+.license-hint {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+.license-notice {
+    margin: 0;
+    padding: 10px 12px;
+    border-left: 3px solid var(--warning);
+    border-radius: 6px;
+    background: rgba(255, 171, 0, 0.1);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+.license-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.license-actions .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    text-decoration: none;
+}
+.license-accept {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    font-size: 12.5px;
+}
+.license-accept label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.license-contract-link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.license-contract-modal {
+    max-width: 720px;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.license-contract-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.license-contract-head h3 {
+    margin: 0;
+}
+.license-contract-body {
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 8px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-main);
+}
+.license-contract-body h1 {
+    font-size: 17px;
+    margin: 0 0 6px;
+}
+.license-contract-body h2 {
+    font-size: 14px;
+    margin: 18px 0 6px;
+}
+.license-contract-body p,
+.license-contract-body ul {
+    margin: 0 0 8px;
+}
+.license-contract-body ul {
+    padding-left: 18px;
+    list-style: disc;
+}
 
 
 /* ─── Section: Master profiles selector CSS (Lines 5242-5354) ─── */

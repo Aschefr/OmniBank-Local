@@ -289,8 +289,8 @@ def _execute_chat_action_unlocked(
     user_name: Optional[str] = None
 ) -> dict:
     # Validation du mode Organisation (audit point #9)
-    org_cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-    is_org_mode = bool(org_cfg and org_cfg.value and org_cfg.value.lower() == "true")
+    from app.services.budget_service import is_org_mode as _org_mode_active
+    is_org_mode = _org_mode_active(db)
     if is_org_mode:
         active_users = db.query(OrgUser).filter(OrgUser.is_active == True).all()
         if active_users:

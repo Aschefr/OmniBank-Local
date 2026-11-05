@@ -167,8 +167,8 @@ def get_system_diagnostics(db_session=None) -> Dict[str, Any]:
             else:
                 tx_count_range = "> 10,000"
 
-            org_cfg = db_session.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first()
-            if org_cfg and org_cfg.value == "true":
+            from app.services.budget_service import is_org_mode as _org_mode_active
+            if _org_mode_active(db_session):
                 is_org_mode = True
 
             ai_cfg = db_session.query(GlobalConfig).filter(GlobalConfig.key == "enable_ai").first()
