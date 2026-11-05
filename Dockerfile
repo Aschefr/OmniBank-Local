@@ -5,7 +5,13 @@ WORKDIR /app
 COPY requirements.txt .
 COPY package.json .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y gpgv && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Keyring of the woob bank modules: gpgv checks them before they are installed
+COPY docker/woob-keyring/ /root/.local/share/woob/keyrings/
+COPY docker/check_woob_keyring.py /tmp/check_woob_keyring.py
+RUN python /tmp/check_woob_keyring.py && rm /tmp/check_woob_keyring.py
 
 COPY ./app ./app
 COPY ./static ./static

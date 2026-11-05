@@ -8,6 +8,7 @@
 *.jpg binary
 *.ico binary
 *.pdf binary
+*.gpg binary
 *.woff binary
 *.woff2 binary
 *.ttf binary

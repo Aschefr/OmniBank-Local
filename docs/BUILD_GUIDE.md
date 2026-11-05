@@ -337,6 +337,9 @@ Le script effectue dans l'ordre :
 > [!IMPORTANT]
 > Le script commite sur la branche courante mais pousse `main` : lancez-le **depuis `main`**, après avoir ramené `main` au niveau de `dev` (`git checkout main && git merge --ff-only dev`). Lancé depuis `dev`, le tag et `latest.json` ne seraient pas publiés sur `main` et l'auto-update ne verrait pas la version.
 
+> [!NOTE]
+> Les images Docker épinglent le trousseau du dépôt de modules woob (`docker/woob-keyring/`), et `docker/check_woob_keyring.py` fait échouer le build s'il manque `gpgv` ou le trousseau. Après un changement de version majeure de woob, l'URL du dépôt change : récupérer le nouveau `trusted.gpg` sur `updates.woob.tech`, comparer ses empreintes avec `modules/.keys/` du dépôt GitLab de woob, puis renommer les deux fichiers d'après cette URL. Le contenu du fichier `.version` est le `key_update` de `modules.list`.
+
 ### Methode manuelle (si le script echoue)
 
 ```powershell
