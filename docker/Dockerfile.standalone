@@ -8,8 +8,13 @@ COPY package.json .
 COPY latest.json .
 
 # Installer les dependances
-RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y nginx gpgv && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
+
+# Trousseau des modules bancaires woob : gpgv les verifie avant installation
+COPY docker/woob-keyring/ /root/.local/share/woob/keyrings/
+COPY docker/check_woob_keyring.py /tmp/check_woob_keyring.py
+RUN python /tmp/check_woob_keyring.py && rm /tmp/check_woob_keyring.py
 
 # Copier l'application et les assets statiques
 COPY app/ ./app/
