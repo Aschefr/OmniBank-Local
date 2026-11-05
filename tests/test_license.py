@@ -49,7 +49,7 @@ def _urlsafe(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
 
-def v2_key(private_key, email=EMAIL, license_id="OB-2026-0001", org="CSE Exemple", context=license_service.LICENSE_V2_CONTEXT):
+def v2_key(private_key, email=EMAIL, license_id="OB-TEST-0001", org="CSE Exemple", context=license_service.LICENSE_V2_CONTEXT):
     payload = json.dumps({"v": 2, "id": license_id, "org": org, "email": email, "issued": "2026-11-04"}, separators=(",", ":")).encode()
     return f"OB2.{_urlsafe(payload)}.{_urlsafe(private_key.sign(context + payload))}"
 
@@ -64,7 +64,7 @@ def _store(db, email, key):
 def test_new_key_gives_its_content(signer):
     info = license_service.read_license(EMAIL, v2_key(signer))
 
-    assert info == {"kind": "v2", "email": EMAIL, "id": "OB-2026-0001", "org": "CSE Exemple", "issued": "2026-11-04"}
+    assert info == {"kind": "v2", "email": EMAIL, "id": "OB-TEST-0001", "org": "CSE Exemple", "issued": "2026-11-04"}
 
 
 def test_email_is_compared_without_case_or_spaces(signer):
@@ -92,10 +92,10 @@ def test_key_from_another_signer_is_refused(signer):
 
 
 def test_revoked_license_is_refused(signer, monkeypatch):
-    monkeypatch.setattr(license_service, "REVOKED_LICENSE_IDS", frozenset({"OB-2026-0001"}))
+    monkeypatch.setattr(license_service, "REVOKED_LICENSE_IDS", frozenset({"OB-TEST-0001"}))
 
     assert license_service.read_license(EMAIL, v2_key(signer)) is None
-    assert license_service.read_license(EMAIL, v2_key(signer, license_id="OB-2026-0002")) is not None
+    assert license_service.read_license(EMAIL, v2_key(signer, license_id="OB-TEST-0002")) is not None
 
 
 def test_first_signed_keys_stay_valid(signer):
@@ -241,3 +241,7 @@ def test_deactivation_turns_org_mode_off(db, signer):
 
     assert license_service.license_status(db) == {"active": False, "email": None}
     assert db.query(GlobalConfig).filter(GlobalConfig.key == "enable_org_mode").first().value == "false"
+
+
+def test_key_issued_to_check_the_desktop_build_stays_revoked():
+    assert "OB-2026-0001" in license_service.REVOKED_LICENSE_IDS
