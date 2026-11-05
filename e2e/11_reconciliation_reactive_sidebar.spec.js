@@ -7,25 +7,22 @@ test.describe('Module K : Réactivité Instantanée Sidebar & Rapprochement', ()
     await openApp(page);
     await dismissOverlays(page);
 
-    // 1. S'assurer qu'au moins un compte existe
-    await page.evaluate(async () => {
-      const accs = await window.API.get('/api/accounts/');
-      if (accs.length === 0) {
-        await window.API.post('/api/accounts/', {
-          name: 'Compte Courant Test',
-          type: 'Compte courant',
-          initial_balance: 1000.0,
-          color: '#3366ff',
-          currency: 'EUR'
-        });
-      }
-      if (window.app && window.app.refreshSidebar) {
-        await window.app.refreshSidebar();
-      }
-    });
+    // 1. Créer un compte propre au test, à 1 000 €, quels que soient les comptes déjà présents
+    const accountName = 'Compte Pointage ' + Date.now();
+    await page.evaluate(async (name) => {
+      await window.API.post('/api/accounts/', {
+        name,
+        type: 'Compte courant',
+        initial_balance: 1000.0,
+        color: '#3366ff',
+        currency: 'EUR'
+      });
+      await window.app.refreshSidebar();
+    }, accountName);
 
-    const sidebar = page.locator('#sidebar');
-    await expect(sidebar).toContainText('Compte Courant Test', { timeout: 5000 });
+    const sidebarAccount = page.locator('#sidebar .account-item').filter({ hasText: accountName });
+    // La barre latérale est un tiroir fermé par défaut : son contenu existe sans être visible
+    await expect(sidebarAccount).toBeAttached({ timeout: 5000 });
 
     // 2. Aller dans la vue Toutes les opérations
     await goToView(page, 'all_operations');
@@ -42,7 +39,7 @@ test.describe('Module K : Réactivité Instantanée Sidebar & Rapprochement', ()
     // Attendre le chargement des options du compte et sélectionner
     const fromSelect = page.locator('#op_from_account');
     await expect(fromSelect.locator('option')).not.toHaveCount(0, { timeout: 5000 });
-    await fromSelect.selectOption({ index: 0 });
+    await fromSelect.selectOption({ label: accountName });
 
     await page.click('#op_save_btn');
     await expect(page.locator('#operationModal')).not.toBeVisible({ timeout: 5000 });
@@ -52,7 +49,7 @@ test.describe('Module K : Réactivité Instantanée Sidebar & Rapprochement', ()
     await expect(targetRow).toBeVisible({ timeout: 5000 });
 
     // Avant pointage : la sidebar affiche 1 000,00 €
-    await expect(sidebar).toContainText('1 000,00');
+    await expect(sidebarAccount).toContainText('1 000,00');
 
     // 5. Cliquer sur le bouton de pointage (rapprochement) de l'opération
     const reconcileBtn = targetRow.locator('.recon-btn, .btn-reconcile, button[onclick*="toggleReconciliation"]').first();
@@ -61,7 +58,7 @@ test.describe('Module K : Réactivité Instantanée Sidebar & Rapprochement', ()
 
     // 6. Vérifier que la barre latérale affiche 950,00 € RÉACTIVEMENT (SANS F5)
     // 1000.00 € - 50.00 € = 950.00 €
-    await expect(sidebar).toContainText('950,00', { timeout: 6000 });
+    await expect(sidebarAccount).toContainText('950,00', { timeout: 6000 });
 
     // 7. Vérifier que le statut de l'opération dans la table est passé à l'état pointé
     await expect(targetRow.locator('.recon-date-link').first()).toBeVisible({ timeout: 5000 });

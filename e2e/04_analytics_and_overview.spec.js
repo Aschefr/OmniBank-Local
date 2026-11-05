@@ -7,12 +7,11 @@ test.describe('Module B : Vue d\'ensemble & Synthèse Financière (Analytics) su
     await openApp(page);
     await dismissOverlays(page);
 
-    // Naviguer vers la Vue d'ensemble (Overview)
+    // Naviguer vers le Cockpit (vue overview)
     await goToView(page, 'overview');
 
-    // Vérifier la présence du conteneur principal Overview
-    const main = page.locator('#mainContent');
-    await expect(main).toContainText('Vue d\'ensemble');
+    // Vérifier que le Cockpit est affiché
+    await expect(page.locator('#mainContent .overview-main-title')).toContainText('Cockpit');
 
     // Vérifier que le sélecteur de compte contient les comptes enregistrés
     const accSelect = page.locator('#ovAccountSelect');

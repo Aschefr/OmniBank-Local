@@ -96,13 +96,23 @@ async function openApp(page, { autoDismiss = true } = {}) {
 }
 
 /**
- * Navigue vers une vue donnée en cliquant sur le bouton de navigation correspondant
+ * Navigue vers une vue comme un utilisateur : par son onglet, ou par le menu « Plus »
+ * quand l'onglet ne tient pas dans la largeur (static/js/app/nav_overflow.js).
+ * Le rangement des onglets se recalcule à l'image suivante, d'où la nouvelle tentative.
  */
 async function goToView(page, viewName) {
   await dismissOverlays(page);
-  const navBtn = page.locator(`.nav-btn[data-view="${viewName}"]:visible`).first();
-  await navBtn.scrollIntoViewIfNeeded();
-  await navBtn.click();
+  const tab = `.nav-btn[data-view="${viewName}"]`;
+  const visibleTab = page.locator(`${tab}:visible`).first();
+  await expect(async () => {
+    if (await visibleTab.isVisible()) {
+      await visibleTab.click({ timeout: 2000 });
+      return;
+    }
+    const label = await page.locator(`.main-nav ${tab} [data-i18n]`).first().getAttribute('data-i18n', { timeout: 2000 });
+    await page.locator('.nav-more-btn').click({ timeout: 2000 });
+    await page.locator(`.nav-more-item:has([data-i18n="${label}"])`).click({ timeout: 2000 });
+  }).toPass({ timeout: 10000 });
   await page.waitForTimeout(300);
 }
 

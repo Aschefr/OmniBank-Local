@@ -98,7 +98,8 @@ test.describe('Simulateur : compte cible', () => {
     const sources = page.locator('#simSourcesBody');
     await expect(sources).toHaveCount(1);
     const text = await sources.evaluate(el => el.textContent);
-    expect(text).not.toContain('0 €/');
+    // Un montant nul (« 0 €/mois », « 0,00 €/mois »), sans attraper « 50,00 €/mois » ni « 1 000,00 €/mois »
+    expect(text).not.toMatch(/(?<![\d,.])0(?:,00)?\s*€\s*\//);
     const expected = await page.evaluate(() => window.i18n.t('sim_transparency_recommended_no_other'));
     expect(text).toContain(expected);
   });
