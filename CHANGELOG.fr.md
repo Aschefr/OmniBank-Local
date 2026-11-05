@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.4.0] - 2026-11-05
 
 ### Ajouts & améliorations
 - **Relevé en ligne sans attendre l'IA ⚡** : « Relever en ligne » n'attend plus la réponse de votre modèle d'IA, qui pouvait ajouter plus d'une minute au relevé. Les opérations arrivent d'abord avec vos règles et votre historique, celles au libellé inconnu en catégorie de repli et à vérifier ; l'IA les complète juste après, sans jamais écraser ce que vous avez modifié entre-temps, et un message indique combien d'opérations elle a complétées. Si l'IA ne répond pas, les opérations restent simplement à vérifier. Le bouton dit ce qui se passe (« Crédit Agricole · Livret A… », puis « Analyse IA des libellés… ») et reste utilisable pendant l'analyse ; il retrouve son avancement et son étape après un rechargement de la page ou un changement de page. Une opération encore à vérifier ne sert plus de référence pour classer les suivantes : sa catégorie de repli pouvait se propager et être validée toute seule au relevé suivant.
