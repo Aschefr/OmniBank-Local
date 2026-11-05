@@ -46,7 +46,7 @@ The **Configuration** page gathers global application settings, Ollama AI integr
 The **Organisation mode and license** card in the General tab groups the toggle, the license status and the actions.
 
 - **"Enable Organization Mode (CSE/Associations)" Toggle**: Unlocks the financial year, audit logs and multi-user tracking. Without a license, it opens the key entry window.
-- **Obtaining a License**: €800 once per organization, no subscription, version 1 updates included, VAT not applicable (art. 293 B of the French General Tax Code). A later major version (2.0) needs a separate license, and the version you bought stays usable. Request a quote at `contact@amify-studio.fr`; the key is sent by email once the bank transfer is received. Terms are in the [license agreement](../../../static/legal/LICENSE_ORGANISATION.md) (in French), also available through the **Read the agreement** button.
+- **Obtaining a License**: Organisation Mode is temporarily off sale, for an indefinite period. If you already have a license, enter your key.
 - **"Enter my key" Button**: Asks for the email, the key, and acceptance of the agreement.
 - **"Deactivate license" Button**: Turns Organization Mode off on this profile after confirmation. An old-format key cannot be activated again once deactivated.
 - **Without a valid license**: The app returns to personal mode, a message says so, and data stays untouched and accessible.

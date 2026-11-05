@@ -5,7 +5,6 @@
 window.LicenseManager = {
     _resolve: null,  // Promise resolve for modal flow
     CONTRACT_VERSION: '2.0',
-    QUOTE_MAILTO: 'mailto:contact@amify-studio.fr?subject=Devis%20licence%20OmniBank%20Mode%20Organisation',
 
     /**
      * Opens the license modal and returns a Promise that resolves

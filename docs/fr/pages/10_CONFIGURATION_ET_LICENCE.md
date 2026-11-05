@@ -46,7 +46,7 @@ La page **Configuration** regroupe tous les réglages généraux d'OmniBank Loca
 La carte **Mode Organisation et licence** de l'onglet Général regroupe l'interrupteur, l'état de la licence et les actions.
 
 - **Interrupteur "Activer le mode Organisation (Association/CSE)"** : Débloque l'exercice comptable, le suivi d'audit et la gestion multi-utilisateur. Sans licence, il ouvre la fenêtre de saisie de la clé.
-- **Obtention d'une Licence** : 800 € en une fois par organisation, sans abonnement, mises à jour de la version 1 incluses, TVA non applicable (art. 293 B du CGI). Une version majeure suivante (2.0) fait l'objet d'une licence distincte, et la version achetée reste utilisable. Demandez un devis à `contact@amify-studio.fr` ; la clé est envoyée par e-mail après réception du virement. Les conditions figurent dans le [contrat de licence](../../../static/legal/LICENSE_ORGANISATION.md), accessible aussi par le bouton **Lire le contrat**.
+- **Obtention d'une Licence** : le Mode Organisation est momentanément hors de la vente, pour une durée indéterminée. Si vous disposez déjà d'une licence, saisissez votre clé.
 - **Bouton "Saisir ma clé"** : Demande l'e-mail, la clé, et l'acceptation du contrat.
 - **Bouton "Désactiver la licence"** : Coupe le mode Organisation sur ce profil après confirmation. Une clé d'ancien format désactivée ne peut plus être réactivée.
 - **Sans licence valable** : L'application repasse en mode personnel, un message l'indique, et les données restent intactes et accessibles.
