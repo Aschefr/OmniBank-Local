@@ -85,9 +85,9 @@ for path in ['package.json', 'src-tauri/tauri.conf.json']:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write('\n')
 
-with open('app/main.py', 'r', encoding='utf-8') as f:
-    content = re.sub(r'version="[0-9\.]+"', f'version="{v}"', f.read())
-with open('app/main.py', 'w', encoding='utf-8') as f:
+with open('app/main.py', 'r', encoding='utf-8', newline='') as f:
+    content = re.sub(r'version=\x22[0-9\.]+\x22', f'version=\x22{v}\x22', f.read())
+with open('app/main.py', 'w', encoding='utf-8', newline='') as f:
     f.write(content)
 print(f'Bumped to {v}')
 "@ $Version
