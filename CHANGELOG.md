@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.4.0] - 2026-11-05
 
 ### Added & Improved
 - **Online Statement Without Waiting for the AI ⚡**: "Fetch online" no longer waits for your AI model, which could add more than a minute to the statement. Transactions arrive first with your rules and history, those with an unknown label in a fallback category and marked for review; the AI completes them right after, never overwriting what you changed in the meantime, and a message tells how many it completed. If the AI does not answer, the transactions simply stay marked for review. The button says what is happening ("Crédit Agricole · Livret A…", then "AI is reviewing labels…") and stays usable during the analysis; it picks up its progress and step after a page reload or a change of page. A transaction still marked for review no longer serves as a reference for the next ones: its fallback category could spread and be approved on its own at the next statement.
