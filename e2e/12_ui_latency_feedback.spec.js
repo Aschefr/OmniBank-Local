@@ -149,10 +149,14 @@ test.describe('Module UX : Réactivité Visuelle & Feedback de Latence', () => {
     await openApp(page);
     await dismissOverlays(page);
 
+    // Une enveloppe de dépenses exige une catégorie : le test crée la sienne, libre de toute autre enveloppe
+    const categoryName = `Catégorie Enveloppe ${Date.now()}`;
+    await page.evaluate(name => window.API.post('/api/categories/', { name, type: 'expense_var' }), categoryName);
+
     // Naviguer vers la vue Budgets
     await goToView(page, 'budgets');
 
-    const newBudgetBtn = page.locator('button[data-i18n="budget_btn_new"]:visible').first();
+    const newBudgetBtn = page.locator('button.bv-btn-new');
     await expect(newBudgetBtn).toBeVisible({ timeout: 5000 });
     await newBudgetBtn.click();
 
@@ -163,6 +167,8 @@ test.describe('Module UX : Réactivité Visuelle & Feedback de Latence', () => {
     const budgetName = `Enveloppe Test ${Date.now()}`;
     await page.fill('#newBudgetName', budgetName);
     await page.fill('#newBudgetAmount', '350.00');
+    await modal.locator('.bv-cat-opt').filter({ hasText: categoryName }).click();
+    await expect(modal.locator('.bv-cat-chip').filter({ hasText: categoryName })).toBeVisible();
 
     const saveBtn = page.locator('#budgetSaveBtn');
     await expect(saveBtn).toBeVisible();

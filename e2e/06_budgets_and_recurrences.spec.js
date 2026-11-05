@@ -25,7 +25,7 @@ test.describe('Module C : Échéancier (Récurrences) & Enveloppes Budgétaires'
     await expect(main).toContainText('Budgets');
 
     // Vérifier la présence du bouton de création de budget
-    const newBudgetBtn = page.locator('button[data-i18n="budget_btn_new"]');
+    const newBudgetBtn = page.locator('button.bv-btn-new');
     await expect(newBudgetBtn).toBeVisible();
   });
 });

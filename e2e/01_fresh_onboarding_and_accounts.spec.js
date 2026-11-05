@@ -94,7 +94,7 @@ test.describe('Module A : Parcours Base Vierge - Onboarding & Gestion des Compte
     await page.click('.wizard-nav button.wizard-btn-primary');
 
     // Étape 4 : Guide Opérations & Accueil
-    await expect(page.locator('.wizard-home-card').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.wizard-guide-card').first()).toBeVisible({ timeout: 5000 });
     await page.click('.wizard-nav button.wizard-btn-primary');
 
     // Étape 5 : Les automatismes en action
