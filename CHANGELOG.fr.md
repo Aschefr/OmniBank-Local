@@ -2,6 +2,16 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Ajouts & améliorations
+- **Créer une nouvelle série depuis une opération récurrente 🔁** : quand vous modifiez une opération d'une série récurrente, un troisième choix, « Créer une nouvelle série », lui fait quitter sa série pour en démarrer une nouvelle, avec la même fréquence et la même durée, par exemple quand « Impôts - Complément 2025 » devient « Impôts - Complément 2026 ». L'ancienne série garde à sa place une occurrence ignorée, pour ne pas la recréer, et ses occurrences à venir restent telles quelles ; Annuler remet tout en place.
+- **Évolution de la période sans le Simulateur 📈** : la courbe « Évolution de la période » du Cockpit s'affiche désormais même quand le Simulateur est désactivé, comme les cartes « Cap sur le mois prochain ».
+
+### Corrections & ergonomie
+- **Notification de relevé seulement s'il y a quelque chose à faire 🔔** : un relevé envoyait une notification même quand rien n'avait changé. Il ne prévient désormais que pour de nouvelles opérations ou des opérations à rapprocher ou à vérifier ; une banque en échec et une double authentification restent notifiées, et le bouton et l'heure du dernier relevé se mettent toujours à jour. Le bilan du relevé compte aussi les opérations que l'Auto-Pilote a traitées seul, qu'il annonçait à zéro.
+- **Modules bancaires : une clé de signature révoquée ou expirée est désormais refusée 🔒** : un module signé par une sous-clé dont la clé principale était révoquée ou expirée restait accepté. Il est désormais refusé, comme le fait gpg.
+
 ## [1.4.2] - 2026-11-05
 
 ### Corrections & ergonomie
