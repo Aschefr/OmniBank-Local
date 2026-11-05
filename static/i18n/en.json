@@ -994,6 +994,8 @@
   "btn_ok": "OK",
   "btn_propagate_all": "All future (and the template)",
   "btn_propagate_down": "Propagate down ⬇️",
+  "btn_propagate_new_series": "Start a new series",
+  "btn_propagate_new_series_hint": "This one leaves its series and starts a new one, with the same frequency and duration. The old series and its occurrences stay as they are.",
   "btn_propagate_single": "Only this one",
   "btn_reactivate": "Reactivate",
   "btn_reanalyze": "Re-analyze",

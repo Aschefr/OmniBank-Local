@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date, datetime
 from sqlalchemy import Date, DateTime, desc
 from app.models import (
@@ -6,6 +7,8 @@ from app.models import (
     BudgetCategory, BudgetAllocation, RecurrenceTemplate, OrgUser,
     GlobalConfig, AIFact, BankLabelMapping, AutopilotDecisionLog
 )
+
+logger = logging.getLogger(__name__)
 
 MODEL_MAPPING = {
     "transaction": Transaction,
@@ -112,6 +115,34 @@ def check_undo_safety(db, action: ActionHistory) -> dict:
         if newer_update:
             conflicts.append(f"update_state_conflict:{newer_update.id}")
 
+        # Nouvelle série créée par cette modification : l'annuler la supprime, sauf si elle a servi entre-temps
+        new_series_id = _new_series_template_id(action)
+        if new_series_id:
+            rec_tx = db.query(Transaction).filter(
+                Transaction.recurrence_id == new_series_id,
+                Transaction.reconciliation_date != None,
+                Transaction.id != action.entity_id
+            ).count()
+            if rec_tx > 0:
+                conflicts.append(f"recurrence_has_reconciled:{rec_tx}")
+            newer_tpl_action = db.query(ActionHistory).filter(
+                ActionHistory.entity_type == "recurrence_template",
+                ActionHistory.entity_id == new_series_id,
+                ActionHistory.is_undone == False,
+                ActionHistory.id > action.id
+            ).first()
+            if newer_tpl_action:
+                conflicts.append(f"update_state_conflict:{newer_tpl_action.id}")
+            marker_id = _new_series_snapshot(action, "_new_series_marker").get("id")
+            newer_marker_action = db.query(ActionHistory).filter(
+                ActionHistory.entity_type == "transaction",
+                ActionHistory.entity_id == marker_id,
+                ActionHistory.is_undone == False,
+                ActionHistory.id > action.id
+            ).first() if marker_id else None
+            if newer_marker_action:
+                conflicts.append(f"update_state_conflict:{newer_marker_action.id}")
+
     # --- Undo DELETE = re-création : vérifier conflit de clé primaire ---
     elif action.action_type == "DELETE":
         model_class = MODEL_MAPPING.get(action.entity_type)
@@ -125,6 +156,22 @@ def check_undo_safety(db, action: ActionHistory) -> dict:
     safe = len(conflicts) == 0
     reason = conflicts[0].split(":")[0] if conflicts else None
     return {"safe": safe, "reason": reason, "conflicts": conflicts}
+
+def _new_series_snapshot(action: ActionHistory, key: str) -> dict:
+    """Ce que « Créer une nouvelle série » a créé : la série (`_new_series_template`) ou l'occurrence ignorée laissée
+    dans l'ancienne (`_new_series_marker`). Vide si l'action n'en a pas créé."""
+    if action.entity_type != "transaction" or action.action_type != "UPDATE" or not action.new_state:
+        return {}
+    try:
+        return (json.loads(action.new_state) or {}).get(key) or {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _new_series_template_id(action: ActionHistory):
+    """Identifiant de la série créée par « Créer une nouvelle série », si cette action en a créé une."""
+    return _new_series_snapshot(action, "_new_series_template").get("id")
+
 
 def default_serializer(obj):
     if isinstance(obj, (date, datetime)):
@@ -418,6 +465,23 @@ def undo_action(db, action: ActionHistory):
                         if ftx:
                             restore_state(ftx, snap, db)
 
+            # L'opération a retrouvé son ancienne série : la nouvelle disparaît avec ses prévisions
+            new_series_id = _new_series_template_id(action)
+            if new_series_id:
+                db.flush()
+                db.query(Transaction).filter(
+                    Transaction.recurrence_id == new_series_id,
+                    Transaction.reconciliation_date == None,
+                    Transaction.id != entity.id
+                ).delete(synchronize_session=False)
+                new_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == new_series_id).first()
+                if new_tpl:
+                    db.delete(new_tpl)
+                # L'occurrence ignorée laissée dans l'ancienne série n'a plus lieu d'être
+                marker_id = _new_series_snapshot(action, "_new_series_marker").get("id")
+                if marker_id:
+                    db.query(Transaction).filter(Transaction.id == marker_id).delete(synchronize_session=False)
+
         # Set warning for category rename
         if action.entity_type == "category" and "name" in prev_state:
             warning = "category_rename_warning"
@@ -566,6 +630,18 @@ def redo_action(db, action: ActionHistory):
             return False, "Entity to update not found"
 
         new_state = json.loads(action.new_state) if action.new_state else {}
+        new_series_snap = new_state.get("_new_series_template") if action.entity_type == "transaction" else None
+        if new_series_snap and not db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == new_series_snap.get("id")).first():
+            new_tpl = RecurrenceTemplate()
+            restore_state(new_tpl, new_series_snap, db)
+            db.add(new_tpl)
+            db.flush()
+        marker_snap = new_state.get("_new_series_marker") if action.entity_type == "transaction" else None
+        if marker_snap and not db.query(Transaction).filter(Transaction.id == marker_snap.get("id")).first():
+            marker = Transaction()
+            restore_state(marker, marker_snap, db)
+            db.add(marker)
+            db.flush()
         restore_state(entity, new_state, db)
 
         if action.entity_type == "recurrence_template":
@@ -605,6 +681,11 @@ def redo_action(db, action: ActionHistory):
                         ftx = db.query(Transaction).filter(Transaction.id == ftx_id).first()
                         if ftx:
                             restore_state(ftx, snap, db)
+
+            if new_series_snap:
+                db.flush()
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(template_id=new_series_snap.get("id"), db=db)
 
     elif action.action_type == "DELETE":
         # Re-delete the entity (since undo re-created it)

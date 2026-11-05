@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from datetime import date, datetime, timedelta
 
 from app.database import get_db
@@ -193,8 +193,85 @@ def _is_field_changed(old_val, new_val) -> bool:
     return old_val != new_val
 
 
+def _start_new_series(db: Session, db_tx: Transaction, origin: dict) -> Tuple[Optional[RecurrenceTemplate], Optional[Transaction]]:
+    """Détache l'opération de sa récurrence et en fait le point de départ d'une nouvelle série : même fréquence et
+    même durée limitée que l'ancienne, libellé, montant, catégorie et comptes de l'opération. L'ancienne série et
+    ses occurrences, futures comprises, ne sont pas touchées ; à la place de l'opération détachée, elle garde une
+    occurrence ignorée (`origin` = l'opération avant modification), sans quoi la génération la recréerait."""
+    old_tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first() if db_tx.recurrence_id else None
+    if not old_tpl:
+        return None, None
+    marker = Transaction(
+        date_saisie=date.today(),
+        date_operation=date.fromisoformat(origin["date_operation"]) if origin.get("date_operation") else db_tx.date_operation,
+        description=origin.get("description"),
+        amount=origin.get("amount"),
+        type=origin.get("type"),
+        category=origin.get("category"),
+        is_monthly=origin.get("is_monthly"),
+        is_yearly=origin.get("is_yearly"),
+        from_account_id=origin.get("from_account_id"),
+        to_account_id=origin.get("to_account_id"),
+        recurrence_id=old_tpl.id,
+        is_skipped=True,
+        reconciliation_date=date.today(),
+    )
+    db.add(marker)
+    op_date = db_tx.date_operation
+    new_tpl = RecurrenceTemplate(
+        description=db_tx.description,
+        amount=db_tx.amount,
+        type=db_tx.type,
+        category=db_tx.category,
+        frequency=old_tpl.frequency,
+        day_of_month=op_date.day if op_date else old_tpl.day_of_month,
+        month_of_year=op_date.month if (op_date and old_tpl.frequency == "Yearly") else old_tpl.month_of_year,
+        max_occurrences=old_tpl.max_occurrences,
+        is_closed=False,
+        from_account_id=db_tx.from_account_id,
+        to_account_id=db_tx.to_account_id,
+    )
+    db.add(new_tpl)
+    db.flush()
+    db_tx.recurrence_id = new_tpl.id
+    logger.info(
+        f"[Transactions] Opération #{db_tx.id} détachée de la série #{old_tpl.id} : nouvelle série #{new_tpl.id}, "
+        f"occurrence ignorée #{marker.id} laissée dans l'ancienne"
+    )
+    return new_tpl, marker
+
+
+def _generate_new_series(db: Session, tpl_id: int) -> None:
+    """Génère les occurrences à venir de la nouvelle série, comme à la création d'une récurrence."""
+    from app.routers.recurrences import generate_recurrences
+    generate_recurrences(template_id=tpl_id, db=db)
+
+
+@router.post("/{tx_id}/new-series", response_model=TransactionOut)
+def start_new_series(tx_id: int, db: Session = Depends(get_db)):
+    """Crée une nouvelle série à partir d'une opération déjà enregistrée (opérations suivies par l'Auto-Pilote)."""
+    db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not db_tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    old_snapshot = snapshot_entity(db_tx)
+    new_tpl, marker = _start_new_series(db, db_tx, old_snapshot)
+    if not new_tpl:
+        raise HTTPException(status_code=400, detail="Transaction is not part of a recurrence")
+    db.flush()
+    new_snapshot = snapshot_entity(db_tx)
+    new_snapshot["_new_series_template"] = snapshot_entity(new_tpl)
+    new_snapshot["_new_series_marker"] = snapshot_entity(marker)
+    action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, new_snapshot, user_name=db_tx.modified_by)
+    db.commit()
+    _generate_new_series(db, new_tpl.id)
+    stats_cache.invalidate()
+    db.refresh(db_tx)
+    db_tx.action_id = action_id
+    return db_tx
+
+
 @router.put("/{tx_id}", response_model=TransactionOut)
-def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool = False, db: Session = Depends(get_db)):
+def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool = False, new_series: bool = False, db: Session = Depends(get_db)):
     db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
     if not db_tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -236,8 +313,9 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
     old_future_snapshots = []
     future_txs = []
     template = None
+    new_series_tpl, new_series_marker = _start_new_series(db, db_tx, old_snapshot) if new_series else (None, None)
 
-    if propagate and db_tx.recurrence_id and propagatable_keys:
+    if propagate and not new_series and db_tx.recurrence_id and propagatable_keys:
         template = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == db_tx.recurrence_id).first()
         if template:
             old_template_snapshot = snapshot_entity(template)
@@ -276,9 +354,14 @@ def update_transaction(tx_id: int, tx_update: TransactionUpdate, propagate: bool
         new_future_snapshots = [snapshot_entity(ftx) for ftx in future_txs]
         new_snapshot["_propagated_template"] = new_template_snapshot
         new_snapshot["_propagated_txs"] = new_future_snapshots
+    if new_series_tpl:
+        new_snapshot["_new_series_template"] = snapshot_entity(new_series_tpl)
+        new_snapshot["_new_series_marker"] = snapshot_entity(new_series_marker)
 
     action_id = record_action(db, "transaction", db_tx.id, "UPDATE", old_snapshot, new_snapshot, user_name=db_tx.modified_by)
     db.commit()
+    if new_series_tpl:
+        _generate_new_series(db, new_series_tpl.id)
     stats_cache.invalidate()
     db.refresh(db_tx)
     db_tx.action_id = action_id

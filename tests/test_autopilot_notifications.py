@@ -116,8 +116,8 @@ def test_autopilot_notification_when_actions_performed(db_session, monkeypatch):
     assert link_data["auto_committed"] == 1
 
 
-def test_manual_sync_preserves_standard_notification(db_session, monkeypatch):
-    """Même avec l'Auto-Pilote actif, un relevé déclenché manuellement conserve la notification classique."""
+def test_manual_sync_without_news_is_silent(db_session, monkeypatch):
+    """Même déclenché à la main, un relevé sans rien de neuf ne crée aucune notification, mais l'heure avance."""
     cfg = GlobalConfig(key="auto_pilot_enabled", value="true")
     db_session.add(cfg)
 
@@ -143,18 +143,13 @@ def test_manual_sync_preserves_standard_notification(db_session, monkeypatch):
 
     execute_auto_sync_for_connection(db_session, conn, "test_pw", trigger_source="manual")
 
-    notifs = db_session.query(Notification).all()
-    assert len(notifs) == 1
-    n = notifs[0]
-    # En manuel, conserve la notification classique "Relevé À jour"
-    assert n.type == "bank_sync"
-    assert "Relevé BoursoBank : À jour" in n.title
-    link_data = json.loads(n.link_data)
-    assert link_data["view"] == "accounts"
+    assert db_session.query(Notification).count() == 0
+    assert conn.last_sync_at is not None
+    assert conn.last_sync_status == "auto_checked"
 
 
-def test_autopilot_disabled_preserves_standard_notification(db_session, monkeypatch):
-    """Quand l'Auto-Pilote est désactivé, le relevé automatique génère la notification classique standard."""
+def test_autopilot_disabled_without_news_is_silent(db_session, monkeypatch):
+    """Auto-Pilote désactivé : un relevé automatique sans rien de neuf reste silencieux."""
     cfg = GlobalConfig(key="auto_pilot_enabled", value="false")
     db_session.add(cfg)
 
@@ -179,11 +174,8 @@ def test_autopilot_disabled_preserves_standard_notification(db_session, monkeypa
 
     execute_auto_sync_for_connection(db_session, conn, "test_pw", trigger_source="scheduled")
 
-    notifs = db_session.query(Notification).all()
-    assert len(notifs) == 1
-    n = notifs[0]
-    assert n.type == "bank_sync"
-    assert "Relevé Fortuneo : À jour" in n.title
+    assert db_session.query(Notification).count() == 0
+    assert conn.last_sync_at is not None
 
 
 def test_last_statement_snapshot_store_and_endpoint(db_session):
@@ -377,7 +369,7 @@ def test_autopilot_silent_mode_is_read_flag(db_session, monkeypatch):
     monkeypatch.setattr("app.services.autopilot_service.process_incoming_batch", lambda db, conn_id, preview, profile_id=None: {
         "status": "completed",
         "auto_reconciled": 3,
-        "auto_committed": 0,
+        "auto_committed": 1,
         "promoted_recurrences": 0,
         "pending": 0,
         "total": 3
@@ -427,4 +419,64 @@ def test_autopilot_silent_mode_is_read_flag(db_session, monkeypatch):
     assert notif_pending.is_read is False, "Une action nécessitant l'intervention de l'utilisateur doit avoir is_read=False"
 
 
+def _run_with_batch(db_session, monkeypatch, conn, preview, batch_result, trigger="scheduled"):
+    monkeypatch.setattr(BankSyncService, "fetch_preview_transactions", lambda **kwargs: preview)
+    monkeypatch.setattr("app.services.autopilot_service.process_incoming_batch", lambda db, conn_id, p, profile_id=None: batch_result)
+    execute_auto_sync_for_connection(db_session, conn, "test_pw", trigger_source=trigger)
 
+
+def _new_conn(db_session, label, autopilot=True):
+    db_session.add(GlobalConfig(key="auto_pilot_enabled", value="true" if autopilot else "false"))
+    conn = BankConnection(label=label, backend="woob", is_active=True)
+    db_session.add(conn)
+    db_session.commit()
+    from app.services.bank_sync.pending_store import clear_pending_sync_for_connection
+    clear_pending_sync_for_connection(db_session, conn.id, profile_id="default")
+    return conn
+
+
+def _raw_lines(n):
+    return {"accounts": [{"account_id": 1, "account_name": "Compte Courant", "transactions": [
+        {"csv_id": f"l{i}", "is_reconciled": False} for i in range(n)
+    ]}]}
+
+
+@pytest.mark.parametrize("trigger", ["scheduled", "manual"])
+def test_only_expected_forecasts_pointed_is_silent(db_session, monkeypatch, trigger):
+    """Des prévisions pointées automatiquement, sans rien de neuf ni à vérifier : aucune notification."""
+    conn = _new_conn(db_session, "Banque Test")
+    _run_with_batch(db_session, monkeypatch, conn, _raw_lines(3), {
+        "status": "completed", "auto_reconciled": 3, "auto_committed": 0, "needs_review": 0, "pending": 0, "total": 3,
+    }, trigger)
+    assert db_session.query(Notification).count() == 0
+    assert conn.last_sync_at is not None
+
+
+def test_counter_includes_lines_handled_by_autopilot(db_session, monkeypatch, caplog):
+    """Le lot entièrement traité par l'Auto-Pilote est compté, et le relevé brut n'est pas recompté comme à classer."""
+    conn = _new_conn(db_session, "Banque Compteur")
+    with caplog.at_level("INFO"):
+        _run_with_batch(db_session, monkeypatch, conn, _raw_lines(40), {
+            "status": "completed", "auto_reconciled": 30, "auto_committed": 10, "needs_review": 2, "pending": 0, "total": 40,
+        })
+    assert conn.last_sync_count == 40
+    done = [r.getMessage() for r in caplog.records if "Relevé terminé" in r.getMessage()]
+    assert done and "30 rapprochées et 10 enregistrées" in done[-1] and "0 nouvelles à classer" in done[-1]
+    notif = db_session.query(Notification).filter(Notification.type == "autopilot").one()
+    assert "2 opérations à vérifier" in notif.content
+    assert "à classer" not in notif.content
+    assert notif.is_read is False, "Des opérations à vérifier doivent allumer la cloche"
+
+
+def test_new_lines_notified_when_autopilot_disabled(db_session, monkeypatch):
+    """Sans Auto-Pilote, des lignes nouvelles dans le sas donnent une notification non lue."""
+    conn = _new_conn(db_session, "Banque Sas", autopilot=False)
+    from app.services.bank_sync.pending_store import save_pending_sync_data
+    preview = _raw_lines(2)
+    save_pending_sync_data(db_session, conn.id, preview, profile_id="default")
+    _run_with_batch(db_session, monkeypatch, conn, preview, {
+        "status": "delegated_to_sas", "auto_reconciled": 0, "auto_committed": 0, "pending": 2, "total": 2,
+    })
+    notif = db_session.query(Notification).filter(Notification.type == "bank_sync").one()
+    assert "2 nouvelles opérations" in notif.content
+    assert notif.is_read is False

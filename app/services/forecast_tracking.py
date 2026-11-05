@@ -15,7 +15,7 @@ from typing import Optional
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Account, ForecastSnapshot, GlobalConfig, RecurrenceTemplate, Transaction
+from app.models import Account, ForecastSnapshot, RecurrenceTemplate, Transaction
 from app.services.budget_service import budget_period, is_org_mode
 from app.services.finance_engine import calculate_balances, predict_next_paycheck
 from app.services.simulator_engine import RECENT_HISTORY_MONTHS, _add_months, _recurrence_amount_for_month, run_simulation
@@ -254,9 +254,9 @@ def record_period_forecasts(db: Session, profile_id: str, now: Optional[datetime
     _LAST_BACKGROUND_RUN[profile_id] = slot
 
     today = now.date()
-    disabled = db.query(GlobalConfig).filter(GlobalConfig.key == "enable_simulator", GlobalConfig.value == "false").first()
+    # Indépendant du Simulateur : la courbe du Cockpit s'affiche qu'il soit activé ou non.
     has_activity = db.query(Transaction.id).first() is not None or db.query(RecurrenceTemplate.id).first() is not None
-    if disabled or not has_activity:
+    if not has_activity:
         return 0
 
     period = _current_period(db, today)

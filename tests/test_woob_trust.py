@@ -145,6 +145,47 @@ def test_expired_key_refused():
     verify_detached(b"module", key.signature(b"module"), keyring, now=1_000_000_500)
 
 
+@pytest.fixture(scope="module")
+def subkey():
+    return TestKey()
+
+
+def _with_subkey(primary_packets, subkey):
+    return primary_packets + _packet(14, subkey.body)
+
+
+def test_subkey_of_valid_primary_accepted(key, subkey):
+    verify_detached(b"module", subkey.signature(b"module"), _with_subkey(key.keyring(), subkey))
+
+
+def test_subkey_of_revoked_primary_refused(key, subkey):
+    revocation = _packet(2, key.signature(b"", sigclass=0x20)[6:])
+    with pytest.raises(OpenPGPError, match="principale révoquée"):
+        verify_detached(b"module", subkey.signature(b"module"), _with_subkey(key.keyring(revocation), subkey))
+
+
+def test_subkey_of_revoked_non_rsa_primary_refused(key, subkey):
+    eddsa_primary = _packet(6, b"\x04" + struct.pack(">I", 1_000_000_000) + b"\x16" + b"\x00" * 40)
+    revocation = _packet(2, key.signature(b"", sigclass=0x20)[6:])
+    with pytest.raises(OpenPGPError, match="principale révoquée"):
+        verify_detached(b"module", subkey.signature(b"module"), _with_subkey(eddsa_primary + revocation, subkey))
+
+
+def test_subkey_of_expired_primary_refused(subkey):
+    primary = TestKey(created=1_000_000_000)
+    self_sig = _packet(2, primary.signature(b"", sigclass=0x13, created=1_000_000_000, extra_hashed=_subpacket(9, struct.pack(">I", 1000)))[6:])
+    keyring = _with_subkey(primary.keyring(self_sig), subkey)
+    with pytest.raises(OpenPGPError, match="principale expirée"):
+        verify_detached(b"module", subkey.signature(b"module"), keyring)
+    verify_detached(b"module", subkey.signature(b"module"), keyring, now=1_000_000_500)
+
+
+def test_primary_revocation_does_not_leak_to_next_key(key, subkey):
+    revocation = _packet(2, key.signature(b"", sigclass=0x20)[6:])
+    keyring = key.keyring(revocation) + _packet(6, subkey.body)
+    verify_detached(b"module", subkey.signature(b"module"), keyring)
+
+
 # ── Dépôt simulé ────────────────────────────────────────────────────────────────
 
 

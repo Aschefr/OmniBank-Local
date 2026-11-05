@@ -44,11 +44,23 @@ class OpenPGPError(ValueError):
 
 @dataclass
 class _Key:
-    public_key: rsa.RSAPublicKey
+    public_key: Optional[rsa.RSAPublicKey]
     created: int
     expires_after: int = 0
     self_sig_created: int = 0
     revoked: bool = False
+    primary: Optional["_Key"] = None  # Clé principale d'une sous-clé : sa révocation et son expiration valent pour elle
+
+    def refusal(self, now: float) -> Optional[str]:
+        """Motif de refus de la clé à l'instant `now`, ou None si elle est valable."""
+        for key, label in ((self, "clé de signature"), (self.primary, "clé principale")):
+            if key is None:
+                continue
+            if key.revoked:
+                return f"{label} révoquée"
+            if key.expires_after and key.created + key.expires_after < now:
+                return f"{label} expirée"
+        return None
 
 
 def _iter_packets(data: bytes) -> Iterator[Tuple[int, bytes]]:
@@ -147,24 +159,35 @@ def _load_keyring(keyring: bytes) -> Dict[bytes, _Key]:
     """Lit les clés RSA v4 du trousseau, indexées par identifiant (8 octets). Les autres sont ignorées."""
     keys: Dict[bytes, _Key] = {}
     current: Optional[_Key] = None
+    primary: Optional[_Key] = None
     for tag, body in _iter_packets(keyring):
         if tag in (_TAG_PUBLIC_KEY, _TAG_PUBLIC_SUBKEY):
             current = None
-            if len(body) < 6 or body[0] != 4 or body[5] not in _ALGO_RSA:
+            if tag == _TAG_PUBLIC_KEY:
+                primary = None
+            if len(body) < 6 or body[0] != 4:
+                continue
+            # Toute clé principale v4 est suivie, même inutilisable pour signer : ses sous-clés en dépendent.
+            created = struct.unpack_from(">I", body, 1)[0]
+            current = _Key(None, created, primary=primary if tag == _TAG_PUBLIC_SUBKEY else None)
+            if tag == _TAG_PUBLIC_KEY:
+                primary = current
+            if body[5] not in _ALGO_RSA:
                 continue
             n, pos = _read_mpi(body, 6)
             e, pos = _read_mpi(body, pos)
             if n.bit_length() < _MIN_RSA_BITS:
                 continue
-            created = struct.unpack_from(">I", body, 1)[0]
-            current = _Key(rsa.RSAPublicNumbers(e, n).public_key(), created)
+            current.public_key = rsa.RSAPublicNumbers(e, n).public_key()
             keys[hashlib.sha1(b"\x99" + struct.pack(">H", len(body)) + body).digest()[-8:]] = current
-        elif tag == _TAG_SIGNATURE and current is not None and body[:1] == b"\x04":
-            sig = _parse_signature(body)
-            if sig.sigclass in _SIGCLASS_REVOCATION:
+        elif tag == _TAG_SIGNATURE and current is not None and body[:1] == b"\x04" and len(body) >= 6:
+            # Seul l'en-tête est lu : la valeur peut venir d'une clé non RSA (DSA, EdDSA) et n'est pas recontrôlée.
+            sigclass = body[1]
+            if sigclass in _SIGCLASS_REVOCATION:
                 current.revoked = True
-            elif sig.sigclass in _SIGCLASS_SELF:
-                sub = {kind: value for kind, _, value in _iter_subpackets(sig.hashed)}
+            elif sigclass in _SIGCLASS_SELF:
+                hashed = body[6:6 + struct.unpack_from(">H", body, 4)[0]]
+                sub = {kind: value for kind, _, value in _iter_subpackets(hashed)}
                 created = int.from_bytes(sub.get(_SUB_CREATED, b""), "big")
                 if created >= current.self_sig_created:
                     current.self_sig_created = created
@@ -211,12 +234,11 @@ def _verify(data: bytes, signature: bytes, keyring: bytes, now: float) -> None:
     all_sub = {kind: value for kind, _, value in list(_iter_subpackets(sig.unhashed)) + hashed}
     key_id = all_sub[_SUB_ISSUER_FPR][-8:] if _SUB_ISSUER_FPR in all_sub else all_sub.get(_SUB_ISSUER)
     key = _load_keyring(keyring).get(key_id or b"")
-    if key is None:
+    if key is None or key.public_key is None:
         raise OpenPGPError("clé de signature absente du trousseau")
-    if key.revoked:
-        raise OpenPGPError("clé de signature révoquée")
-    if key.expires_after and key.created + key.expires_after < now:
-        raise OpenPGPError("clé de signature expirée")
+    refusal = key.refusal(now)
+    if refusal:
+        raise OpenPGPError(refusal)
 
     hash_new, hash_algo = _HASHES[sig.hash_algo]
     digest = hash_new(data + sig.signed_part + b"\x04\xff" + struct.pack(">I", len(sig.signed_part))).digest()

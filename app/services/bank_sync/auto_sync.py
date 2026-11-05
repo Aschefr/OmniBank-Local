@@ -174,8 +174,13 @@ def execute_auto_sync_for_connection(
         new_txs = 0
         auto_reconciled = auto_res.get("auto_reconciled", 0)
         auto_committed = auto_res.get("auto_committed", 0)
+        needs_review = auto_res.get("needs_review", 0)
 
-        pending_entry = _PENDING_SYNC_DATA.get(pid, {}).get(conn.id, {}) or preview
+        # Le sas ne garde que les lignes que l'Auto-Pilote n'a pas traitées. S'il a tout traité, le sas est vidé :
+        # le relevé brut ne doit alors pas être recompté comme s'il restait tout à faire.
+        pending_entry = _PENDING_SYNC_DATA.get(pid, {}).get(conn.id, {})
+        if not pending_entry and auto_res.get("status") != "completed":
+            pending_entry = preview
         for acc in pending_entry.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if tx.get("is_reconciled") and not tx.get("already_reconciled") and tx.get("matched_db_id"):
@@ -195,15 +200,16 @@ def execute_auto_sync_for_connection(
 
         promoted_recurrences = auto_res.get("promoted_recurrences", 0)
 
+        # Notification seulement s'il y a du neuf ou quelque chose à faire : nouvelles opérations (à classer ou
+        # enregistrées par l'Auto-Pilote), opérations à rapprocher ou à vérifier. Un relevé qui ne fait que pointer
+        # des prévisions attendues reste silencieux. Échec et double authentification sont notifiés plus bas.
+        worth_notifying = (new_txs + auto_committed + matches + needs_review) > 0
+
         # Créer une notification in-app adaptée au contexte :
-        # - Si l'Auto-Pilote est actif en tâche de fond (trigger non manuel) : notification orientée Auto-Pilote
-        #   et suppression intégrale de toute notification si aucune action ni mouvement (zéro spam).
+        # - Si l'Auto-Pilote est actif en tâche de fond (trigger non manuel) : notification orientée Auto-Pilote.
         # - Si relevé manuel ou Auto-Pilote désactivé : notification de relevé bancaire classique.
         if ap_active and not is_manual:
-            actions_count = auto_reconciled + auto_committed + promoted_recurrences
-            total_items = actions_count + matches + coming_matches + new_txs
-
-            if total_items > 0:
+            if worth_notifying:
                 ap_msg = []
                 if auto_reconciled == 1:
                     ap_msg.append("1 opération auto-rapprochée")
@@ -225,6 +231,11 @@ def execute_auto_sync_for_connection(
                 elif matches > 1:
                     ap_msg.append(f"{matches} opérations à rapprocher")
 
+                if needs_review == 1:
+                    ap_msg.append("1 opération à vérifier")
+                elif needs_review > 1:
+                    ap_msg.append(f"{needs_review} opérations à vérifier")
+
                 if coming_matches == 1:
                     ap_msg.append("1 opération en attente")
                 elif coming_matches > 1:
@@ -236,7 +247,7 @@ def execute_auto_sync_for_connection(
                     ap_msg.append(f"{new_txs} opérations à classer")
 
                 full_content = f"{conn.label} : " + ", ".join(ap_msg) + "."
-                has_pending = (matches > 0 or new_txs > 0)
+                has_pending = (matches > 0 or new_txs > 0 or needs_review > 0)
                 # Mode silencieux strict : si l'Auto-Pilote a agi de manière 100% autonome (aucune action manuelle requise),
                 # la notification est enregistrée comme déjà lue (is_read=True) afin d'éviter d'allumer le badge rouge de la cloche.
                 notif = Notification(
@@ -253,26 +264,35 @@ def execute_auto_sync_for_connection(
                         "promoted": promoted_recurrences,
                         "matches": matches,
                         "coming": coming_matches,
-                        "new_txs": new_txs
+                        "new_txs": new_txs,
+                        "needs_review": needs_review
                     }),
                     is_read=not has_pending,
                     created_at=datetime.now(timezone.utc)
                 )
                 db.add(notif)
             else:
-                logger.info(f"[BankAutoSync] Auto-Pilote actif : aucun mouvement ni action pour '{conn.label}' (notification silencieuse).")
+                logger.info(f"[BankAutoSync] Auto-Pilote actif : rien de neuf ni à faire pour '{conn.label}' (aucune notification).")
         else:
             # Mode standard ou relevé déclenché manuellement : notification bancaire classique
-            if auto_reconciled > 0 or matches > 0 or coming_matches > 0 or new_txs > 0:
+            if worth_notifying:
                 notif_msg = []
                 if auto_reconciled == 1:
                     notif_msg.append("🤖 1 opération rapprochée automatiquement")
                 elif auto_reconciled > 1:
                     notif_msg.append(f"🤖 {auto_reconciled} opérations rapprochées automatiquement")
+                if auto_committed == 1:
+                    notif_msg.append("🤖 1 opération enregistrée automatiquement")
+                elif auto_committed > 1:
+                    notif_msg.append(f"🤖 {auto_committed} opérations enregistrées automatiquement")
                 if matches == 1:
                     notif_msg.append("1 opération à rapprocher")
                 elif matches > 1:
                     notif_msg.append(f"{matches} opérations à rapprocher")
+                if needs_review == 1:
+                    notif_msg.append("1 opération à vérifier")
+                elif needs_review > 1:
+                    notif_msg.append(f"{needs_review} opérations à vérifier")
                 if coming_matches == 1:
                     notif_msg.append("1 opération en attente")
                 elif coming_matches > 1:
@@ -294,29 +314,15 @@ def execute_auto_sync_for_connection(
                         "conn_label": conn.label,
                         "matches": matches,
                         "coming": coming_matches,
-                        "new_txs": new_txs
+                        "new_txs": new_txs,
+                        "needs_review": needs_review
                     }),
                     is_read=False,
                     created_at=datetime.now(timezone.utc)
                 )
                 db.add(notif)
             else:
-                notif = Notification(
-                    type="bank_sync",
-                    title=f"🏦 Relevé {conn.label} : À jour",
-                    content=f"Relevé terminé pour {conn.label} : vos comptes sont à jour (aucun nouveau mouvement).",
-                    link_data=json.dumps({
-                        "view": "accounts",
-                        "action": "bank_sync",
-                        "conn_id": conn.id,
-                        "conn_label": conn.label,
-                        "matches": 0,
-                        "new_txs": 0
-                    }),
-                    is_read=False,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.add(notif)
+                logger.info(f"[BankAutoSync] Rien de neuf ni à faire pour '{conn.label}' : relevé silencieux (aucune notification).")
         # Alerte Garde-fou d'empreinte historique
         suspicious_accs = [
             acc.get("account_name", f"Compte #{acc.get('account_id')}")
@@ -343,7 +349,7 @@ def execute_auto_sync_for_connection(
 
         conn.last_sync_at = datetime.now(timezone.utc)
         conn.last_sync_status = "auto_checked"
-        conn.last_sync_count = matches + new_txs
+        conn.last_sync_count = auto_reconciled + auto_committed + matches + new_txs
         conn.last_error = None
         # Archiver automatiquement les notifications d'erreur précédentes pour cette connexion
         db.query(Notification).filter(
@@ -351,7 +357,11 @@ def execute_auto_sync_for_connection(
             Notification.link_data.like(f'%"conn_id": {conn.id}%')
         ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
         db.commit()
-        logger.info(f"[BankAutoSync] Relevé terminé pour '{conn.label}' : {matches} rapprochements, {new_txs} nouvelles (profil={pid})")
+        logger.info(
+            f"[BankAutoSync] Relevé terminé pour '{conn.label}' : {auto_reconciled} rapprochées et {auto_committed} enregistrées "
+            f"automatiquement, {matches} à rapprocher, {needs_review} à vérifier, {new_txs} nouvelles à classer, "
+            f"{coming_matches} en attente (profil={pid})"
+        )
         return preview
     except Exception as e:
         from app.services.bank_sync_service import clean_error_message

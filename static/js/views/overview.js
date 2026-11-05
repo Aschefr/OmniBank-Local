@@ -163,7 +163,6 @@ window.OverviewView = {
     },
 
     async _fetchForecastTracking(simAccParam = '') {
-        if (window.app?.config?.enable_simulator === 'false') return;
         try {
             this._forecastTracking = await API.get('/api/simulator/forecast-tracking' + simAccParam);
         } catch (err) {
