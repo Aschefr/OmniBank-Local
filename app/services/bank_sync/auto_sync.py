@@ -265,7 +265,8 @@ def execute_auto_sync_for_connection(
                         "matches": matches,
                         "coming": coming_matches,
                         "new_txs": new_txs,
-                        "needs_review": needs_review
+                        "needs_review": needs_review,
+                        "batch_id": auto_res.get("batch_id")  # compteur mis à jour après le passage de l'IA
                     }),
                     is_read=not has_pending,
                     created_at=datetime.now(timezone.utc)
@@ -315,7 +316,8 @@ def execute_auto_sync_for_connection(
                         "matches": matches,
                         "coming": coming_matches,
                         "new_txs": new_txs,
-                        "needs_review": needs_review
+                        "needs_review": needs_review,
+                        "batch_id": auto_res.get("batch_id")  # compteur mis à jour après le passage de l'IA
                     }),
                     is_read=False,
                     created_at=datetime.now(timezone.utc)

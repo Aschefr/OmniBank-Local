@@ -5,6 +5,7 @@ plus. Les opérations arrivent d'abord avec les règles et l'historique, puis ce
 Elle ne touche jamais à une opération que l'utilisateur a modifiée entre-temps. Si l'IA échoue ou si le serveur
 redémarre, les opérations restent à vérifier avec leur catégorie de repli : rien n'est perdu."""
 import json
+import re
 import logging
 import threading
 from datetime import datetime, timezone
@@ -125,10 +126,42 @@ def refine_labels(db: Session, jobs: List[Dict[str, Any]], profile_id: str) -> i
     _refine_statements(db, conn_ids, answers, profile_id)
     if refined:
         _set_refined_at(db)
+        _refresh_statement_notifications(db, batch_ids)
     db.commit()
     stats_cache.invalidate(profile_id)
     logger.info(f"[BankSync] Analyse IA : {refined} opération(s) complétée(s) sur {len(tx_types)} libellé(s) (profil={profile_id})")
     return refined
+
+
+_REVIEW_PHRASE = re.compile(r"\d+ opérations? à vérifier")
+
+
+def _refresh_statement_notifications(db: Session, batch_ids: set) -> None:
+    """La notification du relevé est écrite avant le passage de l'IA : son « N opérations à vérifier » comptait
+    des opérations que l'IA a ensuite classées. On le recalcule sur l'état réel des opérations du lot."""
+    from app.models import Notification
+
+    for batch_id in batch_ids:
+        notifs = db.query(Notification).filter(Notification.link_data.like(f'%"batch_id": "{batch_id}"%')).all()
+        if not notifs:
+            continue
+        tx_ids = {row.entity_id for row in db.query(AutopilotDecisionLog.entity_id).filter(
+            AutopilotDecisionLog.batch_id == batch_id,
+            AutopilotDecisionLog.entity_type == "transaction",
+            AutopilotDecisionLog.is_undone == False,
+        ) if row.entity_id}
+        n = db.query(Transaction).filter(Transaction.id.in_(tx_ids), Transaction.needs_review == True).count() if tx_ids else 0
+        phrase = "" if n == 0 else ("1 opération à vérifier" if n == 1 else f"{n} opérations à vérifier")
+        for notif in notifs:
+            try:
+                data = json.loads(notif.link_data or "{}")
+            except (ValueError, TypeError):
+                data = {}
+            data["needs_review"] = n
+            notif.link_data = json.dumps(data)
+            content = _REVIEW_PHRASE.sub(phrase, notif.content or "")
+            content = re.sub(r"(, )+(?=[,.])", "", content).replace(": , ", ": ")
+            notif.content = content
 
 
 def _raw_label(bank_tx: Dict[str, Any]) -> str:
@@ -194,7 +227,13 @@ def _refine_committed(db: Session, batch_ids: set, answers: Dict[str, Dict[str, 
         before = snapshot_entity(tx)
         tx.description = answer.get("description") or tx.description
         is_new_category = bool(answer.get("smart_is_new_category"))
-        if not is_new_category or can_create_categories:
+        from app.models import Category
+        existing = db.query(Category).filter(Category.name == answer["category"]).first()
+        wrong_direction = bool(existing and existing.type and ((tx.type == "income") != (existing.type == "income")))
+        if wrong_direction:
+            # Revenu face à une catégorie de dépense (ou l'inverse) : la catégorie actuelle reste, à vérifier
+            pass
+        elif not is_new_category or can_create_categories:
             tx.category = answer["category"]
             if is_new_category:
                 ensure_category_exists(db, tx.category, tx.type)

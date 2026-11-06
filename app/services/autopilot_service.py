@@ -520,6 +520,7 @@ def process_incoming_batch(
     pending_count = 0
     total_count = 0
     seen_suspected_dup_ids = set(batch_matched_ids)
+    batch_created: list = []  # (opération, décision) créées dans ce lot : virements internes réunis à la fin
 
     residual_accounts = []
     import copy
@@ -1059,6 +1060,8 @@ def process_incoming_batch(
                         is_undone=False
                     )
                     db.add(decision)
+                    if not is_coming and suspected_dup is None:
+                        batch_created.append((new_tx, decision))
                     snap_tx["audit_status"] = "auto_committed"
                     snap_tx["audit_action"] = dec_act
                     snap_tx["audit_created_id"] = new_tx.id
@@ -1104,6 +1107,17 @@ def process_incoming_batch(
             residual_acc = dict(acc)
             residual_acc["transactions"] = residual_txs
             residual_accounts.append(residual_acc)
+
+        # 2.B Virements internes dont les deux côtés sont dans ce relevé
+        try:
+            from app.services.bank_sync.transfer_pairing import pair_internal_transfers
+            paired_transfers, review_drop = pair_internal_transfers(db, batch_created)
+            if paired_transfers:
+                auto_committed_count -= paired_transfers
+                auto_reconciled_count += paired_transfers
+                needs_review_count = max(0, needs_review_count - review_drop)
+        except Exception as pair_err:
+            logger.warning(f"[AutoPilot] Réunion des virements internes du relevé non faite : {pair_err}")
 
         # 3. Mise à jour du Sas pour les opérations résiduelles
         if pending_count > 0:

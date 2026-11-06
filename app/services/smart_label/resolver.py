@@ -834,6 +834,10 @@ def resolve_smart_labels_batch(
                                     assigned_is_new = cat_is_new
                                     expected_t = tx_types.get(raw) if tx_types else None
                                     c_type = cat_type_map.get(candidate_cat)
+                                    if c_type is None and cat_is_new and expected_t:
+                                        # Catégorie créée dans ce lot : son sens est celui de sa première opération,
+                                        # un revenu ne reçoit pas une catégorie que l'IA vient de créer pour des dépenses
+                                        cat_type_map[candidate_cat] = "income" if expected_t == "income" else "expense_var"
 
                                     if expected_t == "income" and c_type and c_type != "income":
                                         logger.warning(f"[SmartLabel] Incohérence type pour '{raw}': catégorie '{candidate_cat}' ({c_type}) invalide pour une recette. Repli automatique.")
