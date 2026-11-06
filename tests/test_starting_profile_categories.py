@@ -128,3 +128,26 @@ def test_unambiguous_keywords_come_before_the_ai_and_reuse_the_users_categories(
                                               tx_types={"CB UEP*DAC SUPER U LYON": "expense_var", "FULLI - PEAGES": "expense_var"})
     assert res["CB UEP*DAC SUPER U LYON"]["category"] == "Essence" and not res["CB UEP*DAC SUPER U LYON"]["smart_is_new_category"]
     assert res["FULLI - PEAGES"]["category"] == "Péage tickets"
+
+
+def test_starting_profile_hides_the_catch_alls_from_the_ai_and_guards_income_categories(db, monkeypatch):
+    """Avec quelques catégories déjà créées par les mots-clés, l'IA rangeait tout dans « Dépenses diverses ». Sur un
+    profil qui démarre, les fourre-tout ne lui sont plus proposés ; et un revenu ne prend pas une catégorie qui décrit
+    le métier de celui qui paie (un salaire classé « Matériaux »)."""
+    db.add_all([Category(name="Carburant", type="expense_var"), GlobalConfig(key="enable_ai", value="true"),
+                GlobalConfig(key="ollama_url", value="http://ollama.test:11434"), GlobalConfig(key="ollama_model", value="m")])
+    db.commit()
+    offered = {}
+
+    def fake(descriptions, categories, cfg=None, user_habits=None, suggest_names=False, **kw):
+        offered["categories"] = list(categories)
+        cats = {"Acme Sas": "Matériaux", "Remboursement": "Remboursements", "Cb Super U": "Courses"}
+        return {d: {"name": d, "category": cats.get(d, "Courses"), "category_is_new": True} for d in descriptions}
+
+    monkeypatch.setattr(ollama_client, "call_ollama_batch", fake)
+    types = {"ACME SAS": "income", "REMBOURSEMENT": "income", "CB SUPER U": "expense_var"}
+    res = resolver.resolve_smart_labels_batch(db, list(types), tx_types=types, use_ai_fallback=True, auto_fallback_category=True)
+    assert "Dépenses diverses" not in offered["categories"] and "Revenus divers" not in offered["categories"]
+    assert res["ACME SAS"]["category"] == "Revenus divers" and res["ACME SAS"]["smart_is_fallback"] is True
+    assert res["REMBOURSEMENT"]["category"] == "Remboursements"
+    assert res["CB SUPER U"]["category"] == "Courses"

@@ -312,6 +312,18 @@ def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[T
     return None
 
 
+_INCOME_CATEGORY_WORDS = ("salaire", "remboursement", "aide", "allocation", "virement", "revenu", "interet",
+                          "dividende", "loyer", "pension", "retraite", "prime", "recette", "remuneration", "vente",
+                          "cadeau", "gain", "indemnite", "bourse", "honoraire", "facturation")
+
+
+def looks_like_income_category(name: Optional[str]) -> bool:
+    """Une catégorie de revenu dit d'où vient l'argent (salaire, remboursement…), pas ce que vend celui qui paie :
+    l'IA rangeait un salaire dans « Matériaux », le métier de l'employeur."""
+    clean = _clean_token_str(name or "")
+    return any(w in clean for w in _INCOME_CATEGORY_WORDS)
+
+
 def count_real_categories(db: Session) -> int:
     """Catégories actives hors fourre-tout : en dessous de quelques-unes, le profil démarre."""
     from app.models import Category

@@ -238,12 +238,14 @@ BATCH_SMART_LABEL_SYSTEM_PROMPT = (
 )
 
 STARTING_PROFILE_CATEGORY_HINT = (
-    "\nThe user is just starting: the authorized list is nearly empty, so creating categories is expected here.\n"
+    "\nThe user is just starting: the authorized list has only a few categories, so creating categories is expected "
+    "here. Reuse an authorized category when it fits, otherwise create one.\n"
     "- Give each transaction a general, reusable budget category of 1 to 3 words, in the language of the labels "
     "(for French labels, e.g. 'Courses', 'Carburant', 'Restaurants', 'Télécoms', 'Énergie', 'Assurances', 'Impôts', "
     "'Prêts', 'Frais bancaires', 'Abonnements', 'Santé', 'Shopping', 'Transports', 'Loisirs', 'Salaire', 'Remboursements').\n"
     "- Use the same category for similar merchants; never one category per merchant.\n"
-    "- Use 'Dépenses diverses' or 'Revenus divers' only when nothing at all can be inferred from the label.\n"
+    "- When nothing at all can be inferred from the label (a person's name, a payment service), return null as the "
+    "category.\n"
 )
 
 _BANNED_AI_CATEGORY_TOKENS = {

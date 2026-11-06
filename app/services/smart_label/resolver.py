@@ -19,6 +19,7 @@ from .ai_guard import validate_ai_suggested_name
 from .categories import (
     count_real_categories,
     is_fallback_category,
+    looks_like_income_category,
     match_category_from_text,
     resolve_fallback_category,
     starter_category_for,
@@ -806,9 +807,12 @@ def resolve_smart_labels_batch(
                             cat_query = cat_query.filter(Category.type.in_(("expense_var", "expense_fixed")))
 
                     active_cats = [c[0] for c in cat_query.all() if c and c[0]]
-                    if not active_cats and starting:
-                        active_cats = [resolve_fallback_category(db, t) for t in ("expense_var", "income")]
-                    if active_cats:
+                    if starting:
+                        # Profil qui démarre : sans les fourre-tout dans la liste, l'IA crée les catégories qui manquent
+                        # au lieu d'y ranger tout le relevé ; ce qu'elle ne sait pas classer y revient par le filet
+                        # de sécurité, à vérifier
+                        active_cats = [c for c in active_cats if not is_fallback_category(c)]
+                    if active_cats or starting:
                         user_habits = get_user_habit_descriptions(db, limit=35) if include_user_habits else None
                         clean_descs = list(unresolved_by_clean.keys())
                         ai_results = call_ollama_batch(
@@ -853,6 +857,12 @@ def resolve_smart_labels_batch(
                                     assigned_is_new = cat_is_new
                                     expected_t = tx_types.get(raw) if tx_types else None
                                     c_type = cat_type_map.get(candidate_cat)
+                                    if c_type is None and cat_is_new and expected_t == "income" \
+                                            and not looks_like_income_category(candidate_cat):
+                                        # Revenu rangé selon le métier de celui qui paie (salaire → « Matériaux »)
+                                        candidate_cat = assigned_cat = resolve_fallback_category(db, "income")
+                                        assigned_is_new = cat_is_new = False
+                                        c_type = "income"
                                     if c_type is None and cat_is_new and expected_t:
                                         # Catégorie créée dans ce lot : son sens est celui de sa première opération,
                                         # un revenu ne reçoit pas une catégorie que l'IA vient de créer pour des dépenses
