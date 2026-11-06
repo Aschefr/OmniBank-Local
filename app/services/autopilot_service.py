@@ -926,6 +926,20 @@ def process_incoming_batch(
                     and not is_duplicate
                 )
 
+                # Sans IA ni mots-clés : salaire reconnu d'après la paie déclarée, dépense fixe d'après sa catégorie
+                if is_eligible_new_entry:
+                    from app.services.bank_sync.declared_pay import expense_type_for, salary_category_for
+                    if t_type == "income" and (is_fallback or not category):
+                        salary_cat = salary_category_for(db, amt, op_date)
+                        if salary_cat:
+                            category, is_fallback = salary_cat, False
+                            is_new_cat = salary_cat not in valid_categories
+                            has_valid_category = True
+                            confidence = max(confidence, 0.9)
+                            decision_reason = "declared_salary"
+                    elif t_type == "expense_var" and not is_fallback:
+                        t_type = expense_type_for(db, category, tx.get("raw_description") or tx.get("description"))
+
                 if is_eligible_new_entry:
                     # Évaluation du niveau de confiance / besoin de revue utilisateur
                     # Une catégorie de repli/par défaut (fallback) ou une suspicion de doublon prévisionnel

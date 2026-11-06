@@ -228,20 +228,23 @@ def match_category_from_text(
 STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
     ("Salaire", "income", ("salaire", "salaires", "paie", "remuneration")),
     ("Remboursements", "income", ("remboursement", "remboursements", "rembt", "avoir", "refund")),
+    ("Intérêts", "income", ("interets", "interet", "remuneration livret")),
     ("Aides et allocations", "income", ("caf", "cpam", "ameli", "france travail", "pole emploi", "allocation", "allocations")),
     ("Carburant", "expense", ("carburant", "carburants", "essence", "gazole", "diesel", "dac", "esso", "avia", "station service")),
     ("Péages et parking", "expense", ("peage", "peages", "autoroute", "autoroutes", "aprr", "sanef", "fulli", "ulys",
                                        "bip go", "parking", "stationnement", "indigo")),
     ("Courses", "expense", ("alim", "carrefour", "leclerc", "auchan", "intermarche", "super u", "hyper u", "systeme u",
                             "lidl", "aldi", "monoprix", "franprix", "netto", "picard", "grand frais", "biocoop",
-                            "supermarche", "hypermarche", "epicerie", "boulangerie", "boulang", "boucherie", "primeur")),
+                            "supermarche", "hypermarche", "epicerie", "boulangerie", "boulang", "boulange", "boucherie",
+                            "primeur")),
     ("Restaurants", "expense", ("restaurant", "resto", "brasserie", "bistrot", "pizzeria", "sushi", "kebab", "mcdonalds",
                                 "mcdonald", "burger king", "kfc", "uber eats", "deliveroo")),
     ("Transports", "expense", ("sncf", "ouigo", "ratp", "tcl", "navigo", "blablacar", "uber", "bolt", "lime")),
     ("Santé", "expense", ("pharmacie", "pharma", "docteur", "medecin", "dr", "dentiste", "hopital", "clinique",
                           "laboratoire", "optique", "opticien", "kine", "osteopathe")),
     ("Assurances", "expense", ("assurance", "assurances", "assu", "assur", "mutuelle", "prevoyance", "maif", "macif",
-                               "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp")),
+                               "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp", "spb",
+                               "suravenir")),
     ("Impôts", "expense", ("impot", "impots", "dgfip", "finances publiques", "direction generale des finances",
                                     "tresor public", "taxe")),
     ("Télécoms et internet", "expense", ("orange", "sosh", "sfr", "bouygues", "free telecom", "free mobile", "freebox",
@@ -266,6 +269,7 @@ STRONG_CATEGORIES: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = [
      ("carburant", "essence", "gazole")),
     ("Péages et parking", ("peage", "peages", "autoroute", "autoroutes", "aprr", "sanef", "fulli", "ulys", "bip go"),
      ("peage", "autoroute")),
+    ("Retraits", ("retrait dab", "retrait especes", "dab"), ("retrait", "especes")),
     ("Impôts", ("dgfip", "finances publiques", "direction generale des finances", "tresor public"),
      ("impot", "taxe", "fiscal")),
 ]
@@ -294,6 +298,36 @@ def strong_category_for(db: Session, text: str, tx_type: Optional[str] = None) -
     return None
 
 
+# Virement entre personnes : « Wero vers JEAN D », « WEB M. NOM », « VIR SEPA … », « DE M. NOM ». Après les autres
+# mots-clés (« VIR SEPA EDF » reste de l'énergie) ; le sens donne la catégorie.
+_P2P_FIRST_TOKENS = {"wero", "paylib", "lydia", "vir", "virement", "web"}
+P2P_EXPENSE_CATEGORY = "Virements envoyés"
+P2P_INCOME_CATEGORY = "Virements reçus"
+
+
+def person_transfer_category(text: str, tx_type: Optional[str] = None) -> Optional[str]:
+    raw_clean = _clean_token_str(text)
+    tokens = raw_clean.split()
+    if not tokens:
+        return None
+    is_p2p = tokens[0] in _P2P_FIRST_TOKENS or raw_clean.startswith(("de m ", "de mme ", "de mlle ", "de mr "))
+    if not is_p2p:
+        return None
+    if tx_type is None:  # sens inconnu : « VIR INST WERO de X », « VIR … RECU » sont des virements reçus
+        tx_type = "income" if ({"de", "recu"} & set(tokens)) else "expense_var"
+    return P2P_INCOME_CATEGORY if tx_type == "income" else P2P_EXPENSE_CATEGORY
+
+
+# Dépenses fixes (Mon Profil les range ainsi) : la catégorie dit si l'opération est une charge fixe
+_FIXED_CATEGORY_WORDS = ("assurance", "mutuelle", "pret", "credit", "emprunt", "telecom", "internet", "energie",
+                         "electricite", "abonnement", "impot", "taxe", "loyer", "frais bancaires", "frais de compte")
+
+
+def is_fixed_category_name(name: Optional[str]) -> bool:
+    clean = _clean_token_str(name or "")
+    return any(w in clean for w in _FIXED_CATEGORY_WORDS)
+
+
 def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str]]:
     """Catégorie de départ suggérée par mots-clés : (nom, 'income'|'expense') ou None. N'écrit rien en base."""
     raw_clean = _clean_token_str(text)
@@ -309,6 +343,9 @@ def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[T
         for kw in keywords:
             if (" " in kw and f" {kw} " in padded) or kw in tokens:
                 return name, flow
+    p2p = person_transfer_category(text, tx_type)
+    if p2p:
+        return p2p, "income" if p2p == P2P_INCOME_CATEGORY else "expense"
     return None
 
 

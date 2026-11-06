@@ -126,9 +126,10 @@ def test_t3_5_2_unknown_income_fallback_category(test_db):
 
     resolved = results["VIR INST MLLE Claire Moreau"]
     assert "Claire Moreau" in resolved["description"]
-    assert resolved["category"] == "Revenus divers"
-    assert resolved["source"] == "fallback"
-    assert resolved["smart_is_fallback"] is True
+    # Sans IA, un virement reçu d'une personne est reconnu comme tel (à vérifier) plutôt que « Revenus divers »
+    assert resolved["category"] == "Virements reçus"
+    assert resolved["source"] == "keyword"
+    assert resolved["confidence"] < 0.85
 
     # Vérification que la table Category est intacte
     cat_in_db = (
@@ -156,10 +157,11 @@ def test_t3_5_3_chameleon_fallback_category(test_db):
 
     resolved = results["AMAZON PAYMENTS LUXEMBOURG"]
     assert "Amazon" in resolved["description"]
-    assert resolved["category"] == "Dépenses diverses"
+    # Sans IA, le caméléon prend une catégorie de départ par mot-clé, à vérifier, plutôt que le fourre-tout
+    assert resolved["category"] == "Shopping"
     assert resolved["is_multi_category"] is True
-    assert resolved["source"] in ("multi_category", "fallback")
-    assert resolved["smart_is_fallback"] is True
+    assert resolved["source"] == "keyword"
+    assert resolved["confidence"] < 0.85
 
 
 # =====================================================================
@@ -346,12 +348,12 @@ def test_t3_5_8_autopilot_auto_commit_mixed_batch(test_db):
 
     descs = {t.description: t for t in txs}
     amazon_tx = [t for t in txs if "Amazon" in t.description][0]
-    assert amazon_tx.category == "Dépenses diverses"
+    assert amazon_tx.category == "Shopping"  # sans IA : catégorie de départ par mot-clé, à vérifier
     assert amazon_tx.type == "expense_var"
     assert amazon_tx.reconciliation_date is not None
 
     marine_tx = [t for t in txs if "Claire Moreau" in t.description][0]
-    assert marine_tx.category == "Revenus divers"
+    assert marine_tx.category == "Virements reçus"  # sans IA : virement reçu d'une personne, à vérifier
     assert marine_tx.type == "income"
     assert marine_tx.amount == 120.0
 
@@ -361,20 +363,13 @@ def test_t3_5_8_autopilot_auto_commit_mixed_batch(test_db):
     assert boulange_tx.needs_review is True
     assert boulange_tx.type == "expense_var"
 
-    # Vérification de la création automatique des catégories dans la table Category
-    cat_dep = (
-        test_db.query(Category)
-        .filter(Category.name == "Dépenses diverses")
-        .first()
-    )
-    assert cat_dep is not None
-    assert cat_dep.type == "expense_var"
-
-    cat_rev = (
-        test_db.query(Category).filter(Category.name == "Revenus divers").first()
-    )
-    assert cat_rev is not None
-    assert cat_rev.type == "income"
+    # Vérification de la création automatique des catégories dans la table Category : sans IA, les mots-clés ont
+    # donné une catégorie aux trois opérations, aucune n'a eu besoin du fourre-tout
+    created = {c.name: c.type for c in test_db.query(Category).all()}
+    assert created.get("Shopping") == "expense_var"
+    assert created.get("Courses") == "expense_var"
+    assert created.get("Virements reçus") == "income"
+    assert "Dépenses diverses" not in created and "Revenus divers" not in created
 
     # Vérification des logs d'audit dans AutopilotDecisionLog
     logs = test_db.query(AutopilotDecisionLog).all()
@@ -385,7 +380,7 @@ def test_t3_5_8_autopilot_auto_commit_mixed_batch(test_db):
             snap = json.loads(l.raw_snapshot)
             if snap.get("decision_reason"):
                 reasons.add(snap["decision_reason"])
-    assert "chameleon_default" in reasons or "fallback_catchall" in reasons
+    assert reasons == {"keyword_category"}  # sans IA : les trois opérations classées par mots-clés, à vérifier
 
 
 # =====================================================================

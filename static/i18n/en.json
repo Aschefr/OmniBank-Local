@@ -384,6 +384,8 @@
   "autopilot_reason_deviant_reconciled_desc": "Transaction linked with automatic adjustment of the actual charged amount.",
   "autopilot_reason_fallback_catchall": "Default category",
   "autopilot_reason_fallback_catchall_desc": "Unmatched transaction assigned to the fallback safety net category.",
+  "autopilot_reason_declared_salary": "Declared salary",
+  "autopilot_reason_declared_salary_desc": "Income close to the pay day and net amount declared in the setup wizard, filed as salary.",
   "autopilot_reason_keyword_category": "Keyword category",
   "autopilot_reason_keyword_category_desc": "Category inferred from a keyword in the label: fuel, tolls, taxes, or any starter category when AI is off. Created if missing.",
   "autopilot_reason_high_confidence": "High confidence",

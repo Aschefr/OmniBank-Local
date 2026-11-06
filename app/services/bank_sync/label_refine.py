@@ -240,6 +240,10 @@ def _refine_committed(db: Session, batch_ids: set, answers: Dict[str, Dict[str, 
         untouched = bool(tx and tx.needs_review and tx.description == after.get("description") and tx.category == after.get("category"))
         if not answer or not untouched:
             continue
+        from app.services.smart_label.categories import is_fallback_category as _is_catch_all
+        if _is_catch_all(answer.get("category")) and not _is_catch_all(tx.category):
+            # Un fourre-tout ne remplace pas une vraie catégorie (salaire reconnu d'après la paie déclarée)
+            continue
         before = snapshot_entity(tx)
         tx.description = answer.get("description") or tx.description
         is_new_category = bool(answer.get("smart_is_new_category"))
@@ -250,6 +254,9 @@ def _refine_committed(db: Session, batch_ids: set, answers: Dict[str, Dict[str, 
             # Revenu face à une catégorie de dépense (ou l'inverse) : la catégorie actuelle reste, à vérifier
             pass
         elif not is_new_category or can_create_categories:
+            if tx.type == "expense_var":
+                from app.services.bank_sync.declared_pay import expense_type_for
+                tx.type = expense_type_for(db, answer["category"], tx.raw_description)
             tx.category = answer["category"]
             if is_new_category:
                 ensure_category_exists(db, tx.category, tx.type)

@@ -1471,6 +1471,8 @@ window.SetupWizard = {
 
     async _skipAI() {
         const apEnabled = document.getElementById('wizAutopilotToggle')?.checked;
+        // « Passer, je n'ai pas Ollama » : l'IA d'une configuration précédente ne doit pas rester active
+        try { await API.post('/api/config/', { enable_ai: 'false' }); } catch (e) {}
         try {
             if (apEnabled) {
                 await API.post('/api/autopilot/toggle', { enabled: true, preset: this._autopilotPreset });

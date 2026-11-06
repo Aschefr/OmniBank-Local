@@ -149,3 +149,51 @@ def _tokenize(text: str, expand_acronyms: bool = True) -> Set[str]:
         if t in _BANK_ACRONYMS:
             expanded.update(_BANK_ACRONYMS[t])
     return expanded
+
+
+# ── Nom affiché sans IA ──────────────────────────────────────────────────────────────────────────────
+# normalize_raw_label sert aussi de clé aux règles apprises : on ne la change pas. display_name_from_label part de
+# son résultat pour le nom montré à l'utilisateur quand l'IA ne le propose pas (mots-clés, fourre-tout).
+_LEGAL_FORMS = re.compile(r'\b(S\s?A\s?R\s?L|S\s?C\s?A|SASU|SAS|SARL|EURL|SNC|SA|ET CIE|CIE)\b')
+_AFTER_BRANCH = re.compile(r'\bSUCCURSALE\b.*$')
+_PROCESSOR_CODES = {"UEP", "SUMUP", "ZETTLE", "IZ", "SQ", "STRIPE"}
+_PROCESSOR_PAIRS = (("GC", "RE"),)  # GoCardless
+_UEP_SUBCODES = {"ALIM", "DAC"}  # codes Système U : rayon alimentation, pompe à carburant
+_CARD_PREFIX = re.compile(r'^X\d{4}\s')
+_CARD_LABEL_WIDTH = 26  # largeur des libellés de carte du Crédit Agricole : au-delà, le dernier mot est tronqué
+
+
+def display_name_from_label(raw: str) -> str:
+    """« X1234 UEP*ALIM SUPER U LYO » → « Super U » ; « ORANGE SA-ORANGE » → « Orange » ;
+    « AMAZON EU SARL, SUCCURSALE FRANC » → « Amazon Eu » ; « ACME REINFORCEMENTS ACME REI » → « Acme Reinforcements »."""
+    base = normalize_raw_label(raw)
+    if not base:
+        return (raw or "").strip()
+    text = _AFTER_BRANCH.sub(' ', base)
+    had_legal_form = bool(_LEGAL_FORMS.search(text))
+    text = _LEGAL_FORMS.sub(' ', text)
+    tokens = text.split()
+    while had_legal_form and len(tokens) > 1 and len(tokens[-1]) == 1:  # reste de « S.A.R.L. et Cie S. »
+        tokens = tokens[:-1]
+    if len(tokens) > 1 and tokens[0] in _PROCESSOR_CODES:
+        had_uep = tokens[0] == "UEP"
+        tokens = tokens[1:]
+        if had_uep and len(tokens) > 1 and tokens[0] in _UEP_SUBCODES:
+            tokens = tokens[1:]
+    for a, b in _PROCESSOR_PAIRS:
+        if len(tokens) > 2 and tokens[0] == a and tokens[1] == b:
+            tokens = tokens[2:]
+    # Libellé de carte à pleine largeur : le dernier mot court est une ville ou un mot tronqué
+    raw_s = (raw or "").strip()
+    if _CARD_PREFIX.match(raw_s) and len(raw_s) >= _CARD_LABEL_WIDTH and len(tokens) > 1 and len(tokens[-1]) <= 5:
+        tokens = tokens[:-1]
+    # Références de paiement (« AB12CD34EF56GH78 ») : lettres et chiffres mêlés, sans sens pour le lecteur
+    tokens = [t for t in tokens if not (len(t) >= 6 and re.search(r'\d', t) and re.search(r'[A-Z]', t))] or tokens
+    # Mots répétés, et fin tronquée d'un mot déjà présent (« ACME REI » après « REINFORCEMENTS »)
+    kept = []
+    for t in tokens:
+        if any(t == k or (len(t) < len(k) and k.startswith(t)) for k in kept):
+            continue
+        kept.append(t)
+    name = " ".join(kept).strip()
+    return name.title() if name else base.title()

@@ -150,6 +150,8 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
         explanation = "Historique dispersé entre plusieurs catégories sans consensus net (arbitrage requis)."
     elif source == "ignored":
         explanation = "Ce motif bancaire est marqué comme exclu/ignoré de la catégorisation."
+    elif source == "keyword":
+        explanation = "Catégorie déduite d'un mot-clé du libellé (sans ambiguïté, ou faute d'IA), créée si elle manquait."
     elif source == "fallback":
         explanation = "Catégorie assignée par le filet de sécurité déterministe (Dépenses diverses / Revenus divers)."
     else:

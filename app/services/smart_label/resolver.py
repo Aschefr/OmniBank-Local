@@ -31,6 +31,7 @@ from .normalization import (
     _GENERIC_TOKENS,
     _tokenize,
     is_multi_category_merchant,
+    display_name_from_label,
     is_probable_income_label,
     normalize_raw_label,
 )
@@ -751,7 +752,7 @@ def resolve_smart_labels_batch(
         if strong:
             strong_name, strong_new = strong
             results[raw_str] = {
-                "description": pattern.title() if pattern else raw_str,
+                "description": display_name_from_label(raw_str) or raw_str,
                 "category": strong_name,
                 "source": "keyword",
                 "confidence": _STRONG_CONFIDENCE,
@@ -898,10 +899,13 @@ def resolve_smart_labels_batch(
     # ---------------------------------------------------------
     # Avec l'IA active, c'est elle qui crée les catégories (tout de suite ou en arrière-plan) : on ne la devance pas,
     # sauf si son appel vient d'échouer (serveur injoignable) : mieux vaut une catégorie à vérifier que le fourre-tout.
-    # Les marchands « caméléons » (Amazon, Total) gardent leur catégorie vide : c'est voulu, choix au cas par cas
+    # Sans IA, les marchands « caméléons » (Amazon, Auchan) prennent aussi une catégorie de départ, à vérifier :
+    # mieux que le fourre-tout. Avec l'IA, ils gardent leur catégorie vide (choix au cas par cas).
+    no_ai = ai_failed or not _ai_enabled(db)
+    keyword_sources = ("none", "ambiguous", "multi_category") if no_ai else ("none", "ambiguous")
     unresolved = [raw for raw, res in results.items()
-                  if res.get("category") is None and res.get("source") in ("none", "ambiguous") and not res.get("is_manual")]
-    if unresolved and (ai_failed or not _ai_enabled(db)):
+                  if res.get("category") is None and res.get("source") in keyword_sources and not res.get("is_manual")]
+    if unresolved and no_ai:
         existing = {name.lower(): name for (name,) in db.query(Category.name).filter(
             (Category.is_closed == False) | (Category.is_closed == None)).all() if name}
         for raw in unresolved:
@@ -911,7 +915,7 @@ def resolve_smart_labels_batch(
                 continue
             name, _flow = starter
             results[raw].update({
-                "description": normalize_raw_label(raw).title() or raw,
+                "description": display_name_from_label(raw) or raw,
                 "category": existing.get(name.lower(), name),
                 "source": "keyword",
                 "confidence": _STARTER_CONFIDENCE,
@@ -942,9 +946,11 @@ def resolve_smart_labels_batch(
                 if res.get("source") == "none":
                     res["source"] = "fallback"
                     res["confidence"] = 0.85
-                    res["description"] = normalize_raw_label(raw).title()
+                    res["description"] = display_name_from_label(raw)
                 elif res.get("source") in ("multi_category", "ambiguous"):
                     res["confidence"] = 0.85
+                    if not res.get("is_manual"):
+                        res["description"] = display_name_from_label(raw)
 
     for res in results.values():
         res.setdefault("smart_is_fallback", False)

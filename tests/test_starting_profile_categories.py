@@ -35,7 +35,9 @@ def db():
     ("00000012345 ECHEANCE", "expense_var", "Prêts et crédits"),
     ("Remboursement cotisation carte", "income", "Remboursements"),
     ("CB DR MARTIN CABINET", "expense_var", "Santé"),
-    ("Wero vers JEAN D", "expense_var", None),
+    ("Wero vers JEAN D", "expense_var", "Virements envoyés"),
+    ("VIR INST DE M. DUPONT", "income", "Virements reçus"),
+    ("SPB", "expense_var", "Assurances"),
 ])
 def test_starter_keywords(label, tx_type, expected):
     found = starter_category_for(label, tx_type)
@@ -51,7 +53,7 @@ def test_without_ai_keywords_create_categories_to_be_checked(db):
     shop = res["CB UEP*ALIM SUPER U LYON"]
     assert shop["category"] == "Courses" and shop["source"] == "keyword"
     assert shop["smart_is_new_category"] is True and shop["confidence"] < 0.85
-    assert res["Wero vers JEAN D"]["category"] == "Dépenses diverses"
+    assert res["Wero vers JEAN D"]["category"] == "Virements envoyés"
 
 
 def test_with_ai_on_a_starting_profile_the_model_may_create_many_categories(db, monkeypatch):
@@ -122,6 +124,9 @@ def test_unambiguous_keywords_come_before_the_ai_and_reuse_the_users_categories(
     assert res["CB UEP*ALIM SUPER U LYON"]["source"] == "ai"  # le reste va à l'IA
     assert not any("Dac" in d or "Fulli" in d for d in asked)
 
+    from app.services.smart_label.categories import strong_category_for
+    assert strong_category_for(db, "RETRAIT DAB 05/11 LYON", "expense_var") == ("Retraits", True)
+
     db.add_all([Category(name="Essence", type="expense_var"), Category(name="Péage tickets", type="expense_var")])
     db.commit()
     res = resolver.resolve_smart_labels_batch(db, ["CB UEP*DAC SUPER U LYON", "FULLI - PEAGES"],
@@ -164,4 +169,4 @@ def test_keywords_take_over_when_the_ai_is_enabled_but_unreachable(db, monkeypat
     types = {"CB UEP*ALIM SUPER U LYON": "expense_var", "Wero vers JEAN D": "expense_var"}
     res = resolver.resolve_smart_labels_batch(db, list(types), tx_types=types, use_ai_fallback=True, auto_fallback_category=True)
     assert res["CB UEP*ALIM SUPER U LYON"]["category"] == "Courses" and res["CB UEP*ALIM SUPER U LYON"]["source"] == "keyword"
-    assert res["Wero vers JEAN D"]["category"] == "Dépenses diverses"
+    assert res["Wero vers JEAN D"]["category"] == "Virements envoyés"

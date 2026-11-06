@@ -384,6 +384,8 @@
   "autopilot_reason_deviant_reconciled_desc": "Opération liée avec ajustement automatique du montant effectif débité.",
   "autopilot_reason_fallback_catchall": "Catégorie par défaut",
   "autopilot_reason_fallback_catchall_desc": "Opération sans correspondance, affectée à la catégorie fourre-tout de secours.",
+  "autopilot_reason_declared_salary": "Salaire déclaré",
+  "autopilot_reason_declared_salary_desc": "Revenu proche du jour de paie et du montant net déclarés dans l'assistant de démarrage, rangé en salaire.",
   "autopilot_reason_keyword_category": "Catégorie par mots-clés",
   "autopilot_reason_keyword_category_desc": "Catégorie déduite d'un mot-clé du libellé : carburant, péage, impôts, ou toute catégorie de départ quand l'IA est désactivée. Créée si elle manquait.",
   "autopilot_reason_high_confidence": "Haute certitude",

@@ -397,10 +397,12 @@ def test_multi_category_merchant_native_resolution(db_session):
     assert resolved["description"] == "Amazon Eu Paris"
     assert resolved["category"] is None
 
-    # Batch resolution avec un marchand caméléon
+    # Batch resolution avec un marchand caméléon : sans IA, un mot-clé lui donne une catégorie de départ à vérifier
+    # (Amazon → Shopping) ; sans mot-clé (Total), il garde sa catégorie vide
     batch = resolve_smart_labels_batch(db_session, ["CB AMAZON EU 1234 PARIS", "CB TOTAL ACCESS"])
-    assert batch["CB AMAZON EU 1234 PARIS"]["source"] == "multi_category"
-    assert batch["CB AMAZON EU 1234 PARIS"]["category"] is None
+    assert batch["CB AMAZON EU 1234 PARIS"]["category"] == "Shopping"
+    assert batch["CB AMAZON EU 1234 PARIS"]["is_multi_category"] is True
+    assert batch["CB AMAZON EU 1234 PARIS"]["confidence"] < 0.85
     assert batch["CB TOTAL ACCESS"]["source"] == "multi_category"
     assert batch["CB TOTAL ACCESS"]["category"] is None
 
@@ -707,10 +709,11 @@ def test_simulate_smart_label_endpoint_chameleon(client, db_session):
     res = client.post("/api/smart-labels/simulate", json={"raw_label": "CB AMAZON EU 1234 PARIS"})
     assert res.status_code == 200
     data = res.json()
-    assert data["source"] == "multi_category"
+    # Sans IA, l'enseigne multi-catégories reçoit une catégorie de départ par mot-clé, à vérifier
+    assert data["source"] == "keyword"
     assert data["is_multi_category"] is True
-    assert data["category"] is None
-    assert "multi-catégories" in data["explanation"]
+    assert data["category"] == "Shopping"
+    assert "mot-clé" in data["explanation"]
 
 
 def test_simulate_smart_label_endpoint_with_ai(client, db_session):
@@ -957,8 +960,7 @@ def test_wero_transfer_not_confused_with_ca_refund(db_session):
 
     assert res["description"] != "CA Remboursement Cotisation carte"
     assert res["category"] != "Remboursement"
-    assert res["source"] == "fallback"
-    assert res["category"] == "Revenus divers"
+    assert res["category"] == "Virements reçus"  # sans IA : virement entre personnes reconnu, à vérifier
 
 
 def test_wero_standalone_name_rejected_by_validator():
