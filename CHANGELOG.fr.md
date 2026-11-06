@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.4.4] - 2026-11-06
 
 ### Corrections & ergonomie
 - **Cockpit : des fenêtres de prévision fidèles à leurs chiffres 🔮** : les courbes des fenêtres « Fin de cycle » et « Vigilance trésorerie » mélangeaient le solde pointé et les opérations pas encore pointées, et pouvaient finir à plusieurs dizaines d'euros du chiffre affiché au-dessus. Elles partent désormais d'aujourd'hui et finissent exactement sur ce chiffre : une courbe des opérations prévues pour la fin de cycle, et deux courbes, sans et avec les recettes prévues, pour la vigilance. La partie passée, déjà montrée par « Évolution de la période », et les onglets de période disparaissent de ces deux fenêtres. Le message de vigilance précise désormais que le creux suppose qu'aucune recette n'arrive.
