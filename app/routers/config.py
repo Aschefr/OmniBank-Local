@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import httpx
 
 from app.database import get_db
@@ -116,12 +116,11 @@ def set_config(data: Dict[str, str], db: Session = Depends(get_db)):
     return {"ok": True}
 
 @router.get("/ollama/models")
-async def get_ollama_models(db: Session = Depends(get_db)):
-    ollama_url = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
-    if not ollama_url or not ollama_url.value:
+async def get_ollama_models(url: Optional[str] = None, db: Session = Depends(get_db)):
+    url = _ollama_url(db, url)
+    if not url:
         raise HTTPException(status_code=400, detail="Ollama URL not configured")
-    
-    url = ollama_url.value.rstrip("/")
+    url = url.rstrip("/")
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{url}/api/tags", timeout=5.0)
@@ -132,12 +131,20 @@ async def get_ollama_models(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _ollama_url(db: Session, override: Optional[str] = None) -> str:
+    """Adresse Ollama à utiliser : celle qu'on teste (assistant de démarrage, pas encore enregistrée) ou celle
+    enregistrée. Tester une adresse ne l'enregistre plus : l'assistant écrasait ainsi la bonne adresse."""
+    if override and override.strip():
+        return override.strip()
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
+    return (row.value or "").strip() if row else ""
+
+
 @router.get("/ollama/catalog")
-async def get_ollama_catalog(db: Session = Depends(get_db)):
+async def get_ollama_catalog(url: Optional[str] = None, db: Session = Depends(get_db)):
     """Modèles recommandés, avec leurs réglages, vus depuis le serveur configuré (installés ou non)."""
     from app.services import ai_model_catalog
-    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
-    url = (row.value or "").strip() if row else ""
+    url = _ollama_url(db, url)
     if not url:
         return {"downloadable": False, "models": [{**m, "installed": False, "downloading": False, "percent": 0, "error": None}
                                                   for m in ai_model_catalog.CATALOG]}
@@ -148,8 +155,7 @@ async def get_ollama_catalog(db: Session = Depends(get_db)):
 async def pull_ollama_model(data: Dict[str, str], db: Session = Depends(get_db)):
     """Télécharge un modèle recommandé sur le serveur Ollama configuré, en tâche de fond."""
     from app.services import ai_model_catalog
-    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
-    url = (row.value or "").strip() if row else ""
+    url = _ollama_url(db, data.get("url"))
     if not url or not await ai_model_catalog.is_ollama(url):
         raise HTTPException(status_code=400, detail="Only an Ollama server can download models")
     try:

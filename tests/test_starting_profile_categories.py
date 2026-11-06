@@ -151,3 +151,17 @@ def test_starting_profile_hides_the_catch_alls_from_the_ai_and_guards_income_cat
     assert res["ACME SAS"]["category"] == "Revenus divers" and res["ACME SAS"]["smart_is_fallback"] is True
     assert res["REMBOURSEMENT"]["category"] == "Remboursements"
     assert res["CB SUPER U"]["category"] == "Courses"
+
+
+def test_keywords_take_over_when_the_ai_is_enabled_but_unreachable(db, monkeypatch):
+    """IA activée mais serveur injoignable (« Connection refused ») : call_ollama_batch rend un lot sans catégorie.
+    Les mots-clés de départ prennent alors le relais au lieu de tout laisser dans le fourre-tout."""
+    db.add_all([GlobalConfig(key="enable_ai", value="true"), GlobalConfig(key="ollama_url", value="http://127.0.0.1:11434"),
+                GlobalConfig(key="ollama_model", value="m")])
+    db.commit()
+    monkeypatch.setattr(ollama_client, "call_ollama_batch",
+                        lambda descriptions, categories, **kw: {d: {"name": None, "category": None} for d in descriptions})
+    types = {"CB UEP*ALIM SUPER U LYON": "expense_var", "Wero vers JEAN D": "expense_var"}
+    res = resolver.resolve_smart_labels_batch(db, list(types), tx_types=types, use_ai_fallback=True, auto_fallback_category=True)
+    assert res["CB UEP*ALIM SUPER U LYON"]["category"] == "Courses" and res["CB UEP*ALIM SUPER U LYON"]["source"] == "keyword"
+    assert res["Wero vers JEAN D"]["category"] == "Dépenses diverses"

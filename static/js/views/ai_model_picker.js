@@ -48,6 +48,11 @@ window.AiModelPicker = {
     /**
      * opts.current : modèle actuellement choisi ; opts.onPick(model) : appelé après l'enregistrement d'un choix.
      */
+    // opts.url : adresse en cours de test (assistant de démarrage), pas encore enregistrée
+    _catalogPath(opts) {
+        return opts && opts.url ? `/api/config/ollama/catalog?url=${encodeURIComponent(opts.url)}` : '/api/config/ollama/catalog';
+    },
+
     async render(containerId, opts = {}) {
         this._ensureStyles();
         const el = document.getElementById(containerId);
@@ -56,7 +61,7 @@ window.AiModelPicker = {
         st.opts = opts;
         this._state[containerId] = st;
         try {
-            st.catalog = await API.get('/api/config/ollama/catalog');
+            st.catalog = await API.get(this._catalogPath(opts));
         } catch (e) {
             el.innerHTML = '';
             return;
@@ -116,7 +121,7 @@ window.AiModelPicker = {
         st.timer = setTimeout(async () => {
             if (!document.getElementById(containerId)) return;
             const wasDownloading = new Set(st.catalog.models.filter(m => m.downloading).map(m => m.name));
-            try { st.catalog = await API.get('/api/config/ollama/catalog'); } catch (e) { /* on réessaie */ }
+            try { st.catalog = await API.get(this._catalogPath(st.opts)); } catch (e) { /* on réessaie */ }
             this._paint(containerId);
             const finished = st.catalog.models.find(m => wasDownloading.has(m.name) && m.installed && !m.downloading);
             if (finished && st.opts.onDownloaded) st.opts.onDownloaded(finished.name);
@@ -147,7 +152,8 @@ window.AiModelPicker = {
 
     async pull(containerId, model) {
         try {
-            await API.post('/api/config/ollama/pull', { model });
+            const url = this._state[containerId]?.opts?.url;
+            await API.post('/api/config/ollama/pull', url ? { model, url } : { model });
         } catch (e) {
             showToast(e.detail || e.message || 'Error', 'error');
             return;

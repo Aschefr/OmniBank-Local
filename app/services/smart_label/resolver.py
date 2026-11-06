@@ -774,6 +774,7 @@ def resolve_smart_labels_batch(
     # ---------------------------------------------------------
     # ÉTAGE 3 : Fallback IA local Ollama Groupé par Lot (Batch Prompting)
     # ---------------------------------------------------------
+    ai_failed = False  # IA activée mais injoignable ou muette : les mots-clés prennent le relais
     if use_ai_fallback:
         unresolved_by_clean: Dict[str, List[str]] = {}
         for raw, res in results.items():
@@ -824,6 +825,8 @@ def resolve_smart_labels_batch(
                             max_new_categories=STARTING_PROFILE_NEW_CATEGORIES_PER_BATCH if starting else 2,
                             starting_profile=starting,
                         )
+                        # call_ollama_batch ne lève rien : un serveur injoignable donne un lot sans aucune catégorie
+                        ai_failed = not any(isinstance(v, dict) and v.get("category") for v in (ai_results or {}).values())
                         for clean_d, ai_data in ai_results.items():
                             candidate_cat = None
                             candidate_name = None
@@ -887,16 +890,18 @@ def resolve_smart_labels_batch(
                                         results[raw]["smart_is_fallback"] = True
                                         results[raw]["confidence"] = _REVIEW_CONFIDENCE
             except Exception as e:
+                ai_failed = True
                 logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")
 
     # ---------------------------------------------------------
     # ÉTAGE 3 bis : sans IA, catégories de départ par mots-clés
     # ---------------------------------------------------------
-    # Avec l'IA active, c'est elle qui crée les catégories (tout de suite ou en arrière-plan) : on ne la devance pas.
+    # Avec l'IA active, c'est elle qui crée les catégories (tout de suite ou en arrière-plan) : on ne la devance pas,
+    # sauf si son appel vient d'échouer (serveur injoignable) : mieux vaut une catégorie à vérifier que le fourre-tout.
     # Les marchands « caméléons » (Amazon, Total) gardent leur catégorie vide : c'est voulu, choix au cas par cas
     unresolved = [raw for raw, res in results.items()
                   if res.get("category") is None and res.get("source") in ("none", "ambiguous") and not res.get("is_manual")]
-    if unresolved and not _ai_enabled(db):
+    if unresolved and (ai_failed or not _ai_enabled(db)):
         existing = {name.lower(): name for (name,) in db.query(Category.name).filter(
             (Category.is_closed == False) | (Category.is_closed == None)).all() if name}
         for raw in unresolved:

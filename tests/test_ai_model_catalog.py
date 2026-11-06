@@ -96,3 +96,21 @@ def test_progress_never_goes_backwards_when_a_new_layer_starts():
     second = catalog._percent({"a": (2e9, 2e9), "b": (0, 2e9)}, size)
     assert second >= first
     assert catalog._percent({"a": (4e9, 4e9)}, size) == 99
+
+
+def test_catalog_can_look_at_an_address_being_tested_without_saving_it(db, monkeypatch):
+    """L'assistant teste une adresse avant de l'enregistrer : le catalogue la consulte sans toucher à la configuration."""
+    seen = []
+
+    async def yes(url):
+        seen.append(url)
+        return True
+
+    async def installed(url):
+        return set()
+
+    monkeypatch.setattr(catalog, "is_ollama", yes)
+    monkeypatch.setattr(catalog, "installed_models", installed)
+    res = run(config_router.get_ollama_catalog(url="http://ollama.test:11434", db=db))
+    assert res["downloadable"] is True and seen == ["http://ollama.test:11434"]
+    assert db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first() is None

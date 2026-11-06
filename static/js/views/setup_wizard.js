@@ -1227,21 +1227,14 @@ window.SetupWizard = {
         `;
 
         const cfg = window.app?.config || {};
+        if (cfg.ollama_url) {
+            // Avant d'activer l'interrupteur, qui lance un test : sinon le test partait avec l'adresse par défaut
+            const urlEl = document.getElementById('wizAIUrl');
+            if (urlEl) urlEl.value = cfg.ollama_url;
+        }
         if (cfg.enable_ai === 'true') {
             const toggle = document.getElementById('wizAIToggle');
             if (toggle) { toggle.checked = true; this._toggleAIFields(); }
-            if (cfg.ollama_url) {
-                const urlEl = document.getElementById('wizAIUrl');
-                if (urlEl) urlEl.value = cfg.ollama_url;
-            }
-            if (cfg.ollama_url) {
-                this._testOllama().then(() => {
-                    if (cfg.ollama_model) {
-                        const sel = document.getElementById('wizAIModel');
-                        if (sel) sel.value = cfg.ollama_model;
-                    }
-                });
-            }
         }
     },
 
@@ -1363,8 +1356,8 @@ window.SetupWizard = {
         if (status) status.innerHTML = `<span class="wizard-status-loading">⏳ ${window.i18n.t('wizard_ai_testing')}</span>`;
 
         try {
-            await API.post('/api/config/', { ollama_url: url });
-            const data = await API.get('/api/config/ollama/models');
+            // L'adresse n'est enregistrée qu'à la fin de l'étape, IA cochée : un test ne remplace plus la bonne
+            const data = await API.get(`/api/config/ollama/models?url=${encodeURIComponent(url)}`);
 
             if (data.models && data.models.length > 0) {
                 if (status) status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.tp('wizard_ai_found_models', { count: data.models.length })}</span>`;
@@ -1403,7 +1396,9 @@ window.SetupWizard = {
         if (!window.AiModelPicker) return;
         const select = document.getElementById('wizAIModel');
         const configured = window.app?.config?.ollama_model;
+        const testedUrl = document.getElementById('wizAIUrl')?.value.trim() || null;
         await window.AiModelPicker.render('wizAIModelPicker', {
+            url: testedUrl,
             current: configured || null,
             onPick: (m) => { if (select && [...select.options].some(o => o.value === m.name)) select.value = m.name; },
             onDownloaded: () => this._testOllama()
@@ -1438,6 +1433,10 @@ window.SetupWizard = {
                 configToSave.ollama_temperature = String(preset.temperature);
                 configToSave.ollama_context = String(preset.num_ctx);
             }
+        } else {
+            // Interrupteur sur off : sans ceci, l'IA d'une configuration précédente (gardée par « Vider la base »)
+            // restait active
+            configToSave.enable_ai = 'false';
         }
 
         if (Object.keys(configToSave).length > 0) {

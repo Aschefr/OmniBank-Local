@@ -128,7 +128,8 @@ def refine_labels(db: Session, jobs: List[Dict[str, Any]], profile_id: str) -> i
     resolutions = resolve_smart_labels_batch(
         db, list(tx_types), use_ai_fallback=True, tx_types=tx_types, auto_fallback_category=True,
     )
-    answers = {raw: res for raw, res in resolutions.items() if res.get("source") == "ai" and res.get("category")}
+    # Réponses de l'IA, ou des mots-clés quand l'IA n'a pas pu répondre (serveur injoignable)
+    answers = {raw: res for raw, res in resolutions.items() if res.get("source") in ("ai", "keyword") and res.get("category")}
     # L'IA a pu répondre après plus d'une minute : tout est relu pour respecter les modifications faites entre-temps
     db.rollback()
     db.expire_all()
