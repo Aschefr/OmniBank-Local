@@ -98,3 +98,31 @@ def test_statement_notification_counts_what_is_left_after_the_ai(db):
     n = db.query(Notification).one()
     assert n.content == "Banque : 🤖 3 opérations enregistrées automatiquement, 1 opération à vérifier."
     assert json.loads(n.link_data)["needs_review"] == 1
+
+
+def test_review_queue_flags_what_the_ai_is_still_completing(db):
+    from app.services.autopilot_service import get_review_queue
+    acc = Account(name="Compte", type="Compte courant", initial_balance=0)
+    db.add(acc)
+    db.flush()
+    waiting = Transaction(date_operation=date.today(), amount=12, type="expense_var", from_account_id=acc.id,
+                          description="Cb Inconnu", category="Dépenses diverses", needs_review=True)
+    other = Transaction(date_operation=date.today(), amount=8, type="expense_var", from_account_id=acc.id,
+                        description="Wero", category="Dépenses diverses", needs_review=True)
+    db.add_all([waiting, other])
+    db.flush()
+    db.add_all([
+        AutopilotDecisionLog(batch_id="b2", decision_type="new_entry", action="AUTO_COMMIT_PENDING_REVIEW", entity_type="transaction",
+                             entity_id=waiting.id, is_undone=False, raw_snapshot=json.dumps({"bank_tx": {"smart_ai_deferred": {"category": "Dépenses diverses"}}})),
+        AutopilotDecisionLog(batch_id="b2", decision_type="new_entry", action="AUTO_COMMIT_PENDING_REVIEW", entity_type="transaction",
+                             entity_id=other.id, is_undone=False, raw_snapshot=json.dumps({"bank_tx": {}})),
+    ])
+    db.commit()
+
+    assert not any(i["ai_pending"] for i in get_review_queue(db, profile_id="pf"))  # aucune analyse IA en cours
+    label_refine.note_deferred_batch("pf", 1, "b2")
+    try:
+        flags = {i["id"]: i["ai_pending"] for i in get_review_queue(db, profile_id="pf")}
+        assert flags == {waiting.id: True, other.id: False}
+    finally:
+        label_refine._jobs.pop("pf", None)

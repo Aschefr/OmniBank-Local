@@ -2509,6 +2509,15 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
         for log in recon_logs:
             amounts_by_tx[log.entity_id] = _reconciled_amounts(log.raw_snapshot)
 
+    ai_pending = set()
+    if txs:
+        try:
+            from app.database import profile_id_for_session
+            from app.services.bank_sync.label_refine import ai_pending_tx_ids
+            ai_pending = ai_pending_tx_ids(db, profile_id or profile_id_for_session(db) or "default")
+        except Exception as e:
+            logger.debug(f"[AutoPilot] Opérations en cours d'analyse IA non lues : {e}")
+
     results = []
     for t in txs:
         acc_id = t.from_account_id or t.to_account_id
@@ -2533,7 +2542,8 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
             "account_color": acc.color if acc else None,
             "confidence_score": t.confidence_score,
             "created_at": t.created_at.isoformat() if t.created_at else None,
-            "candidate_forecasts": candidates
+            "candidate_forecasts": candidates,
+            "ai_pending": t.id in ai_pending
         })
     return results
 

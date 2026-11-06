@@ -520,6 +520,7 @@ class AutopilotReviewItem(BaseModel):
     confidence_score: Optional[float] = None
     created_at: Optional[str] = None
     candidate_forecasts: List[Dict[str, Any]] = []
+    ai_pending: bool = False  # l'IA est en train de compléter cette opération
 
 
 class AutopilotReviewUpdateRequest(BaseModel):

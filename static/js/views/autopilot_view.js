@@ -1588,6 +1588,11 @@ window.AutopilotView = {
             const res = await API.get('/api/autopilot/review-queue');
             this._reviewQueue = Array.isArray(res) ? res : (res && res.items ? res.items : []);
             this.renderReviewQueue();
+            // L'IA complète des opérations en arrière-plan : la liste se met à jour d'elle-même pendant ce temps
+            clearTimeout(this._aiPendingTimer);
+            if (this._reviewQueue.some(i => i.ai_pending)) {
+                this._aiPendingTimer = setTimeout(() => this.loadReviewQueue(), 4000);
+            }
         } catch (e) {
             console.warn('[AutopilotView] Erreur chargement file de revue:', e);
             container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);" data-i18n="autopilot_review_error">${window.i18n ? window.i18n.t('autopilot_review_error') : 'Erreur lors du chargement des opérations à vérifier.'}</div>`;
@@ -1602,6 +1607,26 @@ window.AutopilotView = {
             .replace('{bank}', euro(item.bank_amount))
             .replace('{forecast}', euro(item.forecast_amount));
         return `<div class="privacy-blur" style="font-size: 12px; font-weight: 600; color: #f59e0b; margin-top: 3px;">${escapeHtml(text)}</div>`;
+    },
+
+    _aiPendingBannerHtml() {
+        const n = (this._reviewQueue || []).filter(i => i.ai_pending).length;
+        if (!n) return '';
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const text = (n > 1
+            ? t('autopilot_review_ai_banner_many', "L'IA complète {n} opérations : celles qu'elle reconnaît quitteront cette liste d'elles-mêmes. Inutile de les corriger tout de suite.")
+            : t('autopilot_review_ai_banner_one', "L'IA complète 1 opération : si elle la reconnaît, elle quittera cette liste d'elle-même. Inutile de la corriger tout de suite.")).replace('{n}', n);
+        return `
+            <div role="status" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); font-size: 12.5px; color: var(--text-main); line-height: 1.4;">
+                <span aria-hidden="true" style="font-size: 15px; display: inline-block; animation: syncPulseIcon 1.6s ease-in-out infinite;">✨</span>
+                <span>${escapeHtml(text)}</span>
+            </div>`;
+    },
+
+    _aiPendingBadge(item) {
+        if (!item || !item.ai_pending) return '';
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        return `<span title="${escapeHtml(t('autopilot_review_ai_pending_tooltip', "L'IA cherche le nom et la catégorie de cette opération"))}" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--accent);">✨ ${escapeHtml(t('autopilot_review_ai_pending', 'IA en cours'))}</span>`;
     },
 
     renderReviewQueue() {
@@ -1634,7 +1659,7 @@ window.AutopilotView = {
             return;
         }
 
-        container.innerHTML = `
+        container.innerHTML = this._aiPendingBannerHtml() + `
             <div class="ap-review-wrapper" style="width: 100%; overflow-x: auto; scrollbar-width: thin;">
                 <!-- Desktop Table View -->
                 <table class="table ap-review-desktop-table" style="width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0 6px; table-layout: fixed;">
@@ -1677,6 +1702,7 @@ window.AutopilotView = {
                                 </td>
                                 <td class="ap-col-desc" style="padding: 10px; vertical-align: middle; min-width: 0; overflow: hidden;">
                                     <div style="font-weight: 600; font-size: 13px; color: var(--text-main); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.description || item.raw_description || '')}</div>
+                                    ${this._aiPendingBadge(item)}
                                     ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.raw_description)}</div>` : ''}
                                     ${this._reviewAmountGap(item)}
                                     ${bestCandidate ? `
@@ -1757,6 +1783,7 @@ window.AutopilotView = {
 
                             <div>
                                 <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); word-break: break-word; line-height: 1.35;">${escapeHtml(item.description || item.raw_description || '')}</div>
+                                ${this._aiPendingBadge(item)}
                                 ${item.raw_description && item.raw_description !== item.description ? `<div style="font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 3px; word-break: break-all;">${escapeHtml(item.raw_description)}</div>` : ''}
                                 ${this._reviewAmountGap(item)}
                             </div>

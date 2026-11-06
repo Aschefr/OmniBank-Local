@@ -66,6 +66,21 @@ def last_refined_count(profile_id: str) -> int:
     return _last_count.get(profile_id, 0)
 
 
+def ai_pending_tx_ids(db: Session, profile_id: str) -> set:
+    """Opérations à vérifier que l'IA est en train de compléter (passage en cours ou en attente) : la liste de
+    l'Auto-Pilote les signale, sans quoi elle fondait d'un coup sans explication à la réponse de l'IA."""
+    with _lock:
+        active = bool(_jobs.get(profile_id)) or is_refining(profile_id)
+    if not active:
+        return set()
+    rows = db.query(AutopilotDecisionLog.entity_id).filter(
+        AutopilotDecisionLog.action.in_(_REVIEW_ACTIONS),
+        AutopilotDecisionLog.is_undone == False,
+        AutopilotDecisionLog.raw_snapshot.like('%"smart_ai_deferred"%'),
+    ).all()
+    return {r.entity_id for r in rows if r.entity_id}
+
+
 def start_label_refinement(profile_id: str) -> None:
     """Lance la tâche de fond si des opérations attendent l'IA. Une tâche déjà en cours reprend les nouvelles."""
     with _lock:
