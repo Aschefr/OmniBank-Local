@@ -288,6 +288,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                             <p class="config-help" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>
                         </div>
 
+                        <h4 class="config-group-title" data-i18n="ai_models_title">${window.i18n.t('ai_models_title')}</h4>
+                        <div id="configAiModelPicker"></div>
+
                         <details class="config-collapse">
                             <summary data-i18n="config_ai_advanced">${window.i18n.t('config_ai_advanced')}</summary>
                             <div class="flex-row-mobile-col config-field-row config-field-row-top">

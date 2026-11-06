@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **Connect your bank from the setup wizard 🏦**: Choosing "Sync online" in the setup wizard now walks you through the whole thing: unlock the vault, connect your bank, link the accounts found online to OmniBank accounts, then run the first statement when the wizard closes. Each step shows a tick once done, and the last screen sums it up. It used to stop at the choice, leaving everything to find later under Accounts.
+- **Recommended AI models 🤖**: The wizard's AI step and Configuration > AI Assistant now suggest three models, Minimum, Recommended and Top quality, with the graphics memory, typical answer time and download size of each. "Use" picks the model and sets its temperature and context; with Ollama, "Download" fetches it with a progress bar. The choice comes from a benchmark of 16 models on OmniBank's own tasks.
+
+### Fixed & Ergonomics
+- **Auto-Pilot categorisation with "thinking" models 🧠**: With a model that reasons before answering (Qwen 3.x, Gemma 4 12B and larger), Auto-Pilot left nearly every transaction uncategorised, with no message: the model ran out of room before writing its answer. OmniBank now asks for a direct answer for categorisation and CSV extraction.
+- **Categorisation with models that answer as a list**: Some models (Mistral Nemo) return their categories as a list instead of the expected format, and every category was dropped. Both formats are now read.
+
 ## [1.4.4] - 2026-11-06
 
 ### Fixed & Ergonomics

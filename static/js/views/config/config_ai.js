@@ -75,6 +75,28 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         el.textContent = text;
     },
 
+    // Modèles recommandés : en choisir un règle aussi la température et le contexte affichés plus bas
+    _renderModelPicker() {
+        if (!window.AiModelPicker) return;
+        window.AiModelPicker.render('configAiModelPicker', {
+            current: this.configData.ollama_model,
+            onPick: (m) => {
+                this.configData.ollama_model = m.name;
+                this.configData.ollama_temperature = String(m.temperature);
+                this.configData.ollama_context = String(m.num_ctx);
+                const select = document.getElementById('conf_ollama_model');
+                if (select && [...select.options].some(o => o.value === m.name)) select.value = m.name;
+                const temp = document.getElementById('conf_ollama_temp');
+                const slider = document.getElementById('conf_ollama_temp_slider');
+                const ctx = document.getElementById('conf_ollama_ctx');
+                if (temp) temp.value = m.temperature;
+                if (slider) slider.value = m.temperature;
+                if (ctx) ctx.value = m.num_ctx;
+            },
+            onDownloaded: () => this.fetchModels(true)
+        });
+    },
+
     async fetchModels(silent = false) {
         const url = document.getElementById('conf_ollama_url').value;
         if (!url) {
@@ -100,6 +122,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     await API.post('/api/config/', { ollama_model: select.value });
                 }
                 this._setAiStatus('ok', this.models.length);
+                this._renderModelPicker();
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_models_ok'));
             } else {
                 this._setAiStatus('none');

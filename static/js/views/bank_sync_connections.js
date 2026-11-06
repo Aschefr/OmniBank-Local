@@ -190,6 +190,10 @@ Object.assign(window.BankSyncView, {
             }
             this.renderVaultStatusBar();
             this.renderConnectionsList();
+            // L'assistant de démarrage suit la connexion et l'association des comptes faites dans ces fenêtres
+            if (window.SetupWizard && typeof window.SetupWizard._onBankChanged === 'function') {
+                window.SetupWizard._onBankChanged();
+            }
         } catch (err) {
             console.error('Erreur chargement connexions:', err);
         }

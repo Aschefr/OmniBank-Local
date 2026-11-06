@@ -169,6 +169,32 @@ async def get_ollama_models(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/ollama/catalog")
+async def get_ollama_catalog(db: Session = Depends(get_db)):
+    """Modèles recommandés, avec leurs réglages, vus depuis le serveur configuré (installés ou non)."""
+    from app.services import ai_model_catalog
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
+    url = (row.value or "").strip() if row else ""
+    if not url:
+        return {"downloadable": False, "models": [{**m, "installed": False, "downloading": False, "percent": 0, "error": None}
+                                                  for m in ai_model_catalog.CATALOG]}
+    return await ai_model_catalog.catalog_for(url)
+
+
+@router.post("/ollama/pull")
+async def pull_ollama_model(data: Dict[str, str], db: Session = Depends(get_db)):
+    """Télécharge un modèle recommandé sur le serveur Ollama configuré, en tâche de fond."""
+    from app.services import ai_model_catalog
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == "ollama_url").first()
+    url = (row.value or "").strip() if row else ""
+    if not url or not await ai_model_catalog.is_ollama(url):
+        raise HTTPException(status_code=400, detail="Only an Ollama server can download models")
+    try:
+        return ai_model_catalog.start_pull(url, data.get("model", ""))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Model not in the recommended list")
+
 # --- Exchange Rates Endpoints ---
 from app.models import ExchangeRate
 from app.schemas.api_schemas import ExchangeRateCreate, ExchangeRateOut

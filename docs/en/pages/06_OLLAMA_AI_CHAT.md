@@ -22,15 +22,24 @@ Ask financial questions or request tailored insights:
 - *"How much is left in my groceries budget?"*
 - *"Can I afford to save $200 this month?"*
 
-### 2. Supported Models & Auto-Detection
-The interface automatically queries locally installed LLMs via Ollama (`http://localhost:11434/api/tags`):
-- **`gemma4:e4b`** (⭐ Recommended — Main model used and tested during OmniBank development)
-- **Mistral 7B**
-- **Llama 3 / Llama 3.1**
-- **Qwen 2.5**
-- **Phi-3 / Gemma**
+### 2. Recommended Models
+The setup wizard (AI step) and **Configuration > AI Assistant** suggest three models. "Use" picks the model and sets its temperature and context; with Ollama, "Download" fetches it without the command line.
 
-Switch between available models anytime using the top-right dropdown.
+| Tier | Model | Graphics memory | Advisor answer | Download |
+|---|---|---|---|---|
+| Minimum | `gemma4:e4b` | about 3.5 GB | about 5 s | 9.6 GB |
+| Recommended | `bonsai-2:27b` | about 9.2 GB | about 16 s | 8.3 GB |
+| Top quality | `qwen3.8:27b` | about 17.5 GB | about 13 s | 17.7 GB |
+
+Settings applied: temperature 0.2 and 32K context for all three.
+
+This choice comes from a benchmark of 16 models on OmniBank's own tasks: naming and categorising bank labels, grouping categories into envelopes, and twelve questions to the advisor (right tools, exact figures, nothing made up, answer in your language). Times were measured on a 24 GB graphics card; without a graphics card, expect several times longer.
+
+- **Minimum**: fits almost any recent graphics card; the advisor gets hard questions wrong more often.
+- **Recommended**: the quality of a 27-billion-parameter model in about 9 GB, thanks to ternary weights. It answered all twelve advisor questions correctly, but groups envelopes less consistently.
+- **Top quality**: the best overall result measured, for a 24 GB graphics card.
+
+Any other installed model stays available in the dropdown. Prefer a model that can call tools: the advisor and data extraction need it.
 
 ### 3. Autonomous Function Calling Cards
 When asking the AI to perform a management action (e.g., *"Add a $45 grocery expense today"*, *"Prepare a €280 bridge transfer from my Savings account to my Checking account"*, or *"Trigger a bank synchronization"*), the AI never mutates your database without explicit consent:

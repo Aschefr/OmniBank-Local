@@ -22,15 +22,24 @@ Vous pouvez poser n'importe quelle question sur votre comptabilité ou demander 
 - *"Combien me reste-t-il sur mon budget alimentation ?"*
 - *"Est-ce que je peux me permettre d'économiser 200 € ce mois-ci ?"*
 
-### 2. Modèles Supportés & Détection Automatique
-L'interface détecte automatiquement les modèles LLM installés localement via Ollama :
-- **`gemma4:e4b`** (⭐ Recommandé — Modèle principal utilisé et testé durant le développement d'OmniBank)
-- **Mistral 7B**
-- **Llama 3 / Llama 3.1**
-- **Qwen 2.5**
-- **Phi-3 / Gemma**
+### 2. Modèles recommandés
+L'assistant de démarrage (étape IA) et **Configuration > Assistant IA** proposent trois modèles. « Utiliser » choisit le modèle et règle sa température et son contexte ; avec Ollama, « Télécharger » le récupère sans passer par la ligne de commande.
 
-Vous pouvez basculer d'un modèle à un autre à tout moment depuis le menu déroulant en haut à droite.
+| Niveau | Modèle | Mémoire graphique | Réponse du conseiller | Téléchargement |
+|---|---|---|---|---|
+| Minimum | `gemma4:e4b` | environ 3,5 Go | environ 5 s | 9,6 Go |
+| Recommandé | `bonsai-2:27b` | environ 9,2 Go | environ 16 s | 8,3 Go |
+| Top qualité | `qwen3.8:27b` | environ 17,5 Go | environ 13 s | 17,7 Go |
+
+Réglages appliqués : température 0,2 et contexte 32K pour les trois.
+
+Ce choix vient d'un banc d'essai de 16 modèles sur les tâches d'OmniBank : nom et catégorie de libellés bancaires, regroupement des catégories en enveloppes, et douze questions au conseiller (bons outils, chiffres exacts, rien d'inventé, réponse dans votre langue). Les temps ont été mesurés sur une carte graphique de 24 Go ; sans carte graphique, comptez plusieurs fois plus long.
+
+- **Minimum** : tient sur presque toute carte graphique récente ; le conseiller se trompe plus souvent sur les questions difficiles.
+- **Recommandé** : la qualité d'un modèle de 27 milliards de paramètres dans environ 9 Go, grâce à des poids ternaires. Il a répondu juste aux douze questions du conseiller, mais regroupe les enveloppes de façon moins régulière.
+- **Top qualité** : le meilleur ensemble mesuré, pour une carte graphique de 24 Go.
+
+Tout autre modèle installé reste disponible dans la liste déroulante. Préférez un modèle qui sait appeler des outils : le conseiller et l'extraction de données en ont besoin.
 
 ### 3. Modales d'Action Autonome (Function Calling)
 Lorsque vous demandez à l'IA d'exécuter une tâche de gestion (ex: *"Ajoute une dépense de 45€ en supermarché aujourd'hui"*, *"Prépare un virement de précaution de 280 € de mon Livret A vers mon compte courant"*, ou *"Lance une synchronisation bancaire"*), l'IA ne modifie pas vos données sans votre accord :

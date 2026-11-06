@@ -2,6 +2,16 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Ajouts & améliorations
+- **Connecter sa banque depuis l'assistant de démarrage 🏦** : choisir « Synchroniser en ligne » dans l'assistant de démarrage guide désormais jusqu'au bout : déverrouiller le coffre, connecter la banque, associer les comptes trouvés en ligne aux comptes d'OmniBank, puis lancer le premier relevé à la fermeture de l'assistant. Chaque étape se coche une fois faite, et le dernier écran récapitule. L'assistant s'arrêtait auparavant au choix, et tout restait à trouver dans Comptes.
+- **Modèles d'IA recommandés 🤖** : l'étape IA de l'assistant et Configuration > Assistant IA proposent trois modèles, Minimum, Recommandé et Top qualité, avec pour chacun la mémoire graphique, le temps de réponse habituel et la taille du téléchargement. « Utiliser » choisit le modèle et règle sa température et son contexte ; avec Ollama, « Télécharger » le récupère avec une barre de progression. Ce choix vient d'un banc d'essai de 16 modèles sur les tâches d'OmniBank.
+
+### Corrections & ergonomie
+- **Catégorisation de l'Auto-Pilote avec les modèles qui « réfléchissent » 🧠** : avec un modèle qui raisonne avant de répondre (Qwen 3.x, Gemma 4 12B et plus gros), l'Auto-Pilote laissait presque toutes les opérations sans catégorie, sans aucun message : le modèle manquait de place avant d'écrire sa réponse. OmniBank demande désormais une réponse directe pour la catégorisation et l'extraction des CSV.
+- **Catégorisation avec les modèles qui répondent sous forme de liste** : certains modèles (Mistral Nemo) renvoient leurs catégories sous forme de liste au lieu du format attendu, et toutes les catégories étaient perdues. Les deux formats sont désormais lus.
+
 ## [1.4.4] - 2026-11-06
 
 ### Corrections & ergonomie

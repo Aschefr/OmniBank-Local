@@ -180,10 +180,7 @@ window.SetupWizard = {
                 this.refreshDemoBanner();
 
                 // Rediriger selon le mode d'entrée choisi lors du wizard
-                if (window.app && typeof window.app._initUI === 'function' && !window.app._uiInitialized) {
-                    window.app._initUI();
-                } else if (window.app) {
-                    window.app.refreshSidebar();
+                const route = () => {
                     if (this.entryMode === 'import' && window.BankSyncView && typeof window.BankSyncView.openReviewModal === 'function') {
                         window.app.loadView(this.preferredHome);
                         setTimeout(() => {
@@ -191,10 +188,19 @@ window.SetupWizard = {
                             if (btnImport) btnImport.click();
                         }, 250);
                     } else if (this.entryMode === 'sync') {
-                        window.app.loadView('accounts');
+                        this._afterSyncDismiss();
                     } else {
                         window.app.loadView(this.preferredHome);
                     }
+                };
+                if (window.app && typeof window.app._initUI === 'function' && !window.app._uiInitialized) {
+                    // Premier lancement : l'interface s'initialise d'abord, puis l'import ou la banque prennent le relais
+                    Promise.resolve(window.app._initUI()).then(() => {
+                        if (this.entryMode === 'import' || this.entryMode === 'sync') route();
+                    });
+                } else if (window.app) {
+                    window.app.refreshSidebar();
+                    route();
                 }
             }, 350);
         }
@@ -633,6 +639,7 @@ window.SetupWizard = {
                 </div>
             </div>
         `;
+        if (isSync && typeof this._refreshBankPanel === 'function') this._refreshBankPanel();
     },
 
     _t(key, fallback) {
@@ -647,6 +654,9 @@ window.SetupWizard = {
         if (mode === 'import') {
             return box('📄 ' + this._t('wizard_notice_import_title', 'Importation immédiate à la fin du wizard'),
                 this._t('wizard_notice_import_desc', 'Dès la fin de l\'assistant, le cockpit d\'importation s\'ouvrira pour charger votre fichier. Vos comptes seront détectés automatiquement à partir des lignes du relevé.'));
+        }
+        if (mode === 'sync' && this._bankLoaded && typeof this._bankPanelHtml === 'function') {
+            return this._bankPanelHtml();
         }
         if (mode === 'sync') {
             const bullets = [
@@ -678,6 +688,7 @@ window.SetupWizard = {
 
         document.querySelectorAll('.wizard-entry-tile').forEach(t => t.classList.remove('active'));
         event.currentTarget?.classList.add('active');
+        if (mode === 'sync' && typeof this._refreshBankPanel === 'function') this._refreshBankPanel();
     },
 
     _renderAccountsList() {
@@ -1189,6 +1200,7 @@ window.SetupWizard = {
                             </div>
                         </div>
                         <div id="wizAIStatus" class="wizard-ai-status"></div>
+                        <div id="wizAIModelPicker"></div>
                         <div id="wizAIModelContainer" class="wizard-form-field" style="display:none;">
                             <label data-i18n="wizard_ai_model">${window.i18n.t('wizard_ai_model')}</label>
                             <select id="wizAIModel" class="wizard-input"></select>
@@ -1365,6 +1377,7 @@ window.SetupWizard = {
                 }
                 if (container) container.style.display = 'block';
                 if (repRow) repRow.style.display = 'block';
+                await this._renderModelPicker();
             } else {
                 if (status) status.innerHTML = `<span class="wizard-status-error">⚠️ ${window.i18n.t('wizard_ai_no_models')}</span>`;
             }
@@ -1385,6 +1398,23 @@ window.SetupWizard = {
         }
     },
 
+    // Modèles recommandés : un modèle recommandé déjà installé est présélectionné, avec ses réglages
+    async _renderModelPicker() {
+        if (!window.AiModelPicker) return;
+        const select = document.getElementById('wizAIModel');
+        const configured = window.app?.config?.ollama_model;
+        await window.AiModelPicker.render('wizAIModelPicker', {
+            current: configured || null,
+            onPick: (m) => { if (select && [...select.options].some(o => o.value === m.name)) select.value = m.name; },
+            onDownloaded: () => this._testOllama()
+        });
+        const best = window.AiModelPicker.bestInstalled('wizAIModelPicker');
+        if (!configured && best && select && [...select.options].some(o => o.value === best)) {
+            select.value = best;
+            window.AiModelPicker.markCurrent('wizAIModelPicker', best);
+        }
+    },
+
     async _saveAI() {
         const enabled = document.getElementById('wizAIToggle')?.checked;
         const apEnabled = document.getElementById('wizAutopilotToggle')?.checked;
@@ -1398,6 +1428,12 @@ window.SetupWizard = {
             configToSave.ollama_url = url;
             configToSave.ollama_model = model;
             configToSave.ai_reports_enabled = reports ? 'true' : 'false';
+            // Un modèle recommandé part avec la température et le contexte mesurés pour lui
+            const preset = window.AiModelPicker?.presetFor('wizAIModelPicker', model);
+            if (preset) {
+                configToSave.ollama_temperature = String(preset.temperature);
+                configToSave.ollama_context = String(preset.num_ctx);
+            }
         }
 
         if (Object.keys(configToSave).length > 0) {
@@ -1524,12 +1560,11 @@ window.SetupWizard = {
                         <h4>🧠 ${window.i18n.t('wizard_recap_ai')}</h4>
                         <p>${aiEnabled ? '✅ ' + window.i18n.t('wizard_recap_ai_on') : '⏭️ ' + window.i18n.t('wizard_recap_ai_off')}</p>
                     </div>
+                    ${this._firstStatementRecapHtml()}
                 </div>
 
                 <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%; max-width:440px; margin: 0 auto;">
-                    <button class="wizard-btn-launch" style="width:100%;" onclick="window.SetupWizard.dismiss()">
-                        🚀 ${window.i18n.t('wizard_btn_launch')}
-                    </button>
+                    ${this._launchButtonHtml()}
 
                     ${this._demoSeeded ? '' : `<button class="wizard-btn-demo" onclick="window.SetupWizard._seedDemoAndLaunch()">
                         ${window.i18n.t('wizard_btn_demo') || '🧪 Découvrir avec des données de démonstration'}
