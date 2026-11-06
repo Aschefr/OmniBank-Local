@@ -1233,9 +1233,16 @@ window.OverviewView = {
         let projDiff = 0;
         let incomingSum = 0;
         let outgoingSum = 0;
+        // Mouvement de chaque jour, pour la courbe de la fiche : une opération déjà passée mais pas pointée compte aujourd'hui
+        const dailyFlows = {};
+        const addFlow = (dateStr, delta) => {
+            const day = dateStr && dateStr > todayISO ? dateStr : todayISO;
+            dailyFlows[day] = (dailyFlows[day] || 0) + delta;
+        };
 
         upcomingTxs.forEach(tx => {
             const amt = Math.abs(parseFloat(tx.amount) || 0);
+            const before = projDiff;
             if (accIdStr) {
                 const isTo = String(tx.to_account_id) === accIdStr;
                 const isFrom = String(tx.from_account_id) === accIdStr;
@@ -1272,6 +1279,7 @@ window.OverviewView = {
                     }
                 }
             }
+            if (projDiff !== before) addFlow(String(tx.date_operation).substring(0, 10), projDiff - before);
         });
 
         // Opérations fantômes de la synchronisation bancaire (non encore validées)
@@ -1286,6 +1294,7 @@ window.OverviewView = {
                 projDiff += raw;
                 if (raw > 0) incomingSum += raw;
                 else outgoingSum += Math.abs(raw);
+                addFlow(gDate, raw);
             }
         });
 
@@ -1310,6 +1319,7 @@ window.OverviewView = {
             baseBalance,
             projDiff,
             projectedEnd,
+            dailyFlows,
             incomingSum,
             outgoingSum,
             upcomingCount: upcomingTxs.length + ghosts.length,
@@ -2343,7 +2353,7 @@ window.OverviewView = {
                             { label: 'Net prévisionnel après récurrences', value: formatCurrency(netProjAmount), valueClass: 'text-main' }
                         ] : [])
                     ],
-                    text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n⏳ Vigilance trésorerie : creux temporaire de ${formatCurrency(stats.overdraft_warning.projected_balance)} le ${formatDate(stats.overdraft_warning.date)}, mais couvert par les recettes prévues (+${formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0)}).` : '')
+                    text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n${window.i18n.tp('overview_projection_dip_note', { amount: formatCurrency(stats.overdraft_warning.projected_balance), date: formatDate(stats.overdraft_warning.date), income: formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0) })}` : '')
                 }
             };
         } else {
@@ -2423,7 +2433,7 @@ window.OverviewView = {
                             { label: 'Net prévisionnel après récurrences', value: formatCurrency(netProjAmount), valueClass: 'text-main' }
                         ] : [])
                     ],
-                    text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n⏳ Vigilance trésorerie : creux temporaire de ${formatCurrency(stats.overdraft_warning.projected_balance)} le ${formatDate(stats.overdraft_warning.date)}, mais couvert par les recettes prévues (+${formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0)}).` : '')
+                    text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n${window.i18n.tp('overview_projection_dip_note', { amount: formatCurrency(stats.overdraft_warning.projected_balance), date: formatDate(stats.overdraft_warning.date), income: formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0) })}` : '')
                 }
             };
         }
@@ -3403,7 +3413,14 @@ window.OverviewView = {
             { key: '3m', label: t('cockpit_chart_period_3m', '3 mois') }
         ];
 
-        if (periodGroup) {
+        // Les fiches « Fin de cycle » et « Risque de découvert » ne regardent que devant, sans fenêtre passée à choisir
+        const isCycleProjection = tileKey === 'projection';
+        const projection = isCycleProjection ? this._calculateProjection(this._stats) : null;
+        const overdraftCurve = tileKey === 'hero_overdraft' ? (this._stats?.overdraft_warning?.curve || []) : null;
+
+        if (periodGroup && (isCycleProjection || overdraftCurve)) {
+            periodGroup.innerHTML = '';
+        } else if (periodGroup) {
             periodGroup.innerHTML = periods.map(p => `
                 <button type="button" class="cockpit-sheet-period-btn ${p.key === period ? 'active' : ''}" data-period="${p.key}">
                     ${p.label}
@@ -3423,7 +3440,16 @@ window.OverviewView = {
         const todayISO = this._getTodayISO(today);
         let startDate, endDate;
 
-        if (period === 'current') {
+        if (isCycleProjection) {
+            startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const [cy, cm, cd] = projection.cutoffDate.split('-').map(Number);
+            endDate = new Date(cy, cm - 1, cd);
+            if (endDate < startDate) endDate = new Date(startDate);
+        } else if (overdraftCurve) {
+            const toDate = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+            startDate = overdraftCurve.length ? toDate(overdraftCurve[0].date) : new Date(today);
+            endDate = overdraftCurve.length ? toDate(overdraftCurve[overdraftCurve.length - 1].date) : new Date(today);
+        } else if (period === 'current') {
             if (this._stats?.next_pay_date && !isOrgMode) {
                 endDate = new Date(this._stats.next_pay_date);
                 let prevPayDateStr = null;
@@ -3498,7 +3524,7 @@ window.OverviewView = {
 
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
         const mainAccIdStr = this._stats?.main_account_id ? String(this._stats.main_account_id) : accIdStr;
-        const targetAccId = (tileKey === 'rav' || tileKey === 'projection' || tileKey === 'hero_overdraft') ? (accIdStr || mainAccIdStr) : accIdStr;
+        const targetAccId = tileKey === 'rav' ? (accIdStr || mainAccIdStr) : accIdStr;
 
         for (const tx of (this._transactions || [])) {
             if (tx.is_skipped) continue;
@@ -3712,125 +3738,69 @@ window.OverviewView = {
                     fill: false
                 });
             }
-        } else if (tileKey === 'projection' || tileKey === 'hero_overdraft') {
+        } else if (isCycleProjection) {
+            // Même calcul que le chiffre de la fiche : le dernier point est le solde annoncé
             chartTitle = `🔮 ${t('cockpit_chart_title_projection', 'Solde bancaire prévisionnel')}`;
-
-            const currentBal = (targetAccId && this._accountsMap?.[targetAccId])
-                ? Number(this._accountsMap[targetAccId].balance || 0)
-                : Number(this._stats?.total_balance || 0);
-
-            let sumTxUntilToday = 0;
-            for (const item of dateList) {
-                if (item.iso <= todayISO) {
-                    sumTxUntilToday += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
-                }
-            }
-
-            let balPast = currentBal - sumTxUntilToday;
-            const realBalSeries = [];
-            const projectedBalSeries = [];
-
-            for (const item of dateList) {
-                if (item.iso < todayISO) {
-                    balPast += ((dailyIncome[item.iso] || 0) - (dailyExpenses[item.iso] || 0));
-                    realBalSeries.push(Math.round(balPast * 100) / 100);
-                    projectedBalSeries.push(null);
-                } else if (item.iso === todayISO) {
-                    realBalSeries.push(Math.round(currentBal * 100) / 100);
-                    projectedBalSeries.push(Math.round(currentBal * 100) / 100);
-                } else {
-                    realBalSeries.push(null);
-                    projectedBalSeries.push(null);
-                }
-            }
-
-            // Calcul des opérations futures prévues d'ici la fin de la période
-            const futureDailyIncome = {};
-            const futureDailyExpenses = {};
-            for (const item of dateList) {
-                if (item.iso > todayISO) {
-                    futureDailyIncome[item.iso] = 0;
-                    futureDailyExpenses[item.iso] = 0;
-                }
-            }
-
-            for (const tx of (this._transactions || [])) {
-                if (tx.reconciliation_date) continue;
-                if (tx.is_skipped) continue;
-                if (tx.cross_profile_status === 'pending') continue;
-                if (!tx.date_operation) continue;
-                const txDate = String(tx.date_operation).substring(0, 10);
-                if (txDate <= todayISO || futureDailyIncome[txDate] === undefined) continue;
-
-                const amt = Math.abs(parseFloat(tx.amount) || 0);
-
-                // En cycle de paye : on projette jusqu'au jour de paye en excluant le nouveau salaire
-                if (period === 'current' && this._stats?.next_pay_date && !isOrgMode) {
-                    const cutoffDate = this._stats.next_pay_date;
-                    if (txDate > cutoffDate) continue;
-                    if (txDate === cutoffDate && (tx.is_salary || (tx.type === 'income' && amt >= 1000))) continue;
-                }
-
-                let isInc = false;
-                let isExp = false;
-
-                if (targetAccId) {
-                    const isFrom = String(tx.from_account_id) === targetAccId;
-                    const isTo = String(tx.to_account_id) === targetAccId;
-                    if (!isFrom && !isTo) continue;
-                    isInc = isTo && !isFrom;
-                    isExp = isFrom && !isTo;
-                } else {
-                    if (tx.from_account_id && tx.to_account_id) continue;
-                    const typeStr = String(tx.type || '');
-                    if (typeStr === 'income' || (tx.to_account_id && !tx.from_account_id)) {
-                        isInc = true;
-                    } else if (typeStr.startsWith('expense') || (tx.from_account_id && !tx.to_account_id)) {
-                        isExp = true;
-                    }
-                }
-
-                if (!isInc && !isExp) {
-                    const typeStr = String(tx.type || '');
-                    if (typeStr === 'income') isInc = true;
-                    else isExp = true;
-                }
-
-                if (isInc) futureDailyIncome[txDate] += amt;
-                else if (isExp) futureDailyExpenses[txDate] += amt;
-            }
-
-            let runningFutureBal = currentBal;
-            for (let i = 0; i < dateList.length; i++) {
-                const item = dateList[i];
-                if (item.iso > todayISO) {
-                    runningFutureBal += ((futureDailyIncome[item.iso] || 0) - (futureDailyExpenses[item.iso] || 0));
-                    projectedBalSeries[i] = Math.round(runningFutureBal * 100) / 100;
-                }
-            }
+            let running = projection.baseBalance;
+            const projectedSeries = dateList.map(item => {
+                running += projection.dailyFlows[item.iso] || 0;
+                return Math.round(running * 100) / 100;
+            });
 
             datasets = [
                 {
                     type: 'line',
-                    label: t('cockpit_chart_legend_real_balance', 'Solde réel constaté'),
-                    data: realBalSeries,
-                    borderColor: '#3b82f6',
-                    backgroundColor: primaryGradient,
+                    label: t('cockpit_chart_legend_projected_balance', 'Solde projeté'),
+                    data: projectedSeries,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.12)',
                     fill: true,
-                    tension: 0.25,
-                    pointRadius: dateList.length <= 31 ? 2.5 : 0,
+                    stepped: 'after',
+                    borderWidth: 2,
+                    pointRadius: 0,
                     pointHoverRadius: 5
                 },
                 {
                     type: 'line',
-                    label: t('cockpit_chart_legend_projected_balance', 'Projection fin de cycle'),
-                    data: projectedBalSeries,
-                    borderColor: '#8b5cf6',
-                    borderDash: [5, 4],
+                    label: 'Seuil 0 €',
+                    data: dateList.map(() => 0),
+                    borderColor: 'rgba(239, 68, 68, 0.45)',
+                    borderDash: [4, 4],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: false
+                }
+            ];
+        } else if (overdraftCurve) {
+            // Les deux simulations du serveur : le dernier point « sans recettes » est le creux annoncé
+            chartTitle = `🔮 ${t('cockpit_chart_title_projection', 'Solde bancaire prévisionnel')}`;
+            const byDate = {};
+            for (const point of overdraftCurve) byDate[point.date] = point;
+            const series = (field) => dateList.map(item => byDate[item.iso] ? byDate[item.iso][field] : null);
+
+            datasets = [
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_legend_without_income', 'Sans recettes'),
+                    data: series('without_income'),
+                    borderColor: '#f97316',
                     borderWidth: 2,
-                    pointRadius: dateList.length <= 31 ? 2.5 : 0,
-                    fill: false,
-                    tension: 0.25
+                    stepped: 'after',
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    fill: false
+                },
+                {
+                    type: 'line',
+                    label: t('cockpit_chart_legend_with_income', 'Avec les recettes prévues'),
+                    data: series('with_income'),
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                    borderWidth: 2,
+                    stepped: 'after',
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    fill: true
                 },
                 {
                     type: 'line',

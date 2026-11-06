@@ -336,8 +336,10 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
     ).order_by(Transaction.date_operation.asc()).all()
 
     conservative_warning = None
+    walked_expenses = []
     for t in future_expenses:
         simulated_balance -= t.amount
+        walked_expenses.append(t)
         if simulated_balance < 0:
             conservative_warning = {
                 "date": t.date_operation,
@@ -405,6 +407,28 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
     covered_by_income = (min_sim_with_inc >= 0)
     is_after_next_paycheck = bool(next_pay and conservative_warning["date"] > next_pay)
 
+    # Les deux simulations jour par jour jusqu'au creux, pour le graphique du Cockpit.
+    # Une opération passée mais pas encore pointée compte aujourd'hui.
+    today = current_date or date.today()
+
+    def _by_day(deltas):
+        days = {}
+        for op_date, delta in deltas:
+            day = max(op_date, today)
+            days[day] = days.get(day, 0.0) + delta
+        return days
+
+    without_income = _by_day((t.date_operation, -t.amount) for t in walked_expenses)
+    with_income = _by_day((op[0], op[2]) for op in ops_up_to_risk)
+    curve = []
+    balance_without = balance_with = initial_balance
+    day = today
+    while day <= max(horizon_date, today):
+        balance_without += without_income.get(day, 0.0)
+        balance_with += with_income.get(day, 0.0)
+        curve.append({"date": day.isoformat(), "without_income": round(balance_without, 2), "with_income": round(balance_with, 2)})
+        day += timedelta(days=1)
+
     conservative_warning.update({
         "covered_by_income": covered_by_income,
         "is_after_next_paycheck": is_after_next_paycheck,
@@ -415,6 +439,7 @@ def get_overdraft_warning(db: Session, account_id: int = None, current_date: dat
         "projected_balance_with_income": round(min_sim_with_inc, 2),
         "with_income_risk_date": first_neg_date,
         "with_income_risk_amount": round(first_neg_amount, 2) if first_neg_amount is not None else None,
+        "curve": curve,
     })
 
     return conservative_warning
