@@ -46,17 +46,6 @@ Object.assign(window.BankSyncView, {
             if (errEl) errEl.style.display = 'none';
             if (noticeEl) noticeEl.style.display = isServerUnlockedWithoutToken ? 'block' : 'none';
 
-            const syncCheck = document.getElementById('masterPwSyncOnUnlockCheck');
-            if (syncCheck) {
-                syncCheck.checked = this.autoSyncSettings ? this.autoSyncSettings.sync_on_vault_unlock !== false : true;
-                // Fenêtre ouverte hors de la page des connexions : la case doit montrer le vrai réglage
-                if (this.autoSyncSettings?.sync_on_vault_unlock === undefined) {
-                    this.loadAutoSyncSettings().then(() => {
-                        syncCheck.checked = this.autoSyncSettings?.sync_on_vault_unlock !== false;
-                    });
-                }
-            }
-
             if (modal) {
                 modal.style.display = 'flex';
                 setTimeout(() => input && input.focus(), 50);
@@ -79,22 +68,15 @@ Object.assign(window.BankSyncView, {
 
         const rememberCheck = document.getElementById('masterPwRememberCheck');
         const rememberDaysSel = document.getElementById('masterPwRememberDays');
-        const syncCheck = document.getElementById('masterPwSyncOnUnlockCheck');
         const shouldRemember = rememberCheck ? rememberCheck.checked : true;
         const days = shouldRemember ? (rememberDaysSel ? parseInt(rememberDaysSel.value) : 7) : 1;
-        const shouldSyncOnUnlock = syncCheck ? syncCheck.checked : true;
-
-        // Sauvegarder avant de déverrouiller : le serveur y lit ce réglage pour décider du relevé
-        if (this.autoSyncSettings?.sync_on_vault_unlock === !shouldSyncOnUnlock) {
-            await this.toggleSyncOnVaultUnlock(shouldSyncOnUnlock);
-        }
 
         const unlockPayload = {
             master_password: val,
             remember_days: days
         };
-        // Case décochée : aucun relevé, même si la sauvegarde ci-dessus a échoué
-        if (this._pwForSync || !shouldSyncOnUnlock) {
+        // Ouvert pour un relevé ou une association : le serveur ne lance pas en plus son relevé « si nécessaire »
+        if (this._pwForSync) {
             unlockPayload.skip_reactive_sync = true;
         }
 

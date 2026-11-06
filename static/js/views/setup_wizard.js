@@ -1408,11 +1408,15 @@ window.SetupWizard = {
             onPick: (m) => { if (select && [...select.options].some(o => o.value === m.name)) select.value = m.name; },
             onDownloaded: () => this._testOllama()
         });
+        if (!select) return;
+        // La liste vient d'être reconstruite et repart sur son premier modèle : on la cale sur le modèle déjà configuré,
+        // sinon sur le meilleur modèle recommandé installé. Cartes et liste montrent ainsi ce qui sera enregistré.
+        const inList = (m) => !!m && [...select.options].some(o => o.value === m);
         const best = window.AiModelPicker.bestInstalled('wizAIModelPicker');
-        if (!configured && best && select && [...select.options].some(o => o.value === best)) {
-            select.value = best;
-            window.AiModelPicker.markCurrent('wizAIModelPicker', best);
-        }
+        const chosen = inList(configured) ? configured : (inList(best) ? best : null);
+        if (chosen) select.value = chosen;
+        window.AiModelPicker.markCurrent('wizAIModelPicker', select.value);
+        select.onchange = () => window.AiModelPicker.markCurrent('wizAIModelPicker', select.value);
     },
 
     async _saveAI() {

@@ -64,10 +64,11 @@ def unlock_vault(req: VaultUnlockRequest, db: Session = Depends(get_db)):
     ).update({"is_read": True, "is_archived": True}, synchronize_session=False)
     db.commit()
 
-    # Au déverrouillage, si configuré : un relevé seulement s'il est nécessaire, sinon le dernier reste valable
+    # Au déverrouillage : un relevé seulement si les relevés automatiques sont activés et qu'il est nécessaire,
+    # sinon le dernier reste valable. (L'ancienne case « Synchro au déverrouillage » doublait ce réglage.)
     reactive_sync = None
-    sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
-    if getattr(req, "skip_reactive_sync", False) or not sync_on_unlock:
+    auto_sync_on = _get_config_value(db, "bank_auto_sync_enabled", "false").lower() == "true"
+    if getattr(req, "skip_reactive_sync", False) or not auto_sync_on:
         reactive_sync = {"ok": True, "skipped_passive_mode": True}
     elif connections:
         reactive_sync = trigger_manual_auto_sync(
@@ -142,12 +143,10 @@ def get_auto_sync_settings(db: Session = Depends(get_db)):
     active_pid = get_active_profile().get("id", "default")
     enabled = _get_config_value(db, "bank_auto_sync_enabled", "false").lower() == "true"
     interval = int(_get_config_value(db, "bank_auto_sync_interval_hours", "24") or 24)
-    sync_on_unlock = _get_config_value(db, "bank_sync_on_vault_unlock", "true").lower() == "true"
     cooldown_info = get_auto_sync_cooldown_status(db, active_pid)
     return {
         "enabled": enabled,
         "interval_hours": interval,
-        "sync_on_vault_unlock": sync_on_unlock,
         "vault_unlocked": VaultSessionManager.is_unlocked(profile_id=active_pid),
         **cooldown_info
     }
@@ -161,8 +160,6 @@ def update_auto_sync_settings(data: Dict[str, Any], db: Session = Depends(get_db
         _set_config_value(db, "bank_auto_sync_enabled", "true" if data["enabled"] else "false")
     if "interval_hours" in data:
         _set_config_value(db, "bank_auto_sync_interval_hours", str(int(data["interval_hours"])))
-    if "sync_on_vault_unlock" in data:
-        _set_config_value(db, "bank_sync_on_vault_unlock", "true" if data["sync_on_vault_unlock"] else "false")
     return {"ok": True}
 
 

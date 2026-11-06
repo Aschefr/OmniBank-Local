@@ -824,7 +824,7 @@ window.BankSyncView = {
                 </div>
 
                 <!-- Option de Mémorisation en Mémoire (RAM TTL) -->
-                <div style="margin-bottom: 10px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; text-align: left;">
+                <div style="margin-bottom: 18px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; text-align: left;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;">
                         <input type="checkbox" id="masterPwRememberCheck" checked />
                         <span data-i18n="bank_vault_remember_label">${window.i18n ? window.i18n.t('bank_vault_remember_label') : 'Mémoriser sur cet appareil pendant :'}</span>
@@ -835,15 +835,6 @@ window.BankSyncView = {
                         <option value="14" data-i18n="bank_vault_remember_days_14">${window.i18n ? window.i18n.t('bank_vault_remember_days_14') : '14 jours'}</option>
                         <option value="30" data-i18n="bank_vault_remember_days_30">${window.i18n ? window.i18n.t('bank_vault_remember_days_30') : '30 jours'}</option>
                     </select>
-                </div>
-
-                <!-- Option de Synchronisation Immédiate au Déverrouillage -->
-                <div style="margin-bottom: 18px; padding: 10px 14px; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); margin: 0;" data-i18n-title="bank_sync_on_unlock_tooltip" title="${window.i18n ? window.i18n.t('bank_sync_on_unlock_tooltip') : "Au déverrouillage, lance un relevé seulement s'il est nécessaire : aucun n'a encore été fait, ou le dernier est plus ancien que l'intervalle choisi. Sinon, le dernier relevé reste valable."}">
-                        <input type="checkbox" id="masterPwSyncOnUnlockCheck" checked />
-                        <span data-i18n="bank_sync_on_unlock_label">${window.i18n ? window.i18n.t('bank_sync_on_unlock_label') : 'Synchro au déverrouillage'}</span>
-                    </label>
-                    <span style="font-size: 12px; color: var(--accent); font-weight: 600;" data-i18n="bank_sync_on_unlock_badge">${window.i18n ? window.i18n.t('bank_sync_on_unlock_badge') : '⚡ Relevé si nécessaire'}</span>
                 </div>
 
                 <div id="masterPwModalError" style="display: none; color: #ef4444; font-size: 12px; margin-bottom: 14px; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 8px;"></div>

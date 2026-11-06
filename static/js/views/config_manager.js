@@ -282,7 +282,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
                         <div class="config-field">
                             <label class="config-label" for="conf_ollama_model" data-i18n="config_ai_model">Modèle sélectionné</label>
-                            <select id="conf_ollama_model" class="inline-input" onchange="window.ConfigView.save()">
+                            <select id="conf_ollama_model" class="inline-input" onchange="window.ConfigView.save(); window.AiModelPicker && window.AiModelPicker.markCurrent('configAiModelPicker', this.value)">
                                 <option value="" data-i18n="config_ai_no_model">${window.i18n.t('config_ai_no_model')}</option>
                             </select>
                             <p class="config-help" data-i18n="config_ai_model_warning">${window.i18n.t('config_ai_model_warning')}</p>

@@ -2,8 +2,8 @@
 tests/test_bank_sync_step1.py
 -----------------------------
 Tests d'intégration et unitaires pour l'Étape 1 de l'Auto-Pilot :
-1. Déverrouillage réactif du coffre (bank_sync_on_vault_unlock = "true")
-2. Déverrouillage passif sans requête réseau (bank_sync_on_vault_unlock = "false")
+1. Déverrouillage réactif du coffre (relevés automatiques activés)
+2. Déverrouillage passif sans requête réseau (relevés automatiques désactivés)
 3. Filet anti-boucle des relevés automatiques (GlobalConfig.last_auto_sync_attempt)
 4. Forçage manuel du relevé (force=True)
 5. Endpoints GET/POST /api/bank-sync/settings/auto-sync
@@ -143,32 +143,21 @@ def test_auto_sync_cooldown_expiration(step1_db):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_settings_auto_sync_get_and_post(client_step1, step1_db):
-    """Vérifie la lecture et l'enregistrement de sync_on_vault_unlock via l'API."""
-    # GET par défaut
+    """Vérifie la lecture et l'enregistrement des relevés automatiques via l'API (l'ancienne case
+    « Synchro au déverrouillage » n'existe plus : ce réglage décide aussi du relevé au déverrouillage)."""
     res = client_step1.get("/api/bank-sync/settings/auto-sync")
     assert res.status_code == 200
     data = res.json()
-    assert data["sync_on_vault_unlock"] is True
+    assert data["enabled"] is False
+    assert "sync_on_vault_unlock" not in data
     assert data["cooldown_active"] is False
 
-    # POST pour désactiver le relevé au déverrouillage (Mode passif)
-    post_res = client_step1.post("/api/bank-sync/settings/auto-sync", json={
-        "enabled": True,
-        "interval_hours": 12,
-        "sync_on_vault_unlock": False
-    })
+    post_res = client_step1.post("/api/bank-sync/settings/auto-sync", json={"enabled": True, "interval_hours": 12})
     assert post_res.status_code == 200
     assert post_res.json().get("ok") is True
 
-    # Vérification en base
-    cfg = step1_db.query(GlobalConfig).filter(GlobalConfig.key == "bank_sync_on_vault_unlock").first()
-    assert cfg is not None
-    assert cfg.value == "false"
-
-    # GET confirme la nouvelle valeur
     res2 = client_step1.get("/api/bank-sync/settings/auto-sync")
-    assert res2.status_code == 200
-    assert res2.json()["sync_on_vault_unlock"] is False
+    assert res2.json()["enabled"] is True and res2.json()["interval_hours"] == 12
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -176,14 +165,13 @@ def test_settings_auto_sync_get_and_post(client_step1, step1_db):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_vault_unlock_reactive_sync(client_step1, step1_db):
-    """Déverrouillage coffre avec sync_on_vault_unlock=True déclenche le relevé réactif."""
+    """Déverrouillage coffre avec les relevés automatiques activés : relevé « si nécessaire »."""
     conn = BankConnection(id=1, label="Test Bank", backend="cragr", is_active=True)
     step1_db.add(conn)
     step1_db.commit()
     CredentialVault.store_credentials(step1_db, 1, {"login": "test_user"}, "MonSuperPass123!")
 
-    # Config par défaut ou active
-    cfg = GlobalConfig(key="bank_sync_on_vault_unlock", value="true")
+    cfg = GlobalConfig(key="bank_auto_sync_enabled", value="true")
     step1_db.add(cfg)
     step1_db.commit()
 
@@ -212,13 +200,13 @@ def test_vault_unlock_reactive_sync(client_step1, step1_db):
 
 
 def test_vault_unlock_passive_mode(client_step1, step1_db):
-    """Déverrouillage coffre avec sync_on_vault_unlock=False ne déclenche aucun relevé réseau."""
+    """Déverrouillage coffre avec les relevés automatiques désactivés : aucun relevé réseau."""
     conn = BankConnection(id=1, label="Test Bank", backend="cragr", is_active=True)
     step1_db.add(conn)
     step1_db.commit()
     CredentialVault.store_credentials(step1_db, 1, {"login": "test_user"}, "MonSuperPass123!")
 
-    cfg = GlobalConfig(key="bank_sync_on_vault_unlock", value="false")
+    cfg = GlobalConfig(key="bank_auto_sync_enabled", value="false")
     step1_db.add(cfg)
     step1_db.commit()
 

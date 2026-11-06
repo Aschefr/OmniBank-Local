@@ -415,23 +415,10 @@ Object.assign(window.BankSyncView, {
     async loadAutoSyncSettings() {
         try {
             const data = await API.get('/api/bank-sync/settings/auto-sync');
-            this.autoSyncSettings = data || { enabled: false, interval_hours: 24, sync_on_vault_unlock: true };
+            this.autoSyncSettings = data || { enabled: false, interval_hours: 24 };
             this.renderVaultStatusBar();
         } catch (e) {
             console.warn('[BankSync] Erreur settings auto-sync:', e);
-        }
-    },
-
-    async toggleSyncOnVaultUnlock(enabled) {
-        if (!this.autoSyncSettings) {
-            this.autoSyncSettings = { enabled: false, interval_hours: 24, sync_on_vault_unlock: true };
-        }
-        this.autoSyncSettings.sync_on_vault_unlock = enabled;
-        try {
-            // Ce réglage seul : ceux en mémoire peuvent ne pas encore être chargés et écraseraient les vrais
-            await API.post('/api/bank-sync/settings/auto-sync', { sync_on_vault_unlock: enabled });
-        } catch (err) {
-            console.warn('[BankSync] Erreur toggleSyncOnVaultUnlock:', err);
         }
     },
 
@@ -441,8 +428,7 @@ Object.assign(window.BankSyncView, {
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: enabled,
-                interval_hours: this.autoSyncSettings.interval_hours,
-                sync_on_vault_unlock: this.autoSyncSettings.sync_on_vault_unlock !== false
+                interval_hours: this.autoSyncSettings.interval_hours
             });
             if (enabled && !this.vaultStatus?.is_unlocked) {
                 this.showToast(window.i18n ? window.i18n.t('bank_sync_toast_auto_sync_enabled_warn') : 'Relevé auto activé. Note : le coffre doit être déverrouillé pour fonctionner.', 'warning');
@@ -461,8 +447,7 @@ Object.assign(window.BankSyncView, {
         try {
             await API.post('/api/bank-sync/settings/auto-sync', {
                 enabled: this.autoSyncSettings.enabled,
-                interval_hours: this.autoSyncSettings.interval_hours,
-                sync_on_vault_unlock: this.autoSyncSettings.sync_on_vault_unlock !== false
+                interval_hours: this.autoSyncSettings.interval_hours
             });
             const toastMsg = window.i18n ? window.i18n.tp('bank_sync_toast_interval_changed', { interval }) || `Fréquence ajustée : ${interval} heures.` : `Fréquence ajustée : ${interval} heures.`;
             this.showToast(toastMsg, 'info');
