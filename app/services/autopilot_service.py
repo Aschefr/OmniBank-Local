@@ -784,6 +784,8 @@ def process_incoming_batch(
                 decision_reason = "rule"
                 if is_fallback:
                     decision_reason = "chameleon_default" if is_multi_cat else "fallback_catchall"
+                elif tx.get("smart_source") == "keyword":
+                    decision_reason = "keyword_category"
                 elif is_new_cat:
                     decision_reason = "chameleon_ai" if is_multi_cat else "ai_new_category"
                 elif tx.get("smart_source") == "ai":

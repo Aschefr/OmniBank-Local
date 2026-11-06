@@ -51,7 +51,7 @@ def _autopilot(db, on=True):
 
 
 def _ai(monkeypatch, category="Courses", name="Zorglub Supermarché", calls=None, is_new=False):
-    def fake(descriptions, categories, cfg, user_habits=None, suggest_names=False):
+    def fake(descriptions, categories, cfg, user_habits=None, suggest_names=False, **kwargs):
         if calls is not None:
             calls.append(list(descriptions))
         return {d: {"category": category, "name": name, "category_is_new": is_new} for d in descriptions}
@@ -127,7 +127,7 @@ def test_a_change_made_while_the_ai_answers_is_kept(db, monkeypatch):
     _autopilot(db)
     res = _ingest(db, _preview(db))
 
-    def fake(descriptions, categories, cfg, user_habits=None, suggest_names=False):
+    def fake(descriptions, categories, cfg, user_habits=None, suggest_names=False, **kwargs):
         tx = db.query(Transaction).one()
         tx.description = "Pendant l'attente"
         db.commit()

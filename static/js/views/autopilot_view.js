@@ -2182,7 +2182,7 @@ window.AutopilotView = {
         let icon = '';
         if (reason === 'ai_existing' || reason === 'ai_new_category' || reason === 'chameleon_ai') {
             icon = '🤖 ';
-        } else if (reason === 'rule') {
+        } else if (reason === 'rule' || reason === 'keyword_category') {
             icon = '⚙️ ';
         } else if (reason === 'history') {
             icon = '🕒 ';

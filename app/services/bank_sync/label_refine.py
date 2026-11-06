@@ -203,8 +203,10 @@ def _refine_committed(db: Session, batch_ids: set, answers: Dict[str, Dict[str, 
         confidence = float(answer.get("confidence") or 0.0)
         score = round(confidence * 100, 1)
         blocked = bool(answer.get("is_multi_category")) and not chameleon_allowed and not answer.get("is_manual")
+        from app.services.smart_label.categories import is_fallback_category
         reliable = (
             category_applied
+            and not is_fallback_category(tx.category)  # fourre-tout : rien n'a été reconnu, reste à vérifier
             and not blocked
             and not snap.get("suspected_duplicate_forecast_id")
             and confidence >= threshold / 100.0

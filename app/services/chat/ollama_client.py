@@ -237,6 +237,15 @@ BATCH_SMART_LABEL_SYSTEM_PROMPT = (
     '{"LEROY MERLIN BRICOLAGE 7501": {"name": "Leroy Merlin", "category": "Logement & Maison"}, "TRUFFAUT 92": {"name": "Truffaut", "category": "Jardinage"}, "VIR INST WERO DE DUPONT": {"name": "Wero - Dupont", "category": "Revenus divers"}, "UNKNOWN": {"name": null, "category": null}}'
 )
 
+STARTING_PROFILE_CATEGORY_HINT = (
+    "\nThe user is just starting: the authorized list is nearly empty, so creating categories is expected here.\n"
+    "- Give each transaction a general, reusable budget category of 1 to 3 words, in the language of the labels "
+    "(for French labels, e.g. 'Courses', 'Carburant', 'Restaurants', 'Télécoms', 'Énergie', 'Assurances', 'Impôts', "
+    "'Prêts', 'Frais bancaires', 'Abonnements', 'Santé', 'Shopping', 'Transports', 'Loisirs', 'Salaire', 'Remboursements').\n"
+    "- Use the same category for similar merchants; never one category per merchant.\n"
+    "- Use 'Dépenses diverses' or 'Revenus divers' only when nothing at all can be inferred from the label.\n"
+)
+
 _BANNED_AI_CATEGORY_TOKENS = {
     "unknown", "inconnu", "achat", "paiement", "cb", "prlv", "virement", "vir",
     "transaction", "operation", "autre", "autres", "none", "null", "n/a", "sans nom",
@@ -309,7 +318,8 @@ def _parse_and_validate_batch_response(
     raw_content: str,
     descriptions: list[str],
     categories: list[str],
-    suggest_names: bool = False
+    suggest_names: bool = False,
+    max_new_categories: int = 2
 ) -> dict[str, Any]:
     """Parse la réponse JSON renvoyée par Ollama et valide les catégories par rapport à la liste autorisée.
     Applique le double garde-fou :
@@ -357,8 +367,10 @@ def _parse_and_validate_batch_response(
     valid_exact = set(categories)
     valid_lower = {c.strip().lower(): c for c in categories if c and c.strip()}
 
-    MAX_NEW_CATEGORIES_PER_BATCH = 2
+    # Anti-prolifération : 2 nouvelles catégories par lot, davantage sur un profil qui démarre (voir resolver)
+    MAX_NEW_CATEGORIES_PER_BATCH = max_new_categories
     new_categories_seen: set[str] = set()
+    new_category_names: list[str] = []  # créées dans ce lot : « Course » rejoint « Courses » déjà acceptée
 
     for key, val in data.items():
         canonical_desc = desc_lookup.get(str(key).strip().lower())
@@ -394,8 +406,12 @@ def _parse_and_validate_batch_response(
                 cat_is_new = False
             else:
                 # Catégorie non présente dans la liste existante -> passage au crible des garde-fous
-                val_cat, is_new_cat = validate_ai_suggested_category(cat_str, categories)
-                if val_cat and not is_new_cat:
+                val_cat, is_new_cat = validate_ai_suggested_category(cat_str, list(categories) + new_category_names)
+                if val_cat and not is_new_cat and val_cat.lower() in new_categories_seen:
+                    # Rapprochée d'une catégorie créée plus haut dans ce même lot
+                    validated_cat = val_cat
+                    cat_is_new = True
+                elif val_cat and not is_new_cat:
                     # Fusion lexicale avec une catégorie existante (ex: singulier/pluriel ou similarité >= 80%)
                     validated_cat = val_cat
                     cat_is_new = False
@@ -413,6 +429,7 @@ def _parse_and_validate_batch_response(
                             cat_is_new = True
                         elif len(new_categories_seen) < MAX_NEW_CATEGORIES_PER_BATCH:
                             new_categories_seen.add(val_lower)
+                            new_category_names.append(val_cat)
                             validated_cat = val_cat
                             cat_is_new = True
                             logger.info(f"[OllamaBatch] Nouvelle catégorie IA validée : '{val_cat}' pour '{canonical_desc}' (quota: {len(new_categories_seen)}/{MAX_NEW_CATEGORIES_PER_BATCH})")
@@ -452,11 +469,14 @@ def call_ollama_batch(
     db: Session = None,
     extra_options: dict = None,
     user_habits: list[str] = None,
-    suggest_names: bool = False
+    suggest_names: bool = False,
+    max_new_categories: int = 2,
+    starting_profile: bool = False
 ) -> dict[str, Any]:
     """Catégorise un lot de descriptions en une seule requête JSON groupée vers Ollama (bloquante/sync).
     Ne lève JAMAIS d'HTTPException et retourne {d: None} (ou {d: {'name': None, 'category': None}}) si Ollama est indisponible ou désactivé.
-    Garantit le respect strict des catégories existantes (zéro création de catégorie sauvage)."""
+    Nouvelles catégories : `max_new_categories` par lot au plus ; `starting_profile` (profil sans vraies catégories)
+    demande au modèle d'en créer de générales et réutilisables plutôt que de tout mettre dans le fourre-tout."""
     import json
 
     if not descriptions:
@@ -492,6 +512,8 @@ def call_ollama_batch(
         user_payload["user_habits"] = user_habits[:35]
 
     sys_prompt = BATCH_SMART_LABEL_SYSTEM_PROMPT if suggest_names else BATCH_CATEGORIZATION_SYSTEM_PROMPT
+    if suggest_names and starting_profile:
+        sys_prompt += STARTING_PROFILE_CATEGORY_HINT
 
     payload = {
         "model": model,
@@ -527,7 +549,8 @@ def call_ollama_batch(
             thinking_str = msg.get("thinking", "").strip()
             if "{" in thinking_str or "[" in thinking_str:
                 content = thinking_str
-        return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names)
+        return _parse_and_validate_batch_response(content, descriptions, categories, suggest_names=suggest_names,
+                                                  max_new_categories=max_new_categories)
     except Exception as exc:
         logger.warning(f"[OllamaBatch] Échec de l'appel LLM par lot : {exc}")
         return fallback_empty

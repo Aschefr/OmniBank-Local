@@ -2071,18 +2071,17 @@ def test_subscription_closure_undo_redo_flow():
 
 def test_setup_wizard_demo_seed_and_base_pay_amount():
     """Vérifie l'initialisation par démo et la prise en charge de base_pay_amount."""
-    # 1. Test POST /api/config/ avec base_pay_amount
+    # 1. Test POST /api/config/ avec base_pay_amount : le montant déclaré sert à reconnaître le salaire,
+    #    il ne crée ni récurrence ni opération et ne modifie pas les récurrences de revenu existantes
+    before = client.get("/api/recurrences/").json()
     res_cfg = client.post("/api/config/", json={"base_pay_day": "28", "base_pay_amount": "3100.00"})
     assert res_cfg.status_code == 200
     assert res_cfg.json()["ok"] is True
 
-    # Vérifie que la récurrence de salaire a bien été créée
-    res_rec = client.get("/api/recurrences/")
-    assert res_rec.status_code == 200
-    rec_sal = next((r for r in res_rec.json() if r["type"] == "income"), None)
-    assert rec_sal is not None
-    assert rec_sal["amount"] == 3100.0
-    assert rec_sal["day_of_month"] == 28
+    after = client.get("/api/recurrences/").json()
+    assert len(after) == len(before)
+    assert not any(r["amount"] == 3100.0 for r in after)
+    assert sorted((r["id"], r["amount"]) for r in after) == sorted((r["id"], r["amount"]) for r in before)
 
     # 2. Test POST /api/setup/seed-demo
     res_demo = client.post("/api/setup/seed-demo")

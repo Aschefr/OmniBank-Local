@@ -905,7 +905,7 @@ window.SetupWizard = {
                     <label>${window.i18n.t('wizard_pay_amount_label') || 'Montant net mensuel estimé'}</label>
                     <input type="number" id="wizPayAmount" class="wizard-input wizard-pay-input" step="0.01" placeholder="${window.i18n.t('wizard_pay_amount_ph') || 'ex: 2500.00'}">
                     <p class="wizard-hint" style="margin-top: 5px; font-size: 11.5px;">
-                        ${window.i18n.t('wizard_pay_amount_hint') || 'Initialise immédiatement votre Reste à Vivre et vos projections sans attendre le mois prochain.'}
+                        ${window.i18n.t('wizard_pay_amount_hint') || 'Sert à reconnaître votre salaire dans les opérations de la banque. Aucune opération n\'est créée.'}
                     </p>
                 </div>
 

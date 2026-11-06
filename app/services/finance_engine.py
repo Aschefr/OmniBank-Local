@@ -489,7 +489,15 @@ def predict_next_paycheck(db: Session):
         pay_threshold_percent = float(conf_pct.value) if conf_pct and conf_pct.value else 30.0
     except ValueError:
         pay_threshold_percent = 30.0
-    
+
+    # Montant net déclaré dans l'assistant : référence de détection tant qu'aucune paie n'est connue (aucune opération
+    # n'est créée à partir de lui)
+    conf_declared = db.query(GlobalConfig).filter(GlobalConfig.key == "base_pay_amount").first()
+    try:
+        declared_pay = float(conf_declared.value) if conf_declared and conf_declared.value else 0.0
+    except ValueError:
+        declared_pay = 0.0
+
     # 3. Analyze last 12 months history
     historical_amounts = []
     historical_days = []
@@ -556,7 +564,7 @@ def predict_next_paycheck(db: Session):
         window_end = target_date + timedelta(days=5)
         
         # 1. Search for real reconciled paycheck in the database first
-        hist_avg = statistics.mean(historical_amounts) if historical_amounts else 1000.0
+        hist_avg = statistics.mean(historical_amounts) if historical_amounts else (declared_pay if declared_pay > 0 else 1000.0)
         threshold_value = hist_avg * (pay_threshold_percent / 100.0)
 
         best_income = None
@@ -676,6 +684,8 @@ def predict_next_paycheck(db: Session):
     predicted_amount = 0.0
     if historical_amounts:
         predicted_amount = round(statistics.mean(historical_amounts), 2)
+    elif declared_pay > 0:
+        predicted_amount = round(declared_pay, 2)
         
     predicted_day = base_pay_day
     if historical_days:

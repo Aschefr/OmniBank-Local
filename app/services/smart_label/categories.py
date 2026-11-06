@@ -222,6 +222,67 @@ def match_category_from_text(
     return None
 
 
+# Sans IA, ces mots-clés donnent une catégorie à créer quand aucune catégorie existante ne correspond : un profil neuf
+# n'a que les fourre-tout, et tout y finissait. L'ordre compte (« UEP*DAC SUPER U » est du carburant avant d'être des
+# courses). Mots seuls = mot entier du libellé nettoyé ; plusieurs mots = suite de mots entiers.
+STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
+    ("Salaire", "income", ("salaire", "salaires", "paie", "remuneration")),
+    ("Remboursements", "income", ("remboursement", "remboursements", "rembt", "avoir", "refund")),
+    ("Aides et allocations", "income", ("caf", "cpam", "ameli", "france travail", "pole emploi", "allocation", "allocations")),
+    ("Carburant", "expense", ("carburant", "carburants", "essence", "gazole", "diesel", "dac", "esso", "avia", "station service")),
+    ("Péages et parking", "expense", ("peage", "peages", "autoroute", "autoroutes", "aprr", "sanef", "fulli", "ulys",
+                                       "bip go", "parking", "stationnement", "indigo")),
+    ("Courses", "expense", ("alim", "carrefour", "leclerc", "auchan", "intermarche", "super u", "hyper u", "systeme u",
+                            "lidl", "aldi", "monoprix", "franprix", "netto", "picard", "grand frais", "biocoop",
+                            "supermarche", "hypermarche", "epicerie", "boulangerie", "boulang", "boucherie", "primeur")),
+    ("Restaurants", "expense", ("restaurant", "resto", "brasserie", "bistrot", "pizzeria", "sushi", "kebab", "mcdonalds",
+                                "mcdonald", "burger king", "kfc", "uber eats", "deliveroo")),
+    ("Transports", "expense", ("sncf", "ouigo", "ratp", "tcl", "navigo", "blablacar", "uber", "bolt", "lime")),
+    ("Santé", "expense", ("pharmacie", "pharma", "docteur", "medecin", "dr", "dentiste", "hopital", "clinique",
+                          "laboratoire", "optique", "opticien", "kine", "osteopathe")),
+    ("Assurances", "expense", ("assurance", "assurances", "assu", "assur", "mutuelle", "prevoyance", "maif", "macif",
+                               "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp")),
+    ("Impôts et taxes", "expense", ("impot", "impots", "dgfip", "finances publiques", "direction generale des finances",
+                                    "tresor public", "taxe")),
+    ("Télécoms et internet", "expense", ("orange", "sosh", "sfr", "bouygues", "free telecom", "free mobile", "freebox",
+                                         "b you")),
+    ("Énergie", "expense", ("edf", "engie", "octopus", "ekwateur", "totalenergies", "veolia", "saur", "suez")),
+    ("Prêts et crédits", "expense", ("echeance", "pret", "emprunt", "credit conso")),
+    ("Frais bancaires", "expense", ("cotisation", "commission", "commissions", "agios", "frais tenue", "offre essentiel")),
+    ("Abonnements", "expense", ("netflix", "spotify", "deezer", "disney", "canal", "prime video", "youtube", "google one",
+                                "icloud", "apple com", "adobe", "microsoft", "openai", "chatgpt", "anthropic", "patreon",
+                                "floatplane", "google play")),
+    ("Shopping", "expense", ("amazon", "fnac", "darty", "cdiscount", "decathlon", "ikea", "leroy merlin", "castorama",
+                             "zara", "kiabi", "boulanger")),
+    ("Loisirs", "expense", ("cinema", "pathe", "ugc", "steam", "playstation", "nintendo", "concert", "billetterie")),
+]
+
+
+def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str]]:
+    """Catégorie de départ suggérée par mots-clés : (nom, 'income'|'expense') ou None. N'écrit rien en base."""
+    raw_clean = _clean_token_str(text)
+    if not raw_clean:
+        return None
+    tokens = set(raw_clean.split())
+    padded = f" {raw_clean} "
+    for name, flow, keywords in STARTER_CATEGORIES:
+        if tx_type == "income" and flow != "income":
+            continue
+        if tx_type in ("expense_var", "expense_fixed") and flow != "expense":
+            continue
+        for kw in keywords:
+            if (" " in kw and f" {kw} " in padded) or kw in tokens:
+                return name, flow
+    return None
+
+
+def count_real_categories(db: Session) -> int:
+    """Catégories actives hors fourre-tout : en dessous de quelques-unes, le profil démarre."""
+    from app.models import Category
+    names = db.query(Category.name).filter((Category.is_closed == False) | (Category.is_closed == None)).all()
+    return sum(1 for (n,) in names if n and not is_fallback_category(n))
+
+
 def is_fallback_category(category_name: Optional[str]) -> bool:
     """Indique si un nom de catégorie correspond à une catégorie fourre-tout."""
     if not category_name:

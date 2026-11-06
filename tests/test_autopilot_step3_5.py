@@ -356,7 +356,9 @@ def test_t3_5_8_autopilot_auto_commit_mixed_batch(test_db):
     assert marine_tx.amount == 120.0
 
     boulange_tx = descs["Boulangerie Artisanale"]
-    assert boulange_tx.category == "Dépenses diverses"
+    # Sans IA, un mot-clé du libellé donne une catégorie de départ (créée, à vérifier) plutôt que le fourre-tout
+    assert boulange_tx.category == "Courses"
+    assert boulange_tx.needs_review is True
     assert boulange_tx.type == "expense_var"
 
     # Vérification de la création automatique des catégories dans la table Category

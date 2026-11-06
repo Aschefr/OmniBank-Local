@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 
 from app.models import BankLabelMapping, Category, Transaction
 from .ai_guard import validate_ai_suggested_name
-from .categories import match_category_from_text, resolve_fallback_category
+from .categories import (
+    count_real_categories,
+    is_fallback_category,
+    match_category_from_text,
+    resolve_fallback_category,
+    starter_category_for,
+)
 from .learning import get_user_habit_descriptions
 from .matcher import _compute_match_score, _compute_match_score_precomputed
 from .normalization import (
@@ -28,6 +34,24 @@ from .normalization import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Profil qui démarre : moins de vraies catégories que cela (hors fourre-tout). L'IA peut alors en créer davantage par
+# lot, sinon tout un premier relevé finit dans « Dépenses diverses ».
+STARTING_PROFILE_MAX_CATEGORIES = 8
+STARTING_PROFILE_NEW_CATEGORIES_PER_BATCH = 15
+# Confiance d'un résultat qu'on ne doit pas tenir pour sûr (sous le seuil d'auto-validation, 70 au plus bas)
+_REVIEW_CONFIDENCE = 0.5
+# Catégorie de départ trouvée par mots-clés, sans IA : à vérifier (sous le seuil par défaut de 85)
+_STARTER_CONFIDENCE = 0.8
+
+
+def _ai_enabled(db: Session) -> bool:
+    try:
+        from app.services.chat.ollama_client import get_ollama_config
+        cfg = get_ollama_config(db)
+        return bool(cfg and cfg.get("enabled") and cfg.get("url") and cfg.get("model"))
+    except Exception:
+        return False
 
 
 def is_category_compatible_with_tx_type(cat_type: Optional[str], tx_type: Optional[str]) -> bool:
@@ -749,6 +773,7 @@ def resolve_smart_labels_batch(
                 from app.services.chat.ollama_client import call_ollama_batch, get_ollama_config
                 cfg = get_ollama_config(db)
                 if cfg and cfg.get("enabled"):
+                    starting = count_real_categories(db) < STARTING_PROFILE_MAX_CATEGORIES
                     # Filtrer les catégories proposées si toutes les transactions partagent le même type (recette vs dépense)
                     target_types = {tx_types.get(r) for raw_list in unresolved_by_clean.values() for r in raw_list if tx_types and tx_types.get(r)}
                     cat_query = db.query(Category.name, Category.type).filter(
@@ -762,6 +787,8 @@ def resolve_smart_labels_batch(
                             cat_query = cat_query.filter(Category.type.in_(("expense_var", "expense_fixed")))
 
                     active_cats = [c[0] for c in cat_query.all() if c and c[0]]
+                    if not active_cats and starting:
+                        active_cats = [resolve_fallback_category(db, t) for t in ("expense_var", "income")]
                     if active_cats:
                         user_habits = get_user_habit_descriptions(db, limit=35) if include_user_habits else None
                         clean_descs = list(unresolved_by_clean.keys())
@@ -770,7 +797,9 @@ def resolve_smart_labels_batch(
                             categories=active_cats,
                             cfg=cfg,
                             user_habits=user_habits,
-                            suggest_names=True
+                            suggest_names=True,
+                            max_new_categories=STARTING_PROFILE_NEW_CATEGORIES_PER_BATCH if starting else 2,
+                            starting_profile=starting,
                         )
                         for clean_d, ai_data in ai_results.items():
                             candidate_cat = None
@@ -820,8 +849,36 @@ def resolve_smart_labels_batch(
                                     results[raw]["confidence"] = 0.85
                                     if assigned_is_new:
                                         results[raw]["smart_is_new_category"] = True
+                                    if is_fallback_category(assigned_cat):
+                                        # Fourre-tout choisi par l'IA (ou repli) : rien n'est appris, à vérifier
+                                        results[raw]["smart_is_fallback"] = True
+                                        results[raw]["confidence"] = _REVIEW_CONFIDENCE
             except Exception as e:
                 logger.warning(f"[SmartLabel] Échec silencieux du fallback IA par lot : {e}")
+
+    # ---------------------------------------------------------
+    # ÉTAGE 3 bis : sans IA, catégories de départ par mots-clés
+    # ---------------------------------------------------------
+    # Avec l'IA active, c'est elle qui crée les catégories (tout de suite ou en arrière-plan) : on ne la devance pas.
+    # Les marchands « caméléons » (Amazon, Total) gardent leur catégorie vide : c'est voulu, choix au cas par cas
+    unresolved = [raw for raw, res in results.items()
+                  if res.get("category") is None and res.get("source") in ("none", "ambiguous") and not res.get("is_manual")]
+    if unresolved and not _ai_enabled(db):
+        existing = {name.lower(): name for (name,) in db.query(Category.name).filter(
+            (Category.is_closed == False) | (Category.is_closed == None)).all() if name}
+        for raw in unresolved:
+            expected_t = tx_types.get(raw) if tx_types else None
+            starter = starter_category_for(raw, expected_t)
+            if not starter:
+                continue
+            name, _flow = starter
+            results[raw].update({
+                "description": normalize_raw_label(raw).title() or raw,
+                "category": existing.get(name.lower(), name),
+                "source": "keyword",
+                "confidence": _STARTER_CONFIDENCE,
+                "smart_is_new_category": name.lower() not in existing,
+            })
 
     # ---------------------------------------------------------
     # ÉTAGE 4 : Filet de sécurité déterministe (Catégories Fourre-tout)
