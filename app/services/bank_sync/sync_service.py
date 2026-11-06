@@ -124,8 +124,13 @@ def evaluate_historical_fingerprint(
       mais qu'AUCUNE ne correspond à l'historique connu (matched_count == 0) :
       -> Déclenche une alerte de relevé suspect (suspicion d'inversion de compte / désynchronisation de curseur distant).
     """
+    # Historique = lignes réellement passées par la banque (identifiant bancaire ou rapprochées), pas les prévisions :
+    # l'assistant de démarrage crée des salaires prévus sur douze mois, et un profil neuf passait alors pour un
+    # compte établi dont le premier relevé, sans aucune correspondance, était bloqué comme suspect.
     recent_query = db.query(Transaction).filter(
-        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+        (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id),
+        (Transaction.csv_id.isnot(None)) | (Transaction.reconciliation_date.isnot(None)),
+        Transaction.date_operation <= date.today(),
     )
     if cutoff_date:
         recent_query = recent_query.filter(Transaction.date_operation >= cutoff_date)
@@ -904,7 +909,7 @@ class BankSyncService:
                                     tag = deferred_tag(res) if ai_deferred else None
                                     if tag:
                                         tx["smart_ai_deferred"] = tag
-                                    if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback"):
+                                    if res.get("source") in ("rule", "history", "multi_category", "ai", "fallback", "keyword"):
                                         tx["description"] = res["description"]
                                         if res.get("category"):
                                             tx["category"] = res["category"]

@@ -438,13 +438,7 @@ def clear_all_transactions(
             status_code=400,
             detail="En-tête de confirmation obligatoire manquant (X-Confirm-Danger: clear)."
         )
-    from app.models import BudgetCategory, Budget, RecurrenceTemplate, Account, Category
-    db.query(Transaction).delete()
-    db.query(BudgetCategory).delete()
-    db.query(Budget).delete()
-    db.query(RecurrenceTemplate).delete()
-    db.query(Account).delete()
-    db.query(Category).delete()
-    db.commit()
+    from app.services.data_reset import clear_user_data
+    counts = clear_user_data(db)
     stats_cache.invalidate()
-    return {"ok": True, "message": "All user data has been deleted"}
+    return {"ok": True, "message": "All user data has been deleted", "deleted": counts}

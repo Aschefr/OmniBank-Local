@@ -8,12 +8,15 @@ Object.assign(window.SetupWizard, {
     _bankLoaded: false,
     _runFirstStatement: false,
 
+    _bankAccountIds: null,  // comptes existants : une association vers un compte supprimé ne compte pas
+
     _linkedCount(conn) {
         let m = conn && conn.account_mapping;
         if (typeof m === 'string') {
             try { m = JSON.parse(m); } catch (e) { m = {}; }
         }
-        return Object.values(m || {}).filter(Boolean).length;
+        const ids = this._bankAccountIds;
+        return Object.values(m || {}).filter(id => id && (!ids || ids.has(String(id)))).length;
     },
 
     _hasLinkedBank() {
@@ -22,7 +25,9 @@ Object.assign(window.SetupWizard, {
 
     async _loadBankState() {
         try {
-            this._bankConns = (await API.get('/api/bank-sync/connections')) || [];
+            const [conns, accounts] = await Promise.all([API.get('/api/bank-sync/connections'), API.get('/api/accounts/')]);
+            this._bankConns = conns || [];
+            this._bankAccountIds = new Set((accounts || []).map(a => String(a.id)));
         } catch (e) {
             this._bankConns = [];
         }
@@ -77,7 +82,7 @@ Object.assign(window.SetupWizard, {
         // Les fenêtres de la synchronisation ont le même z-index que l'assistant : placées après lui, elles passent devant
         const modals = document.getElementById('bankSyncGlobalModalsContainer');
         if (modals) document.body.appendChild(modals);
-        await Promise.all([bs.loadBackends(), bs.loadConnections(), bs.loadLocalAccounts(true), bs.loadVaultStatus()]);
+        await Promise.all([bs.loadBackends(), bs.loadConnections(), bs.loadLocalAccounts(), bs.loadVaultStatus()]);
         return bs;
     },
 
@@ -100,7 +105,9 @@ Object.assign(window.SetupWizard, {
             const accounts = await API.get('/api/accounts/');
             this.createdAccounts = (accounts || []).filter(a => !a.is_closed);
         } catch (e) { /* non bloquant */ }
-        if (!this._mainAccountId && this.createdAccounts.length) {
+        // Après « Vider la base », l'assistant revient sans recharger la page : l'ancien compte principal n'existe plus
+        const mainStillThere = this.createdAccounts.some(a => a.id === this._mainAccountId);
+        if (!mainStillThere && this.createdAccounts.length) {
             const main = this.createdAccounts.find(a => a.type === 'Compte courant') || this.createdAccounts[0];
             try {
                 await API.post(`/api/stats/main_account/${main.id}`);

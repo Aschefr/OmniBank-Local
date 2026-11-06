@@ -209,12 +209,14 @@ Object.assign(window.BankSyncView, {
         }
     },
 
-    async loadLocalAccounts(fresh = false) {
+    async loadLocalAccounts() {
         try {
-            // Après une création, la liste en mémoire de l'application n'a pas encore le nouveau compte
-            const accs = (!fresh && window.app && window.app.accounts && window.app.accounts.length > 0)
-                ? window.app.accounts
-                : await API.get('/api/accounts/');
+            // Toujours la liste du serveur, jamais window.app.accounts : juste après « Créer & Lier », la page Comptes
+            // se rafraîchit et relançait ce chargement depuis cette copie pas encore à jour. Le nouveau compte
+            // disparaissait de la fenêtre d'association, sa ligne s'affichait vide, et un second clic tentait de le
+            // recréer. La requête est partagée avec celle que la page Comptes vient de faire (API.get), et ce cache
+            // est vidé après chaque écriture.
+            const accs = await API.get('/api/accounts/');
             this.localAccounts = (accs || []).filter(a => !a.is_closed);
         } catch (err) {
             console.error('Erreur chargement comptes locaux:', err);
@@ -840,26 +842,7 @@ Object.assign(window.BankSyncView, {
         const localAccOptions = `<option value="">-- ${doNotSyncText} --</option>` + 
             this.localAccounts.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join('');
 
-        const detectType = (r) => {
-            const rawLower = (r.type || '').toLowerCase();
-            const nameLower = (r.label || '').toLowerCase();
-            if (rawLower.includes('prêt') || rawLower.includes('pret') || rawLower.includes('emprunt') || rawLower.includes('loan') || rawLower.includes('crédit') || rawLower.includes('credit') || nameLower.includes('prêt') || nameLower.includes('pret') || nameLower.includes('emprunt')) {
-                return 'Prêt / Emprunt';
-            }
-            if (rawLower.includes('livret') || rawLower.includes('saving') || rawLower.includes('epargne') || rawLower.includes('épargne')) {
-                return 'Livret';
-            }
-            if (rawLower.includes('pea')) {
-                return 'PEA';
-            }
-            if (rawLower.includes('assurance')) {
-                return 'Assurance Vie';
-            }
-            if (rawLower.includes('per')) {
-                return 'PER';
-            }
-            return 'Compte courant';
-        };
+        const detectType = (r) => this._detectRemoteType(r);
 
         const lblType = window.i18n ? window.i18n.t('bank_sync_lbl_type') || 'Type' : 'Type';
         const lblNumber = window.i18n ? window.i18n.t('bank_sync_lbl_number') || 'N°' : 'N°';
@@ -870,7 +853,7 @@ Object.assign(window.BankSyncView, {
 
         const justLinked = this._justLinked;
         const linkedText = window.i18n ? window.i18n.t('bank_sync_qc_linked_row') || 'Créé et associé : « {name} ». Association enregistrée.' : 'Créé et associé : « {name} ». Association enregistrée.';
-        container.innerHTML = remoteAccounts.map(r => {
+        container.innerHTML = this._bulkCreateHtml(remoteAccounts, currentMapping) + remoteAccounts.map(r => {
             const mappedLocalId = currentMapping[r.id] || '';
             const isJustLinked = justLinked && justLinked.remoteId === String(r.id);
             const balStr = `${r.balance >= 0 ? '+' : ''}${r.balance.toFixed(2)} ${r.currency || '€'}`;
@@ -951,6 +934,164 @@ Object.assign(window.BankSyncView, {
                 sel.value = currentMapping[remId];
             }
         });
+        this._updateBulkButton();
+    },
+
+    _detectRemoteType(r) {
+        const rawLower = (r.type || '').toLowerCase();
+        const nameLower = (r.label || '').toLowerCase();
+        if (rawLower.includes('prêt') || rawLower.includes('pret') || rawLower.includes('emprunt') || rawLower.includes('loan') || rawLower.includes('crédit') || rawLower.includes('credit') || nameLower.includes('prêt') || nameLower.includes('pret') || nameLower.includes('emprunt')) {
+            return 'Prêt / Emprunt';
+        }
+        if (rawLower.includes('livret') || rawLower.includes('saving') || rawLower.includes('epargne') || rawLower.includes('épargne')) {
+            return 'Livret';
+        }
+        if (rawLower.includes('pea')) {
+            return 'PEA';
+        }
+        if (rawLower.includes('assurance')) {
+            return 'Assurance Vie';
+        }
+        if (rawLower.includes('per')) {
+            return 'PER';
+        }
+        return 'Compte courant';
+    },
+
+    // Comptes distants pas encore associés : une liste à cocher (tout coché) et un seul bouton qui crée et associe
+    _unlinkedRemote(remoteAccounts, mapping) {
+        const localIds = new Set(this.localAccounts.map(a => String(a.id)));
+        return remoteAccounts.filter(r => !(mapping[r.id] && localIds.has(String(mapping[r.id]))));
+    },
+
+    _bulkCreateHtml(remoteAccounts, mapping) {
+        const unlinked = this._unlinkedRemote(remoteAccounts, mapping);
+        if (!unlinked.length) return '';
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const typeKey = { 'Compte courant': 'wizard_type_checking', 'Livret': 'wizard_type_savings', 'PEA': 'wizard_type_pea',
+            'Assurance Vie': 'wizard_type_life_ins', 'PER': 'wizard_type_per', 'Prêt / Emprunt': 'wizard_type_loan' };
+        // Des comptes OmniBank existent déjà sans être associés (saisis à la main avant la banque) : tout cocher
+        // créerait des doublons. Seuls les homonymes exacts restent cochés, les autres sont à associer ou à cocher.
+        const linked = new Set(Object.values(mapping).filter(Boolean).map(String));
+        const free = this.localAccounts.filter(a => !linked.has(String(a.id)) && !unlinked.some(r => r.label === a.name));
+        const claimed = new Set();  // un compte existant ne sert qu'à un seul compte distant (deux « Livret A »)
+        const usedNames = new Set(this.localAccounts.map(a => a.name));
+        const rows = unlinked.map(r => {
+            const type = this._detectRemoteType(r);
+            const existing = this.localAccounts.find(a => a.name === r.label && !linked.has(String(a.id)) && !claimed.has(a.id));
+            if (existing) claimed.add(existing.id);
+            // Nom du compte à créer : deux comptes distants du même nom, le second prend la fin de son numéro
+            const name = existing ? existing.name : (usedNames.has(r.label) ? `${r.label} (${String(r.id).slice(-4)})` : r.label);
+            usedNames.add(name);
+            const checked = existing || !free.length;
+            const bal = Number(r.balance || 0);
+            const balStr = `${bal >= 0 ? '+' : ''}${bal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${esc(r.currency || '€')}`;
+            const what = existing
+                ? t('bank_sync_bulk_links_existing', 'associé à votre compte « {name} »').replace('{name}', esc(existing.name))
+                : esc(t(typeKey[type], type));
+            return `
+                <label class="mapping-bulk-row" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer;">
+                    <input type="checkbox" class="mapping-bulk-cb" data-remote-id="${esc(r.id)}" data-name="${esc(name)}" data-existing="${existing ? existing.id : ''}" ${checked ? 'checked' : ''} onchange="window.BankSyncView._updateBulkButton()" style="width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0;">
+                    <span style="flex: 1; min-width: 0;">
+                        <span style="display: block; font-weight: 700; font-size: 13px; color: var(--text-main);">${esc(name)}</span>
+                        <span style="display: block; font-size: 12px; color: var(--text-muted);">${what}</span>
+                    </span>
+                    <span style="font-size: 12.5px; font-weight: 700; white-space: nowrap; color: ${bal < 0 ? '#ef4444' : '#10b981'};">${balStr}</span>
+                </label>`;
+        }).join('');
+        const title = (unlinked.length > 1
+            ? t('bank_sync_bulk_title_many', '{n} comptes de votre banque ne sont pas encore dans OmniBank')
+            : t('bank_sync_bulk_title_one', '1 compte de votre banque n\'est pas encore dans OmniBank')).replace('{n}', unlinked.length);
+        return `
+            <div id="mappingBulkBox" style="background: var(--bg-card); border: 1px solid var(--accent-border, var(--border-color)); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${esc(title)}</div>
+                <div style="font-size: 12.5px; color: var(--text-muted); line-height: 1.4;">${esc(t('bank_sync_bulk_desc', 'Décochez ceux que vous ne voulez pas suivre. Les autres sont créés avec leur nom, leur type et leur solde actuel, puis associés.'))}</div>
+                ${free.length ? `<div style="font-size: 12.5px; color: var(--warning, #f59e0b); line-height: 1.4;">${esc((free.length > 1
+                    ? t('bank_sync_bulk_free_many', 'Vous avez déjà {n} comptes OmniBank non associés : reliez-les avec les fiches ci-dessous, puis cochez seulement les comptes à créer.')
+                    : t('bank_sync_bulk_free_one', 'Vous avez déjà 1 compte OmniBank non associé : reliez-le avec sa fiche ci-dessous, puis cochez seulement les comptes à créer.')).replace('{n}', free.length))}</div>` : ''}
+                <div style="display: flex; flex-direction: column; gap: 2px;">${rows}</div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 4px;">
+                    <button id="mappingBulkBtn" class="btn btn-primary" onclick="window.BankSyncView.submitBulkCreate()" style="font-size: 13px; padding: 8px 14px; border-radius: 8px; font-weight: 700;"></button>
+                    <span style="font-size: 12px; color: var(--text-muted);">${esc(t('bank_sync_bulk_hint', 'Pour relier un compte à un compte OmniBank existant ou changer son nom, utilisez les fiches ci-dessous.'))}</span>
+                </div>
+            </div>`;
+    },
+
+    _updateBulkButton() {
+        const btn = document.getElementById('mappingBulkBtn');
+        if (!btn) return;
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const n = document.querySelectorAll('.mapping-bulk-cb:checked').length;
+        btn.disabled = n === 0;
+        btn.textContent = n === 0 ? t('bank_sync_bulk_btn_none', 'Aucun compte coché')
+            : n === 1 ? t('bank_sync_bulk_btn_one', 'Créer et associer 1 compte')
+            : t('bank_sync_bulk_btn_many', 'Créer et associer {n} comptes').replace('{n}', n);
+    },
+
+    async submitBulkCreate() {
+        const btn = document.getElementById('mappingBulkBtn');
+        const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
+        const remote = this.currentRemoteAccounts || [];
+        // Noms et comptes existants décidés à l'affichage : on crée exactement ce que la liste annonçait
+        const checked = [...document.querySelectorAll('.mapping-bulk-cb:checked')].map(cb => ({
+            rid: cb.getAttribute('data-remote-id'), name: cb.getAttribute('data-name'), existing: cb.getAttribute('data-existing')
+        }));
+        if (!checked.length) return;
+        if (btn) { btn.disabled = true; btn.textContent = t('bank_sync_bulk_working', 'Création en cours…'); }
+
+        const connId = this.activeConnId;
+        const mapping = this._readMappingFromDom();
+        const linkedIds = new Set(Object.values(mapping).filter(Boolean).map(String));
+        const failed = [];
+        let done = 0;
+        for (const { rid, name, existing } of checked) {
+            const r = remote.find(x => String(x.id) === rid);
+            // Relié entre-temps à la main dans sa fiche : ce choix l'emporte
+            if (!r || mapping[rid]) continue;
+            // Un compte OmniBank du même nom, encore libre : on l'associe au lieu d'en créer un second
+            if (existing && !linkedIds.has(existing)) {
+                mapping[rid] = Number(existing);
+                linkedIds.add(existing);
+                done++;
+                continue;
+            }
+            try {
+                const acc = await API.post('/api/accounts/', {
+                    name, type: this._detectRemoteType(r), initial_balance: Number(r.balance || 0), currency: r.currency || 'EUR'
+                });
+                mapping[rid] = acc.id;
+                linkedIds.add(String(acc.id));
+                done++;
+            } catch (err) {
+                failed.push(`${name} : ${err.detail || err.message}`);
+            }
+        }
+
+        try {
+            await API.put(`/api/bank-sync/connections/${connId}`, { account_mapping: mapping });
+        } catch (err) {
+            this.showToast(t('bank_sync_bulk_save_failed', 'Comptes créés, mais l\'association n\'a pas pu être enregistrée : {err}. Cliquez sur « Enregistrer l\'association ».')
+                .replace('{err}', err.detail || err.message), 'warning');
+        }
+        await this.loadLocalAccounts();
+        if (window.app && window.app.refreshSidebar) window.app.refreshSidebar();
+        if (window.AccountsView && typeof window.AccountsView.loadData === 'function') window.AccountsView.loadData();
+        await this.loadConnections();
+        const conn = this.connections.find(c => c.id === connId);
+        if (conn) conn.account_mapping = JSON.stringify(mapping);
+
+        const summary = (done > 1 ? t('bank_sync_bulk_done_many', '{n} comptes créés ou associés.') : t('bank_sync_bulk_done_one', '1 compte créé ou associé.')).replace('{n}', done);
+        if (failed.length) {
+            this.showToast(summary + ' ' + t('bank_sync_bulk_failed', 'Non créés : {list}').replace('{list}', failed.join(' ; ')), 'warning');
+        } else {
+            this.showToast(summary, 'success');
+        }
+        if (!failed.length && !this._unlinkedRemote(remote, mapping).length) {
+            this.closeMappingModal();
+            return;
+        }
+        this.renderMappingRows(conn || { account_mapping: mapping }, remote);
     },
 
     toggleQuickCreateForm(remoteId) {
@@ -986,7 +1127,7 @@ Object.assign(window.BankSyncView, {
                 currency: currency || 'EUR'
             });
 
-            await this.loadLocalAccounts(true);
+            await this.loadLocalAccounts();
             if (!this.localAccounts.some(a => a.id === newAcc.id)) this.localAccounts.push(newAcc);
             if (window.app && window.app.refreshSidebar) {
                 window.app.refreshSidebar();

@@ -73,7 +73,30 @@ def test_evaluate_historical_fingerprint_cold_start(db_session):
 
     assert res["is_suspicious"] is False
     assert res["is_cold_start"] is True
-    assert res["db_recent_count"] == 2
+    assert res["db_recent_count"] == 0  # saisies manuelles non rapprochées : pas des lignes de la banque
+
+
+def test_planned_forecasts_do_not_make_a_new_account_look_established(db_session):
+    """Profil neuf : l'assistant crée douze salaires prévus. Ce ne sont pas des lignes de la banque, le premier relevé
+    (sans aucune correspondance, forcément) ne doit pas être bloqué comme suspect."""
+    db = db_session
+    acc = Account(name="Compte de Dépôt", type="Compte courant", initial_balance=1673.03)
+    db.add(acc)
+    db.commit()
+    for i in range(12):
+        db.add(Transaction(date_operation=date.today() + timedelta(days=30 * i + 5), amount=2400.0, type="income",
+                           to_account_id=acc.id, description="Salaire / Revenu", category="Salaire"))
+    db.add(Transaction(date_operation=date.today() - timedelta(days=3), amount=40.0, type="expense_var",
+                       from_account_id=acc.id, description="Prévision non rapprochée"))
+    db.commit()
+
+    incoming = [{"date_operation": (date.today() - timedelta(days=d)).isoformat(), "amount": 10.0 + d,
+                 "raw_amount": -(10.0 + d), "description": f"CB {d}", "csv_id": f"woob_{d}"} for d in range(1, 30)]
+    res = evaluate_historical_fingerprint(db, acc.id, incoming, cutoff_date=date.today() - timedelta(days=75))
+
+    assert res["is_cold_start"] is True
+    assert res["is_suspicious"] is False
+    assert res["db_recent_count"] == 0
 
 
 def test_evaluate_historical_fingerprint_warm_account_normal_overlap(db_session):

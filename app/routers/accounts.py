@@ -10,6 +10,17 @@ from app.services import stats_cache
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
+
+def _ensure_name_free(db: Session, name, exclude_id=None):
+    """Le nom d'un compte est unique en base : un doublon répond 409 avec un message lisible au lieu d'une erreur 500."""
+    query = db.query(Account.id, Account.is_closed).filter(Account.name == name)
+    if exclude_id is not None:
+        query = query.filter(Account.id != exclude_id)
+    existing = query.first()
+    if existing:
+        closed = " (clôturé)" if existing.is_closed else ""
+        raise HTTPException(status_code=409, detail=f"Un compte nommé « {name} »{closed} existe déjà : choisissez-le dans la liste ou donnez un autre nom.")
+
 @router.get("/", response_model=List[AccountOut])
 def get_accounts(db: Session = Depends(get_db)):
     from app.services.finance_engine import calculate_balances
@@ -21,6 +32,7 @@ def get_accounts(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=AccountOut)
 def create_account(acc: AccountBase, db: Session = Depends(get_db)):
+    _ensure_name_free(db, acc.name)
     new_acc = Account(**acc.model_dump())
     db.add(new_acc)
     db.flush()
@@ -37,7 +49,8 @@ def update_account(acc_id: int, acc: AccountBase, db: Session = Depends(get_db))
     db_acc = db.query(Account).filter(Account.id == acc_id).first()
     if not db_acc:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+    _ensure_name_free(db, acc.name, exclude_id=acc_id)
+
     old_snapshot = snapshot_entity(db_acc)
     for key, value in acc.model_dump().items():
         setattr(db_acc, key, value)
