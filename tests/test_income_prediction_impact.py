@@ -103,6 +103,37 @@ def test_overdraft_covered_by_planned_income():
         db.close()
 
 
+def test_overdraft_curve_ends_on_the_announced_dip():
+    """Le graphique du Cockpit trace la courbe renvoyée : elle part d'aujourd'hui, compte une dépense passée non
+    pointée dès aujourd'hui, et finit sur le creux annoncé, sans recettes comme avec."""
+    db = TestingSessionLocal()
+    try:
+        acc = Account(name="Test Courbe Découvert", type="Compte courant", initial_balance=100.0)
+        db.add(acc)
+        db.commit()
+        db.refresh(acc)
+        today = date.today()
+        db.add_all([
+            Transaction(date_saisie=today, date_operation=today - timedelta(days=2), description="Courses non pointées",
+                        amount=30.0, type="expense_var", from_account_id=acc.id),
+            Transaction(date_saisie=today, date_operation=today + timedelta(days=3), description="Remboursement attendu",
+                        amount=200.0, type="income", to_account_id=acc.id),
+            Transaction(date_saisie=today, date_operation=today + timedelta(days=5), description="Loyer partiel",
+                        amount=150.0, type="expense_fixed", from_account_id=acc.id),
+        ])
+        db.commit()
+
+        warning = get_overdraft_warning(db, account_id=acc.id, current_date=today)
+        curve = warning["curve"]
+        assert [p["date"] for p in curve] == [(today + timedelta(days=i)).isoformat() for i in range(6)]
+        assert curve[0] == {"date": today.isoformat(), "without_income": 70.0, "with_income": 70.0}
+        assert curve[3]["with_income"] == 270.0
+        assert curve[-1]["without_income"] == warning["projected_balance"] == -80.0
+        assert curve[-1]["with_income"] == 120.0
+    finally:
+        db.close()
+
+
 def test_overdraft_partially_reduced_by_planned_income():
     """
     Vérifie qu'un risque de découvert est marqué comme non couvert mais avec solde projeté atténué
