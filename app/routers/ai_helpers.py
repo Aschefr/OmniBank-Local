@@ -63,13 +63,19 @@ async def call_ollama(db: Session, prompt: str, sys_prompt: str, format_json: bo
             {"role": "user", "content": prompt}
         ],
         "stream": False,
+        # Sans raisonnement : il consommerait le budget de réponse avant le JSON attendu
+        "think": False,
         "options": options
     }
     if format_json:
         payload["format"] = "json"
-        
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(f"{url}/api/chat", json=payload, timeout=300.0)
+        if resp.status_code == 400 and "think" in resp.text.lower():
+            # Modèle sans mode raisonnement : même appel sans le paramètre
+            payload.pop("think")
+            resp = await client.post(f"{url}/api/chat", json=payload, timeout=300.0)
         if resp.status_code != 200:
             raise HTTPException(status_code=500, detail=f"Erreur Ollama: {resp.text}")
         

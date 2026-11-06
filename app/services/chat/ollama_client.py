@@ -338,6 +338,14 @@ def _parse_and_validate_batch_response(
         logger.warning(f"[OllamaBatch] Erreur de parsing JSON de la réponse LLM : {exc}")
         return result
 
+    # Certains modèles (mistral-nemo) renvoient une liste d'objets {description, name, category},
+    # nue ou enveloppée sous une seule clé : on la ramène au dictionnaire attendu.
+    if isinstance(data, dict) and len(data) == 1 and isinstance(next(iter(data.values())), list):
+        data = next(iter(data.values()))
+    if isinstance(data, list):
+        data = {str(item["description"]): item for item in data
+                if isinstance(item, dict) and item.get("description")}
+
     if not isinstance(data, dict):
         logger.warning(f"[OllamaBatch] Réponse LLM inattendue (type {type(data)} au lieu d'un dictionnaire JSON)")
         return result
@@ -493,6 +501,8 @@ def call_ollama_batch(
         ],
         "stream": False,
         "format": "json",
+        # Sans raisonnement : un modèle qui réfléchit épuise num_predict avant le JSON sur un lot de libellés
+        "think": False,
         "options": options,
     }
 
@@ -502,6 +512,10 @@ def call_ollama_batch(
             json=payload,
             timeout=httpx.Timeout(300.0, connect=10.0),
         )
+        if resp.status_code == 400 and "think" in resp.text.lower():
+            # Modèle sans mode raisonnement : même appel sans le paramètre
+            payload.pop("think")
+            resp = httpx.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
         if resp.status_code != 200:
             logger.warning(f"[OllamaBatch] Erreur HTTP Ollama ({resp.status_code}) : {resp.text[:200]}")
             return fallback_empty
@@ -573,12 +587,18 @@ async def call_ollama_batch_async(
         ],
         "stream": False,
         "format": "json",
+        # Sans raisonnement : un modèle qui réfléchit épuise num_predict avant le JSON sur un lot de libellés
+        "think": False,
         "options": options,
     }
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=10.0)) as client:
             resp = await client.post(f"{url}/api/chat", json=payload)
+            if resp.status_code == 400 and "think" in resp.text.lower():
+                # Modèle sans mode raisonnement : même appel sans le paramètre
+                payload.pop("think")
+                resp = await client.post(f"{url}/api/chat", json=payload)
         if resp.status_code != 200:
             logger.warning(f"[OllamaBatch] Erreur HTTP Ollama asynchrone ({resp.status_code}) : {resp.text[:200]}")
             return fallback_empty
