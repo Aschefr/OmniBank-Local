@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **Cockpit: forecast windows that match their figures 🔮**: The curves in the "End of cycle" and "Cashflow Vigilance" windows mixed the reconciled balance with transactions not yet reconciled, so they could end tens of euros away from the figure shown above them. They now start today and end exactly on that figure: one curve of planned transactions for the end of cycle, and two curves, without and with planned income, for Cashflow Vigilance. The past part, already shown by "Period trend", and the period tabs are gone from these two windows. The Cashflow Vigilance message now says plainly that the dip assumes no income arrives.
+
 ## [1.4.3] - 2026-11-05
 
 ### Added & Improved
