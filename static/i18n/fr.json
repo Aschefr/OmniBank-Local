@@ -385,7 +385,7 @@
   "autopilot_reason_fallback_catchall": "Catégorie par défaut",
   "autopilot_reason_fallback_catchall_desc": "Opération sans correspondance, affectée à la catégorie fourre-tout de secours.",
   "autopilot_reason_keyword_category": "Catégorie par mots-clés",
-  "autopilot_reason_keyword_category_desc": "Catégorie déduite de mots-clés du libellé, sans IA, et créée si elle manquait. À vérifier.",
+  "autopilot_reason_keyword_category_desc": "Catégorie déduite d'un mot-clé du libellé : carburant, péage, impôts, ou toute catégorie de départ quand l'IA est désactivée. Créée si elle manquait.",
   "autopilot_reason_high_confidence": "Haute certitude",
   "autopilot_reason_high_confidence_desc": "Opération pointée et réconciliée automatiquement avec un score de certitude maximal.",
   "autopilot_reason_history": "Historique similaire",

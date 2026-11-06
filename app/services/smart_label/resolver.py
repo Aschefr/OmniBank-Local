@@ -22,6 +22,7 @@ from .categories import (
     match_category_from_text,
     resolve_fallback_category,
     starter_category_for,
+    strong_category_for,
 )
 from .learning import get_user_habit_descriptions
 from .matcher import _compute_match_score, _compute_match_score_precomputed
@@ -43,6 +44,8 @@ STARTING_PROFILE_NEW_CATEGORIES_PER_BATCH = 15
 _REVIEW_CONFIDENCE = 0.5
 # Catégorie de départ trouvée par mots-clés, sans IA : à vérifier (sous le seuil par défaut de 85)
 _STARTER_CONFIDENCE = 0.8
+# Mot-clé sans ambiguïté (« DAC » = pompe à carburant) : tenu pour sûr
+_STRONG_CONFIDENCE = 0.9
 
 
 def _ai_enabled(db: Session) -> bool:
@@ -739,6 +742,22 @@ def resolve_smart_labels_batch(
                 "mapping_id": None,
                 "is_manual": False,
                 "is_multi_category": False
+            }
+            continue
+
+        # 3.6 Mot-clé sans ambiguïté (carburant « DAC », péages, impôts) : avant l'IA, qui ne connaît pas ces codes
+        strong = strong_category_for(db, raw_str, expected_t)
+        if strong:
+            strong_name, strong_new = strong
+            results[raw_str] = {
+                "description": pattern.title() if pattern else raw_str,
+                "category": strong_name,
+                "source": "keyword",
+                "confidence": _STRONG_CONFIDENCE,
+                "mapping_id": None,
+                "is_manual": False,
+                "is_multi_category": False,
+                "smart_is_new_category": strong_new,
             }
             continue
 

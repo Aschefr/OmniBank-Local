@@ -28,7 +28,7 @@ def db():
 @pytest.mark.parametrize("label,tx_type,expected", [
     ("CB UEP*ALIM SUPER U LYON", "expense_var", "Courses"),
     ("CB UEP*DAC SUPER U LYON", "expense_var", "Carburant"),
-    ("DIRECTION GENERALE DES FINANCES", "expense_var", "Impôts et taxes"),
+    ("DIRECTION GENERALE DES FINANCES", "expense_var", "Impôts"),
     ("Free Telecom", "expense_var", "Télécoms et internet"),
     ("FULLI - PEAGES", "expense_var", "Péages et parking"),
     ("ASSU. MAIF HABITATION", "expense_var", "Assurances"),
@@ -100,3 +100,31 @@ def test_declared_pay_creates_nothing_and_is_used_to_recognise_the_salary(db):
                        description="ACME SAS", category="Revenus divers", reconciliation_date=date(y, m, 28) + timedelta(days=2)))
     db.commit()
     assert predict_next_paycheck(db)["amount"] == 2487.68
+
+
+def test_unambiguous_keywords_come_before_the_ai_and_reuse_the_users_categories(db, monkeypatch):
+    """« UEP*DAC » est une pompe à carburant : les modèles testés le classaient en courses. Le mot-clé passe avant
+    l'IA, tenu pour sûr, et retrouve la catégorie équivalente de l'utilisateur au lieu d'en créer une autre."""
+    db.add_all([GlobalConfig(key="enable_ai", value="true"), GlobalConfig(key="ollama_url", value="http://ollama.test:11434"),
+                GlobalConfig(key="ollama_model", value="m")])
+    db.commit()
+    asked = []
+
+    def fake(descriptions, categories, cfg=None, user_habits=None, suggest_names=False, **kw):
+        asked.extend(descriptions)
+        return {d: {"name": d, "category": "Courses", "category_is_new": True} for d in descriptions}
+
+    monkeypatch.setattr(ollama_client, "call_ollama_batch", fake)
+    labels = {"CB UEP*DAC SUPER U LYON": "expense_var", "FULLI - PEAGES": "expense_var", "CB UEP*ALIM SUPER U LYON": "expense_var"}
+    res = resolver.resolve_smart_labels_batch(db, list(labels), tx_types=labels, use_ai_fallback=True, auto_fallback_category=True)
+    assert res["CB UEP*DAC SUPER U LYON"]["category"] == "Carburant" and res["CB UEP*DAC SUPER U LYON"]["confidence"] >= 0.85
+    assert res["FULLI - PEAGES"]["category"] == "Péages et parking"
+    assert res["CB UEP*ALIM SUPER U LYON"]["source"] == "ai"  # le reste va à l'IA
+    assert not any("Dac" in d or "Fulli" in d for d in asked)
+
+    db.add_all([Category(name="Essence", type="expense_var"), Category(name="Péage tickets", type="expense_var")])
+    db.commit()
+    res = resolver.resolve_smart_labels_batch(db, ["CB UEP*DAC SUPER U LYON", "FULLI - PEAGES"],
+                                              tx_types={"CB UEP*DAC SUPER U LYON": "expense_var", "FULLI - PEAGES": "expense_var"})
+    assert res["CB UEP*DAC SUPER U LYON"]["category"] == "Essence" and not res["CB UEP*DAC SUPER U LYON"]["smart_is_new_category"]
+    assert res["FULLI - PEAGES"]["category"] == "Péage tickets"

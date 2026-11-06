@@ -242,7 +242,7 @@ STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
                           "laboratoire", "optique", "opticien", "kine", "osteopathe")),
     ("Assurances", "expense", ("assurance", "assurances", "assu", "assur", "mutuelle", "prevoyance", "maif", "macif",
                                "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp")),
-    ("Impôts et taxes", "expense", ("impot", "impots", "dgfip", "finances publiques", "direction generale des finances",
+    ("Impôts", "expense", ("impot", "impots", "dgfip", "finances publiques", "direction generale des finances",
                                     "tresor public", "taxe")),
     ("Télécoms et internet", "expense", ("orange", "sosh", "sfr", "bouygues", "free telecom", "free mobile", "freebox",
                                          "b you")),
@@ -256,6 +256,42 @@ STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
                              "zara", "kiabi", "boulanger")),
     ("Loisirs", "expense", ("cinema", "pathe", "ugc", "steam", "playstation", "nintendo", "concert", "billetterie")),
 ]
+
+
+# Mots-clés sans ambiguïté, appliqués avant l'IA : l'IA ne connaît pas ces codes de libellés (« UEP*DAC SUPER U » est la
+# pompe à carburant du magasin, que les trois modèles testés classaient en courses). Chaque entrée : nom par défaut,
+# déclencheurs, mots qui reconnaissent une catégorie existante de l'utilisateur (« Essence », « Péage tickets »).
+STRONG_CATEGORIES: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = [
+    ("Carburant", ("dac", "carburant", "carburants", "gazole", "station service"),
+     ("carburant", "essence", "gazole")),
+    ("Péages et parking", ("peage", "peages", "autoroute", "autoroutes", "aprr", "sanef", "fulli", "ulys", "bip go"),
+     ("peage", "autoroute")),
+    ("Impôts", ("dgfip", "finances publiques", "direction generale des finances", "tresor public"),
+     ("impot", "taxe", "fiscal")),
+]
+
+
+def strong_category_for(db: Session, text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, bool]]:
+    """Catégorie certaine d'après un mot-clé sans ambiguïté : (nom, à_créer) ou None. Réutilise la catégorie de
+    dépense existante de l'utilisateur quand il en a une équivalente (la plus courte), sinon le nom par défaut."""
+    if tx_type == "income":
+        return None
+    raw_clean = _clean_token_str(text)
+    if not raw_clean:
+        return None
+    tokens = set(raw_clean.split())
+    padded = f" {raw_clean} "
+    for name, triggers, user_words in STRONG_CATEGORIES:
+        if not any((" " in kw and f" {kw} " in padded) or kw in tokens for kw in triggers):
+            continue
+        from app.models import Category
+        cats = db.query(Category.name, Category.type).filter(
+            (Category.is_closed == False) | (Category.is_closed == None)).all()
+        same = [n for n, t in cats if n and t != "income" and any(w in _clean_token_str(n) for w in user_words)]
+        if same:
+            return min(same, key=len), False
+        return name, True
+    return None
 
 
 def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str]]:
