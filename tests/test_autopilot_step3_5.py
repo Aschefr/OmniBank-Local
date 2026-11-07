@@ -113,8 +113,8 @@ def test_t3_5_1_unknown_expense_fallback_category(test_db):
 # T3.5.2 : Recette inconnue sans IA -> 'Revenus divers' en mémoire
 # =====================================================================
 def test_t3_5_2_unknown_income_fallback_category(test_db):
-    raw_labels = ["VIR INST MLLE Claire Moreau"]
-    tx_types = {"VIR INST MLLE Claire Moreau": "income"}
+    raw_labels = ["VIR INST MLLE CLAIRE MOREAU"]
+    tx_types = {"VIR INST MLLE CLAIRE MOREAU": "income"}
 
     results = resolve_smart_labels_batch(
         test_db,
@@ -124,7 +124,7 @@ def test_t3_5_2_unknown_income_fallback_category(test_db):
         auto_fallback_category=True,
     )
 
-    resolved = results["VIR INST MLLE Claire Moreau"]
+    resolved = results["VIR INST MLLE CLAIRE MOREAU"]
     assert "Claire Moreau" in resolved["description"]
     # Sans IA, un virement reçu d'une personne est reconnu comme tel (à vérifier) plutôt que « Revenus divers »
     assert resolved["category"] == "Virements reçus"
@@ -307,8 +307,8 @@ def test_t3_5_8_autopilot_auto_commit_mixed_batch(test_db):
                     },
                     {
                         "date_operation": "2026-10-06",
-                        "description": "VIR INST MLLE Claire Moreau",
-                        "raw_description": "VIR INST MLLE Claire Moreau",
+                        "description": "VIR INST MLLE CLAIRE MOREAU",
+                        "raw_description": "VIR INST MLLE CLAIRE MOREAU",
                         "amount": 120.00,
                         "raw_amount": 120.00,
                         "is_reconciled": False,
@@ -515,7 +515,7 @@ def test_t3_5_11_re_evaluate_preview_with_ai_and_fallback(test_db):
                     },
                     {
                         "csv_id": "tx_ai_test_2",
-                        "raw_description": "VIR INST DE MLLE Claire Moreau",
+                        "raw_description": "VIR INST DE MLLE CLAIRE MOREAU",
                         "description": "Vir Inst Mlle Claire Moreau",
                         "amount": 137.50,
                         "raw_amount": 137.50,

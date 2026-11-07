@@ -31,7 +31,7 @@ def _compute_match_score_precomputed(
 
     # Inclusion stricte au niveau mot / token (mots entiers, pas de sous-chaîne arbitraire interne)
     # Ex: "NETFLIX" dans "NETFLIX COM", "CARREFOUR" dans "CARREFOUR MARKET"
-    # Ne doit JAMAIS matcher un sous-acronyme bruité (ex: "CA" dans "Blanca" ou "OR" dans "DECATHLON")
+    # Ne doit JAMAIS matcher un sous-acronyme bruité (ex: "CA" dans "BLANCA" ou "OR" dans "DECATHLON")
     min_len = min(len(pat_clean), len(cand_clean))
     max_len = max(len(pat_clean), len(cand_clean))
     len_ratio = min_len / max_len
@@ -40,7 +40,7 @@ def _compute_match_score_precomputed(
         is_token_subset = pat_tokens.issubset(cand_tokens) or cand_tokens.issubset(pat_tokens)
         if is_token_subset and min_len >= 4:
             # Match de préfixe ou sous-ensemble de tokens :
-            # Si le candidat correspond au préfixe du motif (ex: 'Acmex' dans 'Acmex REINFORCEMENTS Acmex REI')
+            # Si le candidat correspond au préfixe du motif (ex: 'ACMEX' dans 'ACMEX REINFORCEMENTS ACMEX REI')
             # ou si le ratio de longueur est suffisant
             is_prefix = (
                 pat_clean.startswith(cand_clean + ' ')

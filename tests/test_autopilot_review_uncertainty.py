@@ -58,7 +58,7 @@ def test_validate_review_transaction_force_keep_current(review_test_db):
         type="income",
         category="Remboursement",
         description="Marine - Part impots 2025",
-        raw_description="VIR INST de MLLE Claire Moreau",
+        raw_description="VIR INST de MLLE CLAIRE MOREAU",
         needs_review=True,
         confidence_score=65.0,
         to_account_id=1
@@ -133,7 +133,7 @@ def test_validate_review_with_competing_candidate_preserved(review_test_db):
         type="income",
         category="Remboursement",
         description="Marine - Part impots 2025",
-        raw_description="VIR INST de MLLE Claire Moreau",
+        raw_description="VIR INST de MLLE CLAIRE MOREAU",
         needs_review=True,
         confidence_score=65.0,
         to_account_id=1

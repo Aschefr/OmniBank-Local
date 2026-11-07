@@ -941,8 +941,8 @@ def test_autopilot_disabled_delegates_everything_to_sas(db_session):
 
 def test_wero_transfer_not_confused_with_ca_refund(db_session):
     """
-    Vérifie qu'un virement Wero personnel (ex: 'VIR INST WERO de YOANN Blanca') ne match pas
-    abusivement une écriture 'CA Remboursement Cotisation carte' par inclusion erronée de 'CA' dans 'Blanca'.
+    Vérifie qu'un virement Wero personnel (ex: 'VIR INST WERO de LUCAS BLANCA') ne match pas
+    abusivement une écriture 'CA Remboursement Cotisation carte' par inclusion erronée de 'CA' dans 'BLANCA'.
     """
     import datetime
     hist_tx = Transaction(
@@ -955,7 +955,7 @@ def test_wero_transfer_not_confused_with_ca_refund(db_session):
     db_session.add(hist_tx)
     db_session.commit()
 
-    raw_label = "VIR INST WERO de YOANN Blanca"
+    raw_label = "VIR INST WERO de LUCAS BLANCA"
     res = resolve_smart_label(db_session, raw_label, use_ai_fallback=False, auto_fallback_category=True)
 
     assert res["description"] != "CA Remboursement Cotisation carte"
@@ -969,11 +969,11 @@ def test_wero_standalone_name_rejected_by_validator():
     est strictement rejetée par le garde-fou validate_ai_suggested_name afin de ne pas masquer le vrai destinataire.
     """
     from app.services.smart_label_service import validate_ai_suggested_name
-    assert validate_ai_suggested_name("Wero", raw_label="VIR INST WERO de YOANN Blanca", clean_label="WERO DE YOANN Blanca") is None
+    assert validate_ai_suggested_name("Wero", raw_label="VIR INST WERO de LUCAS BLANCA", clean_label="WERO DE LUCAS BLANCA") is None
     assert validate_ai_suggested_name("Paylib", raw_label="VIR PAYLIB DE DUPONT", clean_label="PAYLIB DUPONT") is None
     assert validate_ai_suggested_name("Lydia", raw_label="LYDIA REMBOURSEMENT PIERRE", clean_label="LYDIA PIERRE") is None
     # En revanche, un nom complet contenant le destinataire est accepté
-    assert validate_ai_suggested_name("Yoann Blanca", raw_label="VIR INST WERO de YOANN Blanca", clean_label="WERO DE YOANN Blanca") == "Yoann Blanca"
+    assert validate_ai_suggested_name("Lucas Blanca", raw_label="VIR INST WERO de LUCAS BLANCA", clean_label="WERO DE LUCAS BLANCA") == "Lucas Blanca"
 
 
 def test_pending_sync_smart_source_ai_anti_demotion(db_session):
@@ -991,8 +991,8 @@ def test_pending_sync_smart_source_ai_anti_demotion(db_session):
                     {
                         "csv_id": "tx_wero_ai_1",
                         "date_operation": "2026-09-09",
-                        "raw_description": "VIR INST WERO de YOANN Blanca",
-                        "description": "Wero - Yoann Blanca",
+                        "raw_description": "VIR INST WERO de LUCAS BLANCA",
+                        "description": "Wero - Lucas Blanca",
                         "category": "Transfert",
                         "amount": 10.15,
                         "raw_amount": 10.15,
@@ -1013,7 +1013,7 @@ def test_pending_sync_smart_source_ai_anti_demotion(db_session):
     # Doit rester strictement enrichi par l'IA, sans écrasement par le fallback
     assert tx_res["smart_source"] == "ai"
     assert tx_res["category"] == "Transfert"
-    assert tx_res["description"] == "Wero - Yoann Blanca"
+    assert tx_res["description"] == "Wero - Lucas Blanca"
     assert tx_res["smart_is_fallback"] is False
 
 
@@ -1265,7 +1265,7 @@ def test_multi_category_rule_preserves_explicit_category_match(client, db_sessio
 
 
 def test_long_statement_prefix_matches_concise_history(db_session):
-    """Vérifie qu'un libellé bancaire brut long d'employeur ('Acmex REINFORCEMENTS Acmex REI')
+    """Vérifie qu'un libellé bancaire brut long d'employeur ('ACMEX REINFORCEMENTS ACMEX REI')
     matche l'historique concis ('Acmex') et récupère la catégorie 'Salaire'."""
     from datetime import date
     from app.models import Category, Transaction
@@ -1286,7 +1286,7 @@ def test_long_statement_prefix_matches_concise_history(db_session):
     db_session.commit()
 
     # Résolution du libellé bancaire long
-    res = resolve_smart_label(db_session, "Acmex REINFORCEMENTS Acmex REI", tx_type="income")
+    res = resolve_smart_label(db_session, "ACMEX REINFORCEMENTS ACMEX REI", tx_type="income")
     assert res["category"] == "Salaire"
     assert res["source"] == "history"
     assert res["confidence"] >= 0.85
@@ -1300,8 +1300,8 @@ def test_composite_category_does_not_hijack_single_token(db_session):
     db_session.add(Category(name="Rembours. Acmex", type="income", is_closed=False))
     db_session.commit()
 
-    # Sans historique ni règle, seulement "Acmex..." dans le libellé (sans "rembours")
-    res = resolve_smart_label(db_session, "Acmex REINFORCEMENTS Acmex REI", tx_type="income")
+    # Sans historique ni règle, seulement "ACMEX..." dans le libellé (sans "rembours")
+    res = resolve_smart_label(db_session, "ACMEX REINFORCEMENTS ACMEX REI", tx_type="income")
     # Le score doit être plafonné à 0.45 (pas de seuil d'auto-commit)
     assert res["confidence"] <= 0.50
 

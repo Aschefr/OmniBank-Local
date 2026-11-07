@@ -90,7 +90,7 @@ def test_bank_connections_api():
         "label": "Mon Crédit Agricole Test",
         "master_password": "TestPassword_123",
         "credentials": {
-            "login": "00099887760",
+            "login": "00099887761",
             "password": "secret",
             "website": "www.ca-centrest.fr"
         }
@@ -113,7 +113,7 @@ def test_bank_connections_api():
 
     # 4. Update mapping
     update_res = client.put(f"/api/bank-sync/connections/{conn_id}", json={
-        "account_mapping": {"00099887760": 1}
+        "account_mapping": {"00099887761": 1}
     })
     assert update_res.status_code == 200
 
@@ -2290,7 +2290,7 @@ def test_check_reconciliation_30_days_window_for_reconciled_transactions():
 
     # Opération locale saisie et pointée au 02/07/2026
     tx = Transaction(
-        description="DELKO Vienne VILLE",
+        description="DELKO VIENNE VILLE",
         amount=179.28,
         type="expense_var",
         category="Divers",
@@ -2309,7 +2309,7 @@ def test_check_reconciliation_30_days_window_for_reconciled_transactions():
         tx_amount=-179.28,
         account_id=acc.id,
         is_coming=False,
-        bank_label="X1208 DELKO Vienne VILLE"
+        bank_label="X1208 DELKO VIENNE VILLE"
     )
 
     assert rec is not None
@@ -2935,7 +2935,7 @@ def test_multi_profile_pending_sync_and_cache_isolation():
                     {
                         "csv_id": "tx_prof1_quentin",
                         "date_operation": "2026-09-02",
-                        "description": "VIR INST de MLLE Claire Moreau",
+                        "description": "VIR INST de MLLE CLAIRE MOREAU",
                         "raw_amount": 137.50,
                         "amount": 137.50,
                         "is_reconciled": False
@@ -2986,7 +2986,7 @@ def test_multi_profile_pending_sync_and_cache_isolation():
             for tx in acc.get("transactions", [])
         ]
         assert "ACHAT MATERIEL CSE" in thomas_descriptions
-        assert "VIR INST de MLLE Claire Moreau" not in thomas_descriptions
+        assert "VIR INST de MLLE CLAIRE MOREAU" not in thomas_descriptions
 
         # Vérifier le fonctionnement de l'invalidation globale du cache stats
         stats_cache.set("default", "test_key", {"val": 1})

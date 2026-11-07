@@ -108,7 +108,7 @@ def test_fluctuating_recurrence_routed_to_review_queue(db_session):
                     "already_reconciled": False,
                     "matched_db_id": None,
                     "category": "Telecoms",
-                    "csv_id": "woob_coming_cragr_00099887760_2e272ee5abd3",
+                    "csv_id": "woob_coming_cragr_00099887761_2e272ee5abd3",
                     "account_id": 1,
                     "is_coming": False,
                     "smart_suggested": True,
@@ -131,7 +131,7 @@ def test_fluctuating_recurrence_routed_to_review_queue(db_session):
 
     # Vérifier la transaction créée en base
     created_tx = db_session.query(Transaction).filter(
-        Transaction.csv_id == "woob_coming_cragr_00099887760_2e272ee5abd3"
+        Transaction.csv_id == "woob_coming_cragr_00099887761_2e272ee5abd3"
     ).first()
     assert created_tx is not None
     assert created_tx.needs_review is True
@@ -279,7 +279,7 @@ def test_fluctuating_recurrence_confirmed_debit_points_forecast(db_session):
                     "already_reconciled": False,
                     "matched_db_id": None,
                     "category": "Énergie",
-                    "csv_id": "woob_cragr_00099887760_edf_oct",
+                    "csv_id": "woob_cragr_00099887761_edf_oct",
                     "account_id": 1,
                     "is_coming": False,
                     "smart_suggested": True,
@@ -311,7 +311,7 @@ def test_fluctuating_recurrence_confirmed_debit_points_forecast(db_session):
     db_session.refresh(forecast)
     assert forecast.amount == 160.00
     assert "Auto-ajusté : 50.00 € → 160.00 €" in (forecast.comment or "")
-    assert forecast.csv_id == "woob_cragr_00099887760_edf_oct"
+    assert forecast.csv_id == "woob_cragr_00099887761_edf_oct"
     assert forecast.reconciliation_date is not None
     assert forecast.needs_review is False
 
@@ -354,7 +354,7 @@ def test_already_reconciled_legacy_csv_id_not_duplicated(db_session):
                     "already_reconciled": False,
                     "matched_db_id": None,
                     "category": "Telecoms",
-                    "csv_id": "woob_cragr_00099887760_20435904eeee",
+                    "csv_id": "woob_cragr_00099887761_20435904eeee",
                     "account_id": 1,
                     "is_coming": False,
                     "smart_suggested": True,
@@ -380,5 +380,5 @@ def test_already_reconciled_legacy_csv_id_not_duplicated(db_session):
     assert len(all_txs) == 1
     assert all_txs[0].id == 2394
     # Le csv_id a été mis à jour avec le vrai remote_id Woob
-    assert all_txs[0].csv_id == "woob_cragr_00099887760_20435904eeee"
+    assert all_txs[0].csv_id == "woob_cragr_00099887761_20435904eeee"
 

@@ -228,7 +228,7 @@ BATCH_SMART_LABEL_SYSTEM_PROMPT = (
     "You will receive a list of transaction descriptions, a list of authorized categories, and optionally a list of the user's typical transaction naming habits.\n"
     "For each transaction description, your task is to return:\n"
     "1. 'name': A clean commercial merchant name or a matching user habit name (e.g. 'Leroy Merlin', 'Spotify', 'Amazon'). "
-    "For person-to-person transfers or payment apps (Wero, Paylib, Lydia, Virement), preserve the person's name or full transfer intent (e.g. 'Wero - Yoann Blanca' or 'Yoann Blanca'), NEVER output just the standalone app name like 'Wero' or 'Paylib'. "
+    "For person-to-person transfers or payment apps (Wero, Paylib, Lydia, Virement), preserve the person's name or full transfer intent (e.g. 'Wero - Lucas Blanca' or 'Lucas Blanca'), NEVER output just the standalone app name like 'Wero' or 'Paylib'. "
     "Do NOT add conversational filler, sentence output, or emojis. If unsure, return null.\n"
     "2. 'category': The single most appropriate category. PREFER categories from the authorized list. If none truly fits, you may propose a concise new category name (2-3 words max, Capitalized, e.g. 'Jardinage', 'Animaux'). Do NOT use generic words like 'Achat', 'Dépense', 'Autre', 'Inconnu'. If totally unsure, return null.\n"
     "Rules:\n"

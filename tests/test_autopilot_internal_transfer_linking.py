@@ -242,7 +242,7 @@ def test_cross_batch_mirror_transfer_recognition_on_already_reconciled(db_sessio
         from_account_id=acc_courant.id,
         to_account_id=acc_livret.id,
         reconciliation_date=date(2026, 9, 15),
-        csv_id="woob_cragr_00099887760_4c869e488e9c"
+        csv_id="woob_cragr_00099887761_4c869e488e9c"
     )
     db_session.add(tx_existing)
     db_session.commit()
@@ -261,7 +261,7 @@ def test_cross_batch_mirror_transfer_recognition_on_already_reconciled(db_sessio
                         "amount": 250.0,
                         "raw_amount": 250.0,
                         "category": "Revenus divers",
-                        "csv_id": "woob_cragr_00099887760_credit_250",
+                        "csv_id": "woob_cragr_00099887762_credit_250",
                         "is_coming": False,
                         "is_reconciled": False
                     }
@@ -278,7 +278,7 @@ def test_cross_batch_mirror_transfer_recognition_on_already_reconciled(db_sessio
         tx_amount=250.0,
         bank_label="DE M. DUPONT MARTIN",
         account_id=acc_livret.id,
-        csv_id="woob_cragr_00099887760_credit_250"
+        csv_id="woob_cragr_00099887762_credit_250"
     )
 
     assert match_res is not None
