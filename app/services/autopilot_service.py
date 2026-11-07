@@ -37,6 +37,13 @@ from app.services.bank_sync_scheduler import (
 logger = logging.getLogger(__name__)
 
 
+def _utc_iso(dt: Optional[datetime]) -> Optional[str]:
+    """Date enregistrée en UTC (sans fuseau dans SQLite) : ISO avec fuseau, pour que le navigateur la convertisse."""
+    if dt is None:
+        return None
+    return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).isoformat()
+
+
 def is_autopilot_enabled(db: Session) -> bool:
     """Vérifie si le mode Auto-Pilote est actif dans global_config."""
     try:
@@ -355,6 +362,11 @@ def process_incoming_batch(
     batch_id = str(uuid.uuid4())
     logger.info(f"[AutoPilot] Début du cycle d'ingestion autonome (lot {batch_id}, connexion={conn_id}, profil={pid})")
     threshold = get_auto_reconcile_threshold(db)
+
+    # Comptes dont c'est le premier relevé : leur solde de départ sera recalé sur la banque une fois le lot écrit
+    from app.services.bank_sync.opening_balance import accounts_without_bank_history, align_opening_balances
+    first_statement_ids = accounts_without_bank_history(
+        db, (acc.get("account_id") for acc in preview_data.get("accounts", [])))
 
     # 2. Enrichissement Smart Labels si non déjà appliqué
     try:
@@ -1157,6 +1169,12 @@ def process_incoming_batch(
         except Exception as pair_err:
             logger.warning(f"[AutoPilot] Réunion des virements internes du relevé non faite : {pair_err}")
 
+        # 2.C Premier relevé d'un compte : solde de départ recalé pour que le solde pointé égale la banque
+        try:
+            align_opening_balances(db, preview_data.get("accounts", []), first_statement_ids)
+        except Exception as ob_err:
+            logger.warning(f"[AutoPilot] Solde de départ non recalé : {ob_err}")
+
         # 3. Mise à jour du Sas pour les opérations résiduelles
         if pending_count > 0:
             residual_preview = dict(preview_data)
@@ -1536,6 +1554,8 @@ def get_autopilot_decisions_feed(
                     or snap.get("amount")
                     or 0.0
                 )
+        if d.decision_type == "recurrence_promotion":
+            raw_amt = -abs(float(raw_amt))  # une récurrence créée est une charge fixe, pas une recette
 
         if is_manual_link:
             lbl = src_snap.get("description") or bank_tx.get("description") or snap.get("description") or (live_tx.description if live_tx else "Opération liée")
@@ -2366,7 +2386,7 @@ def get_operations_automations_history(db: Session, limit: int = 5) -> List[Dict
             "category": bank_tx.get("category") or snap.get("after", {}).get("category") or "—",
             "confidence_score": d.confidence_score,
             "reason": snap.get("decision_reason") or ("deviant_reconciled" if d.action == "AUTO_RECONCILED_DEVIANT" else "high_confidence"),
-            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "created_at": _utc_iso(d.created_at),
         })
     return results
 
@@ -2391,7 +2411,7 @@ def get_smart_labels_automations_history(db: Session, limit: int = 5) -> List[Di
             "category": r.category or "—",
             "is_multi_category": bool(r.is_multi_category),
             "is_provisional": False,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "created_at": _utc_iso(r.created_at),
         })
     return results
 

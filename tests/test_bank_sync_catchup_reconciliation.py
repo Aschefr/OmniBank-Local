@@ -130,7 +130,7 @@ def add_pointed_line(db, day, amount=10.0):
 def test_reconciled_transaction_takes_the_bank_amount(db, bank):
     """Le moteur connaît l'écart ; le relevé doit le transmettre, sinon le solde pointé reste faux."""
     forecast = add_forecast(db, "Forfait Orange", 14.99, days_ago(10), category="Telecoms")
-    bank([(days_ago(10), -46.79, "ORANGE SA-ORANGE")])
+    bank([(days_ago(10), -46.79, "ORANGE SA-ORANGE")], balance=953.21)
 
     run_statement(db)
     db.refresh(forecast)
@@ -150,7 +150,7 @@ def test_close_amount_does_not_take_the_forecast_of_an_exact_amount(db, bank):
         (days_ago(20), -10.0, TAX_LABEL),
         (days_ago(19), -72.0, TAX_LABEL),
         (days_ago(9), -331.0, TAX_LABEL),
-    ])
+    ], balance=587.0)
 
     run_statement(db)
     db.refresh(monthly)
@@ -170,7 +170,7 @@ def test_forecast_of_the_same_statement_does_not_make_a_line_suspect(db, bank):
     bank([
         (days_ago(25), -49.99, "Free Telecom"),
         (days_ago(5), -49.99, "PayPal Europe"),
-    ])
+    ], balance=900.02)
 
     run_statement(db)
     db.refresh(forecast)

@@ -610,6 +610,11 @@ window.OverviewView = {
                         typeLabel = window.i18n.t('autopilot_action_recurrence_closed') || 'Abonnement clôturé';
                         tooltipText = window.i18n.t('autopilot_action_recurrence_closed_desc') || 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.';
                         icon = '🔒';
+                    } else if (d.decision_type === 'recurrence_promotion' && d.details && d.details.decision_reason === 'first_month_fixed') {
+                        badgeClass = 'badge-purple';
+                        typeLabel = window.i18n.t('autopilot_action_first_month_recurrence') || 'Récurrence (1er mois)';
+                        tooltipText = window.i18n.t('autopilot_action_first_month_recurrence_desc') || '';
+                        icon = '🔄';
                     } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
                         badgeClass = 'badge-purple';
                         typeLabel = window.i18n.t('autopilot_action_promoted') || 'Récurrence';
@@ -1162,6 +1167,12 @@ window.OverviewView = {
         return { rav: currentRav, plannedInc, ravWithInc };
     },
 
+    _liquidBalance(stats) {
+        if (!stats) return 0;
+        if (stats.liquid_net_worth !== undefined && stats.liquid_net_worth !== null) return stats.liquid_net_worth;
+        return stats.net_worth !== undefined ? stats.net_worth : 0;
+    },
+
     _calculateProjection(stats) {
         const isOrgMode = window.app?.config?.enable_org_mode === 'true' || window.app?.config?.enable_org_mode === true;
         const hasPayCycle = !isOrgMode && !!(stats && stats.next_pay_date);
@@ -1205,7 +1216,8 @@ window.OverviewView = {
             }
         }
 
-        let baseBalance = (stats && stats.net_worth !== undefined) ? stats.net_worth : 0;
+        // Tous comptes : la trésorerie (comptes et livrets), sans le capital restant dû des prêts
+        let baseBalance = this._liquidBalance(stats);
         if (this._selectedAccountId && this._accountsMap[this._selectedAccountId]) {
             baseBalance = this._accountsMap[this._selectedAccountId].balance || 0;
         }
@@ -1733,7 +1745,7 @@ window.OverviewView = {
         let plannedVariant = 'planned-green';
 
         // Variables Mode Organisation spécifiques
-        let orgGrossBalance = (stats && stats.net_worth !== undefined) ? stats.net_worth : 0;
+        let orgGrossBalance = this._liquidBalance(stats);
         if (accIdStr && this._accountsMap[this._selectedAccountId]) {
             orgGrossBalance = this._accountsMap[this._selectedAccountId].balance || 0;
         }

@@ -162,3 +162,49 @@ def test_migration_leaves_other_profiles_alone(db):
     v35.upgrade(db.connection())
     db.commit()
     assert _cfg(db, "auto_promote_recurrences") is None
+
+
+def test_first_statement_aligns_the_opening_balance_with_the_bank(db):
+    set_autopilot_enabled(db, True, preset="full")
+    cc = Account(name="Compte courant", type="Compte courant", initial_balance=1000.0)  # solde du jour, à la création
+    db.add(cc)
+    db.commit()
+    lines = [_line(cc, 20, -300.0, "CB SUPER U", 21), _line(cc, 10, 2000.0, "VIR SALAIRE ACME", 22)]
+    preview = {"connection_id": 1, "accounts": [{"account_id": cc.id, "account_name": cc.name, "bank_balance": 1000.0,
+                                                 "transactions": lines}]}
+    process_incoming_batch(db, conn_id=1, preview_data=preview)
+    from app.services.finance_engine import calculate_balances
+    db.refresh(cc)
+    assert cc.initial_balance == -700.0
+    assert round(calculate_balances(db, only_reconciled=True)[cc.id], 2) == 1000.0
+    # Relevé suivant : le compte a son historique, plus de recalage
+    preview2 = {"connection_id": 1, "accounts": [{"account_id": cc.id, "account_name": cc.name, "bank_balance": 9999.0,
+                                                  "transactions": [_line(cc, 1, -50.0, "CB BOULANGERIE", 23)]}]}
+    process_incoming_batch(db, conn_id=1, preview_data=preview2)
+    db.refresh(cc)
+    assert cc.initial_balance == -700.0
+
+
+def test_the_bank_announced_next_debit_stands_in_for_the_forecast(db):
+    set_autopilot_enabled(db, True, preset="full")
+    cc = Account(name="Compte courant", type="Compte courant", initial_balance=0)
+    db.add(cc)
+    db.commit()
+    coming = _line(cc, -2, -171.07, "GC RE OCTOPUS ENERGY", 31)   # dans 2 jours, annoncée par la banque
+    coming.update({"is_coming": True, "csv_id": "woob_coming_fm_31"})
+    preview = {"connection_id": 1, "accounts": [{"account_id": cc.id, "account_name": cc.name, "transactions": [
+        _line(cc, 29, -171.07, "GC RE OCTOPUS ENERGY", 30), coming]}]}
+    process_incoming_batch(db, conn_id=1, preview_data=preview)
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.amount == 171.07).one()
+    soon = db.query(Transaction).filter(Transaction.recurrence_id == tpl.id, Transaction.reconciliation_date.is_(None),
+                                        Transaction.date_operation <= date.today() + timedelta(days=20)).all()
+    assert [t.csv_id for t in soon] == ["woob_coming_fm_31"]  # pas de prévision en double à côté
+
+
+def test_decision_times_carry_their_time_zone():
+    from datetime import datetime
+    from app.schemas.api_schemas import AutopilotDecisionItem
+    item = AutopilotDecisionItem(id=1, batch_id="b", decision_type="new_entry", action="AUTO_COMMIT",
+                                 entity_type="transaction", label="x", amount=-1.0,
+                                 created_at=datetime(2026, 11, 7, 17, 57, 34))
+    assert item.model_dump_json().count("2026-11-07T17:57:34Z") == 1

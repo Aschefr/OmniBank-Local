@@ -1,6 +1,14 @@
 from pydantic import BaseModel, field_validator, ConfigDict, Field
 from typing import Optional, List, Dict, Any
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+
+
+def _as_utc(v: Optional[datetime]) -> Optional[datetime]:
+    """Les dates enregistrées en UTC reviennent de SQLite sans fuseau : sans lui, le navigateur les lit en heure
+    locale et les décale (« il y a 1 h » pour une décision de quelques minutes)."""
+    if v is not None and v.tzinfo is None:
+        return v.replace(tzinfo=timezone.utc)
+    return v
 
 
 def _validate_date_range(v: Optional[date]) -> Optional[date]:
@@ -383,6 +391,8 @@ class AutopilotDecisionLogOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    _utc_dates = field_validator("undone_at", "created_at")(_as_utc)
+
 
 class FileAccountMappingRequest(BaseModel):
     section_title: str
@@ -467,6 +477,8 @@ class AutopilotDecisionItem(BaseModel):
     created_at: Optional[datetime] = None
     details: Optional[Dict[str, Any]] = None
     user_override: Optional[Dict[str, Any]] = None
+
+    _utc_dates = field_validator("undone_at", "created_at")(_as_utc)
 
 
 class AutopilotDecisionFeedOut(BaseModel):

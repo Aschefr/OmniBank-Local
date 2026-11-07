@@ -110,6 +110,19 @@ def propose_first_month_recurrences(db: Session, account_id: int, batch_id: Opti
         db.add(tpl)
         db.flush()
         tx.recurrence_id = tpl.id
+        # Échéance suivante déjà annoncée par la banque (« à venir ») : elle tient lieu de prévision pour ce mois-là
+        announced = db.query(Transaction).filter(
+            Transaction.from_account_id == account_id,
+            Transaction.reconciliation_date.is_(None),
+            Transaction.csv_id.isnot(None),
+            Transaction.recurrence_id.is_(None),
+            Transaction.amount == amt,
+            Transaction.date_operation >= op_date + timedelta(days=20),
+            Transaction.date_operation <= op_date + timedelta(days=40),
+        ).first()
+        if announced:
+            announced.recurrence_id = tpl.id
+            announced.type = "expense_fixed"
         taken_amounts.add(amt)
         record_action(db, "recurrence_template", tpl.id, "CREATE", None, snapshot_entity(tpl),
                       user_name="Automatisme (Récurrence 1er mois)")

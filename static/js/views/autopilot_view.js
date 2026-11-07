@@ -2232,7 +2232,7 @@ window.AutopilotView = {
             icon = '🔒 ';
         } else if (reason === 'budget_recurrence_sync') {
             icon = '🔄 ';
-        } else if (reason === 'internal_transfer') {
+        } else if (reason === 'internal_transfer' || reason === 'internal_transfer_same_statement' || reason === 'first_month_fixed') {
             icon = '🔄 ';
         } else if (reason === 'budget_enrichment') {
             icon = '➕ ';
