@@ -38,6 +38,7 @@ from app.migrations.versions import (
     v32_chat_variants,
     v33_budget_update_notice,
     v34_forecast_snapshots,
+    v35_full_preset_recurrence_promotion,
 )
 
 ALL_MIGRATIONS: List[Migration] = [
@@ -74,4 +75,5 @@ ALL_MIGRATIONS: List[Migration] = [
     Migration(v32_chat_variants.VERSION, v32_chat_variants.DESCRIPTION, v32_chat_variants.upgrade),
     Migration(v33_budget_update_notice.VERSION, v33_budget_update_notice.DESCRIPTION, v33_budget_update_notice.upgrade),
     Migration(v34_forecast_snapshots.VERSION, v34_forecast_snapshots.DESCRIPTION, v34_forecast_snapshots.upgrade),
+    Migration(v35_full_preset_recurrence_promotion.VERSION, v35_full_preset_recurrence_promotion.DESCRIPTION, v35_full_preset_recurrence_promotion.upgrade),
 ]

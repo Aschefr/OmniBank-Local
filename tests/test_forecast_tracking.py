@@ -307,7 +307,7 @@ def test_migration_creates_the_table_and_can_run_twice():
     from app.migrations.versions.v34_forecast_snapshots import upgrade
     from sqlalchemy import inspect
 
-    assert ALL_MIGRATIONS[-1].version == TARGET_SCHEMA_VERSION == 34
+    assert ALL_MIGRATIONS[-1].version == TARGET_SCHEMA_VERSION == 35
     fresh = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     with fresh.begin() as conn:
         upgrade(conn)

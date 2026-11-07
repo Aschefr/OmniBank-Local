@@ -161,6 +161,13 @@ _PROCESSOR_PAIRS = (("GC", "RE"),)  # GoCardless
 _UEP_SUBCODES = {"ALIM", "DAC"}  # codes Système U : rayon alimentation, pompe à carburant
 _CARD_PREFIX = re.compile(r'^X\d{4}\s')
 _CARD_LABEL_WIDTH = 26  # largeur des libellés de carte du Crédit Agricole : au-delà, le dernier mot est tronqué
+# Libellés qu'aucun nettoyage ne rend lisibles : nom fixe, cherché dans le libellé brut en majuscules
+_FIXED_NAMES = [
+    (re.compile(r'^\d*(\d{4}) ECHEANCE\b'), 'Échéance prêt …{}'),
+    (re.compile(r'^\d{5,} CREDIT AGRICOLE\b'), 'Assurance Crédit Agricole'),  # cotisation Pacifica
+    (re.compile(r'^CRCAM\b'), 'Prêt Crédit Agricole'),
+    (re.compile(r'\b(?:DGFIP|DIRECTION GENERALE DES FINANCES|FINANCES PUBLIQUES|TRESOR PUBLIC)\b'), 'Impôts (DGFiP)'),
+]
 
 
 def display_name_from_label(raw: str) -> str:
@@ -169,6 +176,11 @@ def display_name_from_label(raw: str) -> str:
     base = normalize_raw_label(raw)
     if not base:
         return (raw or "").strip()
+    raw_upper = re.sub(r'\s+', ' ', (raw or '').upper()).strip()
+    for pattern, name in _FIXED_NAMES:
+        m = pattern.search(raw_upper)
+        if m:
+            return name.format(*m.groups())
     text = _AFTER_BRANCH.sub(' ', base)
     had_legal_form = bool(_LEGAL_FORMS.search(text))
     text = _LEGAL_FORMS.sub(' ', text)
@@ -196,4 +208,7 @@ def display_name_from_label(raw: str) -> str:
             continue
         kept.append(t)
     name = " ".join(kept).strip()
-    return name.title() if name else base.title()
+    if not name:
+        return base.title()
+    # « Wero vers Jean D » : « vers » reste en minuscules
+    return re.sub(r"(?<=\s)Vers(?=\s)", "vers", name.title())

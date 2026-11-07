@@ -106,6 +106,13 @@ window.AutopilotView = {
             iconKey: 'repeat',
             items: [
                 {
+                    key: 'auto_promote_recurrences',
+                    labelKey: 'autopilot_subtoggle_auto_promote_recurrences',
+                    label: 'Création automatique des récurrences',
+                    descKey: 'autopilot_subtoggle_auto_promote_recurrences_desc',
+                    desc: 'Crée les récurrences des charges fixes (prêt, assurance, box, énergie) dès leur premier prélèvement, et celles des abonnements après 3 échéances consécutives.'
+                },
+                {
                     key: 'auto_link_deviant_recurrences',
                     labelKey: 'autopilot_subtoggle_auto_link_deviant_recurrences',
                     label: 'Rapprochement déviant tolérant',
@@ -232,7 +239,7 @@ window.AutopilotView = {
                             <button type="button" class="btn ap-header-btn" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" title="${window.i18n ? window.i18n.t('autopilot_view_last_statement_tooltip') || 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote' : 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote'}">
                                 <span class="ap-btn-icon">📋</span> <span class="ap-btn-label" data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                             </button>
-                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 14 automatismes et le seuil'}">
+                            <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}">
                                 <span class="ap-btn-icon">${this._icons.settings}</span>
                                 <span class="ap-btn-label ap-btn-label-full" data-i18n="autopilot_settings_and_bricks">${window.i18n ? window.i18n.t('autopilot_settings_and_bricks') : 'Réglages & Automatismes'}</span>
                                 <span class="ap-btn-label ap-btn-label-short" data-i18n="autopilot_settings_short" style="display: none;">${window.i18n ? (window.i18n.t('autopilot_settings_short') || 'Réglages') : 'Réglages'}</span>
@@ -589,18 +596,18 @@ window.AutopilotView = {
                                 <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()">
                                     <div class="ap-preset-btn-top">
                                         <div class="ap-preset-btn-title">
-                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/14)</span>
+                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/15)</span>
                                         </div>
                                         <span id="presetCheckCustom" class="ap-preset-active-badge ap-preset-active-custom">✓ Actif</span>
                                     </div>
                                     <div class="ap-preset-btn-desc" data-i18n="autopilot_preset_custom_desc">
-                                        ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 14 briques modulaires ci-dessous'}
+                                        ${window.i18n ? (window.i18n.t('autopilot_preset_custom_desc') || 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous') : 'Sélection sur-mesure de vos 15 briques modulaires ci-dessous'}
                                     </div>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Block 2 : 14 Automatismes Modulaires Container -->
+                        <!-- Block 2 : 15 Automatismes Modulaires Container -->
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h4 style="font-size: 13.5px; margin: 0; font-weight: 700; display: flex; align-items: center; gap: 6px;">
@@ -1162,7 +1169,7 @@ window.AutopilotView = {
                 }
                 const totalBriques = (this._subtogglesDef && this._subtogglesDef.length > 0)
                     ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0)
-                    : 14;
+                    : 15;
                 if (activeCount === 0) {
                     activeCount = status.preset === 'full' ? totalBriques : (status.preset === 'balanced' ? 7 : 0);
                 }
@@ -1563,12 +1570,12 @@ window.AutopilotView = {
                 badge.style.color = 'var(--accent)';
                 badge.style.border = '1px solid var(--accent)';
             } else if (preset === 'full') {
-                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (14)';
+                badge.textContent = window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)';
                 badge.style.background = 'rgba(16, 185, 129, 0.15)';
                 badge.style.color = '#10b981';
                 badge.style.border = '1px solid #10b981';
             } else {
-                badge.textContent = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_preset_custom', { active: activeCount }) : window.i18n.t('autopilot_preset_custom').replace('{active}', activeCount)) : `Personnalisé (${activeCount}/14)`;
+                badge.textContent = window.i18n ? (window.i18n.tp ? window.i18n.tp('autopilot_preset_custom', { active: activeCount }) : window.i18n.t('autopilot_preset_custom').replace('{active}', activeCount)) : `Personnalisé (${activeCount}/15)`;
                 badge.style.background = 'rgba(245, 158, 11, 0.15)';
                 badge.style.color = '#f59e0b';
                 badge.style.border = '1px solid #f59e0b';
@@ -1977,7 +1984,7 @@ window.AutopilotView = {
                 tagBadge.style.color = 'var(--accent)';
                 tagBadge.style.borderColor = 'var(--accent)';
             } else {
-                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_custom')?.replace('{active}', activeCount) || `Personnalisé (${activeCount}/14)`) : `Personnalisé (${activeCount}/14)`;
+                tagBadge.textContent = window.i18n ? (window.i18n.t('autopilot_preset_custom')?.replace('{active}', activeCount) || `Personnalisé (${activeCount}/15)`) : `Personnalisé (${activeCount}/15)`;
                 tagBadge.style.background = 'rgba(245, 158, 11, 0.2)';
                 tagBadge.style.color = '#f59e0b';
                 tagBadge.style.borderColor = '#f59e0b';
@@ -2306,6 +2313,11 @@ window.AutopilotView = {
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed') || 'Abonnement clôturé') : 'Abonnement clôturé';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed_desc') || 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.') : 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.';
             icon = '🔒';
+        } else if (d.decision_type === 'recurrence_promotion' && d.details && d.details.decision_reason === 'first_month_fixed') {
+            badgeClass = 'badge-purple';
+            typeLabel = window.i18n ? window.i18n.t('autopilot_action_first_month_recurrence') : 'Récurrence (1er mois)';
+            tooltipText = window.i18n ? window.i18n.t('autopilot_action_first_month_recurrence_desc') : 'Charge fixe vue une fois : récurrence mensuelle créée tout de suite. Annulez-la si elle ne revient pas chaque mois.';
+            icon = '🔄';
         } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
             badgeClass = 'badge-purple';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence';
@@ -3282,7 +3294,7 @@ window.AutopilotView = {
             const subtoggles = this._status.managed_subtoggles || {};
             const vals = Object.values(subtoggles);
             const active = vals.filter(Boolean).length;
-            const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 14;
+            const total = this._subtogglesDef ? this._subtogglesDef.reduce((acc, cat) => acc + (cat.items?.length || 0), 0) : 15;
             briquesBadge.textContent = `${active}/${total}`;
             briquesBadge.title = window.i18n ? window.i18n.t('autopilot_header_briques_badge_tooltip').replace('{active}', active).replace('{total}', total) : `${active} sur ${total} automatismes actifs`;
         }

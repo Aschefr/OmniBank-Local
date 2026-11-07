@@ -126,10 +126,10 @@ def test_t3_5_2_unknown_income_fallback_category(test_db):
 
     resolved = results["VIR INST MLLE CLAIRE MOREAU"]
     assert "Claire Moreau" in resolved["description"]
-    # Sans IA, un virement reçu d'une personne est reconnu comme tel (à vérifier) plutôt que « Revenus divers »
+    # Sans IA, un virement reçu d'une personne est reconnu comme tel, sans revue, plutôt que « Revenus divers »
     assert resolved["category"] == "Virements reçus"
     assert resolved["source"] == "keyword"
-    assert resolved["confidence"] < 0.85
+    assert resolved["confidence"] >= 0.85
 
     # Vérification que la table Category est intacte
     cat_in_db = (

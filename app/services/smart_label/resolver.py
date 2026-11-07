@@ -22,7 +22,7 @@ from .categories import (
     looks_like_income_category,
     match_category_from_text,
     resolve_fallback_category,
-    starter_category_for,
+    starter_match,
     strong_category_for,
 )
 from .learning import get_user_habit_descriptions
@@ -44,7 +44,7 @@ STARTING_PROFILE_MAX_CATEGORIES = 8
 STARTING_PROFILE_NEW_CATEGORIES_PER_BATCH = 15
 # Confiance d'un résultat qu'on ne doit pas tenir pour sûr (sous le seuil d'auto-validation, 70 au plus bas)
 _REVIEW_CONFIDENCE = 0.5
-# Catégorie de départ trouvée par mots-clés, sans IA : à vérifier (sous le seuil par défaut de 85)
+# Catégorie de départ trouvée par mots-clés, sans IA : à vérifier (sous le seuil par défaut de 85), sauf familles fiables
 _STARTER_CONFIDENCE = 0.8
 # Mot-clé sans ambiguïté (« DAC » = pompe à carburant) : tenu pour sûr
 _STRONG_CONFIDENCE = 0.9
@@ -910,15 +910,15 @@ def resolve_smart_labels_batch(
             (Category.is_closed == False) | (Category.is_closed == None)).all() if name}
         for raw in unresolved:
             expected_t = tx_types.get(raw) if tx_types else None
-            starter = starter_category_for(raw, expected_t)
+            starter = starter_match(raw, expected_t)
             if not starter:
                 continue
-            name, _flow = starter
+            name, _flow, reliable = starter
             results[raw].update({
                 "description": display_name_from_label(raw) or raw,
                 "category": existing.get(name.lower(), name),
                 "source": "keyword",
-                "confidence": _STARTER_CONFIDENCE,
+                "confidence": _STRONG_CONFIDENCE if reliable else _STARTER_CONFIDENCE,
                 "smart_is_new_category": name.lower() not in existing,
             })
 
@@ -943,12 +943,13 @@ def resolve_smart_labels_batch(
                 res["category"] = fallback_cat
                 res["smart_is_fallback"] = True
                 res["smart_suggested"] = True
+                # Fourre-tout : toujours à vérifier, et sa confiance ne dépasse pas celle d'une vraie catégorie
                 if res.get("source") == "none":
                     res["source"] = "fallback"
-                    res["confidence"] = 0.85
+                    res["confidence"] = _REVIEW_CONFIDENCE
                     res["description"] = display_name_from_label(raw)
                 elif res.get("source") in ("multi_category", "ambiguous"):
-                    res["confidence"] = 0.85
+                    res["confidence"] = _REVIEW_CONFIDENCE
                     if not res.get("is_manual"):
                         res["description"] = display_name_from_label(raw)
 

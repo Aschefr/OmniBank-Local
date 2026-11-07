@@ -501,7 +501,7 @@ def test_autopilot_subtoggle_endpoint(test_db):
     assert res_ok.status_code == 200
     data = res_ok.json()
     assert data["managed_subtoggles"]["bank_auto_sync_enabled"] is True
-    assert len(data["managed_subtoggles"]) == 14
+    assert len(data["managed_subtoggles"]) == 15
 
     # 3. Désactive une autre clé (ex: auto_propagate_recurrence_hikes)
     res_disable = client.post("/api/autopilot/subtoggle", json={"key": "auto_propagate_recurrence_hikes", "enabled": False})

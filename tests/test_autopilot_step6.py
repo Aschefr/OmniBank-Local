@@ -728,7 +728,7 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     assert data_full["is_enabled"] is True
     assert data_full["preset"] == "full"
     active_full = sum(1 for v in data_full["managed_subtoggles"].values() if v)
-    assert active_full == 14
+    assert active_full == 15
 
     for k in AUTOPILOT_FULL_KEYS:
         assert get_cfg(k) == "true"
@@ -740,7 +740,7 @@ def test_autopilot_presets_balanced_and_full(client, test_db):
     data_custom = res_status.json()
     assert data_custom["preset"] == "custom"
     active_custom = sum(1 for v in data_custom["managed_subtoggles"].values() if v)
-    assert active_custom == 13
+    assert active_custom == 14
 
 
 def test_autopilot_threshold_reconciled_and_validated_guardrails(client, test_db):

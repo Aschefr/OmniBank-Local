@@ -230,7 +230,8 @@ STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
     ("Remboursements", "income", ("remboursement", "remboursements", "rembt", "avoir", "refund")),
     ("Intérêts", "income", ("interets", "interet", "remuneration livret")),
     ("Aides et allocations", "income", ("caf", "cpam", "ameli", "france travail", "pole emploi", "allocation", "allocations")),
-    ("Carburant", "expense", ("carburant", "carburants", "essence", "gazole", "diesel", "dac", "esso", "avia", "station service")),
+    ("Carburant", "expense", ("carburant", "carburants", "essence", "gazole", "diesel", "dac", "esso", "avia", "station service",
+                              "totalenergies relais", "total relais")),
     ("Péages et parking", "expense", ("peage", "peages", "autoroute", "autoroutes", "aprr", "sanef", "fulli", "ulys",
                                        "bip go", "parking", "stationnement", "indigo")),
     ("Courses", "expense", ("alim", "carrefour", "leclerc", "auchan", "intermarche", "super u", "hyper u", "systeme u",
@@ -250,7 +251,7 @@ STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
     ("Télécoms et internet", "expense", ("orange", "sosh", "sfr", "bouygues", "free telecom", "free mobile", "freebox",
                                          "b you")),
     ("Énergie", "expense", ("edf", "engie", "octopus", "ekwateur", "totalenergies", "veolia", "saur", "suez")),
-    ("Prêts et crédits", "expense", ("echeance", "pret", "emprunt", "credit conso")),
+    ("Prêts et crédits", "expense", ("echeance", "pret", "emprunt", "credit conso", "crcam")),
     ("Frais bancaires", "expense", ("cotisation", "commission", "commissions", "agios", "frais tenue", "offre essentiel")),
     ("Abonnements", "expense", ("netflix", "spotify", "deezer", "disney", "canal", "prime video", "youtube", "google one",
                                 "icloud", "apple com", "adobe", "microsoft", "openai", "chatgpt", "anthropic", "patreon",
@@ -328,11 +329,26 @@ def is_fixed_category_name(name: Optional[str]) -> bool:
     return any(w in clean for w in _FIXED_CATEGORY_WORDS)
 
 
-def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str]]:
-    """Catégorie de départ suggérée par mots-clés : (nom, 'income'|'expense') ou None. N'écrit rien en base."""
+# Familles où un mot-clé suffit (pas de revue) : un opérateur télécom, un fournisseur d'énergie, un assureur nommé,
+# une échéance de prêt ou un virement à une personne ne se trompent pas de catégorie. Les autres (courses, santé,
+# shopping…) restent à vérifier : enseignes qui vendent de tout, mots courts (« dr »). Exceptions au mot près.
+RELIABLE_STARTER_FAMILIES = {"Télécoms et internet", "Énergie", "Prêts et crédits", "Assurances", "Frais bancaires",
+                             "Abonnements", P2P_EXPENSE_CATEGORY, P2P_INCOME_CATEGORY}
+# cotisation d'association ; CRCAM = prêt le plus souvent ; TotalEnergies vend aussi du carburant
+_UNRELIABLE_STARTER_KEYWORDS = {"cotisation", "crcam", "totalenergies"}
+
+# Prélèvement de la banque elle-même précédé d'un numéro de contrat (« 0123456 CREDIT AGRICOLE CENTRE E ») : cotisation
+# d'assurance (Pacifica). Les échéances de prêt portent « ECHEANCE », les frais leur propre libellé.
+_BANK_CONTRACT_DEBIT = re.compile(r"^\d{5,} (credit agricole|ca)\b")
+
+
+def starter_match(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str, bool]]:
+    """Catégorie de départ par mots-clés : (nom, 'income'|'expense', fiable) ou None. N'écrit rien en base."""
     raw_clean = _clean_token_str(text)
     if not raw_clean:
         return None
+    if tx_type != "income" and _BANK_CONTRACT_DEBIT.match(raw_clean):
+        return "Assurances", "expense", False
     tokens = set(raw_clean.split())
     padded = f" {raw_clean} "
     for name, flow, keywords in STARTER_CATEGORIES:
@@ -342,11 +358,17 @@ def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[T
             continue
         for kw in keywords:
             if (" " in kw and f" {kw} " in padded) or kw in tokens:
-                return name, flow
+                return name, flow, name in RELIABLE_STARTER_FAMILIES and kw not in _UNRELIABLE_STARTER_KEYWORDS
     p2p = person_transfer_category(text, tx_type)
     if p2p:
-        return p2p, "income" if p2p == P2P_INCOME_CATEGORY else "expense"
+        return p2p, "income" if p2p == P2P_INCOME_CATEGORY else "expense", True
     return None
+
+
+def starter_category_for(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str]]:
+    """Catégorie de départ suggérée par mots-clés : (nom, 'income'|'expense') ou None. N'écrit rien en base."""
+    found = starter_match(text, tx_type)
+    return found[:2] if found else None
 
 
 _INCOME_CATEGORY_WORDS = ("salaire", "remboursement", "aide", "allocation", "virement", "revenu", "interet",

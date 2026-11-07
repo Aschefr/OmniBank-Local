@@ -41,6 +41,7 @@ window.SetupWizard = {
         'enable_budget_creation_suggestions',
         'enable_budget_recalibration_suggestions',
         'bank_auto_sync_enabled',
+        'auto_promote_recurrences',
         'auto_link_deviant_recurrences',
         'auto_propagate_recurrence_hikes',
         'auto_skip_unreconciled_recurrences',
@@ -75,6 +76,7 @@ window.SetupWizard = {
             category: 'Récurrences & Abonnements',
             icon: '🔁',
             items: [
+                { key: 'auto_promote_recurrences', labelKey: 'autopilot_subtoggle_auto_promote_recurrences', label: 'Création automatique des récurrences', descKey: 'autopilot_subtoggle_auto_promote_recurrences_desc', desc: 'Crée les récurrences des charges fixes (prêt, assurance, box, énergie) dès leur premier prélèvement, et celles des abonnements après 3 échéances consécutives.' },
                 { key: 'auto_link_deviant_recurrences', labelKey: 'autopilot_subtoggle_auto_link_deviant_recurrences', label: 'Rapprochement déviant tolérant', descKey: 'autopilot_subtoggle_auto_link_deviant_recurrences_desc', desc: 'Rapproche les prélèvements récurrents dont le montant fluctue dans une fourchette tolérée de ±15%.' },
                 { key: 'auto_propagate_recurrence_hikes', labelKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes', label: 'Propagation automatique des hausses', descKey: 'autopilot_subtoggle_auto_propagate_recurrence_hikes_desc', desc: 'Ajuste le montant prévisionnel d\'un abonnement lorsqu\'une hausse tarifaire est constatée sur 3 échéances consécutives.' },
                 { key: 'auto_skip_unreconciled_recurrences', labelKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences', label: 'Saut d\'échéance automatique', descKey: 'autopilot_subtoggle_auto_skip_unreconciled_recurrences_desc', desc: 'Marque comme passée toute échéance récurrente non constatée à la fin du mois sans altérer le template.' },
@@ -1109,24 +1111,24 @@ window.SetupWizard = {
                         <!-- Sélecteur de profil d'autonomie -->
                         <div class="wizard-presets-grid">
                             <div id="wizPresetBalanced" class="wizard-preset-card ${this._autopilotPreset === 'balanced' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('balanced')">
-                                <span class="wizard-preset-badge">🛡️ 7/14 • Recommandé</span>
+                                <span class="wizard-preset-badge">🛡️ 7/15 • Recommandé</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_balanced">${window.i18n.t('autopilot_wizard_preset_balanced') || 'Mode Équilibré'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_balanced_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_balanced_desc') || 'Rapprochements haute certitude, apprentissage marchands, synchro en arrière-plan et suggestions budgétaires avec validation.'}
                                 </div>
                             </div>
                             <div id="wizPresetFull" class="wizard-preset-card full-preset ${this._autopilotPreset === 'full' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('full')">
-                                <span class="wizard-preset-badge">⚡ 14/14 • Max</span>
+                                <span class="wizard-preset-badge">⚡ 15/15 • Max</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_full">${window.i18n.t('autopilot_wizard_preset_full') || 'Autonomie Totale'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_full_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_full_desc') || '100% autonome : auto-création d\'enveloppes, auto-application des budgets, auto-clôture des récurrences.'}
                                 </div>
                             </div>
                             <div id="wizPresetCustom" class="wizard-preset-card custom-preset ${this._autopilotPreset === 'custom' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('custom')">
-                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/14 • Sur-mesure</span>
+                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/15 • Sur-mesure</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_custom">${window.i18n.t('autopilot_wizard_preset_custom') || 'Personnalisé'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_custom_desc">
-                                    ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 14 briques modulaires ci-dessous.'}
+                                    ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 15 briques modulaires ci-dessous.'}
                                 </div>
                             </div>
                         </div>
@@ -1143,11 +1145,11 @@ window.SetupWizard = {
                             </div>
                         </div>
 
-                        <!-- Accordéon déroulant pour les 14 automatismes -->
+                        <!-- Accordéon déroulant pour les 15 automatismes -->
                         <div>
                             <button type="button" class="wizard-accordion-btn" onclick="window.SetupWizard._toggleAutopilotAccordion()">
                                 <span style="display:flex; align-items:center; gap:6px;">
-                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 14 automatismes'}</span>
+                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 15 automatismes'}</span>
                                     <span id="wizSubtoggleCountBadge" class="wizard-preset-badge" style="font-size:10px;">${activeCount}/14</span>
                                 </span>
                                 <span id="wizAccordionIcon">${this._autopilotAccordionOpen ? '▲' : '▼'}</span>
@@ -1325,7 +1327,7 @@ window.SetupWizard = {
         }
         const countBadge = document.getElementById('wizSubtoggleCountBadge');
         if (countBadge) {
-            countBadge.textContent = `${activeCount}/14`;
+            countBadge.textContent = `${activeCount}/15`;
         }
     },
 
@@ -1552,7 +1554,7 @@ window.SetupWizard = {
                         ${this._autopilotEnabled ? `
                         <div class="wizard-recap-item">
                             <span data-i18n="autopilot_wizard_recap_preset">${window.i18n.t('autopilot_wizard_recap_preset') || 'Profil d\'autonomie'}</span>
-                            <strong>${selectedPresetName} (${activeCount}/14)</strong>
+                            <strong>${selectedPresetName} (${activeCount}/15)</strong>
                         </div>
                         <div class="wizard-recap-item">
                             <span data-i18n="autopilot_wizard_recap_threshold">${window.i18n.t('autopilot_wizard_recap_threshold') || 'Seuil de confiance'}</span>

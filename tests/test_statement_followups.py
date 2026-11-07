@@ -57,6 +57,7 @@ def test_both_sides_of_an_internal_transfer_in_one_statement_become_one_transfer
     t = transfers[0]
     assert (t.from_account_id, t.to_account_id, t.amount) == (cc.id, livret.id, 250.0)
     assert t.category == "Virement interne" and t.needs_review is False
+    assert t.description == "Compte courant → Livret A"  # « WEB VERS LIVRET » ne disait rien
     assert db.query(Transaction).filter(Transaction.amount == 250.0).count() == 1
     # Une échéance vers un compte de prêt reste une dépense
     assert db.query(Transaction).filter(Transaction.amount == 499.63, Transaction.type == "expense_var").count() == 1

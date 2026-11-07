@@ -22,6 +22,7 @@ TRANSFER_CATEGORY = "Virement interne"
 MAX_DAYS_APART = 15
 REVIEW_DAYS_APART = 3  # au-delà, la paire est gardée mais à vérifier
 _LOAN_WORDS = ("prêt", "pret", "emprunt", "loan", "crédit", "credit")
+_LEARNED_REASONS = ("rule", "history")  # nom donné par une règle ou l'historique de l'utilisateur : on le garde
 
 
 def _is_loan(account: Account) -> bool:
@@ -33,7 +34,9 @@ def pair_internal_transfers(db: Session, created: List[Tuple[Transaction, Autopi
     Renvoie (virements formés, opérations à vérifier en moins)."""
     if len(created) < 2:
         return 0, 0
-    loan_ids = {a.id for a in db.query(Account).all() if _is_loan(a)}
+    accounts = db.query(Account).all()
+    loan_ids = {a.id for a in accounts if _is_loan(a)}
+    names = {a.id: a.name for a in accounts if a.name}
     outs = [(t, d) for t, d in created
             if t.type != "income" and t.from_account_id and not t.to_account_id and t.from_account_id not in loan_ids]
     ins = [(t, d) for t, d in created
@@ -67,6 +70,10 @@ def pair_internal_transfers(db: Session, created: List[Tuple[Transaction, Autopi
         ensure_category_exists(db, TRANSFER_CATEGORY, "transfer")
         out_tx.category = TRANSFER_CATEGORY
         out_tx.needs_review = days_apart > REVIEW_DAYS_APART
+        # « WEB M. NOM » ne dit rien : on nomme le virement par ses deux comptes, sauf nom appris de l'utilisateur
+        learned = json.loads(out_dec.raw_snapshot or "{}").get("decision_reason") in _LEARNED_REASONS
+        if not learned and out_tx.from_account_id in names and in_tx.to_account_id in names:
+            out_tx.description = f"{names[out_tx.from_account_id]} → {names[in_tx.to_account_id]}"
         out_tx.created_by = "Automatisme (Liaison Virement)"
         db.flush()
         record_action(db, "transaction", out_tx.id, "UPDATE", before, snapshot_entity(out_tx), user_name="Automatisme (Liaison Virement)")

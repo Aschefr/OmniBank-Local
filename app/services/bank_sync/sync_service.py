@@ -1162,6 +1162,7 @@ class BankSyncService:
         # Étape 4 & 4.5 Auto-Pilote : Détection périodique des récurrences, promotions & cycle de vie
         try:
             from app.services.recurrence_detector import process_recurrence_promotions, process_auto_skipping
+            from app.services.first_month_recurrences import propose_first_month_recurrences
             from app.profile_manager import get_active_profile
             active_pid = get_active_profile().get("id", "default")
             batch_identifier = f"sas_commit_{connection_id}"
@@ -1173,6 +1174,8 @@ class BankSyncService:
                         promo_accounts.add(tx_row.from_account_id)
             for acc_id in promo_accounts:
                 process_recurrence_promotions(db, acc_id, profile_id=active_pid, batch_id=batch_identifier)
+                propose_first_month_recurrences(db, acc_id, batch_id=batch_identifier, profile_id=active_pid)
+                db.commit()
                 process_auto_skipping(db, acc_id, profile_id=active_pid, batch_id=batch_identifier)
         except Exception as promo_err:
             logger.warning(f"[BankSync] Erreur lors des promotions de récurrence post-commit: {promo_err}")

@@ -29,7 +29,7 @@ def db():
     ("AMAZON EU SARL, SUCCURSALE FRANC", "Amazon Eu"),
     ("ACME REINFORCEMENTS ACME REI", "Acme Reinforcements"),
     ("X1234 GOOGLE*GOOGLE ONE DU", "Google One"),
-    ("Wero vers JEAN D", "Wero Vers Jean D"),
+    ("Wero vers JEAN D", "Wero vers Jean D"),
     ("MOREAU CLAIRE AB12CD34EF56GH78", "Moreau Claire"),
 ])
 def test_display_name_without_ai(raw, name):

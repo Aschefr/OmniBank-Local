@@ -54,6 +54,7 @@ AUTOPILOT_MANAGED_KEYS = (
     "enable_budget_recalibration_suggestions",
     "auto_create_budget_envelopes",
     "auto_apply_budget_suggestions",
+    "auto_promote_recurrences",
     "auto_link_deviant_recurrences",
     "auto_propagate_recurrence_hikes",
     "auto_skip_unreconciled_recurrences",
@@ -87,6 +88,7 @@ AUTOPILOT_FULL_KEYS = (
     "enable_budget_creation_suggestions",
     "enable_budget_recalibration_suggestions",
     "bank_auto_sync_enabled",
+    "auto_promote_recurrences",
     "auto_link_deviant_recurrences",
     "auto_propagate_recurrence_hikes",
     "auto_skip_unreconciled_recurrences",
@@ -150,6 +152,23 @@ def _get_cfg_bool(db: Session, key: str, default: bool = False) -> bool:
         return default
 
 
+def _ensure_promotion_start_date(db: Session) -> None:
+    """Promotion des récurrences allumée sans date d'effet : on la pose 45 jours en arrière, comme l'écran des
+    récurrences. Le premier relevé d'un profil neuf compte, un vieil historique ne crée rien d'un coup."""
+    db.flush()
+    on = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_promote_recurrences").first()
+    if not (on and (on.value or "").strip().lower() in ("true", "1", "yes", "on")):
+        return
+    since = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_promote_recurrences_since").first()
+    if since and (since.value or "").strip():
+        return
+    value = (date.today() - timedelta(days=45)).isoformat()
+    if since:
+        since.value = value
+    else:
+        db.add(GlobalConfig(key="auto_promote_recurrences_since", value=value))
+
+
 def set_autopilot_preset(db: Session, preset: str) -> Dict[str, Any]:
     """Applique un profil d'autonomie ('balanced', 'full' ou 'custom')."""
     if preset not in ("balanced", "full", "custom"):
@@ -167,7 +186,8 @@ def set_autopilot_preset(db: Session, preset: str) -> Dict[str, Any]:
                 db.add(GlobalConfig(key=sub_key, value=val_str))
             else:
                 sc.value = val_str
-            
+        _ensure_promotion_start_date(db)
+
     cfg_preset = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_preset").first()
     if not cfg_preset:
         db.add(GlobalConfig(key="autopilot_preset", value=preset))
@@ -207,6 +227,7 @@ def set_autopilot_enabled(db: Session, enabled: bool, preset: Optional[str] = No
                     db.add(GlobalConfig(key=sub_key, value=v_str))
                 else:
                     sc.value = v_str
+            _ensure_promotion_start_date(db)
             cfg_p = db.query(GlobalConfig).filter(GlobalConfig.key == "autopilot_preset").first()
             if not cfg_p:
                 db.add(GlobalConfig(key="autopilot_preset", value=preset))
@@ -229,6 +250,9 @@ def set_autopilot_subtoggle(db: Session, key: str, enabled: bool) -> bool:
         db.add(cfg)
     else:
         cfg.value = val_str
+    if key == "auto_promote_recurrences":
+        db.flush()
+        _ensure_promotion_start_date(db)
 
     # Détecter et enregistrer le preset correspondant
     subtoggles = {}
@@ -1162,11 +1186,14 @@ def process_incoming_batch(
         promoted_recurrences = 0
         try:
             from app.services.recurrence_detector import process_recurrence_promotions, process_auto_skipping
+            from app.services.first_month_recurrences import propose_first_month_recurrences
             for acc in preview_data.get("accounts", []):
                 acc_id = acc.get("account_id")
                 if acc_id:
                     res_promo = process_recurrence_promotions(db, acc_id, profile_id=pid, batch_id=batch_id)
                     promoted_recurrences += res_promo.get("promoted_templates", 0)
+                    promoted_recurrences += propose_first_month_recurrences(db, acc_id, batch_id=batch_id, profile_id=pid)
+                    db.commit()
                     process_auto_skipping(db, acc_id, bank_balance=acc.get("bank_balance"), profile_id=pid, batch_id=batch_id)
         except Exception as promo_err:
             logger.warning(f"[AutoPilot] Avertissement lors de la détection/promotion des récurrences: {promo_err}")

@@ -336,8 +336,9 @@ def test_full_auto_promotion_n3(test_db):
 def test_autopilot_benchmark_end_to_end_4_months(test_db):
     """
     Exécute le cycle complet des 4 mois de relevés bancaires réels du benchmark :
-    - Mois 1 (Septembre) : Ingestion, Alma 1/3 borné créé, 0 template d'abonnement.
-    - Mois 2 (Octobre)   : Alma 2/3 honoré, charges candidates N=2 anticipées dans le RAV, 0 template ordinaire.
+    - Mois 1 (Septembre) : Ingestion, Alma 1/3 borné créé, charges fixes (EDF, Freebox) en récurrence dès le 1er mois,
+      0 template d'abonnement.
+    - Mois 2 (Octobre)   : Alma 2/3 honoré, EDF et Freebox rapprochées sur leur prévision, 0 nouveau template.
     - Mois 3 (Novembre)  : Bascule Full-Auto N=3 -> EXACTEMENT 4 templates actifs (Foncia, EDF, Freebox, Spotify), Alma 3/3 clôturé.
     - Mois 4 (Décembre)  : Rapprochement parfait sur prévisions existantes, 0 nouveau template, extinction confirmée Alma.
     """
@@ -381,9 +382,10 @@ def test_autopilot_benchmark_end_to_end_4_months(test_db):
     active_tpls_m1 = test_db.query(RecurrenceTemplate).filter(
         (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
     ).all()
-    # Uniquement Alma 3x créé (1 template actif)
-    assert len(active_tpls_m1) == 1
-    assert active_tpls_m1[0].max_occurrences == 3
+    # Alma 3x borné + EDF et Freebox, charges fixes reconnues dès le premier mois
+    assert len(active_tpls_m1) == 3
+    assert [t.max_occurrences for t in active_tpls_m1].count(3) == 1
+    assert sorted(t.amount for t in active_tpls_m1 if t.max_occurrences is None) == [34.99, 65.00]
 
     # 2. MOIS 2 : Octobre 2026
     res2 = _import_benchmark_month("mois_02_octobre_2026.csv")
@@ -392,8 +394,8 @@ def test_autopilot_benchmark_end_to_end_4_months(test_db):
     active_tpls_m2 = test_db.query(RecurrenceTemplate).filter(
         (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
     ).all()
-    # Toujours uniquement Alma (seuil N=3 non encore atteint pour les abonnements)
-    assert len(active_tpls_m2) == 1
+    # Rien de nouveau : seuil N=3 non encore atteint pour l'abonnement et le loyer
+    assert len(active_tpls_m2) == 3
 
     # 3. MOIS 3 : Novembre 2026 (Promotion Full-Auto N=3)
     res3 = _import_benchmark_month("mois_03_novembre_2026.csv")
