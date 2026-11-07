@@ -473,6 +473,7 @@
   "autopilot_review_th_desc": "Raw & Identified Label",
   "autopilot_review_th_forecast": "Detected Forecast Candidate",
   "autopilot_review_title": "Transactions to Review (Manual Review)",
+  "autopilot_review_propagated": "{count} transaction(s) to check adjusted from your correction",
   "autopilot_review_updated": "Operation successfully updated",
   "autopilot_review_validated": "Operation successfully confirmed",
   "autopilot_review_validated_toast": "Operation validated and confirmed",

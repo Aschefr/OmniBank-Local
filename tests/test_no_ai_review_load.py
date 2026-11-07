@@ -45,6 +45,8 @@ def db():
     ("CRCAM CENTRE-EST", ("Prêts et crédits", "expense", False)),             # mensualité de crédit, à vérifier
     ("X1234 AUCHAN SUP 247 VILLE", ("Courses", "expense", False)),            # enseigne qui vend de tout
     ("COTISATION ASSOCIATION", ("Frais bancaires", "expense", False)),        # pas forcément la banque
+    ("SURAVENIR", ("Épargne et placements", "expense", False)),               # assurance-vie, PER : de l'épargne
+    ("PRLV ASSURANCE VIE ACME", ("Épargne et placements", "expense", False)),
 ])
 def test_keyword_families_reliable_or_to_review(label, expected):
     assert starter_match(label, "expense_var") == expected
@@ -100,6 +102,7 @@ def _statement(db, promote: bool):
         _line(cc, 6, -72.00, "DIRECTION GENERALE DES FINANCES", 5),
         _line(cc, 4, -5.22, "X1234 UEP*ALIM SUPER U VIL", 6),
         _line(cc, 3, -70.00, "CB TOTALENERGIES RELAIS", 7),          # plein à la pompe, pas un contrat d'énergie
+        _line(cc, 9, -100.00, "SURAVENIR", 8),                        # versement ponctuel sur un PER
     ]}]}
     process_incoming_batch(db, conn_id=1, preview_data=preview)
     return cc
@@ -208,3 +211,39 @@ def test_decision_times_carry_their_time_zone():
                                  entity_type="transaction", label="x", amount=-1.0,
                                  created_at=datetime(2026, 11, 7, 17, 57, 34))
     assert item.model_dump_json().count("2026-11-07T17:57:34Z") == 1
+
+
+def test_savings_payments_never_get_a_first_month_recurrence():
+    from app.services.first_month_recurrences import _is_savings_payment
+    assert _is_savings_payment("SURAVENIR") and _is_savings_payment("VIR PER ACME")
+    assert not _is_savings_payment("ASSU. CNP PRET HABITAT") and not _is_savings_payment("ORANGE SA-ORANGE")
+
+
+def test_hybrid_mode_keeps_reliable_keywords_away_from_the_ai(db, monkeypatch):
+    from app.services.chat import ollama_client
+    db.query(GlobalConfig).filter(GlobalConfig.key == "enable_ai").update({"value": "true"})
+    db.add_all([GlobalConfig(key="ollama_url", value="http://ollama.test:11434"), GlobalConfig(key="ollama_model", value="m")])
+    db.commit()
+    sent = []
+
+    def fake_batch(descriptions, categories, cfg=None, user_habits=None, suggest_names=False, **kw):
+        sent.extend(descriptions)
+        return {d: {"name": d, "category": "Frais Bancaires", "category_is_new": True} for d in descriptions}
+
+    monkeypatch.setattr(ollama_client, "call_ollama_batch", fake_batch)
+    labels = ["0123456 CREDIT AGRICOLE CENTRE E", "CRCAM CENTRE-EST", "Offre Essentiel", "00009998887 ECHEANCE",
+              "X1234 FRESH VILLAGE"]
+    res = resolve_smart_labels_batch(db, labels, use_ai_fallback=True, auto_fallback_category=True,
+                                     tx_types={l: "expense_var" for l in labels})
+    assert res["0123456 CREDIT AGRICOLE CENTRE E"]["category"] == "Assurances"
+    assert res["CRCAM CENTRE-EST"]["category"] == "Prêts et crédits"
+    assert res["Offre Essentiel"]["category"] == "Frais bancaires"
+    assert res["00009998887 ECHEANCE"]["description"] == "Échéance prêt …8887"
+    assert res["X1234 FRESH VILLAGE"]["source"] == "ai"            # le commerce inconnu reste à l'IA
+    assert [d for d in sent if "Fresh" not in d] == []             # l'IA ne voit que lui
+
+
+def test_hybrid_mode_files_savings_before_the_ai():
+    from app.services.smart_label.categories import keyword_before_ai
+    assert keyword_before_ai("SURAVENIR", "expense_var") == ("Épargne et placements", "expense", False)
+    assert keyword_before_ai("X1234 CAPI STYLE VILLE", "expense_var") is None   # commerce inconnu : à l'IA

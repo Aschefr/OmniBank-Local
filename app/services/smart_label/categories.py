@@ -243,9 +243,10 @@ STARTER_CATEGORIES: List[Tuple[str, str, Tuple[str, ...]]] = [
     ("Transports", "expense", ("sncf", "ouigo", "ratp", "tcl", "navigo", "blablacar", "uber", "bolt", "lime")),
     ("Santé", "expense", ("pharmacie", "pharma", "docteur", "medecin", "dr", "dentiste", "hopital", "clinique",
                           "laboratoire", "optique", "opticien", "kine", "osteopathe")),
+    ("Épargne et placements", "expense", ("assurance vie", "assu vie", "per", "plan epargne", "suravenir", "versement pea",
+                                           "placement", "placements")),
     ("Assurances", "expense", ("assurance", "assurances", "assu", "assur", "mutuelle", "prevoyance", "maif", "macif",
-                               "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp", "spb",
-                               "suravenir")),
+                               "matmut", "axa", "allianz", "pacifica", "groupama", "gmf", "mma", "cnp", "spb")),
     ("Impôts", "expense", ("impot", "impots", "dgfip", "finances publiques", "direction generale des finances",
                                     "tresor public", "taxe")),
     ("Télécoms et internet", "expense", ("orange", "sosh", "sfr", "bouygues", "free telecom", "free mobile", "freebox",
@@ -362,6 +363,22 @@ def starter_match(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[st
     p2p = person_transfer_category(text, tx_type)
     if p2p:
         return p2p, "income" if p2p == P2P_INCOME_CATEGORY else "expense", True
+    return None
+
+
+def keyword_before_ai(text: str, tx_type: Optional[str] = None) -> Optional[Tuple[str, str, bool]]:
+    """Mode hybride : ce que les mots-clés savent mieux que l'IA, appliqué avant elle même quand elle est active.
+    Les familles fiables, plus ce que les modèles testés classaient mal, à vérifier : le prélèvement d'assurance de
+    la banque (« 0123456 CREDIT AGRICOLE ») et ses mensualités de crédit (« CRCAM »), rangés en frais bancaires, et
+    l'épargne (Suravenir, PER), rangée en assurances. Le reste (enseignes, commerces inconnus) est laissé à l'IA."""
+    found = starter_match(text, tx_type)
+    if not found:
+        return None
+    if found[2] or found[0] == "Épargne et placements":
+        return found
+    clean = _clean_token_str(text)
+    if tx_type != "income" and (_BANK_CONTRACT_DEBIT.match(clean) or "crcam" in clean.split()):
+        return found
     return None
 
 

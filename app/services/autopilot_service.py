@@ -2144,12 +2144,21 @@ def override_autopilot_decision(
         }
         decision.raw_snapshot = json.dumps(snap, default=str)
 
+        propagated = 0
+        if learned_rule:
+            try:
+                from app.services.review_propagation import propagate_correction
+                propagated = propagate_correction(db, tx)
+            except Exception as prop_err:
+                logger.warning(f"[AutoPilot] Suggestions à vérifier non ajustées : {prop_err}")
+
         db.commit()
         stats_cache.invalidate(pid)
         return {
             "success": True,
             "decision_id": decision_id,
             "learned_rule": bool(learned_rule),
+            "propagated": propagated,
             "message": "Écriture mise à jour et règle apprise."
         }
 
@@ -2450,6 +2459,25 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
     raw_desc = (tx.raw_description or tx.description or "").lower().strip()
     clean_desc = (tx.description or "").lower().strip()
 
+    # Prévision d'une récurrence déjà vue à la banque : on connaît son libellé bancaire. Un libellé sans aucun mot en
+    # commun (« DR SERGEANT » face à « Offre Essentiel ») ne la prend pas sur le seul montant.
+    from app.services.smart_label.normalization import normalize_raw_label
+    tx_bank_words = set(normalize_raw_label(tx.raw_description or tx.description or "").split())
+    bank_words_by_tpl: Dict[int, set] = {}
+
+    def _bank_label_mismatch(cand: Transaction) -> bool:
+        if not cand.recurrence_id or not tx_bank_words:
+            return False
+        if cand.recurrence_id not in bank_words_by_tpl:
+            labels = db.query(Transaction.raw_description).filter(
+                Transaction.recurrence_id == cand.recurrence_id,
+                Transaction.csv_id.isnot(None),
+                Transaction.raw_description.isnot(None),
+            ).all()
+            bank_words_by_tpl[cand.recurrence_id] = {w for (lbl,) in labels for w in normalize_raw_label(lbl).split()}
+        known = bank_words_by_tpl[cand.recurrence_id]
+        return bool(known) and not (known & tx_bank_words)
+
     for c in candidates:
         c_amt = float(c.amount or 0.0)
         amt_diff = abs(c_amt - amt)
@@ -2492,7 +2520,7 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
         has_text_affinity = has_substr_match or has_token_overlap or has_semantic_match
 
         is_valid_candidate = False
-        if has_exact_amount:
+        if has_exact_amount and (has_text_affinity or not _bank_label_mismatch(c)):
             # Même montant à quelques centimes près sur le même compte dans la fenêtre temporelle
             is_valid_candidate = True
         elif has_text_affinity and (rel_diff <= 0.35 or amt_diff <= 15.00):
@@ -3025,8 +3053,15 @@ def update_review_transaction(
         after_snap,
         user_name="Auto-Pilote (Revue modifiée)"
     )
+    propagated = 0
+    if learned:
+        try:
+            from app.services.review_propagation import propagate_correction
+            propagated = propagate_correction(db, tx)
+        except Exception as prop_err:
+            logger.warning(f"[AutoPilot] Suggestions à vérifier non ajustées : {prop_err}")
     db.commit()
-    return {"success": True, "id": tx.id, "learned": learned}
+    return {"success": True, "id": tx.id, "learned": learned, "propagated": propagated}
 
 
 def preview_threshold_impact(db: Session, simulated_threshold: float) -> Dict[str, Any]:

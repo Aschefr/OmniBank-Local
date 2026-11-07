@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 FIRST_MONTH_REASON = "first_month_fixed"
 FIRST_MONTH_CONFIDENCE = 60.0
 _RECENT_DAYS = 45
+_SAVINGS_WORDS = ("suravenir", "assurance vie", "assu vie", "per", "plan epargne", "epargne", "placement", "pea")
 _CARD_LABEL = re.compile(r"^(CB|CARTE|PAIEMENT CB|X\d{4})\b", re.IGNORECASE)
 _MONTHLY_FAMILY_WORDS = ("pret", "credit", "emprunt", "assurance", "mutuelle", "prevoyance", "telecom", "internet",
                          "energie", "electricite", "gaz", "frais bancaires", "frais de compte", "loyer")
@@ -43,6 +44,13 @@ def is_monthly_family(category: Optional[str]) -> bool:
 def _is_card_payment(label: Optional[str]) -> bool:
     """« CB … », « X1234 … » (carte du Crédit Agricole), « CARTE … » : achat par carte, jamais un prélèvement."""
     return bool(_CARD_LABEL.match((label or "").strip()))
+
+
+def _is_savings_payment(label: Optional[str]) -> bool:
+    """Versement d'épargne (Suravenir, assurance-vie, PER) : souvent ponctuel, même rangé par l'utilisateur dans une
+    catégorie d'assurance. La promotion N >= 3 le reconnaîtra s'il revient vraiment chaque mois."""
+    padded = f" {_clean_token_str(label or '')} "
+    return any(f" {w} " in padded for w in _SAVINGS_WORDS)
 
 
 def _as_date(value) -> Optional[date]:
@@ -91,8 +99,9 @@ def propose_first_month_recurrences(db: Session, account_id: int, batch_id: Opti
         amt = round(float(tx.amount or 0), 2)
         if not op_date or op_date < oldest or amt <= 0 or amt in taken_amounts:
             continue
-        if not is_monthly_family(tx.category) or _is_card_payment(tx.raw_description or tx.description):
-            continue  # un paiement par carte n'est pas un contrat mensuel (plein chez TotalEnergies)
+        label = tx.raw_description or tx.description
+        if not is_monthly_family(tx.category) or _is_card_payment(label) or _is_savings_payment(label):
+            continue  # carte : pas un contrat mensuel ; épargne (PER, assurance-vie) : versements souvent ponctuels
         if parse_fractional_signature(tx.raw_description or tx.description):
             continue  # paiement en plusieurs fois : géré par la promotion des fractionnés
 

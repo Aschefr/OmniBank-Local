@@ -64,17 +64,21 @@ def test_with_ai_on_a_starting_profile_the_model_may_create_many_categories(db, 
 
     def fake_batch(descriptions, categories, cfg=None, user_habits=None, suggest_names=False, **kw):
         seen.update(kw)
-        return {d: {"name": d, "category": "Dépenses diverses" if "Wero" in d else "Courses", "category_is_new": "Wero" not in d}
+        seen.setdefault("sent", []).extend(descriptions)
+        return {d: {"name": d, "category": "Dépenses diverses" if "Capi" in d else "Courses", "category_is_new": "Capi" not in d}
                 for d in descriptions}
 
     monkeypatch.setattr(ollama_client, "call_ollama_batch", fake_batch)
-    labels = {"CB SUPER U": "expense_var", "Wero vers JEAN D": "expense_var"}
+    labels = {"CB SUPER U": "expense_var", "X1234 CAPI STYLE VILLE": "expense_var", "Wero vers JEAN D": "expense_var"}
     res = resolver.resolve_smart_labels_batch(db, list(labels), tx_types=labels, use_ai_fallback=True, auto_fallback_category=True)
     assert seen["starting_profile"] is True and seen["max_new_categories"] >= 10
     assert res["CB SUPER U"]["category"] == "Courses" and res["CB SUPER U"]["source"] == "ai"
     # Le fourre-tout choisi par l'IA n'est pas tenu pour sûr
-    wero = res["Wero vers JEAN D"]
-    assert wero["smart_is_fallback"] is True and wero["confidence"] < 0.85
+    shop = res["X1234 CAPI STYLE VILLE"]
+    assert shop["smart_is_fallback"] is True and shop["confidence"] < 0.85
+    # Mode hybride : un virement Wero est reconnu par mot-clé avant l'IA, qui ne le voit pas
+    assert res["Wero vers JEAN D"]["category"] == "Virements envoyés" and res["Wero vers JEAN D"]["source"] == "keyword"
+    assert not any("Wero" in d for d in seen["sent"])
 
 
 def test_batch_parsing_merges_a_category_created_earlier_in_the_same_batch():

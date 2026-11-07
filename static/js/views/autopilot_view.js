@@ -3155,6 +3155,10 @@ window.AutopilotView = {
                     target_forecast_id: targetForecastId,
                     learn_rule: learnRule
                 });
+                if (res && res.propagated > 0) {
+                    const n = res.propagated;
+                    showToast(window.i18n && window.i18n.tp ? window.i18n.tp('autopilot_review_propagated', { count: n }) : `${n} opération(s) à vérifier ajustée(s) d'après votre correction`, 'info');
+                }
                 showToast(res.message || (window.i18n ? (window.i18n.t('autopilot_review_updated') || 'Opération corrigée avec succès') : 'Opération corrigée avec succès'), 'success');
                 this.closeOverrideModal();
                 await this.refresh();
@@ -3188,6 +3192,10 @@ window.AutopilotView = {
                 learn_rule: learnRule
             });
             showToast(res.message || (window.i18n ? window.i18n.t('autopilot_override_success') : 'Opération mise à jour et règle apprise'), 'success');
+            if (res && res.propagated > 0) {
+                const n = res.propagated;
+                showToast(window.i18n && window.i18n.tp ? window.i18n.tp('autopilot_review_propagated', { count: n }) : `${n} opération(s) à vérifier ajustée(s) d'après votre correction`, 'info');
+            }
             this.closeOverrideModal();
             await this.refresh();
             if (window.app && typeof window.app.updateAutopilotBadge === 'function') {

@@ -473,6 +473,7 @@
   "autopilot_review_th_desc": "Libellé Brut & Identifié",
   "autopilot_review_th_forecast": "Candidat Prévision Détecté",
   "autopilot_review_title": "Opérations à vérifier (Revue manuelle)",
+  "autopilot_review_propagated": "{count} opération(s) à vérifier ajustée(s) d'après votre correction",
   "autopilot_review_updated": "Opération corrigée avec succès",
   "autopilot_review_validated": "Opération confirmée avec succès",
   "autopilot_review_validated_toast": "Opération validée et confirmée",

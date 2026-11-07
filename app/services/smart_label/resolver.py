@@ -22,6 +22,7 @@ from .categories import (
     looks_like_income_category,
     match_category_from_text,
     resolve_fallback_category,
+    keyword_before_ai,
     starter_match,
     strong_category_for,
 )
@@ -533,6 +534,13 @@ def resolve_smart_labels_batch(
 
     results: Dict[str, Dict[str, Any]] = {}
 
+    # Mode hybride : IA activée (passage immédiat ou en arrière-plan), les familles de mots-clés fiables passent avant
+    # elle ; on réutilise alors la catégorie de l'utilisateur du même nom
+    hybrid_keywords = None
+    if _ai_enabled(db):
+        hybrid_keywords = {name.lower(): name for (name,) in db.query(Category.name).filter(
+            (Category.is_closed == False) | (Category.is_closed == None)).all() if name}  # noqa: E711, E712
+
     for raw in raw_labels:
         if not raw or not str(raw).strip():
             continue
@@ -762,6 +770,24 @@ def resolve_smart_labels_batch(
                 "smart_is_new_category": strong_new,
             }
             continue
+
+        # 3.7 Mode hybride : IA active, les familles de mots-clés fiables passent quand même avant elle (les modèles
+        # classaient les assurances de la banque en frais bancaires, les virements Wero dans le fourre-tout)
+        if hybrid_keywords is not None:
+            kw = keyword_before_ai(raw_str, expected_t)
+            if kw:
+                kw_name, _kw_flow, kw_reliable = kw
+                results[raw_str] = {
+                    "description": display_name_from_label(raw_str) or raw_str,
+                    "category": hybrid_keywords.get(kw_name.lower(), kw_name),
+                    "source": "keyword",
+                    "confidence": _STRONG_CONFIDENCE if kw_reliable else _STARTER_CONFIDENCE,
+                    "mapping_id": None,
+                    "is_manual": False,
+                    "is_multi_category": False,
+                    "smart_is_new_category": kw_name.lower() not in hybrid_keywords,
+                }
+                continue
 
         # 4. Aucun match
         results[raw_str] = {
