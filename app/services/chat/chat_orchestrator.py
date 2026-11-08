@@ -77,6 +77,7 @@ from app.services.chat.chat_tools import (
     update_recurrence_template_tool,
 )
 from app.services.chat.ollama_client import get_ollama_config, normalize_num_ctx, strip_thinking
+from app.services.chat.text_tool_calls import extract_text_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -584,6 +585,8 @@ def budget_messages_for_context(
 
 
 _THINK_RE = re.compile(r'<think>[\s\S]*?</think>\s*')
+# Plafond de la réponse du tour de synthèse forcée (sans outils ni réflexion)
+SYNTHESIS_MAX_TOKENS = 2048
 
 
 def _norm_paragraph(p: str) -> str:
@@ -898,6 +901,14 @@ async def _run_generation_task(
                 prompt_tokens = None
 
                 async with client.stream("POST", f"{url}/api/chat", json=payload_data, timeout=httpx.Timeout(300.0, connect=15.0)) as stream_resp:
+                    if stream_resp.status_code == 400 and "think" in payload_data:
+                        body = (await stream_resp.aread()).decode("utf-8", "replace").lower()
+                        if "think" in body:
+                            # Modèle sans mode raisonnement : même appel sans le paramètre
+                            retry = {k: v for k, v in payload_data.items() if k != "think"}
+                            async for chunk in _stream_ollama(retry):
+                                yield chunk
+                            return
                     if stream_resp.status_code != 200:
                         yield f"data: {json.dumps({'error': 'Erreur Ollama (HTTP ' + str(stream_resp.status_code) + ')'})}\n\n"
                         return
@@ -977,6 +988,12 @@ async def _run_generation_task(
             nudge_pending = False
             nudge_done = False
             session_can_write = any(t["function"]["name"] in _WRITE_TOOLS for t in session_tools)
+            session_tool_names = {t["function"]["name"] for t in session_tools}
+
+            async def _replace_on_screen(text):
+                await _emit(f"data: {json.dumps({'clear_text': True})}\n\n")
+                if text:
+                    await _emit(f"data: {json.dumps({'content': text})}\n\n")
             while iteration < MAX_TOOL_ITERATIONS + (1 if nudge_pending else 0):
                 # Dynamic context budgeting: ensure ollama_msgs leaves sufficient headroom for thinking & generation
                 budgeted_msgs = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=session_tools, model=model)
@@ -992,6 +1009,7 @@ async def _run_generation_task(
 
                 phase_text = ""
                 detected_tool_calls = []
+                text_before_phase = final_text
                 async for chunk in _stream_ollama(payload):
                     if isinstance(chunk, dict) and "_result" in chunk:
                         phase_text = chunk["_result"]
@@ -1017,6 +1035,17 @@ async def _run_generation_task(
                                 pass
                         if not (nudge_pending and is_content):
                             await _emit(chunk)
+
+                if not detected_tool_calls and phase_text:
+                    # Appel d'outil écrit en texte (<tool_call name="..."/>) : l'exécuter s'il existe, ne jamais l'afficher
+                    text_calls, cleaned_phase = extract_text_tool_calls(phase_text, session_tool_names)
+                    if cleaned_phase != phase_text:
+                        logger.warning(f"[Chat] Appel d'outil écrit en texte par le modèle — repris : {[c['function']['name'] for c in text_calls]}")
+                        phase_text = last_iteration_phase_text = cleaned_phase
+                        detected_tool_calls = text_calls
+                        if not nudge_pending:
+                            final_text = text_before_phase + cleaned_phase
+                            await _replace_on_screen(final_text)
 
                 if nudge_pending:
                     # Tour de relance : on garde la réponse déjà affichée, on ne retient que les appels d'actions
@@ -1327,14 +1356,17 @@ async def _run_generation_task(
                 )
                 ollama_msgs.append({"role": "user", "content": synth_instruction})
                 budgeted_synth = budget_messages_for_context(ollama_msgs, cfg["num_ctx"], tools=None, model=model)
+                # Sans outils, un modèle qui réfléchit peut tourner sans fin en voulant en rappeler un :
+                # ce tour ne fait que rédiger à partir des données déjà lues, donc sans réflexion et borné.
                 synth_payload = {
                     "model": model,
                     "messages": budgeted_synth,
                     "stream": True,
-                    "options": options,
+                    "options": {**options, "num_predict": SYNTHESIS_MAX_TOKENS},
                     "keep_alive": "30m",
-                    **think_kw,
+                    "think": False,
                 }
+                text_before_synth = final_text
                 synth_text = ""
                 async for chunk in _stream_ollama(synth_payload):
                     if isinstance(chunk, dict) and "_result" in chunk:
@@ -1349,6 +1381,11 @@ async def _run_generation_task(
                                 pass
                         await _emit(chunk)
                 if synth_text:
+                    _, cleaned_synth = extract_text_tool_calls(synth_text, ())
+                    if cleaned_synth != synth_text:
+                        logger.warning("[Chat] Appel d'outil écrit en texte pendant la synthèse sans outil — retiré")
+                        synth_text = cleaned_synth
+                        await _replace_on_screen(text_before_synth + cleaned_synth)
                     final_text = merge_phase_texts(accumulated_substantive_text, synth_text)
 
             if all_tool_names:
