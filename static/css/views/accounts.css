@@ -1,0 +1,577 @@
+/**
+ * OmniBank Local - views/accounts.css
+ * Page « Comptes » : en-tête, bandeau de synchro, liste groupée, menu d'actions.
+ */
+
+.acc-ic {
+    display: block;
+    flex-shrink: 0;
+}
+
+.acc-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* ── En-tête ── */
+.acc-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.acc-head-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.acc-head .overview-bank-sync-btn {
+    height: 36px;
+    border-radius: 8px;
+}
+
+.acc-new-icon-btn {
+    display: none;
+}
+
+/* ── Bandeau de synchro (coffre, relevé auto, opérations en attente) ── */
+.acc-sync-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.acc-sync-zone:not(:has(#bankSyncVaultPill:not(:empty), #bankPendingSyncBox:not(:empty))) {
+    display: none;
+}
+
+.acc-sync-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.acc-sync-row:not(:has(#bankSyncVaultPill:not(:empty))) {
+    display: none;
+}
+
+/* ── Liste des comptes ── */
+.acc-list-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.acc-t {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.acc-t th {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.acc-t td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    color: var(--text-main);
+}
+
+.acc-t tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.acc-t .acc-col-num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.acc-group-tr td {
+    background: rgba(145, 158, 171, 0.06);
+    padding: 8px 12px;
+}
+
+.acc-group-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4px 12px;
+    flex-wrap: wrap;
+}
+
+.acc-group-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.acc-group-count {
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+.acc-group-total {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.acc-group-total b {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-left: 4px;
+}
+
+.acc-dot-sep {
+    margin: 0 2px 0 6px;
+    color: var(--text-muted);
+}
+
+/* Liseré de 3 px à la couleur du compte */
+.acc-row td:first-child {
+    box-shadow: inset 3px 0 0 var(--acc-color);
+}
+
+.acc-row:hover td {
+    background: rgba(145, 158, 171, 0.06);
+}
+
+.acc-t td.acc-col-name {
+    min-width: 200px;
+}
+
+.acc-name-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.acc-name {
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.acc-main-mark {
+    display: inline-flex;
+    color: var(--warning);
+}
+
+.acc-main-mark svg {
+    fill: currentColor;
+}
+
+.acc-closed-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0 5px;
+}
+
+.acc-sub {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.acc-sub b {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.acc-sub b.acc-pos {
+    color: var(--success);
+}
+
+.acc-nowrap {
+    white-space: nowrap;
+}
+
+.acc-src-inline {
+    display: none;
+}
+
+.acc-t td.acc-col-src {
+    max-width: 240px;
+}
+
+.acc-src {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.acc-src > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.acc-src-online {
+    color: var(--success);
+}
+
+.acc-t td.acc-init {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.acc-t td.acc-cur {
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+.acc-t .acc-neg,
+.acc-group-total b.acc-neg {
+    color: var(--danger);
+}
+
+.acc-row.is-closed td,
+.acc-row.is-closed .acc-name,
+.acc-row.is-closed .acc-sub b {
+    color: var(--text-muted);
+}
+
+.acc-t td.acc-col-act {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+    padding-left: 4px;
+    padding-right: 8px;
+}
+
+.acc-act-wrap {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.acc-ib {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+}
+
+.acc-ib:hover,
+.acc-ib.is-open {
+    background: rgba(145, 158, 171, 0.12);
+    color: var(--text-main);
+}
+
+.acc-ib:focus-visible,
+.acc-menu-item:focus-visible,
+.acc-menu-color:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.acc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 12px;
+    color: var(--text-muted);
+}
+
+/* ── Connexions bancaires ── */
+.acc-conn-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0 10px;
+}
+
+.acc-sect-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ── Menu « ⋯ » et feuille d'actions ── */
+.acc-dropdown {
+    position: fixed;
+    z-index: 2600;
+    width: 248px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+    padding: 5px;
+}
+
+.acc-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 9px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+}
+
+.acc-menu-item svg {
+    color: var(--text-muted);
+}
+
+.acc-menu-item:hover:not(.is-static) {
+    background: rgba(145, 158, 171, 0.12);
+}
+
+.acc-menu-item.is-static {
+    cursor: default;
+}
+
+.acc-menu-item.is-danger,
+.acc-menu-item.is-danger svg {
+    color: var(--danger);
+}
+
+.acc-menu-colors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 9px 8px 33px;
+}
+
+.acc-menu-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: var(--swatch);
+    cursor: pointer;
+}
+
+.acc-menu-color.selected {
+    box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--swatch);
+}
+
+.acc-menu-sep {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 2px;
+}
+
+.acc-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.acc-sheet {
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    border-radius: 14px 14px 0 0;
+    padding: 8px 10px calc(14px + env(safe-area-inset-bottom));
+}
+
+.acc-sheet-grab {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color);
+    margin: 2px auto 8px;
+}
+
+.acc-sheet-head {
+    padding: 4px 10px 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.acc-sheet-head .acc-name {
+    font-size: 15px;
+}
+
+.acc-sheet-head .acc-sub {
+    font-size: 13px;
+}
+
+.acc-sheet .acc-menu-item {
+    min-height: 44px;
+    padding: 10px;
+    font-size: 14px;
+}
+
+.acc-sheet .acc-menu-colors {
+    gap: 10px;
+    padding: 2px 10px 10px 37px;
+}
+
+.acc-sheet .acc-menu-color {
+    width: 26px;
+    height: 26px;
+}
+
+/* ── Téléphone et tablette étroite ── */
+@media (max-width: 768px) {
+    .acc-head .view-header-title-group {
+        gap: 8px;
+    }
+
+    .acc-new-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 10px;
+        flex-shrink: 0;
+    }
+
+    .acc-head-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    /* mobile.css force les boutons d'en-tête en inline-flex !important : le « + » du titre remplace ce bouton */
+    .acc-head .acc-head-actions .btn.acc-new-btn {
+        display: none !important;
+    }
+
+    .acc-head-actions > .btn {
+        justify-content: center;
+        width: 100%;
+        max-width: none;
+    }
+
+    .acc-head-actions > .btn:only-child,
+    .acc-head-actions > #btnHeaderBgSync[style*="none"] + .btn {
+        grid-column: 1 / -1;
+    }
+
+    .acc-list-card .acc-t thead {
+        display: none;
+    }
+
+    .acc-list-card .acc-t,
+    .acc-list-card .acc-t tbody {
+        display: block;
+    }
+
+    .acc-list-card .acc-t tr.acc-group-tr,
+    .acc-list-card .acc-t tr.acc-empty-tr,
+    .acc-list-card .acc-t tr.acc-group-tr td,
+    .acc-list-card .acc-t tr.acc-empty-tr td {
+        display: block;
+    }
+
+    .acc-list-card .acc-t tr.acc-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto 44px;
+        align-items: start;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .acc-list-card .acc-t tr.acc-row td {
+        display: block;
+        border-bottom: none;
+    }
+
+    .acc-list-card .acc-t tr.acc-row td.acc-col-src,
+    .acc-list-card .acc-t tr.acc-row td.acc-init,
+    .acc-list-card .acc-t .acc-ib.acc-desk {
+        display: none;
+    }
+
+    .acc-list-card .acc-t td.acc-col-name {
+        min-width: 0;
+        padding: 10px 6px 10px 14px;
+    }
+
+    .acc-list-card .acc-t td.acc-cur {
+        padding: 10px 4px 10px 6px;
+        font-size: 14px;
+    }
+
+    .acc-list-card .acc-t td.acc-col-act {
+        align-self: center;
+        padding: 0 4px 0 0;
+    }
+
+    .acc-src-inline {
+        display: inline;
+    }
+
+    .acc-name {
+        font-size: 14px;
+    }
+
+    .acc-sub {
+        font-size: 13px;
+    }
+
+    .acc-group-title,
+    .acc-sect-title {
+        font-size: 12.5px;
+    }
+
+    .acc-group-total,
+    .acc-group-total b {
+        font-size: 13.5px;
+    }
+
+    .acc-ib.acc-more-btn {
+        width: 40px;
+        height: 44px;
+    }
+}

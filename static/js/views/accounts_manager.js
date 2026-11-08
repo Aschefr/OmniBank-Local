@@ -4,93 +4,90 @@ const ACCOUNT_COLORS = [
     '#6554c0', '#ff8a65', '#e91e8a', '#8bc34a', '#795548'
 ];
 
+// Stroke icons for the Accounts page (inherit currentColor)
+const ACC_ICON_PATHS = {
+    zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    pencil: '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+    dots: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    hand: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+    star: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
+    lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    unlock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+    gift: '<path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+    palette: '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.6-.8 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7H16a6 6 0 0 0 6-6C22 6 17.5 2 12 2z"/>'
+};
+
+function accIcon(name, size = 15) {
+    return `<svg class="acc-ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ACC_ICON_PATHS[name] || ''}</svg>`;
+}
+
+function accEsc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 window.AccountsView = {
     accounts: [],
     mainAccountId: null,
     bankConnections: [],
     fileAccountMapping: {},
-    _colorPopoverId: null,  // track open popover
-    
+    _menuAccId: null,
+
     render() {
-        const bankSyncHtml = window.BankSyncView ? window.BankSyncView.render() : '';
+        const t = (k) => window.i18n.t(k);
+        const bs = window.BankSyncView;
+        if (bs && typeof bs.ensureModalsExist === 'function') bs.ensureModalsExist();
+        const hasConn = !!(bs && Array.isArray(bs.connections) && bs.connections.length > 0);
+        const newLabel = t('acc_new_account');
 
         return `
-            <div class="view-header-bar" style="position:relative;top:0;margin-top:0;padding-top:0;margin-bottom:24px;">
+            <div class="view-header-bar acc-head">
                 <div class="view-header-title-group">
-                    <h2 class="view-header-title">
-                        🏦 <span data-i18n="acc_header_title">${window.i18n.t('acc_header_title')}</span>
-                    </h2>
+                    <h2 class="view-header-title">🏦 <span data-i18n="acc_header_title">${t('acc_header_title')}</span></h2>
+                    <button type="button" class="btn btn-primary acc-new-icon-btn" onclick="window.AccountsView.openCreateModal()" title="${newLabel}" aria-label="${newLabel}">${accIcon('plus', 18)}</button>
                 </div>
-            </div>
-            
-            <!-- Section 1 : Synchronisation Bancaire -->
-            <div style="margin-bottom: 28px;">
-                ${bankSyncHtml}
-            </div>
-
-            <!-- Séparateur -->
-            <div style="height: 1px; background: var(--border-color); margin: 30px 0 25px 0;"></div>
-
-            <!-- Section 2 : Gestion des Comptes OmniBank -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h3 style="margin:0; font-size:18px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
-                    <span>📋</span> <span data-i18n="acc_section_omnibank">${window.i18n.t('acc_section_omnibank')}</span>
-                </h3>
-            </div>
-
-            <div class="accounts-add-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 14px; border: 1px solid var(--border-color);">
-                <h4 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:var(--text-main);" data-i18n="acc_new_account">${window.i18n.t('acc_new_account')}</h4>
-                <div class="accounts-add-form" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
-                    <input type="text" id="acc_name" class="inline-input" data-i18n-placeholder="acc_ph_name" placeholder="${window.i18n.t('acc_ph_name') || 'Nom du compte'}" style="border:1px solid var(--border-color); padding: 5px; flex: 2;">
-                    <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
-                        <select id="acc_type_select" class="inline-input" style="border:1px solid var(--border-color); padding: 5px;" onchange="window.AccountsView.onTypeChange()">
-                            <option value="Compte courant">${window.i18n.t('wizard_type_checking')}</option>
-                            <option value="Livret">${window.i18n.t('wizard_type_savings')}</option>
-                            <option value="PEA">${window.i18n.t('wizard_type_pea')}</option>
-                            <option value="Assurance Vie">${window.i18n.t('wizard_type_life_ins')}</option>
-                            <option value="PER">${window.i18n.t('wizard_type_per')}</option>
-                            <option value="Prêt / Emprunt">${window.i18n ? (window.i18n.t('wizard_type_loan') || 'Prêt / Emprunt') : 'Prêt / Emprunt'}</option>
-                            <option value="__other__">${window.i18n.t('wizard_type_other')}</option>
-                        </select>
-                        <input type="text" id="acc_type_custom" class="inline-input" data-i18n-placeholder="acc_ph_type" placeholder="${window.i18n.t('acc_ph_type') || 'Type personnalisé...'}" style="border:1px solid var(--border-color); padding: 5px; display:none;">
-                    </div>
-                    <select id="acc_currency" class="inline-input" style="border:1px solid var(--border-color); padding: 5px; flex: 0.8;">
-                        <option value="EUR">EUR (€)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="GBP">GBP (£)</option>
-                        <option value="CHF">CHF (CHF)</option>
-                        <option value="CAD">CAD (CA$)</option>
-                        <option value="JPY">JPY (¥)</option>
-                    </select>
-                    <input type="number" id="acc_balance" class="inline-input" data-i18n-placeholder="ph_initial_balance" placeholder="${window.i18n.t('ph_initial_balance') || 'Solde Initial'}" step="0.01" style="border:1px solid var(--border-color); padding: 5px; flex: 1;">
-                    <div style="display:flex; flex-direction:column; gap:4px;">
-                        <label style="font-size:12px; font-weight:600; color:var(--text-muted);" data-i18n="acc_th_color">${window.i18n.t('acc_th_color')}</label>
-                        <div id="accNewColorPicker" class="acc-color-picker">
-                            ${this._renderColorDots('accNewColor', this._nextColor())}
-                        </div>
-                        <input type="hidden" id="accNewColor" value="${this._nextColor()}">
-                    </div>
-                    <button class="btn btn-secondary" onclick="window.AccountsView.addAccount()" data-i18n="btn_add_account">${window.i18n.t('btn_add_account')}</button>
+                <div class="acc-head-actions">
+                    <button id="btnHeaderBgSync" class="btn btn-secondary overview-bank-sync-btn" onclick="window.BankSyncView.triggerBackgroundSyncNow()" style="display: ${hasConn ? 'inline-flex' : 'none'};" data-i18n-title="bank_sync_run_background_tooltip" title="${t('bank_sync_run_background_tooltip')}">
+                        <span>⚡</span> <span data-i18n="bank_sync_run_background_btn">${t('bank_sync_run_background_btn')}</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary acc-head-btn" onclick="window.ImportWizard ? window.ImportWizard.open() : null">
+                        ${accIcon('download')}<span data-i18n="btn_import_statement">${t('btn_import_statement')}</span>
+                    </button>
+                    <button type="button" class="btn btn-primary acc-head-btn acc-new-btn" onclick="window.AccountsView.openCreateModal()">
+                        ${accIcon('plus')}<span data-i18n="acc_new_account">${newLabel}</span>
+                    </button>
                 </div>
             </div>
 
-            <div class="accounts-table-card" style="overflow-x: auto;">
-                <table class="data-table accounts-data-table mobile-card-table">
+            <div class="acc-sync-zone"><div class="acc-sync-row"><span id="bankSyncVaultPill" class="bank-sync-vault-wrapper"></span><div id="bankSyncAutoSyncCompact" class="bank-sync-auto-sync-widget" style="display:none;"></div></div><div id="bankPendingSyncBox" style="display:none;"></div></div>
+
+            <div class="accounts-table-card acc-list-card">
+                <table class="acc-t">
                     <thead>
                         <tr>
-                            <th class="acc-col-name" data-i18n="acc_th_name">${window.i18n.t('acc_th_name')}</th>
-                            <th class="acc-col-type" data-i18n="acc_th_type">${window.i18n.t('acc_th_type')}</th>
-                            <th class="acc-col-feed" data-i18n="acc_th_feed">${window.i18n.t('acc_th_feed') || 'Alimentation'}</th>
-                            <th class="acc-col-init" data-i18n="acc_th_initial_balance">${window.i18n.t('acc_th_initial_balance')}</th>
-                            <th class="acc-col-curr" data-i18n="acc_th_current_balance">${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}</th>
-                            <th class="acc-col-actions col-actions" data-i18n="acc_th_actions">${window.i18n.t('acc_th_actions')}</th>
+                            <th class="acc-col-name" data-i18n="acc_th_name">${t('acc_th_name')}</th>
+                            <th class="acc-col-src" data-i18n="acc_th_feed">${t('acc_th_feed')}</th>
+                            <th class="acc-col-num" data-i18n="acc_th_initial_balance">${t('acc_th_initial_balance')}</th>
+                            <th class="acc-col-num" data-i18n="acc_th_current_balance">${t('acc_th_current_balance')}</th>
+                            <th class="acc-col-act"><span class="acc-sr" data-i18n="acc_th_actions">${t('acc_th_actions')}</span></th>
                         </tr>
                     </thead>
-                    <tbody id="accountsBody">
-                        <!-- Rendered dynamically -->
-                    </tbody>
+                    <tbody id="accountsBody"></tbody>
                 </table>
             </div>
+
+            <div class="acc-conn-head">
+                <h3 class="acc-sect-title" data-i18n="acc_section_connections">${t('acc_section_connections')}</h3>
+                <button type="button" id="accLinkBankBtn" class="btn btn-secondary acc-head-btn" onclick="window.BankSyncView.openAddModal()" style="display: ${hasConn ? 'inline-flex' : 'none'};">
+                    ${accIcon('plus', 14)}<span data-i18n="bank_link_add_btn">${t('bank_link_add_btn')}</span>
+                </button>
+            </div>
+            <div id="bankConnectionsList"></div>
         `;
     },
 
@@ -120,18 +117,6 @@ window.AccountsView = {
         return ACCOUNT_COLORS[this.accounts.length % ACCOUNT_COLORS.length];
     },
 
-    onTypeChange() {
-        const sel = document.getElementById('acc_type_select');
-        const custom = document.getElementById('acc_type_custom');
-        if (sel.value === '__other__') {
-            custom.style.display = 'block';
-            custom.focus();
-        } else {
-            custom.style.display = 'none';
-            custom.value = '';
-        }
-    },
-
     async init() {
         // SWR : Rendu instantané si des comptes sont déjà en mémoire de session (0 ms)
         const knownAccounts = (this.accounts && this.accounts.length > 0) ? this.accounts : window.app.accounts;
@@ -143,14 +128,23 @@ window.AccountsView = {
 
         await this.loadData();
 
-        // Close popover on outside click
-        if (!this._popoverListenerAttached) {
-            this._popoverListenerAttached = true;
+        if (!this._globalListenersAttached) {
+            this._globalListenersAttached = true;
             document.addEventListener('click', (e) => {
-                if (this._colorPopoverId && !e.target.closest('.acc-color-popover') && !e.target.classList.contains('acc-color-dot')) {
-                    this._closePopover();
+                if (this._menuAccId !== null && !e.target.closest('.acc-menu') && !e.target.closest('.acc-more-btn')) {
+                    this._closeMenu();
                 }
             });
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                if (this._menuAccId !== null) { this._closeMenu(true); return; }
+                if (document.getElementById('accInterestModal')) { document.getElementById('accInterestModal').remove(); return; }
+                if (document.getElementById('accEditModal')) this._closeEditModal();
+            });
+            window.addEventListener('resize', () => this._closeMenu());
+            document.addEventListener('scroll', (e) => {
+                if (this._menuAccId !== null && !e.target.closest?.('.acc-menu')) this._closeMenu();
+            }, true);
         }
     },
 
@@ -175,13 +169,26 @@ window.AccountsView = {
             }
 
             this.renderTable();
+            this._updateLinkButton();
 
             if (window.BankSyncView && typeof window.BankSyncView.init === 'function') {
-                window.BankSyncView.init().catch(e => console.warn('[BankSync] Erreur init:', e));
+                window.BankSyncView.init()
+                    .then(() => this._updateLinkButton())
+                    .catch(e => console.warn('[BankSync] Erreur init:', e));
             }
         } catch (e) {
             console.error("Failed to load accounts", e);
         }
+    },
+
+    /** « Lier des comptes » appears in the section header only when a connection exists; the empty state carries its own button. */
+    _updateLinkButton() {
+        const btn = document.getElementById('accLinkBankBtn');
+        if (!btn) return;
+        const conns = (window.BankSyncView && Array.isArray(window.BankSyncView.connections) && window.BankSyncView.connections.length)
+            ? window.BankSyncView.connections
+            : this.bankConnections;
+        btn.style.display = (conns && conns.length > 0) ? 'inline-flex' : 'none';
     },
 
     _getAccountFeedSource(accountId) {
@@ -226,6 +233,16 @@ window.AccountsView = {
         };
     },
 
+    _feedSourceText(feedSource) {
+        if (feedSource.type === 'online') {
+            return (window.i18n.t('acc_source_online') || 'En ligne : {bank}').replace('{bank}', feedSource.label);
+        }
+        if (feedSource.type === 'file') {
+            return (window.i18n.t('acc_source_file') || 'Relevé : "{section}"').replace('{section}', feedSource.section);
+        }
+        return window.i18n.t('acc_source_manual') || 'Saisie manuelle';
+    },
+
     openImportForAccount(accId) {
         if (window.ImportWizard && typeof window.ImportWizard.open === 'function') {
             window.ImportWizard.open(accId);
@@ -249,191 +266,82 @@ window.AccountsView = {
         return 'checking';
     },
 
+    _baseCurrency() {
+        return window.appBaseCurrency || 'EUR';
+    },
+
+    _currentBalance(acc) {
+        return acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+    },
+
+    _formatRate(rate) {
+        const locale = window.i18n && window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR';
+        return `${Number(rate).toLocaleString(locale, { maximumFractionDigits: 3 })} %`;
+    },
+
+    /** Interest estimated until Dec 31 for a savings account (same formula as before). */
+    _estimatedInterest(acc) {
+        const today = new Date();
+        const monthsLeft = Math.max(1, 12 - today.getMonth());
+        const bal = Math.max(0, this._currentBalance(acc));
+        return Math.round(bal * (acc.interest_rate / 100) * (monthsLeft / 12) * 100) / 100;
+    },
+
     renderTable() {
         const tbody = document.getElementById('accountsBody');
         if (!tbody) return;
+        const t = (k) => window.i18n.t(k);
 
         if (!this.accounts || this.accounts.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">${window.i18n.t('no_accounts') || 'Aucun compte enregistré.'}</td></tr>`;
+            tbody.innerHTML = `
+                <tr class="acc-empty-tr"><td colspan="5">
+                    <div class="acc-empty">
+                        <span>${t('no_accounts') || 'Aucun compte'}</span>
+                        <button type="button" class="btn btn-primary acc-head-btn" onclick="window.AccountsView.openCreateModal()">${accIcon('plus')}<span>${t('acc_new_account')}</span></button>
+                    </div>
+                </td></tr>`;
             return;
         }
 
         const groups = {
-            checking: {
-                title: window.i18n.t('acc_section_checking') || 'Comptes Courants & Cartes',
-                icon: '💳',
-                accounts: [],
-                total_current: 0,
-                total_initial: 0
-            },
-            savings: {
-                title: window.i18n.t('acc_section_savings') || 'Épargne & Placements',
-                icon: '🏦',
-                accounts: [],
-                total_current: 0,
-                total_initial: 0
-            },
-            loans: {
-                title: window.i18n.t('acc_section_loans') || 'Crédits & Emprunts',
-                icon: '📑',
-                accounts: [],
-                total_current: 0,
-                total_initial: 0
-            }
+            checking: { title: t('acc_section_checking') || 'Comptes Courants & Cartes', label: t('acc_total_available') || 'Disponibilités :', accounts: [], totals: {} },
+            savings: { title: t('acc_section_savings') || 'Épargne & Placements', label: t('acc_total_saved') || 'Épargne totale :', accounts: [], totals: {} },
+            loans: { title: t('acc_section_loans') || 'Crédits & Emprunts', label: t('acc_total_crd') || 'Capital restant dû :', accounts: [], totals: {} }
         };
 
         this.accounts.forEach(acc => {
-            const cat = this._getAccountCategory(acc.type);
-            groups[cat].accounts.push(acc);
+            const group = groups[this._getAccountCategory(acc.type)];
+            group.accounts.push(acc);
             if (!acc.is_closed) {
-                const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
-                groups[cat].total_current += curBal;
-                groups[cat].total_initial += (acc.initial_balance || 0);
+                // Un total par devise : on n'additionne jamais des euros et des dollars
+                const ccy = acc.currency || 'EUR';
+                group.totals[ccy] = (group.totals[ccy] || 0) + this._currentBalance(acc);
             }
         });
 
+        const base = this._baseCurrency();
         let html = '';
         ['checking', 'savings', 'loans'].forEach(key => {
             const group = groups[key];
             if (group.accounts.length === 0) return;
 
-            const totalColor = key === 'loans' ? '#ef4444' : (group.total_current >= 0 ? '#10b981' : '#ef4444');
-            const totalPrefix = key === 'loans' 
-                ? (window.i18n.t('acc_total_crd') || 'Capital restant dû :') 
-                : (key === 'savings' ? (window.i18n.t('acc_total_saved') || 'Épargne totale :') : (window.i18n.t('acc_total_available') || 'Disponibilités :'));
+            const ccys = Object.keys(group.totals).sort((a, b) => (a === base ? -1 : b === base ? 1 : a.localeCompare(b)));
+            const totalsHtml = ccys.map(c => {
+                const v = Math.round(group.totals[c] * 100) / 100;
+                return `<b class="privacy-blur ${v < 0 ? 'acc-neg' : ''}">${formatCurrency(v, c)}</b>`;
+            }).join('<span class="acc-dot-sep">·</span>');
 
             html += `
-            <tr class="acc-group-header-tr" style="background: var(--bg-hover, rgba(255,255,255,0.03)); border-top: 2px solid var(--border-color);">
-                <td colspan="6" style="padding: 9px 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                            <span>${group.icon}</span> <span>${group.title}</span>
-                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 500;">(${group.accounts.length})</span>
-                        </span>
-                        <div style="display: flex; align-items: center; gap: 12px; font-size: 12px;">
-                            <span style="color: var(--text-muted); font-size: 12px;">(Initial : <strong class="privacy-blur" style="font-family: monospace;">${formatCurrency(group.total_initial)}</strong>)</span>
-                            <span style="font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                                <span>${totalPrefix}</span>
-                                <strong style="color: ${totalColor}; font-family: monospace; font-size: 13px;" class="privacy-blur">${formatCurrency(group.total_current)}</strong>
-                            </span>
-                        </div>
+            <tr class="acc-group-tr">
+                <td colspan="5">
+                    <div class="acc-group-row">
+                        <span class="acc-group-title">${group.title} <span class="acc-group-count">${group.accounts.length}</span></span>
+                        <span class="acc-group-total"><span class="acc-group-label">${group.label}</span> ${totalsHtml || `<b class="privacy-blur">${formatCurrency(0, base)}</b>`}</span>
                     </div>
                 </td>
-            </tr>
-            `;
+            </tr>`;
 
-            html += group.accounts.map(acc => {
-                const isMain = acc.id === this.mainAccountId;
-                const color = acc.color || ACCOUNT_COLORS[0];
-                const curr = acc.currency || 'EUR';
-                const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
-                const curBalColor = curBal < 0 ? '#ef4444' : '#10b981';
-
-                // Calculs dynamiques de taux et mensualités
-                let subInfoHtml = '';
-                if (key === 'savings' && acc.interest_rate > 0) {
-                    const today = new Date();
-                    const monthsLeft = Math.max(1, 12 - today.getMonth());
-                    const bal = Math.max(0, curBal);
-                    const estimated = Math.round(bal * (acc.interest_rate / 100) * (monthsLeft / 12) * 100) / 100;
-                    subInfoHtml = `
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span>${window.i18n.t('acc_rate_label')} <strong style="color: var(--accent);">${acc.interest_rate}%</strong></span>
-                        <span>•</span>
-                        <span>${window.i18n.t('acc_estimated_interest') || 'Intérêts estimés au 31/12'} : <strong class="privacy-blur" style="color: #10b981;">+${formatCurrency(estimated, curr)}</strong></span>
-                        <button class="btn btn-secondary btn-sm" onclick="window.AccountsView.openInterestModal(${acc.id}, ${estimated})" style="padding: 1px 7px; font-size: 12px; border-radius: 6px; height: 22px;" title="${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser les intérêts'}">
-                            🎁 ${window.i18n.t('acc_btn_record_interest') || 'Comptabiliser'}
-                        </button>
-                    </div>
-                    `;
-                } else if (key === 'loans') {
-                    const crd = Math.abs(curBal);
-                    const rate = acc.interest_rate || 0;
-                    const payment = acc.monthly_payment || 0;
-                    const interestM = rate > 0 ? Math.round(crd * (rate / 100) / 12 * 100) / 100 : 0;
-                    const capitalM = Math.round(Math.max(0, payment - interestM) * 100) / 100;
-
-                    let parts = [];
-                    if (rate > 0) parts.push(`${window.i18n.t('acc_rate_label')} <strong style="color: #ef4444;">${rate}%</strong>`);
-                    if (payment > 0) {
-                        parts.push(`${window.i18n.t('acc_monthly_payment_label')} <strong class="privacy-blur">${formatCurrency(payment, curr)}</strong> (<span class="privacy-blur" style="color:#10b981;">${window.i18n.t('acc_capital_label')} ${formatCurrency(capitalM, curr)}</span> • <span class="privacy-blur" style="color:#ef4444;">${window.i18n.t('acc_interest_label')} ${formatCurrency(interestM, curr)}</span>)`);
-                    }
-                    if (parts.length > 0) {
-                        subInfoHtml = `
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            ${parts.join(' • ')}
-                        </div>
-                        `;
-                    }
-                }
-
-                const feedSource = this._getAccountFeedSource(acc.id);
-                let sourceBadgeHtml = '';
-                let feedActionBtn = '';
-
-                if (feedSource.type === 'online') {
-                    const rawTemplate = window.i18n.t('acc_source_online') || 'En ligne : {bank}';
-                    const text = rawTemplate.replace('{bank}', feedSource.label);
-                    sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-online" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.25); font-size: 12px; font-weight: 600;">
-                            <span style="font-size: 12px;">🟢</span>
-                            <span>${text}</span>
-                        </span>`;
-                    feedActionBtn = `
-                        <button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.syncOnlineAccount(${feedSource.conn.id})" title="${window.i18n.t('acc_btn_sync_tooltip') || 'Relever les opérations en ligne pour ce compte'}" style="color: #10b981;">⚡</button>
-                        <button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--accent);">📥</button>
-                    `;
-                } else if (feedSource.type === 'file') {
-                    const rawTemplate = window.i18n.t('acc_source_file') || 'Relevé : "{section}"';
-                    const text = rawTemplate.replace('{section}', feedSource.section);
-                    sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-file" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: rgba(99,102,241,0.1); color: var(--accent); border: 1px solid rgba(99,102,241,0.25); font-size: 12px; font-weight: 600;">
-                            <span style="font-size: 12px;">📄</span>
-                            <span>${text}</span>
-                        </span>`;
-                    feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--accent);">📥</button>`;
-                } else {
-                    const text = window.i18n.t('acc_source_manual') || 'Saisie manuelle';
-                    sourceBadgeHtml = `
-                        <span class="acc-feed-badge feed-manual" style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; background: var(--bg-hover, rgba(255,255,255,0.03)); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 12px; font-weight: 500;">
-                            <span style="font-size: 12px;">✏️</span>
-                            <span>${text}</span>
-                        </span>`;
-                    feedActionBtn = `<button class="acc-action-btn acc-feed-btn" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${window.i18n.t('acc_btn_import_tooltip') || 'Importer un relevé pour ce compte (XLSX / CSV)'}" style="color: var(--text-muted);">📥</button>`;
-                }
-
-                return `
-                <tr style="${acc.is_closed ? 'opacity: 0.6;' : ''}">
-                    <td class="acc-col-name" data-label="${window.i18n.t('acc_th_name') || 'Compte'}">
-                        <div style="display: inline-flex; align-items: center; gap: 6px;">
-                            ${isMain ? '<span class="acc-main-star" title="' + window.i18n.t('acc_main_account') + '" style="cursor:pointer;" onclick="window.AccountsView.setMainAccount(' + acc.id + ')">⭐</span>' : ''}
-                            <strong style="color: var(--text-main); font-size: 13.5px;">${acc.name}</strong>
-                            <span class="acc-color-dot" style="background:${color}; cursor:pointer; width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border-color);" onclick="window.AccountsView.openColorPopover(${acc.id}, this)" title="${window.i18n.t('acc_color_label')}"></span>
-                            ${acc.is_closed ? `<span data-i18n="badge_closed" style="background:var(--danger); color:#fff; padding:1px 5px; border-radius:4px; font-size:12px; font-weight:bold;">${window.i18n.t('badge_closed') || 'Fermé'}</span>` : ''}
-                        </div>
-                        ${subInfoHtml}
-                    </td>
-                    <td class="acc-col-type" data-label="${window.i18n.t('acc_th_type') || 'Type'}" style="white-space: nowrap;">
-                        <span class="badge" style="background: var(--bg-hover); color: var(--text-main); font-size: 12px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border-color);">${acc.type}</span>
-                        <span class="badge" style="background: rgba(99,102,241,0.08); color: var(--primary); font-weight: 700; padding: 2px 5px; border-radius: 4px; font-size: 12px; margin-left: 3px;">${curr}</span>
-                    </td>
-                    <td class="acc-col-feed" data-label="${window.i18n.t('acc_th_feed') || 'Alimentation'}" style="white-space: nowrap;">
-                        ${sourceBadgeHtml}
-                    </td>
-                    <td class="acc-col-init" data-label="${window.i18n.t('acc_th_initial_balance') || 'Solde Initial'}" style="text-align: right; font-size: 12.5px;"><span class="privacy-blur" style="color: var(--text-muted); font-family: monospace;">${formatCurrency(acc.initial_balance, curr)}</span></td>
-                    <td class="acc-col-curr" data-label="${window.i18n.t('acc_th_current_balance') || 'Solde Actuel'}" style="text-align: right; font-size: 12.5px;"><strong class="privacy-blur" style="color: ${curBalColor}; font-family: monospace;">${formatCurrency(curBal, curr)}</strong></td>
-                    <td class="acc-col-actions col-actions" data-label="${window.i18n.t('acc_th_actions') || 'Actions'}">
-                        <div class="acc-actions-wrap">
-                            ${feedActionBtn}
-                            <button class="acc-action-btn ${isMain ? 'acc-star-active' : 'acc-star-btn'}" onclick="window.AccountsView.setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
-                            <button class="acc-action-btn acc-history-btn" onclick="window.AccountsView.viewHistory(${acc.id})" title="${window.i18n.t('acc_view_history') || 'Voir les opérations dans l\'historique'}">↗️</button>
-                            <button class="acc-action-btn acc-edit-btn" onclick="window.AccountsView.edit(${acc.id})" title="${window.i18n.t('tooltip_edit')}">✏️</button>
-                            <button class="acc-action-btn acc-lock-btn" onclick="window.AccountsView.toggleClose(${acc.id})" title="${acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action')}">${acc.is_closed ? '🔓' : '🔒'}</button>
-                            <button class="acc-action-btn acc-del-btn" onclick="window.AccountsView.delete(${acc.id})" title="${window.i18n.t('tooltip_delete')}">✕</button>
-                        </div>
-                    </td>
-                </tr>`;
-            }).join('');
+            html += group.accounts.map(acc => this._renderRow(acc, key)).join('');
         });
 
         tbody.innerHTML = html;
@@ -443,40 +351,162 @@ window.AccountsView = {
         }
     },
 
-    openColorPopover(accId, dotEl) {
-        // Close any existing
-        this._closePopover();
-        
-        const acc = this.accounts.find(a => a.id === accId);
-        if (!acc) return;
-        
-        const popover = document.createElement('div');
-        popover.className = 'acc-color-popover';
-        popover.id = 'accColorPopover_' + accId;
-        this._colorPopoverId = popover.id;
-        
-        popover.innerHTML = ACCOUNT_COLORS.map(c =>
-            `<span class="acc-color-dot ${c === (acc.color || ACCOUNT_COLORS[0]) ? 'selected' : ''}" style="background:${c};" onclick="window.AccountsView.saveColor(${accId}, '${c}')" title="${c}"></span>`
-        ).join('');
-        
-        // Position on body to escape table stacking context
-        const rect = dotEl.getBoundingClientRect();
-        popover.style.position = 'fixed';
-        popover.style.left = (rect.left + rect.width + 8) + 'px';
-        popover.style.top = rect.top + 'px';
-        document.body.appendChild(popover);
+    _renderRow(acc, groupKey) {
+        const t = (k) => window.i18n.t(k);
+        const isMain = acc.id === this.mainAccountId;
+        const color = acc.color || ACCOUNT_COLORS[0];
+        const curr = acc.currency || 'EUR';
+        const curBal = this._currentBalance(acc);
+        const feedSource = this._getAccountFeedSource(acc.id);
+        const sourceText = this._feedSourceText(feedSource);
+
+        // Sous-ligne : type, devise si différente du profil, taux et mensualités
+        const subParts = [accEsc(acc.type)];
+        if (curr !== this._baseCurrency()) subParts.push(curr);
+        if (groupKey === 'savings' && acc.interest_rate > 0) {
+            subParts.push(this._formatRate(acc.interest_rate));
+            subParts.push(`${t('acc_estimated_interest') || 'Intérêts estimés au 31/12'} : <b class="acc-pos privacy-blur">+${formatCurrency(this._estimatedInterest(acc), curr)}</b>`);
+        } else if (groupKey === 'loans') {
+            const crd = Math.abs(curBal);
+            const rate = acc.interest_rate || 0;
+            const payment = acc.monthly_payment || 0;
+            const interestM = rate > 0 ? Math.round(crd * (rate / 100) / 12 * 100) / 100 : 0;
+            const capitalM = Math.round(Math.max(0, payment - interestM) * 100) / 100;
+            if (rate > 0) subParts.push(this._formatRate(rate));
+            if (payment > 0) {
+                subParts.push(`${t('acc_monthly_payment_label')} <b class="privacy-blur">${formatCurrency(payment, curr)}</b> <span class="acc-nowrap">(<span class="privacy-blur">${t('acc_capital_label')} ${formatCurrency(capitalM, curr)}</span> · <span class="privacy-blur">${t('acc_interest_label')} ${formatCurrency(interestM, curr)}</span>)</span>`);
+            }
+        }
+
+        const srcIcon = feedSource.type === 'online' ? 'link' : (feedSource.type === 'file' ? 'file' : 'hand');
+        const feedBtn = feedSource.type === 'online'
+            ? `<button type="button" class="acc-ib acc-desk" onclick="window.AccountsView.syncOnlineAccount(${feedSource.conn.id})" title="${t('acc_btn_sync_tooltip')}" aria-label="${t('acc_btn_sync_tooltip')}">${accIcon('zap')}</button>`
+            : `<button type="button" class="acc-ib acc-desk" onclick="window.AccountsView.openImportForAccount(${acc.id})" title="${t('acc_btn_import_tooltip')}" aria-label="${t('acc_btn_import_tooltip')}">${accIcon('download')}</button>`;
+
+        return `
+            <tr class="acc-row ${acc.is_closed ? 'is-closed' : ''}" style="--acc-color:${color};">
+                <td class="acc-col-name">
+                    <div class="acc-name-line">
+                        <span class="acc-name">${accEsc(acc.name)}</span>
+                        ${isMain ? `<span class="acc-main-mark" title="${t('acc_main_account')}" aria-label="${t('acc_main_account')}">${accIcon('star', 12)}</span>` : ''}
+                        ${acc.is_closed ? `<span class="acc-closed-badge">${t('badge_closed') || 'Fermé'}</span>` : ''}
+                    </div>
+                    <div class="acc-sub">${subParts.join(' · ')}<span class="acc-src-inline"> · ${accEsc(sourceText)}</span></div>
+                </td>
+                <td class="acc-col-src"><span class="acc-src acc-src-${feedSource.type}" title="${accEsc(sourceText)}">${accIcon(srcIcon, 13)}<span>${accEsc(sourceText)}</span></span></td>
+                <td class="acc-col-num acc-init"><span class="privacy-blur">${formatCurrency(acc.initial_balance, curr)}</span></td>
+                <td class="acc-col-num acc-cur ${curBal < 0 ? 'acc-neg' : ''}"><span class="privacy-blur">${formatCurrency(curBal, curr)}</span></td>
+                <td class="acc-col-act">
+                    <div class="acc-act-wrap">
+                        ${feedBtn}
+                        <button type="button" class="acc-ib acc-desk" onclick="window.AccountsView.viewHistory(${acc.id})" title="${t('acc_view_history')}" aria-label="${t('acc_view_history')}">${accIcon('list')}</button>
+                        <button type="button" class="acc-ib acc-desk" onclick="window.AccountsView.edit(${acc.id})" title="${t('tooltip_edit')}" aria-label="${t('tooltip_edit')}">${accIcon('pencil')}</button>
+                        <button type="button" class="acc-ib acc-more-btn" onclick="window.AccountsView.toggleMenu(${acc.id}, this)" title="${t('acc_more_actions')}" aria-label="${t('acc_more_actions')}" aria-haspopup="menu" aria-expanded="false">${accIcon('dots', 16)}</button>
+                    </div>
+                </td>
+            </tr>`;
     },
 
-    _closePopover() {
-        if (this._colorPopoverId) {
-            const el = document.getElementById(this._colorPopoverId);
-            if (el) el.remove();
-            this._colorPopoverId = null;
+    _isPhoneLayout() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    },
+
+    _menuItemsHtml(acc, isSheet) {
+        const t = (k) => window.i18n.t(k);
+        const feedSource = this._getAccountFeedSource(acc.id);
+        const isMain = acc.id === this.mainAccountId;
+        const item = (icon, label, onclick, extraClass = '') =>
+            `<button type="button" role="menuitem" class="acc-menu-item ${extraClass}" onclick="${onclick}">${accIcon(icon)}<span>${label}</span></button>`;
+        const close = 'window.AccountsView._closeMenu();';
+
+        let html = '';
+        if (isSheet) {
+            if (feedSource.type === 'online') {
+                html += item('zap', t('bank_sync_run_background_btn'), `${close} window.AccountsView.syncOnlineAccount(${feedSource.conn.id})`);
+            }
+            html += item('download', t('btn_import_statement'), `${close} window.AccountsView.openImportForAccount(${acc.id})`);
+            html += item('list', t('acc_view_history'), `${close} window.AccountsView.viewHistory(${acc.id})`);
+            html += item('pencil', t('tooltip_edit'), `${close} window.AccountsView.edit(${acc.id})`);
+        } else if (feedSource.type === 'online') {
+            // Sur bureau, l'icône visible relève en ligne : l'import reste accessible ici
+            html += item('download', t('btn_import_statement'), `${close} window.AccountsView.openImportForAccount(${acc.id})`);
         }
+
+        html += isMain
+            ? `<div class="acc-menu-item is-static">${accIcon('star')}<span>${t('acc_main_account')}</span></div>`
+            : item('star', t('acc_set_main'), `${close} window.AccountsView.setMainAccount(${acc.id})`);
+
+        if (this._getAccountCategory(acc.type) === 'savings' && acc.interest_rate > 0) {
+            html += item('gift', t('acc_btn_record_interest'), `${close} window.AccountsView.openInterestModal(${acc.id}, ${this._estimatedInterest(acc)})`);
+        }
+
+        const current = acc.color || ACCOUNT_COLORS[0];
+        html += `<div class="acc-menu-item is-static">${accIcon('palette')}<span>${t('acc_th_color')}</span></div>
+            <div class="acc-menu-colors">${ACCOUNT_COLORS.map(c =>
+                `<button type="button" class="acc-menu-color ${c === current ? 'selected' : ''}" style="--swatch:${c};" onclick="window.AccountsView._closeMenu(); window.AccountsView.saveColor(${acc.id}, '${c}')" title="${c}" aria-label="${t('acc_th_color')} ${c}"></button>`
+            ).join('')}</div>
+            <div class="acc-menu-sep" role="separator"></div>`;
+
+        html += item(acc.is_closed ? 'unlock' : 'lock', acc.is_closed ? t('acc_menu_reopen') : t('acc_menu_close'), `${close} window.AccountsView.toggleClose(${acc.id})`);
+        html += item('trash', t('acc_menu_delete'), `${close} window.AccountsView.delete(${acc.id})`, 'is-danger');
+        return html;
+    },
+
+    toggleMenu(accId, btn) {
+        if (this._menuAccId === accId) { this._closeMenu(true); return; }
+        this._closeMenu();
+        const acc = this.accounts.find(a => a.id === accId);
+        if (!acc) return;
+        this._menuAccId = accId;
+        this._menuTrigger = btn;
+        btn.setAttribute('aria-expanded', 'true');
+        btn.classList.add('is-open');
+
+        if (this._isPhoneLayout()) {
+            const sheet = document.createElement('div');
+            sheet.className = 'acc-sheet-backdrop';
+            sheet.onclick = (e) => { if (e.target === sheet) this._closeMenu(true); };
+            sheet.innerHTML = `
+                <div class="acc-menu acc-sheet" role="menu" aria-label="${accEsc(acc.name)}">
+                    <div class="acc-sheet-grab"></div>
+                    <div class="acc-sheet-head">
+                        <div class="acc-name">${accEsc(acc.name)}</div>
+                        <div class="acc-sub">${accEsc(acc.type)} · ${accEsc(this._feedSourceText(this._getAccountFeedSource(acc.id)))}</div>
+                    </div>
+                    ${this._menuItemsHtml(acc, true)}
+                </div>`;
+            document.body.appendChild(sheet);
+        } else {
+            const menu = document.createElement('div');
+            menu.className = 'acc-menu acc-dropdown';
+            menu.setAttribute('role', 'menu');
+            menu.innerHTML = this._menuItemsHtml(acc, false);
+            document.body.appendChild(menu);
+            // Positionné sur la page, aligné à droite du bouton ; s'ouvre vers le haut s'il manque de place
+            const r = btn.getBoundingClientRect();
+            const w = menu.offsetWidth;
+            const h = menu.offsetHeight;
+            const left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8));
+            const top = (r.bottom + 4 + h > window.innerHeight - 8) ? Math.max(8, r.top - h - 4) : r.bottom + 4;
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+        }
+        const first = document.querySelector('.acc-menu .acc-menu-item:not(.is-static)');
+        if (first) first.focus({ preventScroll: true });
+    },
+
+    _closeMenu(restoreFocus = false) {
+        document.querySelectorAll('.acc-dropdown, .acc-sheet-backdrop').forEach(el => el.remove());
+        if (this._menuTrigger) {
+            this._menuTrigger.setAttribute('aria-expanded', 'false');
+            this._menuTrigger.classList.remove('is-open');
+            if (restoreFocus && document.body.contains(this._menuTrigger)) this._menuTrigger.focus({ preventScroll: true });
+        }
+        this._menuAccId = null;
+        this._menuTrigger = null;
     },
 
     async saveColor(accId, color) {
-        this._closePopover();
         const acc = this.accounts.find(a => a.id === accId);
         if (!acc) return;
         try {
@@ -500,51 +530,6 @@ window.AccountsView = {
         }
     },
 
-    async addAccount() {
-        try {
-            const selVal = document.getElementById('acc_type_select').value;
-            const customVal = document.getElementById('acc_type_custom').value;
-            const type = selVal === '__other__' ? (customVal || window.i18n.t('default_account_type')) : selVal;
-            const color = document.getElementById('accNewColor').value || this._nextColor();
-            const currency = document.getElementById('acc_currency') ? document.getElementById('acc_currency').value : 'EUR';
-
-            const data = {
-                name: document.getElementById('acc_name').value,
-                type: type,
-                initial_balance: parseFloat(document.getElementById('acc_balance').value) || 0,
-                is_closed: false,
-                color: color,
-                currency: currency
-            };
-            if (!data.name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
-            
-            const res = await API.post('/api/accounts/', data);
-            
-            document.getElementById('acc_name').value = '';
-            document.getElementById('acc_type_select').value = 'Compte courant';
-            document.getElementById('acc_type_custom').value = '';
-            document.getElementById('acc_type_custom').style.display = 'none';
-            document.getElementById('acc_balance').value = '';
-            
-            await this.loadData();
-            window.app.refreshSidebar();
-            
-            showUndoToast(window.i18n.t('toast_acc_created') || 'Compte créé', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
-
-            // Update color picker to next available color
-            const picker = document.getElementById('accNewColorPicker');
-            const input = document.getElementById('accNewColor');
-            if (picker && input) {
-                const next = this._nextColor();
-                input.value = next;
-                picker.innerHTML = this._renderColorDots('accNewColor', next);
-            }
-        } catch (e) {
-            console.error(e);
-            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_create_error'));
-        }
-    },
-
     async delete(id) {
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.t('confirm_delete_account'))) {
             try {
@@ -562,7 +547,7 @@ window.AccountsView = {
     async toggleClose(id) {
         const acc = this.accounts.find(a => a.id === id);
         if (!acc) return;
-        
+
         const action = acc.is_closed ? window.i18n.t('acc_reopen_action') : window.i18n.t('acc_close_action');
         if (await showInlineConfirm(window.i18n.t('title_confirmation'), window.i18n.tp('acc_confirm_toggle', {action}))) {
             try {
@@ -595,15 +580,26 @@ window.AccountsView = {
         this._showEditModal(acc);
     },
 
+    /** New account: same window as editing, without the balance realignment box. */
+    openCreateModal() {
+        this._closeMenu();
+        this._showEditModal(null);
+    },
+
     _showEditModal(acc) {
         const existing = document.getElementById('accEditModal');
         if (existing) existing.remove();
+
+        const isNew = !acc;
+        if (isNew) {
+            acc = { name: '', type: 'Compte courant', initial_balance: '', color: this._nextColor(), currency: this._baseCurrency() };
+        }
 
         const knownTypes = ['Compte courant', 'Livret', 'PEA', 'Assurance Vie', 'PER', 'Prêt / Emprunt'];
         const isCustomType = !knownTypes.includes(acc.type);
         const currentColor = acc.color || ACCOUNT_COLORS[0];
         const currentCurrency = acc.currency || 'EUR';
-        const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
+        const curBal = isNew ? 0 : this._currentBalance(acc);
         const netFlow = curBal - (acc.initial_balance || 0);
         const flowStr = typeof formatCurrency === 'function' ? formatCurrency(netFlow, currentCurrency) : `${netFlow.toFixed(2)} ${currentCurrency}`;
         const curBalStr = typeof formatCurrency === 'function' ? formatCurrency(curBal, currentCurrency) : `${curBal.toFixed(2)} ${currentCurrency}`;
@@ -622,63 +618,68 @@ window.AccountsView = {
             `<option value="${c}" ${currentCurrency === c ? 'selected' : ''}>${c}</option>`
         ).join('');
 
+        const title = isNew ? window.i18n.t('acc_new_account') : (window.i18n.t('acc_edit_title') || 'Modifier le compte');
+        const saveLabel = isNew ? window.i18n.t('btn_add_account') : (window.i18n.t('btn_save_changes') || 'Enregistrer');
+        const saveAction = isNew ? 'window.AccountsView._saveNew()' : `window.AccountsView._saveEdit(${acc.id})`;
+
+        const realignBox = isNew ? '' : `
+                    <!-- Encart Recalage / Ajustement Intelligent de Solde -->
+                    <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                            <span style="font-size: 12px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
+                            <span style="font-size: 12px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong class="privacy-blur" style="color:var(--text-main); font-variant-numeric: tabular-nums;">${curBalStr}</strong></span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
+                            ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', `<span class="privacy-blur">${flowStr}</span>`)}
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" step="0.01" id="accEditTargetBal" class="inline-input" placeholder="${window.i18n.t('acc_realign_ph')}" aria-label="${window.i18n.t('acc_realign_ph')}" style="flex: 1; min-width: 0; height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
+                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 12px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 600;" onclick="window.AccountsView._realignInitialBalance(${acc.id})">
+                                ${window.i18n.t('acc_realign_btn')}
+                            </button>
+                        </div>
+                    </div>`;
+
         const modalHtml = `
         <div id="accEditModal" class="modal-overlay" style="display:flex;z-index:10000;position:fixed;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;overflow-y:auto;padding:clamp(12px,3vh,24px) clamp(8px,2vw,16px);box-sizing:border-box;" onclick="if(event.target===this) window.AccountsView._closeEditModal()">
-            <div class="modal" style="width:100%;max-width:540px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="accEditTitle" style="width:100%;max-width:540px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
                 <div class="modal-header" style="background:linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.02) 100%), var(--bg-surface);">
                     <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
                         <div class="modal-header-icon-badge badge-accent">
                             💳
                         </div>
                         <div class="modal-header-info">
-                            <h3 class="modal-header-title">${window.i18n.t('acc_edit_title') || 'Modifier le compte'}</h3>
-                            <div class="modal-header-desc">${acc.name} (${acc.currency || 'EUR'})</div>
+                            <h3 class="modal-header-title" id="accEditTitle">${title}</h3>
+                            ${isNew ? '' : `<div class="modal-header-desc">${accEsc(acc.name)} (${acc.currency || 'EUR'})</div>`}
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" onclick="window.AccountsView._closeEditModal()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
                 </div>
                 <div style="flex:1 1 auto;overflow-y:auto;padding:clamp(14px,3vw,20px) clamp(16px,3.5vw,24px);display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;">
                     <div>
-                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_name')}</label>
-                        <input type="text" id="accEditName" class="inline-input" value="${acc.name.replace(/"/g, '&quot;')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
+                        <label for="accEditName" style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_name')}</label>
+                        <input type="text" id="accEditName" class="inline-input" value="${accEsc(acc.name)}" placeholder="${window.i18n.t('acc_ph_name')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
                     </div>
                     <div>
-                        <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_type')}</label>
+                        <label for="accEditType" style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_type')}</label>
                         <select id="accEditType" class="inline-input" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;" onchange="
                             const custom = document.getElementById('accEditTypeCustom');
                             if (this.value === '__other__') { custom.style.display='block'; custom.focus(); } else { custom.style.display='none'; custom.value=''; }
                             window.AccountsView._updateEditModalFields();
                         ">${typeOptions}</select>
-                        <input type="text" id="accEditTypeCustom" class="inline-input" value="${isCustomType ? acc.type : ''}" placeholder="${window.i18n.t('acc_ph_type')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;margin-top:6px;display:${isCustomType ? 'block' : 'none'};" oninput="window.AccountsView._updateEditModalFields()">
+                        <input type="text" id="accEditTypeCustom" class="inline-input" value="${isCustomType ? accEsc(acc.type) : ''}" placeholder="${window.i18n.t('acc_ph_type')}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;margin-top:6px;display:${isCustomType ? 'block' : 'none'};" oninput="window.AccountsView._updateEditModalFields()">
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <div style="flex: 1;">
-                            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_currency') || 'Devise'}</label>
+                            <label for="accEditCurrency" style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_currency') || 'Devise'}</label>
                             <select id="accEditCurrency" class="inline-input" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">${currencyOpts}</select>
                         </div>
                         <div style="flex: 1.5;">
-                            <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_initial_balance')}</label>
-                            <input type="number" id="accEditBalance" class="inline-input" value="${acc.initial_balance}" step="0.01" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
+                            <label for="accEditBalance" style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_th_initial_balance')}</label>
+                            <input type="number" id="accEditBalance" class="inline-input" value="${acc.initial_balance}" step="0.01" placeholder="0,00" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;">
                         </div>
                     </div>
-
-                    <!-- Encart Recalage / Ajustement Intelligent de Solde -->
-                    <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
-                            <span style="font-size: 12px; font-weight: 700; color: var(--accent);">${window.i18n.t('acc_realign_title')}</span>
-                            <span style="font-size: 12px; color: var(--text-muted);">${window.i18n.t('acc_current_balance_lbl')} : <strong class="privacy-blur" style="color:var(--text-main); font-family: monospace;">${curBalStr}</strong></span>
-                        </div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.35;">
-                            ${(window.i18n.t('acc_realign_hint') || '').replace('{flow}', `<span class="privacy-blur">${flowStr}</span>`)}
-                        </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="number" step="0.01" id="accEditTargetBal" class="inline-input" placeholder="${window.i18n.t('ph_initial_balance') || 'Ex: 1119.68'}" style="flex: 1; height: 32px; padding: 0 8px; font-size: 12px; border-radius: 6px;">
-                            <button type="button" class="btn btn-secondary" style="height: 32px; font-size: 12px; padding: 0 10px; border-radius: 6px; white-space: nowrap; font-weight: 600;" onclick="window.AccountsView._realignInitialBalance(${acc.id})">
-                                ${window.i18n.t('acc_realign_btn')}
-                            </button>
-                        </div>
-                    </div>
-
+${realignBox}
                     <!-- Encart Taux & Paramètres Financiers Dynamiques -->
                     <div id="accEditFinancialBox" style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
                         <div id="accEditFinancialTitle" style="font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; text-transform: uppercase;">
@@ -714,13 +715,17 @@ window.AccountsView = {
                 </div>
                 <div class="modal-footer-pinned">
                     <button type="button" class="btn btn-secondary" onclick="window.AccountsView._closeEditModal()">${window.i18n.t('btn_cancel')}</button>
-                    <button type="button" class="btn btn-primary" onclick="window.AccountsView._saveEdit(${acc.id})">${window.i18n.t('btn_save_changes') || 'Enregistrer'}</button>
+                    <button type="button" class="btn btn-primary" onclick="${saveAction}">${saveLabel}</button>
                 </div>
             </div>
         </div>`;
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         this._updateEditModalFields();
+        if (isNew) {
+            const nameInput = document.getElementById('accEditName');
+            if (nameInput) nameInput.focus();
+        }
     },
 
     _updateEditModalFields() {
@@ -766,8 +771,8 @@ window.AccountsView = {
         const targetVal = parseFloat(rawStr);
         if (isNaN(targetVal)) {
             if (typeof showToast === 'function') {
-                const errMsg = (window.i18n && window.i18n.t('toast_invalid_amount') && window.i18n.t('toast_invalid_amount') !== 'toast_invalid_amount') 
-                    ? window.i18n.t('toast_invalid_amount') 
+                const errMsg = (window.i18n && window.i18n.t('toast_invalid_amount') && window.i18n.t('toast_invalid_amount') !== 'toast_invalid_amount')
+                    ? window.i18n.t('toast_invalid_amount')
                     : (window.i18n ? window.i18n.t('msg_invalid_amount') || 'Veuillez saisir un montant valide.' : 'Veuillez saisir un montant valide.');
                 showToast(errMsg, 'warning');
             }
@@ -778,7 +783,7 @@ window.AccountsView = {
         const curBal = acc.current_balance !== undefined && acc.current_balance !== null ? acc.current_balance : (acc.initial_balance || 0);
         const netFlow = curBal - (acc.initial_balance || 0);
         const calculatedInitial = parseFloat((targetVal - netFlow).toFixed(2));
-        
+
         const initInput = document.getElementById('accEditBalance');
         if (initInput) {
             initInput.value = calculatedInitial;
@@ -801,12 +806,10 @@ window.AccountsView = {
         if (modal) modal.remove();
     },
 
-    async _saveEdit(id) {
-        const acc = this.accounts.find(a => a.id === id);
-        if (!acc) return;
-
+    /** Reads the shared fields of the account window; returns null (after a message) when invalid. */
+    async _readEditForm(isNew = false) {
         const name = document.getElementById('accEditName').value.trim();
-        if (!name) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required'));
+        if (!name) { await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_name_required')); return null; }
 
         const typeSelect = document.getElementById('accEditType').value;
         const typeCustom = document.getElementById('accEditTypeCustom').value.trim();
@@ -814,9 +817,10 @@ window.AccountsView = {
 
         const currency = document.getElementById('accEditCurrency').value;
 
-        const balanceStr = document.getElementById('accEditBalance').value;
-        const balance = parseFloat(balanceStr.replace(',', '.'));
-        if (isNaN(balance)) return await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount'));
+        const balanceStr = document.getElementById('accEditBalance').value.trim();
+        // Un nouveau compte sans solde saisi part de 0, comme l'ancien formulaire d'ajout
+        const balance = (isNew && balanceStr === '') ? 0 : parseFloat(balanceStr.replace(',', '.'));
+        if (isNaN(balance)) { await showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_invalid_amount')); return null; }
 
         const color = document.getElementById('accEditColor').value || ACCOUNT_COLORS[0];
 
@@ -825,19 +829,43 @@ window.AccountsView = {
         const borrowedVal = parseFloat(document.getElementById('accEditBorrowed')?.value);
         const insuranceVal = parseFloat(document.getElementById('accEditInsurance')?.value);
 
+        return {
+            name: name,
+            type: type,
+            initial_balance: balance,
+            color: color,
+            currency: currency,
+            interest_rate: !isNaN(rateVal) ? rateVal : null,
+            monthly_payment: !isNaN(monthlyVal) ? monthlyVal : null,
+            borrowed_amount: !isNaN(borrowedVal) ? borrowedVal : null,
+            loan_insurance: !isNaN(insuranceVal) ? insuranceVal : null
+        };
+    },
+
+    async _saveNew() {
+        const data = await this._readEditForm(true);
+        if (!data) return;
         try {
-            const res = await API.put(`/api/accounts/${id}`, {
-                name: name,
-                type: type,
-                initial_balance: balance,
-                is_closed: acc.is_closed,
-                color: color,
-                currency: currency,
-                interest_rate: !isNaN(rateVal) ? rateVal : null,
-                monthly_payment: !isNaN(monthlyVal) ? monthlyVal : null,
-                borrowed_amount: !isNaN(borrowedVal) ? borrowedVal : null,
-                loan_insurance: !isNaN(insuranceVal) ? insuranceVal : null
-            });
+            const res = await API.post('/api/accounts/', { ...data, is_closed: false });
+            this._closeEditModal();
+            await this.loadData();
+            window.app.refreshSidebar();
+            showUndoToast(window.i18n.t('toast_acc_created') || 'Compte créé', res.action_id, () => this.loadData().then(() => window.app.refreshSidebar()));
+        } catch (e) {
+            console.error(e);
+            showInlineMessage(window.i18n.t('title_info'), window.i18n.t('acc_create_error'));
+        }
+    },
+
+    async _saveEdit(id) {
+        const acc = this.accounts.find(a => a.id === id);
+        if (!acc) return;
+
+        const data = await this._readEditForm();
+        if (!data) return;
+
+        try {
+            const res = await API.put(`/api/accounts/${id}`, { ...data, is_closed: acc.is_closed });
             this._closeEditModal();
             await this.loadData();
             window.app.refreshSidebar();
@@ -860,7 +888,7 @@ window.AccountsView = {
 
         const modalHtml = `
         <div id="accInterestModal" class="modal-overlay" style="display:flex;z-index:10000;position:fixed;inset:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;overflow-y:auto;padding:clamp(12px,3vh,24px) clamp(8px,2vw,16px);box-sizing:border-box;" onclick="if(event.target===this) this.remove()">
-            <div class="modal" style="width:100%;max-width:460px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
+            <div class="modal" role="dialog" aria-modal="true" style="width:100%;max-width:460px;min-width:0;max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border-color);border-radius:14px;box-shadow:var(--shadow-md);padding:0;display:flex;flex-direction:column;animation:modalFadeIn 0.3s ease;">
                 <div class="modal-header" style="background:linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.02) 100%), var(--bg-surface);">
                     <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
                         <div class="modal-header-icon-badge">
@@ -868,7 +896,7 @@ window.AccountsView = {
                         </div>
                         <div class="modal-header-info">
                             <h3 class="modal-header-title">${window.i18n.t('acc_modal_interest_title') || 'Comptabilisation des Intérêts'}</h3>
-                            <div class="modal-header-desc">${acc.name} (${acc.currency || 'EUR'})</div>
+                            <div class="modal-header-desc">${accEsc(acc.name)} (${acc.currency || 'EUR'})</div>
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" onclick="document.getElementById('accInterestModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
@@ -879,11 +907,11 @@ window.AccountsView = {
                     </p>
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_account')}</label>
-                        <input type="text" class="inline-input" value="${acc.name} (${acc.currency || 'EUR'})" disabled style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;opacity:0.75;">
+                        <input type="text" class="inline-input" value="${accEsc(acc.name)} (${acc.currency || 'EUR'})" disabled style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;opacity:0.75;">
                     </div>
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_amount')}</label>
-                        <input type="number" step="0.01" id="accInterestAmount" class="inline-input" value="${defaultAmount.toFixed(2)}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;font-size:14px;font-weight:700;color:#10b981;">
+                        <input type="number" step="0.01" id="accInterestAmount" class="inline-input" value="${defaultAmount.toFixed(2)}" style="width:100%;border:1px solid var(--border-color);padding:8px;border-radius:6px;font-size:14px;font-weight:700;color:var(--success);">
                     </div>
                     <div>
                         <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">${window.i18n.t('acc_interest_modal_date')}</label>

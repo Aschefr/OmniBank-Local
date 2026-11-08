@@ -990,8 +990,7 @@
         width: 100%;
     }
 
-    /* ── Comptes & Catégories: form row → stack ── */
-    .accounts-add-form,
+    /* ── Catégories: form row → stack ── */
     .categories-add-form {
         flex-direction: column !important;
     }

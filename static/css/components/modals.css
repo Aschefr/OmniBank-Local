@@ -1567,115 +1567,11 @@
     transform: translateY(-1px);
 }
 
-/* Account action buttons */
-.acc-action-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    padding: 0;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    margin-right: 2px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    width: 24px;
-    height: 24px;
-    box-sizing: border-box;
-    vertical-align: middle;
-}
-
-.acc-action-btn:last-child {
-    margin-right: 0;
-}
-
-.acc-action-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.acc-feed-btn {
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
-.acc-feed-btn:hover {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: var(--primary, #6366f1);
-}
-
-.acc-history-btn {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #818cf8;
-}
-
-.acc-history-btn:hover {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: var(--primary, #6366f1);
-}
-
-.acc-edit-btn {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.acc-edit-btn:hover {
-    background: rgba(51, 102, 255, 0.15);
-}
-
-.acc-lock-btn {
-    border-color: var(--warning, #f59e0b);
-    color: var(--warning, #f59e0b);
-}
-
-.acc-lock-btn:hover {
-    background: rgba(245, 158, 11, 0.15);
-}
-
-.acc-del-btn {
-    border-color: var(--danger);
-    color: var(--danger);
-    font-weight: 700;
-}
-
-.acc-del-btn:hover {
-    background: rgba(255, 86, 48, 0.15);
-}
-
 /* Transfer type tag (wizard guide) */
 .wizard-type-tag.transfer-tag {
     background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
 }
-
-/* Primary account star */
-.acc-main-star {
-    margin-right: 4px;
-    font-size: 14px;
-}
-
-.acc-star-btn {
-    border-color: var(--text-muted) !important;
-    color: var(--text-muted) !important;
-    opacity: 0.5;
-    font-size: 11px !important;
-}
-
-.acc-star-btn:hover {
-    opacity: 1;
-    border-color: #f59e0b !important;
-    color: #f59e0b !important;
-    background: rgba(245, 158, 11, 0.1);
-}
-
-.acc-star-active {
-    border-color: #f59e0b !important;
-    color: #f59e0b !important;
-    font-size: 11px !important;
-    background: rgba(245, 158, 11, 0.1);
-}
-
 
 /* ─── Section: Phase 9: User picker overlay (Lines 4136-4219) ─── */
 /* ── Phase 9: User Picker Overlay ─────────────────────────────────── */

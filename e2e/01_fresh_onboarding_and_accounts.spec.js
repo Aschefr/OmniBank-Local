@@ -32,21 +32,26 @@ test.describe('Module A : Parcours Base Vierge - Onboarding & Gestion des Compte
     await goToView(page, 'accounts');
     const tableBody = page.locator('#accountsBody');
 
+    // « Nouveau compte » ouvre la fenêtre de compte ; son bouton principal crée le compte
+    const createAccount = async (name, type, balance) => {
+      await page.click('.acc-head-actions .acc-new-btn');
+      await expect(page.locator('#accEditModal')).toBeVisible({ timeout: 5000 });
+      await page.fill('#accEditName', name);
+      await page.selectOption('#accEditType', type);
+      await page.fill('#accEditBalance', balance);
+      await page.click('#accEditModal .modal-footer-pinned .btn-primary');
+      await expect(page.locator('#accEditModal')).toHaveCount(0);
+    };
+
     // 1. Créer un Compte Courant avec 1500 € de solde initial
-    await page.fill('#acc_name', 'Compte Courant Test');
-    await page.selectOption('#acc_type_select', 'Compte courant');
-    await page.fill('#acc_balance', '1500');
-    await page.click('button[data-i18n="btn_add_account"]');
+    await createAccount('Compte Courant Test', 'Compte courant', '1500');
 
     // Attendre l'apparition dans la table des comptes
     await expect(tableBody).toContainText('Compte Courant Test', { timeout: 5000 });
     await expect(tableBody).toContainText('1 500,00');
 
     // 2. Créer un Livret d\'épargne avec 5000 € de solde initial
-    await page.fill('#acc_name', 'Livret A Test');
-    await page.selectOption('#acc_type_select', 'Livret');
-    await page.fill('#acc_balance', '5000');
-    await page.click('button[data-i18n="btn_add_account"]');
+    await createAccount('Livret A Test', 'Livret', '5000');
 
     // Attendre l'apparition du livret
     await expect(tableBody).toContainText('Livret A Test', { timeout: 5000 });
