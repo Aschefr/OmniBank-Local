@@ -124,9 +124,15 @@ window.AiModelPicker = {
                 actions = `<div class="amp-bar" role="progressbar" aria-valuenow="${m.percent}" aria-valuemin="0" aria-valuemax="100"><span style="width:${m.percent}%"></span></div>
                     <div class="amp-note">${this._t('ai_models_downloading', 'Téléchargement : {p} %', { p: m.percent })}</div>`;
             } else if (m.installed) {
+                const s = isCurrent && st.opts.settings ? st.opts.settings() : null;
+                const drifted = s && !isNaN(s.temperature) && !isNaN(s.num_ctx)
+                    && (Math.abs(s.temperature - m.temperature) > 1e-6 || s.num_ctx !== m.num_ctx);
+                const reapply = drifted
+                    ? `<button type="button" class="amp-btn" onclick="window.AiModelPicker.pick('${containerId}', '${m.name}')">${this._t('ai_models_reapply', 'Remettre ses réglages ({temp} · {ctx})', { temp: this._num(m.temperature), ctx: Math.round(m.num_ctx / 1024) + 'K' })}</button>`
+                    : '';
                 actions = isCurrent
-                    ? `<div class="amp-current">✓ ${this._t('ai_models_in_use', 'En service')}</div>`
-                    : `<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pick('${containerId}', '${m.name}')">${this._t('ai_models_use', 'Utiliser')}</button>`;
+                    ? `<div class="amp-current">✓ ${this._t('ai_models_in_use', 'En service')}</div>${reapply}`
+                    :`<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pick('${containerId}', '${m.name}')">${this._t('ai_models_use', 'Utiliser')}</button>`;
             } else if (downloadable) {
                 actions = `<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pull('${containerId}', '${m.name}')">${this._t('ai_models_get', 'Télécharger ({gb} Go)', { gb: this._num(m.size_gb) })}</button>`;
             } else {
@@ -255,8 +261,8 @@ window.AiModelPicker = {
             Object.assign(window.app.config, { ollama_model: m.name, ollama_temperature: String(m.temperature), ollama_context: String(m.num_ctx) });
         }
         st.opts.current = m.name;
+        if (st.opts.onPick) st.opts.onPick(m);  // avant de redessiner : les vignettes lisent les réglages affichés
         this._paint(containerId);
         showToast(this._t('ai_models_picked', 'Modèle {name} en service, avec ses réglages.', { name: m.name }), 'success');
-        if (st.opts.onPick) st.opts.onPick(m);
     }
 };

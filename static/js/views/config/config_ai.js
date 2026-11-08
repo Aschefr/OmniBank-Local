@@ -75,12 +75,26 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         el.textContent = text;
     },
 
+    // Un modèle recommandé choisi dans la liste reçoit aussi sa température et son contexte, comme depuis sa vignette
+    onModelSelected(model) {
+        if (window.AiModelPicker && window.AiModelPicker.presetFor('configAiModelPicker', model)) {
+            return window.AiModelPicker.pick('configAiModelPicker', model);
+        }
+        this.save();
+        if (window.AiModelPicker) window.AiModelPicker.markCurrent('configAiModelPicker', model);
+    },
+
     // Modèles recommandés : en choisir un règle aussi la température et le contexte affichés plus bas
     _renderModelPicker() {
         if (!window.AiModelPicker) return;
         window.AiModelPicker.render('configAiModelPicker', {
             current: this.configData.ollama_model,
             showStudy: true,
+            // Réglages en cours : la vignette du modèle en service propose de remettre les siens s'ils ont changé
+            settings: () => ({
+                temperature: parseFloat(document.getElementById('conf_ollama_temp')?.value),
+                num_ctx: parseInt(document.getElementById('conf_ollama_ctx')?.value, 10)
+            }),
             onPick: (m) => {
                 this.configData.ollama_model = m.name;
                 this.configData.ollama_temperature = String(m.temperature);
