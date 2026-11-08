@@ -1283,6 +1283,13 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
     margin-top: 14px;
 }
 
+/* mobile.css passe .flex-row-mobile-col en colonne dès 1024px : la base de 220px deviendrait une hauteur */
+@media (max-width: 1024px) {
+    .config-field-row.flex-row-mobile-col > .config-field {
+        flex: 0 0 auto;
+    }
+}
+
 @media (max-width: 768px) {
     .config-field-row {
         flex-direction: column;
