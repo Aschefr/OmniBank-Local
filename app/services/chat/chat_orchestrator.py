@@ -779,6 +779,7 @@ async def _run_generation_task(
         categories = [c.name for c in db.query(Category).order_by(Category.name).all()]
         sys_prompt = load_system_prompt(session.role, categories, req.lang, db=db, session_id=session.id, user_name=req.user_name, user_query=req.content)
         options = {"temperature": cfg["temperature"], "num_ctx": cfg["num_ctx"]}
+        think_kw = {} if cfg.get("think", True) else {"think": False}
 
         session_tools = get_tools_for_role(session.role)
         ollama_msgs = build_replay_messages(sys_prompt, session, messages)
@@ -986,6 +987,7 @@ async def _run_generation_task(
                     "stream": True,
                     "options": options,
                     "keep_alive": "30m",
+                    **think_kw,
                 }
 
                 phase_text = ""
@@ -1331,6 +1333,7 @@ async def _run_generation_task(
                     "stream": True,
                     "options": options,
                     "keep_alive": "30m",
+                    **think_kw,
                 }
                 synth_text = ""
                 async for chunk in _stream_ollama(synth_payload):
@@ -1660,6 +1663,7 @@ Réponds avec SEULEMENT le nom, sans ponctuation, sans explication."""
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
+                "think": False,
                 "options": {"temperature": 0.1, "num_ctx": ctx, "num_predict": 512},
             })
             resp.raise_for_status()

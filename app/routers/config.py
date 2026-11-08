@@ -53,6 +53,7 @@ CONFIG_DEFAULTS = {
     "budget_totals_exclude_fixed": "true",
     "budget_sidebar_labels": "{}",
     "budget_update_notice": "false",
+    "ollama_think": "true",
 }
 
 @router.get("/")

@@ -213,7 +213,7 @@ RÈGLES STRICTES :
 
 TITRE :"""
     try:
-        raw = call_ollama_sync(prompt, cfg, extra_options={"temperature": 0.2, "num_predict": 30})
+        raw = call_ollama_sync(prompt, cfg, extra_options={"temperature": 0.2, "num_predict": 30, "think": False})
         cleaned = clean_llm_title(raw)
         if cleaned:
             new_title = cleaned

@@ -1726,6 +1726,8 @@
   "config_ai_advanced": "Réglages avancés (créativité, mémoire)",
   "config_ai_ctx": "Taille du Contexte",
   "config_ai_ctx_hint": "Minimum 16K : les consignes et les outils de l'assistant en occupent déjà environ 9 000. 32K recommandé (et requis pour les gros imports). Changer cette valeur recharge le modèle.",
+  "config_ai_think": "Laisser le modèle réfléchir avant de répondre au conseiller",
+  "config_ai_think_hint": "Le modèle écrit un brouillon de réflexion avant chaque réponse du conseiller. Gardez-le activé avec gemma4:e4b ou bonsai-2:27b : sans lui, ils appellent moins leurs outils et se trompent de chiffres. Avec qwen3.8:27b, le désactiver fait répondre en 7 à 8 s au lieu de 12, sans perte mesurée. Les autres tâches de l'IA ne réfléchissent jamais.",
   "config_ai_ctx_hint_detail": "Une taille de contexte de 16384 (16K) ou plus est vivement recommandée pour accueillir les descriptions d'outils et l'historique du chat. Attention : modifier ces réglages force Ollama à recharger le modèle en mémoire, ce qui ralentit la première réponse.",
   "config_ai_desc": "Renseignez l'URL de votre serveur Ollama local (ex: http://localhost:11434 ou http://192.168.1.50:11434).",
   "config_ai_enable": "Activer l'IA",

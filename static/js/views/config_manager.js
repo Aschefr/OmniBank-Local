@@ -314,6 +314,16 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                     <p class="config-help" data-i18n="config_ai_ctx_hint">${window.i18n.t('config_ai_ctx_hint')}</p>
                                 </div>
                             </div>
+                            <div class="config-toggle-list">
+                                <label class="config-toggle-row">
+                                    <span class="toggle-switch">
+                                        <input type="checkbox" id="conf_ollama_think" checked onchange="window.ConfigView.save()">
+                                        <span class="slider"></span>
+                                    </span>
+                                    <span data-i18n="config_ai_think">${window.i18n.t('config_ai_think')}</span>
+                                </label>
+                            </div>
+                            <p class="config-help" data-i18n="config_ai_think_hint">${window.i18n.t('config_ai_think_hint')}</p>
                             <div class="config-tip">
                                 <strong data-i18n="config_ai_optimal_hint">${window.i18n.t('config_ai_optimal_hint')}</strong>
                                 <ul>
@@ -700,6 +710,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 // Le serveur n'utilise jamais moins de 16K (consignes + outils de l'assistant)
                 document.getElementById('conf_ollama_ctx').value = Math.max(16384, parseInt(this.configData.ollama_context, 10) || 32768);
             }
+            document.getElementById('conf_ollama_think').checked = this.configData.ollama_think !== 'false';
             
             this.loadAiPersonality();
 
@@ -786,6 +797,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 ollama_model: document.getElementById('conf_ollama_model').value,
                 ollama_temperature: document.getElementById('conf_ollama_temp').value,
                 ollama_context: document.getElementById('conf_ollama_ctx').value,
+                ollama_think: document.getElementById('conf_ollama_think').checked ? 'true' : 'false',
                 enable_ai: document.getElementById('conf_enable_ai').checked ? 'true' : 'false',
                 enable_bimonthly: document.getElementById('conf_enable_bimonthly').checked ? 'true' : 'false',
                 enable_attachments: document.getElementById('conf_enable_attachments').checked ? 'true' : 'false',

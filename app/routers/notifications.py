@@ -347,6 +347,7 @@ Return ONLY the raw JSON object, no introduction, no markdown blocks like ```jso
                 {"role": "user", "content": user_content}
             ],
             "stream": False,
+            "think": False,
             "format": "json",
             "options": {
                 "temperature": 0.4,

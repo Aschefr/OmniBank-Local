@@ -53,7 +53,7 @@ The same figures are shown in **Configuration > AI Assistant**, under the three 
 
 - The advisor decides: `ministral-3:14b` and `mistral-nemo` file labels well, but get half the questions or more wrong, almost always without looking at your data. `gemma4:31b` reads a real statement best, but answers almost twice as slowly as `qwen3.8:27b`.
 - `gemma4:e4b` fits in 3.5 GB and places envelopes well (21 out of 22); it gets 2 or 3 of the advisor's 12 questions wrong.
-- The advisor keeps the model's thinking (checked on 8 November 2026): without it, `gemma4:e4b` stops calling its tools and drops to 2 or 3 right answers out of 12, and `bonsai-2:27b` loses up to two. Only `qwen3.8:27b` loses nothing, answering in 7 to 8 s instead of 12. The other tasks do without it.
+- The advisor keeps the model's thinking (checked on 8 November 2026): without it, `gemma4:e4b` stops calling its tools and drops to 2 or 3 right answers out of 12, and `bonsai-2:27b` loses up to two. Only `qwen3.8:27b` loses nothing, answering in 7 to 8 s instead of 12. The other tasks do without it. The "Let the model think before answering in the advisor" switch (Configuration > AI Assistant > Advanced settings) turns it off, for example with `qwen3.8:27b` for faster answers.
 
 Any other installed model stays available in the dropdown. Prefer a model that can call tools: the advisor and data extraction need it.
 

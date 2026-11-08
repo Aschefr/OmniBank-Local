@@ -64,6 +64,9 @@ def get_ollama_config(db: Session) -> dict:
         "model": _val("ollama_model"),
         "temperature": float(_val("ollama_temperature") or 0.3),
         "num_ctx": normalize_num_ctx(_val("ollama_context")),
+        # Réflexion du modèle dans le chat de l'assistant. Activée : on n'envoie rien (le modèle fait comme d'habitude) ;
+        # désactivée : think=False. Jamais think=True, refusé (HTTP 400) par un modèle sans réflexion.
+        "think": _val("ollama_think") not in ("false", "False", "0"),
     }
 
 

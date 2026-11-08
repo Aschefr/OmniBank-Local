@@ -1726,6 +1726,8 @@
   "config_ai_advanced": "Advanced settings (creativity, memory)",
   "config_ai_ctx": "Context Size",
   "config_ai_ctx_hint": "Minimum 16K: the assistant's instructions and tools already take about 9,000. 32K recommended (and required for large imports). Changing this value reloads the model.",
+  "config_ai_think": "Let the model think before answering in the advisor",
+  "config_ai_think_hint": "The model writes a draft of its reasoning before each advisor answer. Keep it on with gemma4:e4b or bonsai-2:27b: without it, they call their tools less and get figures wrong. With qwen3.8:27b, turning it off answers in 7 to 8 s instead of 12, with no measured loss. The other AI tasks never think.",
   "config_ai_ctx_hint_detail": "A context size of 16384 (16K) or more is highly recommended to fit all tool descriptions and chat history. Note: changing these settings forces Ollama to reload the model, causing a delay on the first query.",
   "config_ai_desc": "Enter the URL of your local Ollama server (e.g.: http://localhost:11434 or http://192.168.1.50:11434).",
   "config_ai_enable": "Enable AI",
