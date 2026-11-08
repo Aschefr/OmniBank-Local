@@ -80,6 +80,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         if (!window.AiModelPicker) return;
         window.AiModelPicker.render('configAiModelPicker', {
             current: this.configData.ollama_model,
+            showStudy: true,
             onPick: (m) => {
                 this.configData.ollama_model = m.name;
                 this.configData.ollama_temperature = String(m.temperature);

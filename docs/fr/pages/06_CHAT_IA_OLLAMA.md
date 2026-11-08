@@ -39,6 +39,22 @@ Ce choix vient d'un banc d'essai de 16 modèles sur les tâches d'OmniBank : nom
 - **Recommandé** : la qualité d'un modèle de 27 milliards de paramètres dans environ 9 Go, grâce à des poids ternaires. Il a répondu juste aux douze questions du conseiller, mais regroupe les enveloppes de façon moins régulière.
 - **Top qualité** : le meilleur ensemble mesuré, pour une carte graphique de 24 Go.
 
+#### Comment ces modèles ont été choisis
+Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous les trois cartes. Banc du 6 novembre 2026 : chaque tâche jouée deux fois, température 0,2, contexte 32K, carte RTX 3090. Libellés : catégorie de 45 libellés inventés ; vrai relevé : catégorie de 120 libellés d'un vrai relevé ; enveloppes : 22 catégories à placer ; conseiller : 12 questions sur un profil de démonstration. Quand les deux passes diffèrent, les deux résultats sont donnés.
+
+| Modèle | Rang | Libellés /45 | Vrai relevé /120 | Enveloppes /22 | Conseiller /12 | Réponse | Mémoire |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `qwen3.8:27b` | Top qualité | 44 | 78–80 | 20 | 12 | 13 s | 17,5 Go |
+| `bonsai-2:27b` | Recommandé | 43 | 73–74 | 16–20 | 12 | 16 s | 9,2 Go |
+| `gemma4:e4b` | Minimum | 41–42 | 64–66 | 21 | 9–10 | 5 s | 3,5 Go |
+| `gemma4:31b` | Alternative | 44 | 87 | 21 | 12 | 23 s | 19,9 Go |
+| `ministral-3:14b` | Non retenu | 41 | 56–57 | 20–22 | **6** | 5 s | 11,1 Go |
+| `mistral-nemo` | Non retenu | 38 | 58 | 21 | **0–3** | 1,4 s | 9,9 Go |
+
+- Le conseiller départage : `ministral-3:14b` et `mistral-nemo` rangent bien les libellés, mais répondent faux à la moitié des questions ou plus, presque toujours sans consulter vos données. `gemma4:31b` lit le mieux un vrai relevé, mais répond presque deux fois plus lentement que `qwen3.8:27b`.
+- `gemma4:e4b` tient dans 3,5 Go et place bien les enveloppes (21 sur 22) ; il se trompe sur 2 ou 3 des 12 questions du conseiller.
+- Le conseiller garde la réflexion du modèle (vérifié le 8 novembre 2026) : sans elle, `gemma4:e4b` n'appelle plus ses outils et tombe à 2 ou 3 bonnes réponses sur 12, et `bonsai-2:27b` en perd jusqu'à deux. Seul `qwen3.8:27b` n'y perd rien, en répondant en 7 à 8 s au lieu de 12. Les autres tâches, elles, s'en passent.
+
 Tout autre modèle installé reste disponible dans la liste déroulante. Préférez un modèle qui sait appeler des outils : le conseiller et l'extraction de données en ont besoin.
 
 ### 3. Modales d'Action Autonome (Function Calling)

@@ -39,6 +39,22 @@ This choice comes from a benchmark of 16 models on OmniBank's own tasks: naming 
 - **Recommended**: the quality of a 27-billion-parameter model in about 9 GB, thanks to ternary weights. It answered all twelve advisor questions correctly, but groups envelopes less consistently.
 - **Top quality**: the best overall result measured, for a 24 GB graphics card.
 
+#### How these models were chosen
+The same figures are shown in **Configuration > AI Assistant**, under the three cards. Benchmark of 6 November 2026: each task run twice, temperature 0.2, 32K context, RTX 3090 graphics card. Labels: category of 45 made-up labels; real statement: category of 120 labels from a real statement; envelopes: 22 categories to place; advisor: 12 questions on a demo profile. When the two runs differ, both results are given.
+
+| Model | Rank | Labels /45 | Real statement /120 | Envelopes /22 | Advisor /12 | Answer | Memory |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `qwen3.8:27b` | Top quality | 44 | 78–80 | 20 | 12 | 13 s | 17.5 GB |
+| `bonsai-2:27b` | Recommended | 43 | 73–74 | 16–20 | 12 | 16 s | 9.2 GB |
+| `gemma4:e4b` | Minimum | 41–42 | 64–66 | 21 | 9–10 | 5 s | 3.5 GB |
+| `gemma4:31b` | Alternative | 44 | 87 | 21 | 12 | 23 s | 19.9 GB |
+| `ministral-3:14b` | Not chosen | 41 | 56–57 | 20–22 | **6** | 5 s | 11.1 GB |
+| `mistral-nemo` | Not chosen | 38 | 58 | 21 | **0–3** | 1.4 s | 9.9 GB |
+
+- The advisor decides: `ministral-3:14b` and `mistral-nemo` file labels well, but get half the questions or more wrong, almost always without looking at your data. `gemma4:31b` reads a real statement best, but answers almost twice as slowly as `qwen3.8:27b`.
+- `gemma4:e4b` fits in 3.5 GB and places envelopes well (21 out of 22); it gets 2 or 3 of the advisor's 12 questions wrong.
+- The advisor keeps the model's thinking (checked on 8 November 2026): without it, `gemma4:e4b` stops calling its tools and drops to 2 or 3 right answers out of 12, and `bonsai-2:27b` loses up to two. Only `qwen3.8:27b` loses nothing, answering in 7 to 8 s instead of 12. The other tasks do without it.
+
 Any other installed model stays available in the dropdown. Prefer a model that can call tools: the advisor and data extraction need it.
 
 ### 3. Autonomous Function Calling Cards
