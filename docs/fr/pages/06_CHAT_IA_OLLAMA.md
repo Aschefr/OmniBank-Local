@@ -53,7 +53,11 @@ Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous l
 
 - Le conseiller départage : `ministral-3:14b` et `mistral-nemo` rangent bien les libellés, mais répondent faux à la moitié des questions ou plus, presque toujours sans consulter vos données. `gemma4:31b` lit le mieux un vrai relevé, mais répond presque deux fois plus lentement que `qwen3.8:27b`.
 - `gemma4:e4b` tient dans 3,5 Go et place bien les enveloppes (21 sur 22) ; il se trompe sur 2 ou 3 des 12 questions du conseiller.
-- Le conseiller garde la réflexion du modèle (vérifié le 8 novembre 2026) : sans elle, `gemma4:e4b` n'appelle plus ses outils et tombe à 2 ou 3 bonnes réponses sur 12, et `bonsai-2:27b` en perd jusqu'à deux. Seul `qwen3.8:27b` n'y perd rien, en répondant en 7 à 8 s au lieu de 12. Les autres tâches, elles, s'en passent. L'interrupteur « Laisser le modèle réfléchir avant de répondre au conseiller » (Configuration > Assistant IA > Réglages avancés) permet de la couper, par exemple avec `qwen3.8:27b` pour des réponses plus rapides.
+
+##### Et les réglages conseillés
+- Contexte 32K : les consignes et les outils du conseiller occupent déjà environ 9 000 tokens. 16K est le minimum accepté ; 32K laisse la place à l'historique de la conversation et aux gros imports.
+- Température 0,2 : la valeur du banc. Elle ne règle que le conseiller et les suggestions de budget ; la catégorisation et l'import restent toujours à 0,1.
+- Réflexion gardée pour le conseiller (banc du 8 novembre 2026) : sans elle, `gemma4:e4b` n'appelle plus ses outils et tombe de 9 à 2 ou 3 bonnes réponses sur 12, et `bonsai-2:27b` en perd jusqu'à deux. `qwen3.8:27b` n'y perd rien et répond en 7 à 8 s au lieu de 12 : l'interrupteur de Configuration > Assistant IA > Réglages avancés permet de la couper. Les autres tâches de l'IA ne réfléchissent jamais.
 
 Tout autre modèle installé reste disponible dans la liste déroulante. Préférez un modèle qui sait appeler des outils : le conseiller et l'extraction de données en ont besoin.
 

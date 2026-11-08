@@ -72,6 +72,7 @@ window.AiModelPicker = {
             .amp-study ul { margin:0; padding-left:18px; }
             .amp-study li { font-size:11.5px; color:var(--text-muted); line-height:1.45; }
             .amp-study li + li { margin-top:3px; }
+            .amp-study-sub { font-size:12px; font-weight:600; color:var(--text-main); margin-top:4px; }
         `;
         document.head.appendChild(st);
     },
@@ -174,8 +175,11 @@ window.AiModelPicker = {
                 <td>${this._t('ai_models_study_seconds', '{s} s', { s: this._num(m.seconds) })}</td>
                 <td>${this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram) })}</td>
             </tr>`).join('');
-        const notes = ['ai_models_study_note_chat', 'ai_models_study_note_minimum', 'ai_models_study_note_think']
-            .map(k => `<li>${this._t(k, '')}</li>`).filter(li => li !== '<li></li>').join('');
+        const items = keys => keys.map(k => `<li>${this._t(k, '', settingVals)}</li>`).filter(li => li !== '<li></li>').join('');
+        const preset = (st.catalog.models || [])[0] || {};
+        const settingVals = { temp: this._num(preset.temperature ?? 0.2), ctx: Math.round((preset.num_ctx || 32768) / 1024) + 'K' };
+        const notes = items(['ai_models_study_note_chat', 'ai_models_study_note_minimum']);
+        const settings = items(['ai_models_study_set_ctx', 'ai_models_study_set_temp', 'ai_models_study_set_think']);
         return `
             <details class="config-collapse amp-study" ${st.studyOpen ? 'open' : ''} ontoggle="window.AiModelPicker._state['${containerId}'].studyOpen = this.open">
                 <summary>${this._t('ai_models_study_title', 'Comment ces modèles ont été choisis')}</summary>
@@ -192,6 +196,8 @@ window.AiModelPicker = {
                         </table>
                     </div>
                     <ul>${notes}</ul>
+                    <div class="amp-study-sub">${this._t('ai_models_study_settings_title', 'Et les réglages conseillés')}</div>
+                    <ul>${settings}</ul>
                 </div>
             </details>`;
     },
