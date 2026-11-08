@@ -385,7 +385,8 @@ window.FormView = {
         // Determine if recurrent
         const isRecurrent = tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
         document.getElementById('op_is_recurrent').checked = isRecurrent;
-        document.getElementById('op_is_recurrent').disabled = true; // Cannot toggle an existing one
+        // Déjà dans une série : on la gère depuis Récurrences ; sinon l'interrupteur crée la série à partir d'elle
+        document.getElementById('op_is_recurrent').disabled = isRecurrent;
         
         await this.init();
         
@@ -406,8 +407,10 @@ window.FormView = {
             document.getElementById('op_rec_freq').value = 'Monthly';
         } else if (tx.is_yearly) {
             document.getElementById('op_rec_freq').value = 'Yearly';
+        } else if (!isRecurrent) {
+            document.getElementById('op_rec_freq').value = 'Monthly'; // valeur proposée si l'utilisateur la rend récurrente
         }
-        
+
         // Reset limit field — fetch from template if exists
         document.getElementById('op_rec_limit').value = '';
         if (tx.recurrence_id) {
@@ -1391,9 +1394,19 @@ window.FormView = {
             }
         }
 
+        this._newRecurrence = null;
         if (this.currentTxId) {
             // Edit Mode
-            if (isRecurrent || (this.currentTxBase && this.currentTxBase.recurrence_id)) {
+            if (isRecurrent && !document.getElementById('op_is_recurrent').disabled) {
+                // Opération existante rendue récurrente : la série est créée après l'enregistrement
+                const limitVal = parseInt(document.getElementById('op_rec_limit').value);
+                this._newRecurrence = {
+                    frequency: document.getElementById('op_rec_freq').value,
+                    max_occurrences: limitVal > 0 ? limitVal : null,
+                    type: type
+                };
+                this.executeSave(false);
+            } else if (isRecurrent || (this.currentTxBase && this.currentTxBase.recurrence_id)) {
                 // Show propagate modal
                 const newSeriesBtn = document.getElementById('btnPropagateNewSeries');
                 if (newSeriesBtn) newSeriesBtn.style.display = this.currentTxBase?.recurrence_id ? '' : 'none';
@@ -1432,6 +1445,14 @@ window.FormView = {
         }
     },
     
+    /** Crée la série à partir de l'opération modifiée, quand l'utilisateur vient d'activer « Opération récurrente ». */
+    async _createRecurrenceFromEdit() {
+        const req = this._newRecurrence;
+        this._newRecurrence = null;
+        if (!req || !this.currentTxId) return;
+        await API.post(`/api/recurrences/from-transaction/${this.currentTxId}`, req);
+    },
+
     confirmPropagate(propagate) {
         document.getElementById('propagateConfirmModal').style.display = 'none';
         this.executeSave(propagate);
@@ -1493,6 +1514,7 @@ window.FormView = {
                     if (newSeries && this.currentTxId) {
                         await API.post(`/api/transactions/${this.currentTxId}/new-series`, {});
                     }
+                    await this._createRecurrenceFromEdit();
 
                     this.close();
                     window.dispatchEvent(new CustomEvent('autopilot_updated'));
@@ -1564,6 +1586,7 @@ window.FormView = {
                 // UPDATE
                 const res = await API.put(`/api/transactions/${this.currentTxId}?propagate=${propagate}${newSeries ? '&new_series=true' : ''}`, this.pendingSaveData);
                 actionId = res.action_id;
+                await this._createRecurrenceFromEdit();
 
                 
                 // If propagating and recurrence limit changed, update template and regenerate

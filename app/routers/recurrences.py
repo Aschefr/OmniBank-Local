@@ -8,7 +8,7 @@ import calendar
 
 from app.database import get_db
 from app.models import RecurrenceTemplate, Transaction, Category
-from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest, RecurrenceCloseRequest
+from app.schemas.api_schemas import RecurrenceTemplateCreate, RecurrenceTemplateOut, PropagateRequest, WizardGenerateRequest, RecurrenceCloseRequest, RecurrenceFromTransactionRequest
 from app.services.history_service import record_action, snapshot_entity
 from app.services import stats_cache
 
@@ -104,6 +104,35 @@ def update_template(tpl_id: int, tpl_update: RecurrenceTemplateCreate, db: Sessi
     db.refresh(db_tpl)
     db_tpl.action_id = action_id
     return db_tpl
+
+@router.post("/from-transaction/{tx_id}", response_model=RecurrenceTemplateOut)
+def create_template_from_transaction(tx_id: int, req: RecurrenceFromTransactionRequest, db: Session = Depends(get_db)):
+    """Rend récurrente une opération existante : la série part d'elle et ses prochaines échéances sont générées."""
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if tx.recurrence_id:
+        raise HTTPException(status_code=409, detail="Transaction already belongs to a recurrence")
+    tpl = create_template(RecurrenceTemplateCreate(
+        description=tx.description,
+        amount=tx.amount,
+        type=req.type or tx.type or "expense_fixed",
+        category=tx.category,
+        frequency=req.frequency,
+        day_of_month=tx.date_operation.day,
+        month_of_year=tx.date_operation.month if req.frequency == "Yearly" else None,
+        max_occurrences=req.max_occurrences if req.max_occurrences and req.max_occurrences > 0 else None,
+        from_account_id=tx.from_account_id,
+        to_account_id=tx.to_account_id,
+    ), db)
+    tx.recurrence_id = tpl.id
+    tx.type = tpl.type
+    tx.is_monthly = req.frequency == "Monthly"
+    tx.is_yearly = req.frequency == "Yearly"
+    tx.is_bimonthly = req.frequency == "Bi-Monthly"
+    db.commit()
+    generate_recurrences(template_id=tpl.id, db=db)
+    return tpl
 
 @router.post("/{tpl_id}/close", response_model=RecurrenceTemplateOut)
 def close_template(tpl_id: int, req: Optional[RecurrenceCloseRequest] = None, db: Session = Depends(get_db)):

@@ -167,6 +167,11 @@ class PropagateRequest(BaseModel):
 class RecurrenceCloseRequest(BaseModel):
     closure_date: Optional[date] = None
 
+class RecurrenceFromTransactionRequest(BaseModel):
+    frequency: str = "Monthly"
+    max_occurrences: Optional[int] = None
+    type: Optional[str] = None
+
 class RecurrenceTemplateOut(RecurrenceTemplateBase):
     id: int
     action_id: Optional[int] = None
