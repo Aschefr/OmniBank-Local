@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHlVQXBNL0pTdGV2a1MvNzRBd3hFNHNnM21raE5HR2Myekc3Y0MySTZGOE1zcXJXd3RtTVF3UVpQS3RJeXpSZmhKRHJhMTV0aGIzUTU2dStQcENSeEFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzOTYyMDg1CWZpbGU6T21uaUJhbmtfMS40LjRfeDY0X2ZyLUZSLm1zaQppQmVBK3poTlZvUWFad01Sb3lNSXEzUWVyc3UxY1ZlampwbDIzbk1mcEtlT0xLUk5QY05EOTQvYm9zUllSRWtHaGRxdTVWZzV1Q1c0aWY5SUdvVG9BQT09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.4.4/OmniBank_1.4.4_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhOd2FjcWNzRkJCZXRjNlEyZVRDZE1lWFRsZjlndFBEV2J4SjEzRXJVY2JrOTdyUEY0WFZyY1hnbHN3OFF6Q2Ezd2t5aGJQUzVueHZSdHljaXpzb1FNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MjE0NzA5CWZpbGU6T21uaUJhbmtfMS41LjBfeDY0X2ZyLUZSLm1zaQpqRXVhNTFZS0h0d3V1VFBnYURGY2ljQmxaZkVqZEE4N1Y1S3lLdXBzZkl2cUlxUCs4STMxRzg4TWxKYzY4anptczF6ZHd5N1duaktnWW9vRlZodG9EZz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.5.0/OmniBank_1.5.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-06T10:48:05Z",
-    "version":  "1.4.4",
-    "notes":  "Cockpit forecast windows that end on their own figures"
+    "pub_date":  "2026-11-09T08:58:29Z",
+    "version":  "1.5.0",
+    "notes":  "Bank setup in the wizard, first-month forecasts, better sorting, recommended AI models, clearer Accounts page"
 }
