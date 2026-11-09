@@ -44,27 +44,27 @@ Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous l
 
 | Modèle | Rang | Note /10 | Conseiller /12 · 40 % | Vrai relevé /120 · 30 % | Libellés /45 · 15 % | Enveloppes /22 · 15 % | Carte minimale | Mémoire | Réponse |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `gemma4:31b` | Alternative | **9,1** | 12 | 87 | 44 | 21 | 24 Go et plus | 19,9 Go · Q4 | 23 s |
-| `qwen3.8:27b` | Top qualité | **8,8** | 12 | 78–80 | 44 | 20 | 24 Go et plus | 17,5 Go · Q4 | 13 s |
-| `bonsai-2:27b` | Recommandé | **8,5** | 12 | 73–74 | 43 | 16–20 | 12 Go | 9,2 Go · Q2 | 16 s |
-| `qwen3.6:27b` | trop lent | 8,2 | 11 | 69 | 41 | 20–21 | — | — | 40 s |
-| `mimo-v2.6:9b` |  | 7,8 | 9–11 | 69–70 | 40 | 20–21 | 8 Go | 6,3 Go | 7 s |
-| `qwen3.5:9b` | Non retenu · vrai relevé 59/120 | 7,8 | 11 | **59–61** | 38–40 | 20 | 8 Go | 6,2 Go | 8 s |
-| `qwen3.5:4b` | Non retenu · vrai relevé 57/120 | 7,7 | 11 | **57–58** | 38 | 19–20 | 8 Go | 3,8 Go | 6 s |
-| `gemma4:e4b` | Minimum | **7,6** | 9–10 | 64–66 | 41–42 | 21 | 8 Go | 3,5 Go · Q4 | 5 s |
-| `nemotron-3.5-bolt:e4b` | Non retenu · conseiller 8/12 | 7,6 | **8–10** | 68–69 | 41 | 22 | 8 Go | 1,4 Go | 6 s |
-| `gemma4:12b` | Non retenu · conseiller 7/12 | 7,5 | **7–10** | 72–74 | 44 | 20 | 12 Go | 8,1 Go · Q4 | 10 s |
-| `bonsai-2:9b` | Non retenu · vrai relevé 53/120 | 7,4 | 10–12 | **53** | 34–35 | 16–20 | 8 Go | 3,5 Go | 7 s |
-| `gemma4:e2b` | Non retenu · conseiller 6/12 | 6,4 | **6–8** | 54–60 | 42 | 18–19 | — | — | 3,5 s |
-| `ministral-3:14b` | Non retenu · conseiller 6/12 | 6,2 | **6** | 56–57 | 41 | 20–22 | 16 Go | 11,1 Go | 5 s |
-| `ministral-3:8b` | Non retenu · conseiller 6/12 | 6,1 | **6** | 57–59 | 42 | 18 | 12 Go | 7,7 Go | 2,2 s |
-| `lfm3:1.7b` | Non retenu · vrai relevé 0/120 | 4,6 | 9–10 | **0** | 23 | 10 | 8 Go | 1,3 Go | 12 s |
-| `mistral-nemo` | Non retenu · conseiller 0/12 | 4,6 | **0–3** | 58 | 38 | 21 | 12 Go | 9,9 Go · Q4 | 1,4 s |
+| `gemma4:31b` | Alternative | **9,1** | 12 | 87 | 44 | 21 | 24 Go et plus | 21,3 Go · Q4 | 23 s |
+| `qwen3.8:27b` | Top qualité | **8,8** | 12 | 78–80 | 44 | 20 | 24 Go et plus | 18,7 Go · Q4 | 13 s |
+| `bonsai-2:27b` | Recommandé | **8,5** | 12 | 73–74 | 43 | 16–20 | 12 Go | 9,5 Go · Q2 | 16 s |
+| `qwen3.6:27b` | trop lent | 8,2 | 11 | 69 | 41 | 20–21 | 24 Go et plus | 18,6 Go · Q4 | 40 s |
+| `mimo-v2.6:9b` |  | 7,8 | 9–11 | 69–70 | 40 | 20–21 | 8 Go | 7,0 Go · Q4 | 7 s |
+| `qwen3.5:9b` | Non retenu · vrai relevé 59/120 | 7,8 | 11 | **59–61** | 38–40 | 20 | 8 Go | 7,0 Go · Q4 | 8 s |
+| `qwen3.5:4b` | Non retenu · vrai relevé 57/120 | 7,7 | 11 | **57–58** | 38 | 19–20 | 8 Go | 4,5 Go · Q4 | 6 s |
+| `gemma4:e4b` | Minimum | **7,6** | 9–10 | 64–66 | 41–42 | 21 | 8 Go | 4,9 Go · Q4 | 5 s |
+| `nemotron-3.5-bolt:e4b` | Non retenu · conseiller 8/12 | 7,6 | **8–10** | 68–69 | 41 | 22 | 12 Go | 7,9 Go · Q4 | 6 s |
+| `gemma4:12b` | Non retenu · conseiller 7/12 | 7,5 | **7–10** | 72–74 | 44 | 20 | 12 Go | 9,1 Go · Q4 | 10 s |
+| `bonsai-2:9b` | Non retenu · vrai relevé 53/120 | 7,4 | 10–12 | **53** | 34–35 | 16–20 | 8 Go | 4,2 Go · Q2 | 7 s |
+| `gemma4:e2b` | Non retenu · conseiller 6/12 | 6,4 | **6–8** | 54–60 | 42 | 18–19 | 8 Go | 3,5 Go · Q4 | 3,5 s |
+| `ministral-3:14b` | Non retenu · conseiller 6/12 | 6,2 | **6** | 56–57 | 41 | 20–22 | 16 Go | 11,5 Go · Q4 | 5 s |
+| `ministral-3:8b` | Non retenu · conseiller 6/12 | 6,1 | **6** | 57–59 | 42 | 18 | 12 Go | 8,2 Go · Q4 | 2,2 s |
+| `lfm3:1.7b` | Non retenu · vrai relevé 0/120 | 4,6 | 9–10 | **0** | 23 | 10 | 8 Go | 1,7 Go · Q4 | 12 s |
+| `mistral-nemo` | Non retenu · conseiller 0/12 | 4,6 | **0–3** | 58 | 38 | 21 | 12 Go | 9,5 Go · Q4 | 1,4 s |
 
 - **Non retenu** : moins de 9 bonnes réponses sur 12 au conseiller, ou une tâche sous la moitié de son score, sur l'une des deux passes. La tâche en cause est indiquée dans la colonne Rang et en gras.
 - **Top qualité** : la meilleure note parmi les modèles qui répondent en moins de 20 s. **Alternative** : la meilleure note sans limite de temps. **Minimum** et **Recommandé** : les modèles conseillés pour les petites et les moyennes cartes, ci-dessous.
-- À moins de 0,3 point d'écart, le modèle le plus léger l'emporte : deux passes ne permettent pas de départager plus finement. C'est ainsi que `gemma4:e4b` (3,5 Go) passe devant `mimo-v2.6:9b` (6,3 Go) sur une carte de 8 Go.
-- Mémoire : version par défaut d'Ollama (quantification indiquée quand elle est connue), contexte 32K, cache du contexte 8 bits (q8_0) avec flash attention. Avec le cache par défaut d'Ollama (16 bits), comptez jusqu'à 0,5 Go de plus. Réponse : temps médian du conseiller.
+- À moins de 0,3 point d'écart, le modèle le plus léger l'emporte : deux passes ne permettent pas de départager plus finement. C'est ainsi que `gemma4:e4b` (4,9 Go) passe devant `mimo-v2.6:9b` (7,0 Go) sur une carte de 8 Go.
+- Mémoire : occupée sur la carte graphique une fois le modèle chargé, mesurée avec nvidia-smi ; version par défaut d'Ollama (quantification indiquée quand elle est connue), contexte 32K, cache du contexte 8 bits (q8_0) avec flash attention. Avec le cache par défaut d'Ollama (16 bits), comptez jusqu'à 0,5 Go de plus. Réponse : temps médian du conseiller.
 
 ##### Votre carte graphique → modèle conseillé
 | Carte graphique | Modèle conseillé |

@@ -44,27 +44,27 @@ The same figures are shown in **Configuration > AI Assistant**, under the three 
 
 | Model | Rank | Score /10 | Advisor /12 · 40% | Real statement /120 · 30% | Labels /45 · 15% | Envelopes /22 · 15% | Minimum card | Memory | Answer |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `gemma4:31b` | Alternative | **9.1** | 12 | 87 | 44 | 21 | 24 GB and more | 19.9 GB · Q4 | 23 s |
-| `qwen3.8:27b` | Top quality | **8.8** | 12 | 78–80 | 44 | 20 | 24 GB and more | 17.5 GB · Q4 | 13 s |
-| `bonsai-2:27b` | Recommended | **8.5** | 12 | 73–74 | 43 | 16–20 | 12 GB | 9.2 GB · Q2 | 16 s |
-| `qwen3.6:27b` | too slow | 8.2 | 11 | 69 | 41 | 20–21 | — | — | 40 s |
-| `mimo-v2.6:9b` |  | 7.8 | 9–11 | 69–70 | 40 | 20–21 | 8 GB | 6.3 GB | 7 s |
-| `qwen3.5:9b` | Not chosen · real statement 59/120 | 7.8 | 11 | **59–61** | 38–40 | 20 | 8 GB | 6.2 GB | 8 s |
-| `qwen3.5:4b` | Not chosen · real statement 57/120 | 7.7 | 11 | **57–58** | 38 | 19–20 | 8 GB | 3.8 GB | 6 s |
-| `gemma4:e4b` | Minimum | **7.6** | 9–10 | 64–66 | 41–42 | 21 | 8 GB | 3.5 GB · Q4 | 5 s |
-| `nemotron-3.5-bolt:e4b` | Not chosen · advisor 8/12 | 7.6 | **8–10** | 68–69 | 41 | 22 | 8 GB | 1.4 GB | 6 s |
-| `gemma4:12b` | Not chosen · advisor 7/12 | 7.5 | **7–10** | 72–74 | 44 | 20 | 12 GB | 8.1 GB · Q4 | 10 s |
-| `bonsai-2:9b` | Not chosen · real statement 53/120 | 7.4 | 10–12 | **53** | 34–35 | 16–20 | 8 GB | 3.5 GB | 7 s |
-| `gemma4:e2b` | Not chosen · advisor 6/12 | 6.4 | **6–8** | 54–60 | 42 | 18–19 | — | — | 3.5 s |
-| `ministral-3:14b` | Not chosen · advisor 6/12 | 6.2 | **6** | 56–57 | 41 | 20–22 | 16 GB | 11.1 GB | 5 s |
-| `ministral-3:8b` | Not chosen · advisor 6/12 | 6.1 | **6** | 57–59 | 42 | 18 | 12 GB | 7.7 GB | 2.2 s |
-| `lfm3:1.7b` | Not chosen · real statement 0/120 | 4.6 | 9–10 | **0** | 23 | 10 | 8 GB | 1.3 GB | 12 s |
-| `mistral-nemo` | Not chosen · advisor 0/12 | 4.6 | **0–3** | 58 | 38 | 21 | 12 GB | 9.9 GB · Q4 | 1.4 s |
+| `gemma4:31b` | Alternative | **9.1** | 12 | 87 | 44 | 21 | 24 GB and more | 21.3 GB · Q4 | 23 s |
+| `qwen3.8:27b` | Top quality | **8.8** | 12 | 78–80 | 44 | 20 | 24 GB and more | 18.7 GB · Q4 | 13 s |
+| `bonsai-2:27b` | Recommended | **8.5** | 12 | 73–74 | 43 | 16–20 | 12 GB | 9.5 GB · Q2 | 16 s |
+| `qwen3.6:27b` | too slow | 8.2 | 11 | 69 | 41 | 20–21 | 24 GB and more | 18.6 GB · Q4 | 40 s |
+| `mimo-v2.6:9b` |  | 7.8 | 9–11 | 69–70 | 40 | 20–21 | 8 GB | 7.0 GB · Q4 | 7 s |
+| `qwen3.5:9b` | Not chosen · real statement 59/120 | 7.8 | 11 | **59–61** | 38–40 | 20 | 8 GB | 7.0 GB · Q4 | 8 s |
+| `qwen3.5:4b` | Not chosen · real statement 57/120 | 7.7 | 11 | **57–58** | 38 | 19–20 | 8 GB | 4.5 GB · Q4 | 6 s |
+| `gemma4:e4b` | Minimum | **7.6** | 9–10 | 64–66 | 41–42 | 21 | 8 GB | 4.9 GB · Q4 | 5 s |
+| `nemotron-3.5-bolt:e4b` | Not chosen · advisor 8/12 | 7.6 | **8–10** | 68–69 | 41 | 22 | 12 GB | 7.9 GB · Q4 | 6 s |
+| `gemma4:12b` | Not chosen · advisor 7/12 | 7.5 | **7–10** | 72–74 | 44 | 20 | 12 GB | 9.1 GB · Q4 | 10 s |
+| `bonsai-2:9b` | Not chosen · real statement 53/120 | 7.4 | 10–12 | **53** | 34–35 | 16–20 | 8 GB | 4.2 GB · Q2 | 7 s |
+| `gemma4:e2b` | Not chosen · advisor 6/12 | 6.4 | **6–8** | 54–60 | 42 | 18–19 | 8 GB | 3.5 GB · Q4 | 3.5 s |
+| `ministral-3:14b` | Not chosen · advisor 6/12 | 6.2 | **6** | 56–57 | 41 | 20–22 | 16 GB | 11.5 GB · Q4 | 5 s |
+| `ministral-3:8b` | Not chosen · advisor 6/12 | 6.1 | **6** | 57–59 | 42 | 18 | 12 GB | 8.2 GB · Q4 | 2.2 s |
+| `lfm3:1.7b` | Not chosen · real statement 0/120 | 4.6 | 9–10 | **0** | 23 | 10 | 8 GB | 1.7 GB · Q4 | 12 s |
+| `mistral-nemo` | Not chosen · advisor 0/12 | 4.6 | **0–3** | 58 | 38 | 21 | 12 GB | 9.5 GB · Q4 | 1.4 s |
 
 - **Not chosen**: fewer than 9 right answers out of 12 from the advisor, or a task under half its score, in either of the two runs. The task at fault is shown in the Rank column and in bold.
 - **Top quality**: the best score among models that answer in under 20 s. **Alternative**: the best score with no time limit. **Minimum** and **Recommended**: the models advised for small and medium cards, below.
-- Within 0.3 points, the lighter model wins: two runs cannot tell models apart more finely. That is why `gemma4:e4b` (3.5 GB) comes before `mimo-v2.6:9b` (6.3 GB) on an 8 GB card.
-- Memory: Ollama's default version (quantisation shown when known), 32K context, 8-bit context cache (q8_0) with flash attention. With Ollama's default cache (16-bit), allow up to 0.5 GB more. Answer: the advisor's median time.
+- Within 0.3 points, the lighter model wins: two runs cannot tell models apart more finely. That is why `gemma4:e4b` (4.9 GB) comes before `mimo-v2.6:9b` (7.0 GB) on an 8 GB card.
+- Memory: used on the graphics card once the model is loaded, measured with nvidia-smi; Ollama's default version (quantisation shown when known), 32K context, 8-bit context cache (q8_0) with flash attention. With Ollama's default cache (16-bit), allow up to 0.5 GB more. Answer: the advisor's median time.
 
 ##### Your graphics card → advised model
 | Graphics card | Advised model |

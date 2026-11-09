@@ -15,8 +15,9 @@ window.AiModelPicker = {
         return v;
     },
 
-    _num(v) {
-        return Number(v).toLocaleString(window.i18n && window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR');
+    _num(v, digits) {
+        const fixed = digits == null ? {} : { minimumFractionDigits: digits, maximumFractionDigits: digits };
+        return Number(v).toLocaleString(window.i18n && window.i18n.currentLang === 'en' ? 'en-US' : 'fr-FR', fixed);
     },
 
     _ensureStyles() {
@@ -164,8 +165,8 @@ window.AiModelPicker = {
             : c === lastCard ? this._t('ai_models_study_card_max', '24 Go et plus')
             : this._t('ai_models_study_gb', '{gb} Go', { gb: c });
         const vram = m => m.vram == null ? dash : m.quant
-            ? this._t('ai_models_study_gb_quant', '{gb} Go · {q}', { gb: this._num(m.vram), q: m.quant })
-            : this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram) });
+            ? this._t('ai_models_study_gb_quant', '{gb} Go · {q}', { gb: this._num(m.vram, 1), q: m.quant })
+            : this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram, 1) });
         const sub = m => {
             if (m.excluded) {
                 const why = this._t(`ai_models_study_why_${m.excluded}`, `${m.excluded} {n}`, { n: m[m.excluded][0] });

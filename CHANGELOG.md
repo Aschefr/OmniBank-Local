@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added & Improved
-- **A simpler model comparison 📊**: In Configuration > AI Assistant, "How these models were chosen" now gives each of the 16 tested models a quality score out of 10 next to its task scores, with each task's weight in its column header, plus the smallest graphics card it fits on and its memory. On a phone, the table scrolls sideways with the model and its score kept in view. A second table gives the advised model for 8, 12, 16 and 24 GB cards, and the rules behind each label (Top quality, Minimum, Not chosen) are written under the table.
+- **A simpler model comparison 📊**: In Configuration > AI Assistant, "How these models were chosen" now gives each of the 16 tested models a quality score out of 10 next to its task scores, with each task's weight in its column header, plus the smallest graphics card it fits on and its memory. On a phone, the table scrolls sideways with the model and its score kept in view. A second table gives the advised model for 8, 12, 16 and 24 GB cards, and the rules behind each label (Top quality, Minimum, Not chosen) are written under the table. Memory is now measured on the graphics card itself, so the figures shown for the three suggested models are higher than before (18.7 GB instead of 17.5 GB for qwen3.8:27b).
 
 ## [1.5.0] - 2026-11-09
 

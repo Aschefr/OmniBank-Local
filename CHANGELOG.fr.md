@@ -5,7 +5,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 ## [Unreleased]
 
 ### Ajouts & améliorations
-- **Une comparaison des modèles plus simple 📊** : dans Configuration > Assistant IA, « Comment ces modèles ont été choisis » donne désormais à chacun des 16 modèles testés une note de qualité sur 10 à côté de ses scores par tâche, avec le poids de chaque tâche dans l'en-tête de sa colonne, ainsi que la plus petite carte graphique qui le fait tenir et sa mémoire. Sur téléphone, le tableau défile de côté en gardant le modèle et sa note en vue. Un second tableau donne le modèle conseillé pour une carte de 8, 12, 16 et 24 Go, et les règles derrière chaque étiquette (Top qualité, Minimum, Non retenu) sont écrites sous le tableau.
+- **Une comparaison des modèles plus simple 📊** : dans Configuration > Assistant IA, « Comment ces modèles ont été choisis » donne désormais à chacun des 16 modèles testés une note de qualité sur 10 à côté de ses scores par tâche, avec le poids de chaque tâche dans l'en-tête de sa colonne, ainsi que la plus petite carte graphique qui le fait tenir et sa mémoire. Sur téléphone, le tableau défile de côté en gardant le modèle et sa note en vue. Un second tableau donne le modèle conseillé pour une carte de 8, 12, 16 et 24 Go, et les règles derrière chaque étiquette (Top qualité, Minimum, Non retenu) sont écrites sous le tableau. La mémoire est désormais mesurée sur la carte graphique elle-même : les chiffres affichés pour les trois modèles proposés sont plus élevés qu'avant (18,7 Go au lieu de 17,5 Go pour qwen3.8:27b).
 
 ## [1.5.0] - 2026-11-09
 
