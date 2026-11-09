@@ -40,19 +40,41 @@ Ce choix vient d'un banc d'essai de 16 modèles sur les tâches d'OmniBank : nom
 - **Top qualité** : le meilleur ensemble mesuré, pour une carte graphique de 24 Go.
 
 #### Comment ces modèles ont été choisis
-Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous les trois cartes. Banc du 6 novembre 2026 : chaque tâche jouée deux fois, température 0,2, contexte 32K, carte RTX 3090. Libellés : catégorie de 45 libellés inventés ; vrai relevé : catégorie de 120 libellés d'un vrai relevé ; enveloppes : 22 catégories à placer ; conseiller : 12 questions sur un profil de démonstration. Quand les deux passes diffèrent, les deux résultats sont donnés.
+Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous les trois cartes. Banc du 6 novembre 2026 : 16 modèles, chaque tâche jouée deux fois, température 0,2, contexte 32K, carte RTX 3090. La note sur 10 ne mesure que la qualité : conseiller 40 % (12 questions sur un profil de démonstration : bons outils, chiffres exacts, rien d'inventé), vrai relevé 30 % (catégorie de 120 libellés réels), libellés 15 % (45 libellés inventés), enveloppes 15 % (22 catégories à placer). La vitesse et la mémoire n'y comptent pas.
 
-| Modèle | Rang | Libellés /45 | Vrai relevé /120 | Enveloppes /22 | Conseiller /12 | Réponse | Mémoire |
-|---|---|---:|---:|---:|---:|---:|---:|
-| `qwen3.8:27b` | Top qualité | 44 | 78–80 | 20 | 12 | 13 s | 17,5 Go |
-| `bonsai-2:27b` | Recommandé | 43 | 73–74 | 16–20 | 12 | 16 s | 9,2 Go |
-| `gemma4:e4b` | Minimum | 41–42 | 64–66 | 21 | 9–10 | 5 s | 3,5 Go |
-| `gemma4:31b` | Alternative | 44 | 87 | 21 | 12 | 23 s | 19,9 Go |
-| `ministral-3:14b` | Non retenu | 41 | 56–57 | 20–22 | **6** | 5 s | 11,1 Go |
-| `mistral-nemo` | Non retenu | 38 | 58 | 21 | **0–3** | 1,4 s | 9,9 Go |
+| Modèle | Rang | Note /10 | Conseiller /12 · 40 % | Vrai relevé /120 · 30 % | Libellés /45 · 15 % | Enveloppes /22 · 15 % | Carte minimale | Mémoire | Réponse |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `gemma4:31b` | Alternative | **9,1** | 12 | 87 | 44 | 21 | 24 Go et plus | 19,9 Go · Q4 | 23 s |
+| `qwen3.8:27b` | Top qualité | **8,8** | 12 | 78–80 | 44 | 20 | 24 Go et plus | 17,5 Go · Q4 | 13 s |
+| `bonsai-2:27b` | Recommandé | **8,5** | 12 | 73–74 | 43 | 16–20 | 12 Go | 9,2 Go · Q2 | 16 s |
+| `qwen3.6:27b` | trop lent | 8,2 | 11 | 69 | 41 | 20–21 | — | — | 40 s |
+| `mimo-v2.6:9b` |  | 7,8 | 9–11 | 69–70 | 40 | 20–21 | 8 Go | 6,3 Go | 7 s |
+| `qwen3.5:9b` | Non retenu · vrai relevé 59/120 | 7,8 | 11 | **59–61** | 38–40 | 20 | 8 Go | 6,2 Go | 8 s |
+| `qwen3.5:4b` | Non retenu · vrai relevé 57/120 | 7,7 | 11 | **57–58** | 38 | 19–20 | 8 Go | 3,8 Go | 6 s |
+| `gemma4:e4b` | Minimum | **7,6** | 9–10 | 64–66 | 41–42 | 21 | 8 Go | 3,5 Go · Q4 | 5 s |
+| `nemotron-3.5-bolt:e4b` | Non retenu · conseiller 8/12 | 7,6 | **8–10** | 68–69 | 41 | 22 | 8 Go | 1,4 Go | 6 s |
+| `gemma4:12b` | Non retenu · conseiller 7/12 | 7,5 | **7–10** | 72–74 | 44 | 20 | 12 Go | 8,1 Go · Q4 | 10 s |
+| `bonsai-2:9b` | Non retenu · vrai relevé 53/120 | 7,4 | 10–12 | **53** | 34–35 | 16–20 | 8 Go | 3,5 Go | 7 s |
+| `gemma4:e2b` | Non retenu · conseiller 6/12 | 6,4 | **6–8** | 54–60 | 42 | 18–19 | — | — | 3,5 s |
+| `ministral-3:14b` | Non retenu · conseiller 6/12 | 6,2 | **6** | 56–57 | 41 | 20–22 | 16 Go | 11,1 Go | 5 s |
+| `ministral-3:8b` | Non retenu · conseiller 6/12 | 6,1 | **6** | 57–59 | 42 | 18 | 12 Go | 7,7 Go | 2,2 s |
+| `lfm3:1.7b` | Non retenu · vrai relevé 0/120 | 4,6 | 9–10 | **0** | 23 | 10 | 8 Go | 1,3 Go | 12 s |
+| `mistral-nemo` | Non retenu · conseiller 0/12 | 4,6 | **0–3** | 58 | 38 | 21 | 12 Go | 9,9 Go · Q4 | 1,4 s |
 
-- Le conseiller départage : `ministral-3:14b` et `mistral-nemo` rangent bien les libellés, mais répondent faux à la moitié des questions ou plus, presque toujours sans consulter vos données. `gemma4:31b` lit le mieux un vrai relevé, mais répond presque deux fois plus lentement que `qwen3.8:27b`.
-- `gemma4:e4b` tient dans 3,5 Go et place bien les enveloppes (21 sur 22) ; il se trompe sur 2 ou 3 des 12 questions du conseiller.
+- **Non retenu** : moins de 9 bonnes réponses sur 12 au conseiller, ou une tâche sous la moitié de son score, sur l'une des deux passes. La tâche en cause est indiquée dans la colonne Rang et en gras.
+- **Top qualité** : la meilleure note parmi les modèles qui répondent en moins de 20 s. **Alternative** : la meilleure note sans limite de temps. **Minimum** et **Recommandé** : les modèles conseillés pour les petites et les moyennes cartes, ci-dessous.
+- À moins de 0,3 point d'écart, le modèle le plus léger l'emporte : deux passes ne permettent pas de départager plus finement. C'est ainsi que `gemma4:e4b` (3,5 Go) passe devant `mimo-v2.6:9b` (6,3 Go) sur une carte de 8 Go.
+- Mémoire : version par défaut d'Ollama (quantification indiquée quand elle est connue), contexte 32K, cache du contexte 8 bits (q8_0) avec flash attention. Avec le cache par défaut d'Ollama (16 bits), comptez jusqu'à 0,5 Go de plus. Réponse : temps médian du conseiller.
+
+##### Votre carte graphique → modèle conseillé
+| Carte graphique | Modèle conseillé |
+|---|---|
+| 8 Go | `gemma4:e4b` |
+| 12 Go | `bonsai-2:27b` |
+| 16 Go | `bonsai-2:27b` |
+| 24 Go et plus | `qwen3.8:27b` |
+
+Un modèle tient sur une carte si sa mémoire est au plus la taille de la carte moins 1 Go. Un modèle trop gros marche quand même, en partie en mémoire système, mais beaucoup plus lentement.
 
 ##### Et les réglages conseillés
 - Contexte 32K : les consignes et les outils du conseiller occupent déjà environ 9 000 tokens. 16K est le minimum accepté ; 32K laisse la place à l'historique de la conversation et aux gros imports.

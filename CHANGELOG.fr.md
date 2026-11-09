@@ -2,6 +2,11 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Ajouts & améliorations
+- **Une comparaison des modèles plus simple 📊** : dans Configuration > Assistant IA, « Comment ces modèles ont été choisis » donne désormais à chacun des 16 modèles testés une note de qualité sur 10 à côté de ses scores par tâche, avec le poids de chaque tâche dans l'en-tête de sa colonne, ainsi que la plus petite carte graphique qui le fait tenir et sa mémoire. Sur téléphone, le tableau défile de côté en gardant le modèle et sa note en vue. Un second tableau donne le modèle conseillé pour une carte de 8, 12, 16 et 24 Go, et les règles derrière chaque étiquette (Top qualité, Minimum, Non retenu) sont écrites sous le tableau.
+
 ## [1.5.0] - 2026-11-09
 
 ### Ajouts & améliorations

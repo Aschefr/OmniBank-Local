@@ -2,22 +2,8 @@
 // l'assistant de démarrage et Configuration. Choisir un modèle enregistre aussi sa température et son contexte.
 // Sur un serveur Ollama, un modèle absent se télécharge d'un clic ; ailleurs, la commande à lancer est affichée.
 
-// Mesures qui justifient les modèles recommandés (CATALOG dans app/services/ai_model_catalog.py), affichées dans
-// Configuration sous les trois cartes. Banc du 2026-11-06 : 16 modèles, chaque tâche jouée deux fois, température 0,2,
-// contexte 32768, RTX 3090. labels : catégorie de 45 libellés inventés ; real : catégorie de 120 libellés d'un vrai
-// relevé (score agrégé seulement) ; grouping : 22 catégories placées en enveloppes ; chat : 12 questions au conseiller
-// sur un profil de démonstration. [min, max] sur les passes ; seconds : réponse médiane du conseiller ; vram : Go
-// occupés une fois chargé. bad : cases à signaler (défaut qui écarte le modèle). Mêmes chiffres dans
-// docs/*/pages/06_* (modèles recommandés). La remarque sur la réflexion vient du banc du 2026-11-08.
-const AI_MODEL_STUDY = [
-    { name: 'qwen3.8:27b', tier: 'top', labels: [44, 44], real: [78, 80], grouping: [20, 20], chat: [12, 12], seconds: 13, vram: 17.5 },
-    { name: 'bonsai-2:27b', tier: 'recommended', labels: [43, 43], real: [73, 74], grouping: [16, 20], chat: [12, 12], seconds: 16, vram: 9.2 },
-    { name: 'gemma4:e4b', tier: 'minimum', labels: [41, 42], real: [64, 66], grouping: [21, 21], chat: [9, 10], seconds: 5, vram: 3.5 },
-    { name: 'gemma4:31b', tier: 'alternative', labels: [44, 44], real: [87, 87], grouping: [21, 21], chat: [12, 12], seconds: 23, vram: 19.9 },
-    { name: 'ministral-3:14b', tier: 'rejected', labels: [41, 41], real: [56, 57], grouping: [20, 22], chat: [6, 6], seconds: 5, vram: 11.1, bad: ['chat'] },
-    { name: 'mistral-nemo', tier: 'rejected', labels: [38, 38], real: [58, 58], grouping: [21, 21], chat: [0, 3], seconds: 1.4, vram: 9.9, bad: ['chat'] },
-];
-const AI_MODEL_STUDY_TOTALS = { labels: 45, real: 120, grouping: 22, chat: 12 };
+// Le tableau « Comment ces modèles ont été choisis » (mesures et règles) vient de ai_model_study.js ;
+// mêmes chiffres dans docs/*/pages/06_* (modèles recommandés).
 
 window.AiModelPicker = {
     _state: {},   // containerId -> { opts, catalog, timer }
@@ -61,14 +47,23 @@ window.AiModelPicker = {
             .amp-study { margin-top:12px; }
             .amp-study-body { display:flex; flex-direction:column; gap:8px; padding-bottom:4px; }
             .amp-study-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-            .amp-study table { width:100%; min-width:520px; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+            .amp-study table { width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; font-size:12px; font-variant-numeric:tabular-nums; }
+            /* Modèle et Note restent à gauche quand le tableau défile (téléphone) */
+            .amp-study .amp-col-model, .amp-study .amp-col-score { position:sticky; z-index:1; background:var(--amp-sticky-bg, var(--bg-card)); }
+            .amp-study .amp-col-model { left:0; width:176px; min-width:176px; max-width:176px; white-space:normal; overflow-wrap:anywhere; }
+            .amp-study .amp-col-score { left:176px; box-shadow:inset -1px 0 0 var(--border-color); }
+            .amp-study td.amp-col-score { font-weight:700; color:var(--text-main); }
             .amp-study th, .amp-study td { padding:5px 8px; border-bottom:1px solid var(--border-color); text-align:right; white-space:nowrap; }
             .amp-study th:first-child, .amp-study td:first-child { text-align:left; }
             .amp-study th { font-size:11px; font-weight:600; color:var(--text-muted); vertical-align:bottom; }
             .amp-study th small, .amp-study td small { display:block; font-size:10.5px; font-weight:500; color:var(--text-muted); }
             .amp-study td code { font-size:12px; color:var(--text-main); }
-            .amp-study tr.is-rejected td { color:var(--text-muted); }
-            .amp-study tr td.is-bad { color:var(--danger, #ff5630); font-weight:700; }
+            .amp-study tr.is-tier td small { color:var(--accent); font-weight:600; }
+            .amp-study tr.is-rejected td, .amp-study tr.is-rejected td code, .amp-study tr.is-rejected td.amp-col-score { color:var(--text-muted); font-weight:500; }
+            .amp-study tr.is-rejected td.is-bad { color:var(--danger, #ff5630); font-weight:700; }
+            .amp-study tr.is-rejected td small { color:var(--danger, #ff5630); }
+            .amp-study table.amp-cards { width:auto; min-width:0; }
+            .amp-study table.amp-cards td, .amp-study table.amp-cards th { text-align:left; }
             .amp-study ul { margin:0; padding-left:18px; }
             .amp-study li { font-size:11.5px; color:var(--text-muted); line-height:1.45; }
             .amp-study li + li { margin-top:3px; }
@@ -153,32 +148,56 @@ window.AiModelPicker = {
             ${st.opts.showStudy ? this._studyHtml(containerId, tierLabel) : ''}`;
     },
 
-    // « Comment ces modèles ont été choisis » : les mesures derrière les cartes, modèles écartés compris
+    // « Comment ces modèles ont été choisis » : note, étiquette et carte minimale de chaque modèle testé (ai_model_study.js)
     _studyHtml(containerId, tierLabel) {
         const st = this._state[containerId];
+        const study = window.AiModelStudy;
+        if (!study) return '';
+        const { rows, perCard } = study.rank();
         const labels = Object.assign({
             alternative: this._t('ai_models_tier_alternative', 'Alternative'),
             rejected: this._t('ai_models_tier_rejected', 'Non retenu')
         }, tierLabel);
+        const dash = '—';
+        const lastCard = study.RULES.cards[study.RULES.cards.length - 1];
+        const card = c => c == null ? dash
+            : c === lastCard ? this._t('ai_models_study_card_max', '24 Go et plus')
+            : this._t('ai_models_study_gb', '{gb} Go', { gb: c });
+        const vram = m => m.vram == null ? dash : m.quant
+            ? this._t('ai_models_study_gb_quant', '{gb} Go · {q}', { gb: this._num(m.vram), q: m.quant })
+            : this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram) });
+        const sub = m => {
+            if (m.excluded) {
+                const why = this._t(`ai_models_study_why_${m.excluded}`, `${m.excluded} {n}`, { n: m[m.excluded][0] });
+                return `${labels.rejected} · ${why}`;
+            }
+            if (m.tier) return labels[m.tier] || m.tier;
+            return m.seconds >= study.RULES.maxSeconds ? this._t('ai_models_study_too_slow', 'trop lent') : '';
+        };
+        // Détail des tâches, dans l'ordre de leur poids : la note résume, elle ne cache pas ce qui la compose
+        const tasks = Object.keys(study.WEIGHTS).sort((a, b) => study.WEIGHTS[b] - study.WEIGHTS[a]);
+        const taskName = { chat: ['ai_models_study_col_chat', 'Conseiller'], real: ['ai_models_study_col_real', 'Vrai relevé'],
+            labels: ['ai_models_study_col_labels', 'Libellés'], grouping: ['ai_models_study_col_grouping', 'Enveloppes'] };
         const range = ([a, b]) => a === b ? this._num(a) : `${this._num(a)}–${this._num(b)}`;
-        const cols = [
-            ['labels', this._t('ai_models_study_col_labels', 'Libellés')],
-            ['real', this._t('ai_models_study_col_real', 'Vrai relevé')],
-            ['grouping', this._t('ai_models_study_col_grouping', 'Enveloppes')],
-            ['chat', this._t('ai_models_study_col_chat', 'Conseiller')]
-        ];
-        const head = cols.map(([k, label]) => `<th scope="col">${label}<small>/${AI_MODEL_STUDY_TOTALS[k]}</small></th>`).join('');
-        const rows = AI_MODEL_STUDY.map(m => `
-            <tr class="${m.tier === 'rejected' ? 'is-rejected' : ''}">
-                <td><code>${m.name}</code><small>${labels[m.tier] || m.tier}</small></td>
-                ${cols.map(([k]) => `<td class="${(m.bad || []).includes(k) ? 'is-bad' : ''}">${range(m[k])}</td>`).join('')}
+        const taskHead = tasks.map(k => `<th scope="col">${this._t(...taskName[k])}<small>${this._t('ai_models_study_weight', '/{max} · {w} %', { max: study.TOTALS[k], w: Math.round(study.WEIGHTS[k] * 100) })}</small></th>`).join('');
+        const tableRows = rows.map(m => {
+            const note = sub(m);
+            return `
+            <tr class="${m.excluded ? 'is-rejected' : m.tier ? 'is-tier' : ''}">
+                <td class="amp-col-model"><code>${m.name}</code>${note ? `<small>${note}</small>` : ''}</td>
+                <td class="amp-col-score">${this._num(m.note)}</td>
+                ${tasks.map(k => `<td class="${m.excluded === k ? 'is-bad' : ''}">${range(m[k])}</td>`).join('')}
+                <td>${card(m.card)}</td>
+                <td>${vram(m)}</td>
                 <td>${this._t('ai_models_study_seconds', '{s} s', { s: this._num(m.seconds) })}</td>
-                <td>${this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram) })}</td>
-            </tr>`).join('');
-        const items = keys => keys.map(k => `<li>${this._t(k, '', settingVals)}</li>`).filter(li => li !== '<li></li>').join('');
+            </tr>`;
+        }).join('');
+        const cardRows = perCard.map(p => `
+            <tr><td>${card(p.card)}</td><td>${p.model ? `<code>${p.model}</code>` : dash}</td></tr>`).join('');
         const preset = (st.catalog.models || [])[0] || {};
         const settingVals = { temp: this._num(preset.temperature ?? 0.2), ctx: Math.round((preset.num_ctx || 32768) / 1024) + 'K' };
-        const notes = items(['ai_models_study_note_chat', 'ai_models_study_note_minimum']);
+        const items = keys => keys.map(k => `<li>${this._t(k, '', settingVals)}</li>`).filter(li => li !== '<li></li>').join('');
+        const rules = items(['ai_models_study_rule_excluded', 'ai_models_study_rule_tiers', 'ai_models_study_rule_tie', 'ai_models_study_legend']);
         const settings = items(['ai_models_study_set_ctx', 'ai_models_study_set_temp', 'ai_models_study_set_think']);
         return `
             <details class="config-collapse amp-study" ${st.studyOpen ? 'open' : ''} ontoggle="window.AiModelPicker._state['${containerId}'].studyOpen = this.open">
@@ -188,14 +207,26 @@ window.AiModelPicker = {
                     <div class="amp-study-scroll">
                         <table>
                             <thead><tr>
-                                <th scope="col">${this._t('ai_models_study_col_model', 'Modèle')}</th>${head}
-                                <th scope="col">${this._t('ai_models_study_col_time', 'Réponse')}</th>
+                                <th scope="col" class="amp-col-model">${this._t('ai_models_study_col_model', 'Modèle')}</th>
+                                <th scope="col" class="amp-col-score">${this._t('ai_models_study_col_note', 'Note')}<small>/10</small></th>
+                                ${taskHead}
+                                <th scope="col">${this._t('ai_models_study_col_card', 'Carte minimale')}</th>
                                 <th scope="col">${this._t('ai_models_study_col_vram', 'Mémoire')}</th>
+                                <th scope="col">${this._t('ai_models_study_col_time', 'Réponse')}</th>
                             </tr></thead>
-                            <tbody>${rows}</tbody>
+                            <tbody>${tableRows}</tbody>
                         </table>
                     </div>
-                    <ul>${notes}</ul>
+                    <ul>${rules}</ul>
+                    <div class="amp-study-sub">${this._t('ai_models_study_cards_title', 'Votre carte graphique → modèle conseillé')}</div>
+                    <table class="amp-cards">
+                        <thead><tr>
+                            <th scope="col">${this._t('ai_models_study_cards_col_card', 'Carte graphique')}</th>
+                            <th scope="col">${this._t('ai_models_study_cards_col_model', 'Modèle conseillé')}</th>
+                        </tr></thead>
+                        <tbody>${cardRows}</tbody>
+                    </table>
+                    <div class="amp-note">${this._t('ai_models_study_cards_note', '')}</div>
                     <div class="amp-study-sub">${this._t('ai_models_study_settings_title', 'Et les réglages conseillés')}</div>
                     <ul>${settings}</ul>
                 </div>

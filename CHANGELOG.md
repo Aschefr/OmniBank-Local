@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added & Improved
+- **A simpler model comparison 📊**: In Configuration > AI Assistant, "How these models were chosen" now gives each of the 16 tested models a quality score out of 10 next to its task scores, with each task's weight in its column header, plus the smallest graphics card it fits on and its memory. On a phone, the table scrolls sideways with the model and its score kept in view. A second table gives the advised model for 8, 12, 16 and 24 GB cards, and the rules behind each label (Top quality, Minimum, Not chosen) are written under the table.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added & Improved

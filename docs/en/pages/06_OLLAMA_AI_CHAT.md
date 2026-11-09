@@ -40,19 +40,41 @@ This choice comes from a benchmark of 16 models on OmniBank's own tasks: naming 
 - **Top quality**: the best overall result measured, for a 24 GB graphics card.
 
 #### How these models were chosen
-The same figures are shown in **Configuration > AI Assistant**, under the three cards. Benchmark of 6 November 2026: each task run twice, temperature 0.2, 32K context, RTX 3090 graphics card. Labels: category of 45 made-up labels; real statement: category of 120 labels from a real statement; envelopes: 22 categories to place; advisor: 12 questions on a demo profile. When the two runs differ, both results are given.
+The same figures are shown in **Configuration > AI Assistant**, under the three cards. Benchmark of 6 November 2026: 16 models, each task run twice, temperature 0.2, 32K context, RTX 3090 graphics card. The score out of 10 measures quality only: advisor 40% (12 questions on a demo profile: right tools, exact figures, nothing made up), real statement 30% (category of 120 real labels), labels 15% (45 made-up labels), envelopes 15% (22 categories to place). Speed and memory do not count in it.
 
-| Model | Rank | Labels /45 | Real statement /120 | Envelopes /22 | Advisor /12 | Answer | Memory |
-|---|---|---:|---:|---:|---:|---:|---:|
-| `qwen3.8:27b` | Top quality | 44 | 78–80 | 20 | 12 | 13 s | 17.5 GB |
-| `bonsai-2:27b` | Recommended | 43 | 73–74 | 16–20 | 12 | 16 s | 9.2 GB |
-| `gemma4:e4b` | Minimum | 41–42 | 64–66 | 21 | 9–10 | 5 s | 3.5 GB |
-| `gemma4:31b` | Alternative | 44 | 87 | 21 | 12 | 23 s | 19.9 GB |
-| `ministral-3:14b` | Not chosen | 41 | 56–57 | 20–22 | **6** | 5 s | 11.1 GB |
-| `mistral-nemo` | Not chosen | 38 | 58 | 21 | **0–3** | 1.4 s | 9.9 GB |
+| Model | Rank | Score /10 | Advisor /12 · 40% | Real statement /120 · 30% | Labels /45 · 15% | Envelopes /22 · 15% | Minimum card | Memory | Answer |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `gemma4:31b` | Alternative | **9.1** | 12 | 87 | 44 | 21 | 24 GB and more | 19.9 GB · Q4 | 23 s |
+| `qwen3.8:27b` | Top quality | **8.8** | 12 | 78–80 | 44 | 20 | 24 GB and more | 17.5 GB · Q4 | 13 s |
+| `bonsai-2:27b` | Recommended | **8.5** | 12 | 73–74 | 43 | 16–20 | 12 GB | 9.2 GB · Q2 | 16 s |
+| `qwen3.6:27b` | too slow | 8.2 | 11 | 69 | 41 | 20–21 | — | — | 40 s |
+| `mimo-v2.6:9b` |  | 7.8 | 9–11 | 69–70 | 40 | 20–21 | 8 GB | 6.3 GB | 7 s |
+| `qwen3.5:9b` | Not chosen · real statement 59/120 | 7.8 | 11 | **59–61** | 38–40 | 20 | 8 GB | 6.2 GB | 8 s |
+| `qwen3.5:4b` | Not chosen · real statement 57/120 | 7.7 | 11 | **57–58** | 38 | 19–20 | 8 GB | 3.8 GB | 6 s |
+| `gemma4:e4b` | Minimum | **7.6** | 9–10 | 64–66 | 41–42 | 21 | 8 GB | 3.5 GB · Q4 | 5 s |
+| `nemotron-3.5-bolt:e4b` | Not chosen · advisor 8/12 | 7.6 | **8–10** | 68–69 | 41 | 22 | 8 GB | 1.4 GB | 6 s |
+| `gemma4:12b` | Not chosen · advisor 7/12 | 7.5 | **7–10** | 72–74 | 44 | 20 | 12 GB | 8.1 GB · Q4 | 10 s |
+| `bonsai-2:9b` | Not chosen · real statement 53/120 | 7.4 | 10–12 | **53** | 34–35 | 16–20 | 8 GB | 3.5 GB | 7 s |
+| `gemma4:e2b` | Not chosen · advisor 6/12 | 6.4 | **6–8** | 54–60 | 42 | 18–19 | — | — | 3.5 s |
+| `ministral-3:14b` | Not chosen · advisor 6/12 | 6.2 | **6** | 56–57 | 41 | 20–22 | 16 GB | 11.1 GB | 5 s |
+| `ministral-3:8b` | Not chosen · advisor 6/12 | 6.1 | **6** | 57–59 | 42 | 18 | 12 GB | 7.7 GB | 2.2 s |
+| `lfm3:1.7b` | Not chosen · real statement 0/120 | 4.6 | 9–10 | **0** | 23 | 10 | 8 GB | 1.3 GB | 12 s |
+| `mistral-nemo` | Not chosen · advisor 0/12 | 4.6 | **0–3** | 58 | 38 | 21 | 12 GB | 9.9 GB · Q4 | 1.4 s |
 
-- The advisor decides: `ministral-3:14b` and `mistral-nemo` file labels well, but get half the questions or more wrong, almost always without looking at your data. `gemma4:31b` reads a real statement best, but answers almost twice as slowly as `qwen3.8:27b`.
-- `gemma4:e4b` fits in 3.5 GB and places envelopes well (21 out of 22); it gets 2 or 3 of the advisor's 12 questions wrong.
+- **Not chosen**: fewer than 9 right answers out of 12 from the advisor, or a task under half its score, in either of the two runs. The task at fault is shown in the Rank column and in bold.
+- **Top quality**: the best score among models that answer in under 20 s. **Alternative**: the best score with no time limit. **Minimum** and **Recommended**: the models advised for small and medium cards, below.
+- Within 0.3 points, the lighter model wins: two runs cannot tell models apart more finely. That is why `gemma4:e4b` (3.5 GB) comes before `mimo-v2.6:9b` (6.3 GB) on an 8 GB card.
+- Memory: Ollama's default version (quantisation shown when known), 32K context, 8-bit context cache (q8_0) with flash attention. With Ollama's default cache (16-bit), allow up to 0.5 GB more. Answer: the advisor's median time.
+
+##### Your graphics card → advised model
+| Graphics card | Advised model |
+|---|---|
+| 8 GB | `gemma4:e4b` |
+| 12 GB | `bonsai-2:27b` |
+| 16 GB | `bonsai-2:27b` |
+| 24 GB and more | `qwen3.8:27b` |
+
+A model fits a card if its memory is at most the card's size minus 1 GB. A model that is too big still works, partly in system memory, but much more slowly.
 
 ##### And the recommended settings
 - 32K context: the advisor's instructions and tools already take about 9,000 tokens. 16K is the minimum accepted; 32K leaves room for the conversation history and large imports.
