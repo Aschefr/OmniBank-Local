@@ -1770,7 +1770,7 @@
   "ai_models_tier_alternative": "Alternative",
   "ai_models_tier_rejected": "Not chosen",
   "ai_models_study_title": "How these models were chosen",
-  "ai_models_study_method": "16 models tested on 6 November 2026 on OmniBank's tasks, each task run twice, temperature 0.2, 32K context, RTX 3090 graphics card. The score out of 10 measures quality only: advisor 40% (12 questions on a demo profile: right tools, exact figures, nothing made up), real statement 30% (category of 120 real labels), labels 15% (45 made-up labels), envelopes 15% (22 categories to place). Speed and memory do not count in it.",
+  "ai_models_study_method": "16 models tested on 6 November 2026 on OmniBank's tasks, each task run twice, temperature 0.2, 32K context, RTX 3090 graphics card. The score out of 10 measures quality only and puts everyday work first: real statement 35% (category of 120 real labels), labels 25% (45 made-up labels), envelopes 25% (22 categories to place), advisor 15% (12 questions on a demo profile: right tools, exact figures, nothing made up). The advisor weighs little in the score, but a model that gets it wrong too often is not chosen. Speed and memory do not count in it.",
   "ai_models_study_col_model": "Model",
   "ai_models_study_col_note": "Score",
   "ai_models_study_col_chat": "Advisor",

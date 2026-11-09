@@ -40,26 +40,26 @@ Ce choix vient d'un banc d'essai de 16 modèles sur les tâches d'OmniBank : nom
 - **Top qualité** : le meilleur ensemble mesuré, pour une carte graphique de 24 Go.
 
 #### Comment ces modèles ont été choisis
-Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous les trois cartes. Banc du 6 novembre 2026 : 16 modèles, chaque tâche jouée deux fois, température 0,2, contexte 32K, carte RTX 3090. La note sur 10 ne mesure que la qualité : conseiller 40 % (12 questions sur un profil de démonstration : bons outils, chiffres exacts, rien d'inventé), vrai relevé 30 % (catégorie de 120 libellés réels), libellés 15 % (45 libellés inventés), enveloppes 15 % (22 catégories à placer). La vitesse et la mémoire n'y comptent pas.
+Les mêmes chiffres sont affichés dans **Configuration > Assistant IA**, sous les trois cartes. Banc du 6 novembre 2026 : 16 modèles, chaque tâche jouée deux fois, température 0,2, contexte 32K, carte RTX 3090. La note sur 10 ne mesure que la qualité et compte d'abord le travail de tous les jours : vrai relevé 35 % (catégorie de 120 libellés réels), libellés 25 % (45 libellés inventés), enveloppes 25 % (22 catégories à placer), conseiller 15 % (12 questions sur un profil de démonstration : bons outils, chiffres exacts, rien d'inventé). Le conseiller pèse peu dans la note, mais un modèle qui s'y trompe trop est écarté. La vitesse et la mémoire n'y comptent pas.
 
-| Modèle | Rang | Note /10 | Conseiller /12 · 40 % | Vrai relevé /120 · 30 % | Libellés /45 · 15 % | Enveloppes /22 · 15 % | Carte minimale | Mémoire | Réponse |
+| Modèle | Rang | Note /10 | Vrai relevé /120 · 35 % | Libellés /45 · 25 % | Enveloppes /22 · 25 % | Conseiller /12 · 15 % | Carte minimale | Mémoire | Réponse |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `gemma4:31b` | Alternative | **9,1** | 12 | 87 | 44 | 21 | 24 Go et plus | 21,3 Go · Q4 | 23 s |
-| `qwen3.8:27b` | Top qualité | **8,8** | 12 | 78–80 | 44 | 20 | 24 Go et plus | 18,7 Go · Q4 | 13 s |
-| `bonsai-2:27b` | Recommandé | **8,5** | 12 | 73–74 | 43 | 16–20 | 12 Go | 9,5 Go · Q2 | 16 s |
-| `qwen3.6:27b` | trop lent | 8,2 | 11 | 69 | 41 | 20–21 | 24 Go et plus | 18,6 Go · Q4 | 40 s |
-| `mimo-v2.6:9b` |  | 7,8 | 9–11 | 69–70 | 40 | 20–21 | 8 Go | 7,0 Go · Q4 | 7 s |
-| `qwen3.5:9b` | Non retenu · vrai relevé 59/120 | 7,8 | 11 | **59–61** | 38–40 | 20 | 8 Go | 7,0 Go · Q4 | 8 s |
-| `qwen3.5:4b` | Non retenu · vrai relevé 57/120 | 7,7 | 11 | **57–58** | 38 | 19–20 | 8 Go | 4,5 Go · Q4 | 6 s |
-| `gemma4:e4b` | Minimum | **7,6** | 9–10 | 64–66 | 41–42 | 21 | 8 Go | 4,9 Go · Q4 | 5 s |
-| `nemotron-3.5-bolt:e4b` | Non retenu · conseiller 8/12 | 7,6 | **8–10** | 68–69 | 41 | 22 | 12 Go | 7,9 Go · Q4 | 6 s |
-| `gemma4:12b` | Non retenu · conseiller 7/12 | 7,5 | **7–10** | 72–74 | 44 | 20 | 12 Go | 9,1 Go · Q4 | 10 s |
-| `bonsai-2:9b` | Non retenu · vrai relevé 53/120 | 7,4 | 10–12 | **53** | 34–35 | 16–20 | 8 Go | 4,2 Go · Q2 | 7 s |
-| `gemma4:e2b` | Non retenu · conseiller 6/12 | 6,4 | **6–8** | 54–60 | 42 | 18–19 | 8 Go | 3,5 Go · Q4 | 3,5 s |
-| `ministral-3:14b` | Non retenu · conseiller 6/12 | 6,2 | **6** | 56–57 | 41 | 20–22 | 16 Go | 11,5 Go · Q4 | 5 s |
-| `ministral-3:8b` | Non retenu · conseiller 6/12 | 6,1 | **6** | 57–59 | 42 | 18 | 12 Go | 8,2 Go · Q4 | 2,2 s |
-| `lfm3:1.7b` | Non retenu · vrai relevé 0/120 | 4,6 | 9–10 | **0** | 23 | 10 | 8 Go | 1,7 Go · Q4 | 12 s |
-| `mistral-nemo` | Non retenu · conseiller 0/12 | 4,6 | **0–3** | 58 | 38 | 21 | 12 Go | 9,5 Go · Q4 | 1,4 s |
+| `gemma4:31b` | Alternative | **8,9** | 87 | 44 | 21 | 12 | 24 Go et plus | 21,3 Go · Q4 | 23 s |
+| `qwen3.8:27b` | Top qualité | **8,5** | 78–80 | 44 | 20 | 12 | 24 Go et plus | 18,7 Go · Q4 | 13 s |
+| `bonsai-2:27b` | Recommandé | **8,1** | 73–74 | 43 | 16–20 | 12 | 12 Go | 9,5 Go · Q2 | 16 s |
+| `qwen3.6:27b` | trop lent | 8,0 | 69 | 41 | 20–21 | 11 | 24 Go et plus | 18,6 Go · Q4 | 40 s |
+| `nemotron-3.5-bolt:e4b` | Non retenu · conseiller 8/12 | 7,9 | 68–69 | 41 | 22 | **8–10** | 12 Go | 7,9 Go · Q4 | 6 s |
+| `gemma4:12b` | Non retenu · conseiller 7/12 | 7,9 | 72–74 | 44 | 20 | **7–10** | 12 Go | 9,1 Go · Q4 | 10 s |
+| `mimo-v2.6:9b` |  | 7,8 | 69–70 | 40 | 20–21 | 9–11 | 8 Go | 7,0 Go · Q4 | 7 s |
+| `gemma4:e4b` | Minimum | **7,8** | 64–66 | 41–42 | 21 | 9–10 | 8 Go | 4,9 Go · Q4 | 5 s |
+| `qwen3.5:9b` | Non retenu · vrai relevé 59/120 | 7,6 | **59–61** | 38–40 | 20 | 11 | 8 Go | 7,0 Go · Q4 | 8 s |
+| `qwen3.5:4b` | Non retenu · vrai relevé 57/120 | 7,4 | **57–58** | 38 | 19–20 | 11 | 8 Go | 4,5 Go · Q4 | 6 s |
+| `ministral-3:14b` | Non retenu · conseiller 6/12 | 7,1 | 56–57 | 41 | 20–22 | **6** | 16 Go | 11,5 Go · Q4 | 5 s |
+| `gemma4:e2b` | Non retenu · conseiller 6/12 | 7,0 | 54–60 | 42 | 18–19 | **6–8** | 8 Go | 3,5 Go · Q4 | 3,5 s |
+| `bonsai-2:9b` | Non retenu · vrai relevé 53/120 | 6,9 | **53** | 34–35 | 16–20 | 10–12 | 8 Go | 4,2 Go · Q2 | 7 s |
+| `ministral-3:8b` | Non retenu · conseiller 6/12 | 6,8 | 57–59 | 42 | 18 | **6** | 12 Go | 8,2 Go · Q4 | 2,2 s |
+| `mistral-nemo` | Non retenu · conseiller 0/12 | 6,4 | 58 | 38 | 21 | **0–3** | 12 Go | 9,5 Go · Q4 | 1,4 s |
+| `lfm3:1.7b` | Non retenu · vrai relevé 0/120 | 3,6 | **0** | 23 | 10 | 9–10 | 8 Go | 1,7 Go · Q4 | 12 s |
 
 - **Non retenu** : moins de 9 bonnes réponses sur 12 au conseiller, ou une tâche sous la moitié de son score, sur l'une des deux passes. La tâche en cause est indiquée dans la colonne Rang et en gras.
 - **Top qualité** : la meilleure note parmi les modèles qui répondent en moins de 20 s. **Alternative** : la meilleure note sans limite de temps. **Minimum** et **Recommandé** : les modèles conseillés pour les petites et les moyennes cartes, ci-dessous.

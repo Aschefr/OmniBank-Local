@@ -27,8 +27,9 @@
         { name: 'mistral-nemo', labels: [38, 38], real: [58, 58], grouping: [21, 21], chat: [0, 3], seconds: 1.4, vram: 9.5, quant: 'Q4' },
     ];
     const TOTALS = { chat: 12, real: 120, labels: 45, grouping: 22 };
-    // Poids de la note : ce qui compte dans l'appli (le conseiller manipule vos chiffres, le vrai relevé est le quotidien)
-    const WEIGHTS = { chat: 0.4, real: 0.3, labels: 0.15, grouping: 0.15 };
+    // Poids de la note : le travail de tous les jours (relevé, libellés, enveloppes) d'abord. Le conseiller pèse peu
+    // dans la note mais reste une condition (chatMin) : un conseiller qui se trompe invente des chiffres. Choix du 2026-11-09.
+    const WEIGHTS = { real: 0.35, labels: 0.25, grouping: 0.25, chat: 0.15 };
     const RULES = {
         chatMin: 9,          // sous 9/12 au conseiller sur une passe : Non retenu
         halfMin: 0.5,        // une tâche sous la moitié de son score sur une passe : Non retenu

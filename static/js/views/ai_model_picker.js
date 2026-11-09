@@ -186,7 +186,7 @@ window.AiModelPicker = {
             return `
             <tr class="${m.excluded ? 'is-rejected' : m.tier ? 'is-tier' : ''}">
                 <td class="amp-col-model"><code>${m.name}</code>${note ? `<small>${note}</small>` : ''}</td>
-                <td class="amp-col-score">${this._num(m.note)}</td>
+                <td class="amp-col-score">${this._num(m.note, 1)}</td>
                 ${tasks.map(k => `<td class="${m.excluded === k ? 'is-bad' : ''}">${range(m[k])}</td>`).join('')}
                 <td>${card(m.card)}</td>
                 <td>${vram(m)}</td>
