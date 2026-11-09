@@ -3,6 +3,7 @@ app/services/chat/chat_compression.py — Moteur de compression de contexte et d
 """
 import re
 import json
+import unicodedata
 import time
 import logging
 from typing import Any, Dict, List, Optional
@@ -118,6 +119,50 @@ def _select_messages_to_compress(session: ChatSession, messages: List[ChatMessag
     return candidates
 
 
+# Sections imposées du résumé (banc de compaction du 2026-11-08 : gemma4:e4b de 6-7 à 9-10 faits sur 10)
+_SUMMARY_SECTIONS = {
+    "fr": "FAITS :\nDÉCISIONS (et raison) :\nPRÉFÉRENCES DE L'UTILISATEUR :\nQUESTIONS EN SUSPENS (et de quoi elles dépendent) :",
+    "en": "FACTS:\nDECISIONS (and reason):\nUSER PREFERENCES:\nOPEN QUESTIONS (and what they depend on):",
+}
+
+
+# Contrôle du résumé avant de l'enregistrer : un résumé coupé par la limite de longueur perd ses dernières sections
+# (préférences, questions en suspens) ; vu avec gemma4:e4b sur Sentinel et Alanbix le 2026-11-09, le modèle recopiait
+# les tableaux de la conversation puis s'arrêtait au milieu de FAITS. Une ligne qui revient en boucle trahit un modèle
+# qui a bouclé. Le résumé précédent est alors gardé et les messages restent rejoués jusqu'à la compaction suivante.
+REPEAT_MIN_LEN = 20
+REPEAT_MAX = 2
+
+
+class SummaryRejected(ValueError):
+    pass
+
+
+def _plain(line: str) -> str:
+    """Ligne sans puces, gras ni accents, en majuscules, pour reconnaître un titre ou une répétition."""
+    text = unicodedata.normalize("NFD", line).encode("ascii", "ignore").decode()
+    return text.strip().lstrip("-*#•> ").replace("*", "").strip().upper()
+
+
+def summary_problem(summary: str, check_sections: bool = True) -> str:
+    """Raison de refuser un résumé, ou "" s'il est bon. Les titres sont reconnus à leur premier mot, dans les deux
+    langues, en gras ou sans accents : c'est la forme qui est contrôlée, pas la langue."""
+    lines = [l for l in (_plain(x) for x in summary.splitlines()) if l]
+    if check_sections:
+        titles = [t.split(chr(10)) for t in _SUMMARY_SECTIONS.values()]
+        for i in range(len(titles[0])):
+            keys = {_plain(t[i]).split()[0].rstrip(":") for t in titles}
+            if not any(l.split()[0].rstrip(":") in keys for l in lines):
+                return f"section « {titles[0][i]} » absente"
+    counts: Dict[str, int] = {}
+    for l in lines:
+        if len(l) >= REPEAT_MIN_LEN:
+            counts[l] = counts.get(l, 0) + 1
+    if any(n > REPEAT_MAX for n in counts.values()):
+        return "lignes répétées"
+    return ""
+
+
 def _summary_prompt(previous_summary: Optional[str], chunk: List[ChatMessage], target_words: int, lang: str, custom_instruction: Optional[str]) -> str:
     parts = []
     if previous_summary:
@@ -125,6 +170,7 @@ def _summary_prompt(previous_summary: Optional[str], chunk: List[ChatMessage], t
     for msg in chunk:
         parts.append(f"{'U' if msg.role == 'user' else 'A'}: {clean_for_replay(msg.content)}")
     language = {"fr": "French", "en": "English"}.get((lang or "fr").lower(), lang)
+    sections = _SUMMARY_SECTIONS.get((lang or "fr").lower(), _SUMMARY_SECTIONS["en"])
     custom = f"\nAdditional user instruction for this summary: {custom_instruction}" if custom_instruction else ""
     return f"""{chr(10).join(parts)}
 
@@ -133,13 +179,20 @@ You are the memory of a personal finance assistant. Write ONE summary of the who
 (previous summary included) so the assistant can continue it without the original messages.
 
 RULES:
-1. Output ONLY the summary: no intro, no commentary, no title.
-2. Dense bullet points. U: = user, A: = assistant.
-3. Drop greetings, politeness, filler and repetitions.
-4. KEEP every financial fact: amounts, dates, account names, categories, figures computed.
-5. KEEP what the user asked, what was decided or done (operations recorded, validated or refused), and open questions.
-6. At most about {target_words} words.
-7. Write the summary in {language}.{custom}
+1. Output ONLY the summary: no intro, no commentary.
+2. Short bullet points. U: = user, A: = assistant.
+3. Drop greetings, politeness, filler, repetitions and general explanations.
+4. Keep values EXACTLY: amounts, dates, account names, categories, figures computed, names and nicknames.
+   Say what each amount is (budget, spent, remaining, balance) so two amounts are never confused.
+5. When the user corrected something, keep only the corrected value and write "(corrected, replaces X)".
+6. Keep decisions with their reason (operations recorded, validated or refused), and the user's preferences
+   (how to address them, answer format).
+7. Use exactly these four sections:
+{sections}
+   A choice that still depends on something (a bonus, a date, an answer) is an open question, not a decision.
+   Drop open questions that have been answered since.
+8. At most about {target_words} words.
+9. Write the summary in {language}.{custom}
 
 SUMMARY:"""
 
@@ -200,10 +253,14 @@ async def start_compression(db: Session, session: ChatSession, messages: List[Ch
             target = min(SUMMARY_MAX_TOKENS, max(SUMMARY_MIN_TOKENS, input_tokens // 4))
             prompt = _summary_prompt(summary, chunk, int(target * 0.7), lang, custom_instruction)
             content, done_reason = await _summarize(prompt, cfg, num_predict=target * 2)
-            if done_reason == "length":
-                logger.warning(f"[Compression] Résumé tronqué par la limite de longueur ({target * 2} tokens)")
             if not content:
-                raise ValueError("résumé vide")
+                raise SummaryRejected("résumé vide")
+            if done_reason == "length":
+                raise SummaryRejected(f"résumé coupé par la limite de longueur ({target * 2} tokens)")
+            # Une consigne personnalisée peut demander une autre forme : seules les répétitions sont alors contrôlées
+            problem = summary_problem(content, check_sections=not custom_instruction)
+            if problem:
+                raise SummaryRejected(problem)
             summary = content
 
         # Les résumés précédents restent visibles dans l'interface (pile), le modèle ne reçoit que le dernier

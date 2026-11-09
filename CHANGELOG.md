@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Ergonomics
 - **Account totals no longer mix currencies 💱**: On the Accounts page, a group holding an account in another currency added dollars to euros in its total. Each currency now has its own total.
+- **The advisor remembers long conversations better 🧠**: When a long conversation is summarised, the summary now keeps facts, decisions with their reason, your preferences (how to address you, answer format) and open questions in separate sections, and keeps only the corrected value when you corrected something. With a small model (gemma4:e4b), the advisor now recalls 9 to 10 facts out of 10 after three summaries, against 6 to 7 before. A summary cut short is no longer saved: the previous one is kept until the next try.
 - **The advisor no longer gets stuck after many lookups 🧠**: When a question needed more than four data lookups, the advisor's final answer could go on thinking for minutes. It now writes that answer straight away, at a reasonable length.
 - **No more raw tool code in the advisor's answers 🤖**: Some small models write a data request as text (`<tool_call …/>`) instead of making it. The advisor now runs the request and never shows that code.
 - **No more large gaps in Configuration on medium-width windows**: Between tablet and desktop width, fields shown side by side on a wide screen (such as temperature and context in the AI advanced settings) were stacked with a large empty space under each one. They now take only the room they need.

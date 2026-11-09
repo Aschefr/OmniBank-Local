@@ -44,6 +44,11 @@ def _conversation(db, n_exchanges, size=40):
 CFG = {"url": "http://ollama.test", "model": "m", "num_ctx": 32768, "temperature": 0.3}
 
 
+def _full_summary(fact):
+    return (f"FAITS :\n- {fact}\nDÉCISIONS (et raison) :\n- aucune\nPRÉFÉRENCES DE L'UTILISATEUR :\n- tutoiement\n"
+            "QUESTIONS EN SUSPENS (et de quoi elles dépendent) :\n- aucune")
+
+
 def test_context_size_has_a_floor_and_a_single_default(db):
     assert normalize_num_ctx(None) == DEFAULT_NUM_CTX == 32768
     assert normalize_num_ctx("4096") == MIN_NUM_CTX == 16384
@@ -110,7 +115,7 @@ def test_compaction_merges_previous_summary_and_works_in_chunks(db, monkeypatch)
 
     async def fake_summarize(prompt, cfg, num_predict):
         prompts.append(prompt)
-        return f"RÉSUMÉ {len(prompts)}", "stop"
+        return _full_summary(f"RÉSUMÉ {len(prompts)}"), "stop"
 
     monkeypatch.setattr(chat_compression, "_summarize", fake_summarize)
     result = asyncio.run(start_compression(db, session, msgs, dict(CFG), trigger_msg_id=msgs[-1].id))
@@ -119,7 +124,7 @@ def test_compaction_merges_previous_summary_and_works_in_chunks(db, monkeypatch)
     assert len(prompts) > 1
     assert "ANCIEN RÉSUMÉ" in prompts[0]
     assert f"RÉSUMÉ {len(prompts) - 1}" in prompts[-1]
-    assert result == session.compressed_context == f"RÉSUMÉ {len(prompts)}"
+    assert result == session.compressed_context == _full_summary(f"RÉSUMÉ {len(prompts)}")
     assert session.last_compressed_message_id == msgs[7].id
     # L'ancien résumé est fusionné dans le nouveau : il n'est plus envoyé tel quel
     assert "ANCIEN RÉSUMÉ" not in build_replay_messages("S", session, msgs)[0]["content"]
@@ -173,3 +178,65 @@ def test_session_messages_endpoint_reports_usage_against_compaction_threshold():
         assert 0 < usage["used"] < usage["limit"]
     finally:
         client.delete(f"/api/chat/sessions/{sid}")
+
+
+@pytest.mark.parametrize("lang, first, last", [
+    ("fr", "FAITS :", "QUESTIONS EN SUSPENS (et de quoi elles dépendent) :"),
+    ("en", "FACTS:", "OPEN QUESTIONS (and what they depend on):"),
+])
+def test_summary_uses_fixed_sections_in_the_conversation_language(lang, first, last):
+    prompt = chat_compression._summary_prompt(None, [ChatMessage(role="user", content="Mon loyer passe à 935 €")], 300, lang, None)
+    assert first in prompt and last in prompt
+    assert "(corrected, replaces X)" in prompt
+
+
+_FULL_EN = ("**FACTS:**\n- Rent 935 €\n**DECISIONS (and reason):**\n- none\n**USER PREFERENCES:**\n- short answers\n"
+            "**OPEN QUESTIONS (and what they depend on):**\n- laptop, depends on the bonus")
+_ROW = "| Courses | 420 € | 257 € |"
+
+
+@pytest.mark.parametrize("summary, reason", [
+    (_full_summary("Loyer 935 €"), ""),
+    (_FULL_EN, ""),  # titres en gras, en anglais : acceptés
+    (_full_summary("Loyer 935 €").replace("QUESTIONS EN SUSPENS", "AUTRES"), "absente"),
+    (_full_summary("Loyer 935 €").replace("PRÉFÉRENCES", "PREFERENCES"), ""),  # sans accents : accepté
+    (_full_summary("\n- ".join([_ROW] * 3)), "répétées"),
+    (_full_summary("\n- ".join([_ROW] * 2)), ""),
+])
+def test_summary_problem_checks_sections_and_loops(summary, reason):
+    problem = chat_compression.summary_problem(summary)
+    assert (reason in problem) if reason else problem == ""
+
+
+@pytest.mark.parametrize("content, done_reason, instruction", [
+    (_full_summary("Loyer 935 €"), "length", None),                       # coupé par la limite de longueur
+    ("FAITS :\n- Loyer 935 €\n- Courses : budget 420", "stop", None),    # sections manquantes
+    (_full_summary("\n- ".join(["Courses : budget 420 €, dépensé 257 €"] * 4)), "stop", "en une phrase"),  # boucle
+])
+def test_rejected_summary_keeps_the_previous_one(db, monkeypatch, content, done_reason, instruction):
+    session, msgs = _conversation(db, 4)
+    session.compressed_context = "RÉSUMÉ PRÉCÉDENT"
+    session.last_compressed_message_id = msgs[1].id
+    db.commit()
+
+    async def fake_summarize(prompt, cfg, num_predict):
+        return content, done_reason
+
+    monkeypatch.setattr(chat_compression, "_summarize", fake_summarize)
+    result = asyncio.run(start_compression(db, session, msgs, dict(CFG), custom_instruction=instruction, trigger_msg_id=msgs[-1].id))
+
+    assert result is None
+    assert session.compressed_context == "RÉSUMÉ PRÉCÉDENT"
+    assert session.last_compressed_message_id == msgs[1].id
+    assert not session.compressing
+
+
+def test_custom_instruction_may_change_the_summary_shape(db, monkeypatch):
+    session, msgs = _conversation(db, 3)
+
+    async def fake_summarize(prompt, cfg, num_predict):
+        return "Loyer passé à 935 €, enveloppe Courses de 420 €.", "stop"
+
+    monkeypatch.setattr(chat_compression, "_summarize", fake_summarize)
+    result = asyncio.run(start_compression(db, session, msgs, dict(CFG), custom_instruction="en une phrase", trigger_msg_id=msgs[-1].id))
+    assert result == session.compressed_context == "Loyer passé à 935 €, enveloppe Courses de 420 €."
