@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.5.0] - 2026-11-09
 
 ### Ajouts & améliorations
 - **Connecter sa banque depuis l'assistant de démarrage 🏦** : choisir « Synchroniser en ligne » dans l'assistant de démarrage guide désormais jusqu'au bout : déverrouiller le coffre, connecter la banque, associer les comptes trouvés en ligne aux comptes d'OmniBank, puis lancer le premier relevé à la fermeture de l'assistant. Chaque étape se coche une fois faite, et le dernier écran récapitule. L'assistant s'arrêtait auparavant au choix, et tout restait à trouver dans Comptes.

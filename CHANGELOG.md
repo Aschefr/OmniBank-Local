@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.5.0] - 2026-11-09
 
 ### Added & Improved
 - **Connect your bank from the setup wizard 🏦**: Choosing "Sync online" in the setup wizard now walks you through the whole thing: unlock the vault, connect your bank, link the accounts found online to OmniBank accounts, then run the first statement when the wizard closes. Each step shows a tick once done, and the last screen sums it up. It used to stop at the choice, leaving everything to find later under Accounts.
