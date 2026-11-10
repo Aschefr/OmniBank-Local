@@ -32,6 +32,20 @@ def strip_thinking(text: str) -> str:
     return cleaned.strip()
 
 
+def missing_model_message(status_code: int, body: str, model: str, lang: str = "fr") -> Optional[str]:
+    """Ollama répond 404 « model "x" not found » quand le modèle réglé n'est pas installé : le serveur est joint,
+    la connexion marche. Ce message le dit, et où en choisir ou télécharger un autre, au lieu d'un « HTTP 404 »."""
+    text = (body or "").lower()
+    # « 404 page not found » vient d'une mauvaise adresse, pas d'un modèle manquant
+    if status_code != 404 or "model" not in text or "not found" not in text:
+        return None
+    if lang == "en":
+        return (f"The model “{model}” is not installed on your Ollama server (the connection works). "
+                "Pick an installed model or download a recommended one in Configuration > AI assistant.")
+    return (f"Le modèle « {model} » n'est pas installé sur votre serveur Ollama (la connexion fonctionne). "
+            "Choisissez un modèle installé ou téléchargez un modèle recommandé dans Configuration > Assistant IA.")
+
+
 # Taille de contexte : les consignes et les outils de l'assistant occupent déjà ~9 000 tokens.
 # Tous les appels doivent envoyer la même valeur : un num_ctx différent décharge puis recharge le modèle.
 MIN_NUM_CTX = 16384
@@ -111,6 +125,9 @@ def call_ollama_sync(prompt: str, cfg: dict, extra_options: dict = None) -> str:
             payload.pop("think")
             resp = httpx.post(f"{url}/api/chat", json=payload, timeout=httpx.Timeout(300.0, connect=10.0))
         if resp.status_code != 200:
+            missing = missing_model_message(resp.status_code, resp.text, model)
+            if missing:
+                raise HTTPException(status_code=502, detail=missing)
             err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
         
@@ -166,6 +183,9 @@ async def call_ollama_async(prompt: str, cfg: dict, extra_options: dict = None) 
                 payload.pop("think")
                 resp = await client.post(f"{url}/api/chat", json=payload)
         if resp.status_code != 200:
+            missing = missing_model_message(resp.status_code, resp.text, model)
+            if missing:
+                raise HTTPException(status_code=502, detail=missing)
             err_text = resp.text[:300] if resp.text else f"Code HTTP {resp.status_code}"
             raise HTTPException(status_code=502, detail=f"Erreur Ollama ({resp.status_code}) : {err_text}")
 

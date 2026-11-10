@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added & Improved
 - **A simpler model comparison 📊**: In Configuration > AI Assistant, "How these models were chosen" now gives each of the 16 tested models a quality score out of 10 next to its task scores, with each task's weight in its column header (everyday work counts most: real statements, labels and envelopes; the advisor counts less but must still pass a minimum), plus the smallest graphics card it fits on and its memory. On a phone, the table scrolls sideways with the model and its score kept in view. A second table gives the advised model for 8, 12, 16 and 24 GB cards, and the rules behind each label (Top quality, Minimum, Not chosen) are written under the table. Memory is now measured on the graphics card itself, so the figures shown for the three suggested models are higher than before (18.7 GB instead of 17.5 GB for qwen3.8:27b).
 
+### Fixed & Ergonomics
+- **An Ollama server without models no longer looks broken 🤖**: When the server answers but has no model installed yet, the setup wizard's AI step now says the connection works, no longer in red, and shows the recommended models right below with their Download button. Configuration > AI Assistant shows them too in that case. When no server answers at the address, the message says so and explains how to install Ollama. If the chosen model is missing from the server, the advisor now says which model is not installed and where to pick or download another, instead of "Ollama error (HTTP 404)".
+
 ## [1.5.0] - 2026-11-09
 
 ### Added & Improved

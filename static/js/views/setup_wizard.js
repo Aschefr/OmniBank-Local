@@ -1374,14 +1374,25 @@ window.SetupWizard = {
                 if (repRow) repRow.style.display = 'block';
                 await this._renderModelPicker();
             } else {
-                if (status) status.innerHTML = `<span class="wizard-status-error">⚠️ ${window.i18n.t('wizard_ai_no_models')}</span>`;
+                // Le serveur répond : la connexion est bonne, il manque seulement un modèle. Pas de rouge, et les
+                // modèles recommandés s'affichent pour en télécharger un.
+                if (status) status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.t('wizard_ai_no_models')}</span>`;
+                const container = document.getElementById('wizAIModelContainer');
+                if (container) container.style.display = 'none';
+                if (repRow) repRow.style.display = 'none';
+                await this._renderModelPicker();
             }
         } catch (e) {
+            const picker = document.getElementById('wizAIModelPicker');
+            if (picker) picker.innerHTML = '';
+            const container = document.getElementById('wizAIModelContainer');
+            if (container) container.style.display = 'none';
+            if (repRow) repRow.style.display = 'none';
             if (status) {
                 status.innerHTML = `
                     <div style="font-size:12px; color:var(--text-muted); line-height:1.4; padding:8px; background:rgba(255,86,48,0.08); border-radius:8px; border:1px solid rgba(255,86,48,0.2);">
                         <div style="color:var(--danger); font-weight:700; margin-bottom:4px;">❌ ${window.i18n.t('wizard_ai_ollama_not_found') || 'Ollama n\'est pas détecté en local.'}</div>
-                        <div>${window.i18n.t('wizard_ai_install_hint') || 'Vous pouvez télécharger Ollama sur ollama.com et exécuter <code>ollama run gemma2</code> dans un terminal.'}</div>
+                        <div>${window.i18n.t('wizard_ai_install_hint')}</div>
                     </div>
                 `;
             }

@@ -76,7 +76,7 @@ from app.services.chat.chat_tools import (
     update_budget_envelope_tool,
     update_recurrence_template_tool,
 )
-from app.services.chat.ollama_client import get_ollama_config, normalize_num_ctx, strip_thinking
+from app.services.chat.ollama_client import get_ollama_config, missing_model_message, normalize_num_ctx, strip_thinking
 from app.services.chat.text_tool_calls import extract_text_tool_calls
 
 logger = logging.getLogger(__name__)
@@ -910,7 +910,10 @@ async def _run_generation_task(
                                 yield chunk
                             return
                     if stream_resp.status_code != 200:
-                        yield f"data: {json.dumps({'error': 'Erreur Ollama (HTTP ' + str(stream_resp.status_code) + ')'})}\n\n"
+                        body = (await stream_resp.aread()).decode("utf-8", "replace")
+                        err = (missing_model_message(stream_resp.status_code, body, payload_data.get("model", ""), req.lang)
+                               or 'Erreur Ollama (HTTP ' + str(stream_resp.status_code) + ')')
+                        yield f"data: {json.dumps({'error': err})}\n\n"
                         return
                     async for line in stream_resp.aiter_lines():
                         if not line:

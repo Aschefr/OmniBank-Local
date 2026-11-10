@@ -140,7 +140,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 this._renderModelPicker();
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_models_ok'));
             } else {
+                // Connexion bonne, aucun modèle : les modèles recommandés s'affichent pour en télécharger un
                 this._setAiStatus('none');
+                this._renderModelPicker();
                 if (!silent) showInlineMessage(window.i18n.t('title_info'), window.i18n.t('msg_ollama_no_models'));
             }
         } catch (e) {
