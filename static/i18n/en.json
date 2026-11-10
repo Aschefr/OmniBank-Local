@@ -582,6 +582,7 @@
   "autopilot_toast_briques_reset": "All 15 autonomy automations have been enabled",
   "autopilot_toast_briques_reset_error": "Error resetting automations",
   "autopilot_toast_decision_undone": "Decision undone",
+  "autopilot_toast_sent_to_review": "Transaction sent back to \"Transactions to Review\": correct it there.",
   "autopilot_toast_forecast_selected": "Forecast '{desc}' selected for merge (click \"🔗 Link\" or \"Save\")",
   "autopilot_toast_link_error": "Error linking operation",
   "autopilot_toast_link_success": "Operation linked successfully",

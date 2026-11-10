@@ -2644,7 +2644,11 @@ window.AutopilotView = {
         if (await showInlineConfirm(title, msg)) {
             try {
                 const res = await API.post(`/api/autopilot/decisions/${decisionId}/rollback`, {});
-                showToast(res.message || (window.i18n ? window.i18n.t('autopilot_toast_decision_undone') : 'Décision annulée'), 'success');
+                // Une opération acceptée revient dans « Opérations à vérifier » pour y être corrigée
+                const doneMsg = res.sent_to_review
+                    ? window.i18n.t('autopilot_toast_sent_to_review')
+                    : (res.message || (window.i18n ? window.i18n.t('autopilot_toast_decision_undone') : 'Décision annulée'));
+                showToast(doneMsg, 'success');
                 await this.refresh();
                 window.dispatchEvent(new CustomEvent('autopilot_updated'));
                 window.dispatchEvent(new CustomEvent('transactions_updated'));

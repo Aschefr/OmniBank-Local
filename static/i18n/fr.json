@@ -582,6 +582,7 @@
   "autopilot_toast_briques_reset": "Tous les 15 automatismes d'autonomie sont activés",
   "autopilot_toast_briques_reset_error": "Erreur réinitialisation des automatismes",
   "autopilot_toast_decision_undone": "Décision annulée",
+  "autopilot_toast_sent_to_review": "Opération renvoyée dans « Opérations à vérifier » : corrigez-la là-bas.",
   "autopilot_toast_forecast_selected": "Prévision '{desc}' sélectionnée pour fusion (cliquez sur \"🔗 Lier\" ou \"Enregistrer\")",
   "autopilot_toast_link_error": "Erreur lors de la liaison de l'opération",
   "autopilot_toast_link_success": "Opération liée avec succès",

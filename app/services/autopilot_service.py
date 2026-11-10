@@ -1739,6 +1739,14 @@ def get_autopilot_decisions_feed(
     }
 
 
+# Écritures acceptées que « Annuler » renvoie en revue, et l'action « à vérifier » qu'elles prennent alors.
+# Une écriture déjà en revue (doublon suspecté compris) est toujours supprimée par « Annuler ».
+_REVIEWABLE_NEW_ENTRY = {
+    "AUTO_COMMIT": "AUTO_COMMIT_PENDING_REVIEW",
+    "AUTO_COMMIT_COMING": "AUTO_COMMIT_COMING_PENDING_REVIEW",
+}
+
+
 def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
     """Annule sémantiquement une décision spécifique enregistrée dans AutopilotDecisionLog."""
     pid = _resolve_profile_id(profile_id)
@@ -1760,8 +1768,20 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
 
     # 1. Traitement par type de décision
     if decision.decision_type == "new_entry":
+        tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first() if decision.entity_id else None
+        if tx and not tx.needs_review and decision.action in _REVIEWABLE_NEW_ENTRY:
+            # Opération bancaire acceptée par l'Auto-Pilote : annuler la renvoie dans « Opérations à vérifier »,
+            # où elle se corrige. La supprimer ne servait à rien : le relevé suivant la recréait à l'identique.
+            before_s = snapshot_entity(tx)
+            tx.needs_review = True
+            decision.action = _REVIEWABLE_NEW_ENTRY[decision.action]
+            record_action(db, "transaction", tx.id, "UPDATE", before_s, snapshot_entity(tx),
+                          user_name="Rollback Auto-Pilote (Renvoi en revue)")
+            db.commit()
+            stats_cache.invalidate(pid)
+            return {"success": True, "decision_id": decision_id, "sent_to_review": True,
+                    "message": "Opération renvoyée dans les opérations à vérifier."}
         if decision.entity_id:
-            tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
             if tx:
                 before_s = snapshot_entity(tx)
                 db.delete(tx)

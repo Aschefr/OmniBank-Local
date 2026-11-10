@@ -252,24 +252,23 @@ def test_autopilot_kpis_calculation(client, test_db):
 # T6.2 : Semantic Rollback (Unitary: new_entry, reconciliation, recurrence)
 # ============================================================================
 
-def test_rollback_single_new_entry_decision(client, test_db):
-    """Vérifie que l'annulation d'une décision new_entry supprime la transaction créée."""
+def _new_entry(test_db, action, csv_id, needs_review=False):
     tx = Transaction(
-        csv_id="tx_rollback_single",
+        csv_id=csv_id,
         date_operation=date.today(),
         description="Achat Test",
         amount=30.0,
         type="expense_var",
         category="Alimentation",
-        from_account_id=1
+        from_account_id=1,
+        needs_review=needs_review
     )
     test_db.add(tx)
     test_db.flush()
-
     d = AutopilotDecisionLog(
         batch_id="batch_single",
         decision_type="new_entry",
-        action="AUTO_COMMIT",
+        action=action,
         entity_type="transaction",
         entity_id=tx.id,
         confidence_score=95.0,
@@ -277,16 +276,45 @@ def test_rollback_single_new_entry_decision(client, test_db):
     )
     test_db.add(d)
     test_db.commit()
+    return tx, d
+
+
+@pytest.mark.parametrize("action, review_action", [
+    ("AUTO_COMMIT", "AUTO_COMMIT_PENDING_REVIEW"),
+    ("AUTO_COMMIT_COMING", "AUTO_COMMIT_COMING_PENDING_REVIEW"),
+])
+def test_rollback_single_new_entry_sends_it_to_review(client, test_db, action, review_action):
+    """Annuler une écriture acceptée la renvoie dans « Opérations à vérifier » : le relevé suivant la recréerait."""
+    tx, d = _new_entry(test_db, action, f"tx_rollback_{action}")
 
     res = client.post(f"/api/autopilot/decisions/{d.id}/rollback")
     assert res.status_code == 200
-    assert res.json()["success"] is True
+    assert res.json()["success"] is True and res.json()["sent_to_review"] is True
 
-    # Vérifier que la transaction a bien été supprimée
-    deleted_tx = test_db.query(Transaction).filter(Transaction.id == tx.id).first()
-    assert deleted_tx is None
+    test_db.refresh(tx)
+    test_db.refresh(d)
+    assert tx.needs_review is True and tx.category == "Alimentation"
+    assert d.is_undone is False and d.action == review_action
+    assert tx.id in [item["id"] for item in client.get("/api/autopilot/review-queue").json()]
 
-    # Vérifier que la décision est marquée is_undone
+    # Corrigée dans la revue : l'écriture sort de la file et la décision redevient acceptée
+    res = client.post(f"/api/autopilot/review/{tx.id}/update", json={"category": "Impôts", "learn_rule": False})
+    assert res.status_code == 200
+    test_db.refresh(tx)
+    test_db.refresh(d)
+    assert tx.needs_review is False and tx.category == "Impôts"
+    assert d.action == action
+
+
+def test_rollback_single_new_entry_already_in_review_deletes_it(client, test_db):
+    """Une écriture déjà en revue (doublon suspecté…) est supprimée par « Annuler », comme avant."""
+    tx, d = _new_entry(test_db, "AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW", "tx_rollback_dup", needs_review=True)
+
+    res = client.post(f"/api/autopilot/decisions/{d.id}/rollback")
+    assert res.status_code == 200
+    assert res.json()["success"] is True and not res.json().get("sent_to_review")
+
+    assert test_db.query(Transaction).filter(Transaction.id == tx.id).first() is None
     test_db.refresh(d)
     assert d.is_undone is True
     assert d.undone_at is not None
