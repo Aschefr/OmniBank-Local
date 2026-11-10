@@ -117,6 +117,18 @@ def _elapsed_months(first_activity: Optional[date], window_start: date, window_e
     return max(0, (window_end.year - start.year) * 12 + window_end.month - start.month)
 
 
+def history_months(db: Session, today: date) -> Optional[int]:
+    """Mois complets d'opérations avant le mois en cours ; None sans aucune opération. Sous RECENT_HISTORY_MONTHS,
+    le Cockpit présente le reste à vivre comme provisoire : des charges régulières n'ont pas encore été vues."""
+    first = db.query(func.min(Transaction.date_operation)).filter(
+        Transaction.date_operation <= today,
+        (Transaction.is_skipped == False) | (Transaction.is_skipped == None)
+    ).scalar()
+    if first is None:
+        return None
+    return _elapsed_months(first, first, date(today.year, today.month, 1))
+
+
 def _isolated_exceptional_ids(db: Session, txs: list, outlier_sens: int, first_activity: Optional[date], window_end: date) -> set:
     """Mode organisation : les grosses opérations sont normales. Seule est écartée une opération qui pèse lourd
     sur l'année et qu'aucune opération comparable n'accompagne depuis trois ans. Sans deux ans d'historique, rien

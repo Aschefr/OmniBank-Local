@@ -1106,6 +1106,17 @@ window.OverviewView = {
         }
     },
 
+    // Historique court (premier relevé) : des charges régulières manquent encore, les chiffres sont trop optimistes.
+    // Vide quand l'historique suffit ; le serveur ne le signale jamais en mode organisation.
+    _provisionalTip(stats) {
+        if (!stats || !stats.recent_history) return '';
+        const t = window.i18n.t.bind(window.i18n);
+        const n = stats.history_months || 0;
+        const months = n === 0 ? t('cockpit_history_months_0') : n === 1 ? t('cockpit_history_months_1')
+            : t('cockpit_history_months_n').replace('{n}', n);
+        return t('cockpit_rav_provisional_tip').replace('{months}', months);
+    },
+
     _renderHealthBadge(stats) {
         const badge = document.getElementById('ovHealthBadge');
         if (!badge) return;
@@ -1134,6 +1145,10 @@ window.OverviewView = {
             badge.className = 'overview-health-badge warning badge-warning';
             badge.textContent = window.i18n.t('overview_health_warning') || '⚡ Reste à vivre négatif';
             badge.title = '';
+        } else if (this._provisionalTip(stats)) {
+            badge.className = 'overview-health-badge warning badge-warning';
+            badge.textContent = window.i18n.t('overview_health_provisional');
+            badge.title = this._provisionalTip(stats);
         } else {
             badge.className = 'overview-health-badge success badge-success';
             badge.textContent = isOrgMode
@@ -1743,6 +1758,7 @@ window.OverviewView = {
         let showPlannedArc = false;
         let ravColorClass = 'gauge-green';
         let plannedVariant = 'planned-green';
+        let ravProvisionalHtml = '';
 
         // Variables Mode Organisation spécifiques
         let orgGrossBalance = this._liquidBalance(stats);
@@ -1863,6 +1879,15 @@ window.OverviewView = {
             if (ravPercent < 20) ravColorClass = 'gauge-red';
             else if (ravPercent < 50) ravColorClass = 'gauge-orange';
             else ravColorClass = 'gauge-green';
+
+            // Premier relevé : des charges régulières ne sont pas encore connues, le chiffre est sans doute trop haut
+            const tip = this._provisionalTip(stats);
+            if (tip) {
+                // Orange et rouge restent : le chiffre réel est sans doute encore plus bas. Seul le vert rassure à tort.
+                if (ravColorClass === 'gauge-green') ravColorClass = 'gauge-provisional';
+                ravProvisionalHtml = `<div class="cockpit-gauge-provisional" title="${tip}">⏳ ${t('cockpit_rav_provisional')}</div>`;
+                gaugeTooltip = `${gaugeTooltip} ${tip}`.trim();
+            }
 
             showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;
             plannedVariant = ravWithInc >= 0 ? 'planned-green' : (plannedPercent >= 20 ? 'planned-orange' : 'planned-red');
@@ -2160,6 +2185,7 @@ window.OverviewView = {
                     <div class="cockpit-gauge-amount privacy-blur" style="${ravAmount < 0 ? 'color: #ef4444;' : ''}">${formatCurrency(ravAmount)}</div>
                     ${plannedSubHtml}
                     <div class="cockpit-gauge-detail ${ravRef > 0 ? 'privacy-blur' : ''}">${ravDetailText}</div>
+                    ${ravProvisionalHtml}
                 </div>
             </div>
             <div class="cockpit-gauge-card ${expensesColorClass} clickable" data-gauge="expenses" title="${expensesTooltip}" onclick="window.OverviewView.showCockpitTileInfo('expenses')">
@@ -2197,7 +2223,8 @@ window.OverviewView = {
         // Card 1: Projection Fin de Cycle / Fin de Mois
         const proj = this._calculateProjection(stats);
         const projAmount = proj.projectedEnd;
-        const projColorClass = projAmount >= 0 ? 'text-green' : 'text-red';
+        const provisionalTip = this._provisionalTip(stats);
+        const projColorClass = projAmount < 0 ? 'text-red' : (provisionalTip ? 'text-main' : 'text-green');
         const projTitle = proj.titleText || (proj.hasPayCycle ? t('cockpit_projection_cycle_title', 'Projection Fin de Cycle') : t('cockpit_projection_title', 'Projection'));
         const projSubText = proj.subText;
 
@@ -2222,6 +2249,8 @@ window.OverviewView = {
             } else {
                 projBadgeHtml = `<span class="cockpit-card-badge badge-danger" style="font-size: 10px; padding: 2px 7px;" title="${t('cockpit_overdraft_tooltip', 'Risque de découvert sans rentrées supplémentaires')}">${t('cockpit_overdraft_badge', '⚠️ Risque')}</span>`;
             }
+        } else if (provisionalTip) {
+            projBadgeHtml = `<span class="cockpit-card-badge badge-warning" style="font-size: 10px; padding: 2px 7px;" title="${provisionalTip}">${t('cockpit_provisional_badge')}</span>`;
         }
 
         // Cache tile information for mobile / click info sheets
@@ -2352,8 +2381,8 @@ window.OverviewView = {
                     title: projTitle,
                     value: formatCurrency(projAmount),
                     valueClass: projColorClass,
-                    badge: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? '⏳ Vigilance' : '⚠️ Risque') : (projAmount >= 0 ? '✨ Positif' : '⚠️ Déficit'),
-                    badgeClass: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? 'badge-warning' : 'badge-danger') : (projAmount >= 0 ? 'badge-success' : 'badge-danger'),
+                    badge: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? '⏳ Vigilance' : '⚠️ Risque') : (projAmount < 0 ? '⚠️ Déficit' : (provisionalTip ? t('cockpit_provisional_badge') : '✨ Positif')),
+                    badgeClass: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? 'badge-warning' : 'badge-danger') : (projAmount < 0 ? 'badge-danger' : (provisionalTip ? 'badge-warning' : 'badge-success')),
                     subtitle: projSubText,
                     rows: [
                         { label: 'Solde actuel pointé', value: formatCurrency(proj.baseBalance) },
@@ -2366,6 +2395,7 @@ window.OverviewView = {
                         ] : [])
                     ],
                     text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n${window.i18n.tp('overview_projection_dip_note', { amount: formatCurrency(stats.overdraft_warning.projected_balance), date: formatDate(stats.overdraft_warning.date), income: formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0) })}` : '')
+                        + (provisionalTip ? `\n\n${provisionalTip}` : '')
                 }
             };
         } else {
@@ -2432,8 +2462,8 @@ window.OverviewView = {
                     title: projTitle,
                     value: formatCurrency(projAmount),
                     valueClass: projColorClass,
-                    badge: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? '⏳ Vigilance' : '⚠️ Risque') : (projAmount >= 0 ? '✨ Positif' : '⚠️ Déficit'),
-                    badgeClass: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? 'badge-warning' : 'badge-danger') : (projAmount >= 0 ? 'badge-success' : 'badge-danger'),
+                    badge: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? '⏳ Vigilance' : '⚠️ Risque') : (projAmount < 0 ? '⚠️ Déficit' : (provisionalTip ? t('cockpit_provisional_badge') : '✨ Positif')),
+                    badgeClass: stats.overdraft_warning ? (stats.overdraft_warning.covered_by_income ? 'badge-warning' : 'badge-danger') : (projAmount < 0 ? 'badge-danger' : (provisionalTip ? 'badge-warning' : 'badge-success')),
                     subtitle: projSubText,
                     rows: [
                         { label: 'Solde actuel pointé', value: formatCurrency(proj.baseBalance) },
@@ -2446,6 +2476,7 @@ window.OverviewView = {
                         ] : [])
                     ],
                     text: proj.tooltipText + (stats.overdraft_warning && stats.overdraft_warning.covered_by_income ? `\n\n${window.i18n.tp('overview_projection_dip_note', { amount: formatCurrency(stats.overdraft_warning.projected_balance), date: formatDate(stats.overdraft_warning.date), income: formatCurrency(stats.overdraft_warning.planned_income_before_risk || stats.overdraft_warning.planned_income_total || 0) })}` : '')
+                        + (provisionalTip ? `\n\n${provisionalTip}` : '')
                 }
             };
         }

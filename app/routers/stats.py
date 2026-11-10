@@ -239,7 +239,14 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "fully_consumed": overflow_amount >= total_savings_balance
         }
 
+    # Historique court (premier relevé) : des charges régulières manquent encore, le reste à vivre est provisoire
+    from app.services.simulator_engine import RECENT_HISTORY_MONTHS, history_months
+    months_known = history_months(db, today)
+    recent_history = months_known is not None and months_known < RECENT_HISTORY_MONTHS and not is_org_mode(db)
+
     result = {
+        "history_months": months_known,
+        "recent_history": recent_history,
         "net_worth": net_worth,
         "liquid_net_worth": liquid_net_worth,
         "loan_total": loan_total,

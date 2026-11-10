@@ -214,6 +214,15 @@
     margin-top: 3px;
 }
 
+/* Reste à vivre provisoire : historique encore court (premier relevé) */
+.cockpit-gauge-provisional {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--warning);
+    margin-top: 6px;
+    line-height: 1.35;
+}
+
 .cockpit-gauge-planned {
     font-size: 13px;
     font-weight: 600;
@@ -442,6 +451,8 @@
 .cockpit-gauge-card[data-gauge="rav"].gauge-green .cockpit-gauge-arc  { stroke: #10b981; --cockpit-gauge-glow: rgba(16, 185, 129, 0.35); }
 .cockpit-gauge-card[data-gauge="rav"].gauge-orange .cockpit-gauge-arc { stroke: #f59e0b; --cockpit-gauge-glow: rgba(245, 158, 11, 0.35); }
 .cockpit-gauge-card[data-gauge="rav"].gauge-red .cockpit-gauge-arc    { stroke: #ef4444; --cockpit-gauge-glow: rgba(239, 68, 68, 0.35); }
+/* Historique court : un reste à vivre confortable reste neutre, il est sans doute surestimé */
+.cockpit-gauge-card[data-gauge="rav"].gauge-provisional .cockpit-gauge-arc { stroke: #94a3b8; --cockpit-gauge-glow: rgba(148, 163, 184, 0.25); }
 
 /* Cleared / Planned Expenses gauge */
 .cockpit-gauge-card[data-gauge="expenses"] .cockpit-gauge-arc {
@@ -650,6 +661,10 @@
 
     .cockpit-gauge-planned {
         font-size: 11px;
+    }
+
+    .cockpit-gauge-provisional {
+        font-size: 10.5px;
     }
 
     .cockpit-cards-row {
