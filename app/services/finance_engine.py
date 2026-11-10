@@ -902,6 +902,20 @@ def calculate_rhythm_averages(
             nb_days = max(diff_days + 1, 1)
         else:
             nb_days = 30
+    else:
+        # Historique plus court que la période : diviser par les jours réellement couverts, sinon un premier relevé
+        # de 34 jours étalé sur 180 donnait une moyenne cinq fois trop basse (et une « surconsommation » de +500 %)
+        first_query = db.query(func.min(Transaction.date_operation)).filter(
+            (Transaction.is_skipped == False) | (Transaction.is_skipped == None),
+            Transaction.date_operation <= today
+        )
+        if account_id:
+            first_query = first_query.filter(
+                (Transaction.from_account_id == account_id) | (Transaction.to_account_id == account_id)
+            )
+        first_date = first_query.scalar()
+        if first_date:
+            nb_days = max(1, min(nb_days, (today - first_date).days + 1))
 
     sensitivity_map = {
         1: (1.5, 100.0),

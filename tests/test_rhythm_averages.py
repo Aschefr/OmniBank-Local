@@ -97,7 +97,8 @@ def test_calculate_rhythm_averages_basic():
     session = TestSession()
     try:
         res = calculate_rhythm_averages(session, lookback="6m", account_id=1, sensitivity=2)
-        assert res["nbDays"] == 180
+        # Opérations sur 46 jours seulement : la moyenne se calcule sur ces 46 jours, pas sur les 180 de la période
+        assert res["nbDays"] == 46
         assert res["account_id"] == 1
         assert res["lookback"] == "6m"
         assert res["dailyVar"] > 0

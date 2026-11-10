@@ -1505,6 +1505,19 @@ window.OverviewView = {
             } else {
                 nbDays = 30;
             }
+        } else {
+            // Historique plus court que la période : diviser par les jours réellement couverts (même règle que le serveur)
+            let firstDate = null;
+            for (const tx of transactions) {
+                const txDate = (tx.date_operation || '').substring(0, 10);
+                if (tx.is_skipped || !txDate || txDate > todayISO) continue;
+                if (accIdStr && String(tx.from_account_id) !== accIdStr && String(tx.to_account_id) !== accIdStr) continue;
+                if (!firstDate || txDate < firstDate) firstDate = txDate;
+            }
+            if (firstDate) {
+                const covered = Math.floor((new Date(todayISO) - new Date(firstDate)) / (1000 * 60 * 60 * 24)) + 1;
+                nbDays = Math.max(1, Math.min(nbDays, covered));
+            }
         }
 
         const dailyIncome = totalIncome / nbDays;
@@ -2041,6 +2054,7 @@ window.OverviewView = {
         let cadenceCenterAmount = '';
         let cadenceCenterSub = '';
         let analogLabels = null;
+        let cadenceProvisionalHtml = '';
 
         let runwayMonths = 0;
         let runwayMonthsStr = '0.0';
@@ -2161,11 +2175,23 @@ window.OverviewView = {
                 cadenceSubText = tp('cockpit_cadence_sub_over', { diff: diffPercent }, `+${diffPercent}% au-dessus du rythme`);
             }
 
+            // Historique court : une moyenne tirée de quelques semaines ne permet pas de juger. L'écart reste affiché,
+            // sans couleur d'alerte ni de félicitation.
+            const cadenceTip = this._provisionalTip(stats);
+            if (cadenceTip && elapsedDays >= CADENCE_MIN_DAYS && spent !== 0) {
+                cadenceColorClass = 'cadence-blue';
+                cadenceStatusClass = 'status-blue';
+                cadenceStatusText = t('cockpit_cadence_provisional');
+                cadenceProvisionalHtml = `<div class="cockpit-gauge-provisional" title="${cadenceTip}">⏳ ${t('cockpit_cadence_provisional_note')}</div>`;
+            }
+
             cadenceDetailText = tp('cockpit_cadence_avg_ref', { avg: formatCurrency(dailyRef) }, `(Moyenne : ${formatCurrency(dailyRef)}/j)`);
             cadenceCycleText = withPayCycle
                 ? tp('cockpit_cadence_sub_cycle', { current: elapsedDays, total: totalCycleDays, totalSpent: formatCurrency(spent) }, `${formatCurrency(spent)} vie courante au j. ${elapsedDays}/${totalCycleDays}`)
                 : `📅 ${cycleDetailText} (${cycleDayLabel})`;
             cadenceTooltip = tp('cockpit_cadence_gauge_tooltip_analog', { dailySpent: formatCurrency(dailySpent), dailyRef: formatCurrency(dailyRef), status: cadenceStatusText, days: elapsedDays, totalSpent: formatCurrency(spent) }, `Cadence journalière : ${formatCurrency(dailySpent)}/j (Moyenne propre : ${formatCurrency(dailyRef)}/j — ${cadenceStatusText}). Dépenses courantes : ${formatCurrency(spent)} sur ${elapsedDays} jours.`);
+
+            if (cadenceProvisionalHtml) cadenceTooltip = `${cadenceTooltip} ${this._provisionalTip(stats)}`;
 
             cadenceCenterAmount = `${formatCurrency(dailySpent)}<span class="cockpit-gauge-unit">/j</span>`;
             cadenceCenterSub = cadenceDetailText;
@@ -2215,6 +2241,7 @@ window.OverviewView = {
                     <div class="cockpit-cadence-status ${cadenceStatusClass}">${cadenceStatusText}</div>
                     <div class="cockpit-gauge-detail" style="font-weight:600; color:var(--text-main); margin-top:3px;">${cadenceSubText}</div>
                     <div class="cockpit-gauge-detail ${(!isOrgMode && stats.next_pay_date) ? 'privacy-blur' : ''}" style="color:var(--text-muted); font-size:11px; margin-top:2px;">${cadenceCycleText}</div>
+                    ${cadenceProvisionalHtml}
                 </div>
             </div>
         `;

@@ -51,3 +51,25 @@ def test_skipped_and_future_operations_do_not_count(db):
     _tx(db, date(2026, 1, 15), skipped=True)
     _tx(db, date(2026, 12, 5))
     assert history_months(db, TODAY) is None
+
+
+def test_pace_average_divides_by_the_days_actually_covered(db, monkeypatch):
+    """Rythme : 34 jours d'historique ne s'étalent plus sur 180 (moyenne cinq fois trop basse au démarrage)."""
+    import app.services.finance_engine as fe
+    from datetime import timedelta
+
+    class FrozenDate(date):
+        @classmethod
+        def today(cls):
+            return TODAY
+
+    monkeypatch.setattr(fe, "date", FrozenDate)
+    first = TODAY - timedelta(days=33)
+    for i in range(34):
+        _tx(db, first + timedelta(days=i))  # 12,50 € par jour
+
+    short = fe.calculate_rhythm_averages(db, lookback="6m")
+    assert short["nbDays"] == 34 and short["dailyVar"] == 12.5
+
+    _tx(db, TODAY - timedelta(days=400))  # historique plus long que la période : la période entière compte
+    assert fe.calculate_rhythm_averages(db, lookback="6m")["nbDays"] == 180
