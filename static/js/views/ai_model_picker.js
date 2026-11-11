@@ -154,7 +154,7 @@ window.AiModelPicker = {
         const st = this._state[containerId];
         const study = window.AiModelStudy;
         if (!study) return '';
-        const { rows, perCard } = study.rank();
+        const { rows, perCard, precision } = study.rank();
         const labels = Object.assign({
             alternative: this._t('ai_models_tier_alternative', 'Alternative'),
             rejected: this._t('ai_models_tier_rejected', 'Non retenu')
@@ -169,7 +169,7 @@ window.AiModelPicker = {
             : this._t('ai_models_study_gb', '{gb} Go', { gb: this._num(m.vram, 1) });
         const sub = m => {
             if (m.excluded) {
-                const why = this._t(`ai_models_study_why_${m.excluded}`, `${m.excluded} {n}`, { n: m[m.excluded][0] });
+                const why = this._t(`ai_models_study_why_${m.excluded}`, `${m.excluded} {n}`, { n: study.worst(m[m.excluded]) });
                 return `${labels.rejected} · ${why}`;
             }
             if (m.tier) return labels[m.tier] || m.tier;
@@ -179,7 +179,11 @@ window.AiModelPicker = {
         const tasks = Object.keys(study.WEIGHTS).sort((a, b) => study.WEIGHTS[b] - study.WEIGHTS[a]);
         const taskName = { chat: ['ai_models_study_col_chat', 'Conseiller'], real: ['ai_models_study_col_real', 'Vrai relevé'],
             labels: ['ai_models_study_col_labels', 'Libellés'], grouping: ['ai_models_study_col_grouping', 'Enveloppes'] };
-        const range = ([a, b]) => a === b ? this._num(a) : `${this._num(a)}–${this._num(b)}`;
+        // Passages : le pire et le meilleur, ou un seul chiffre quand ils sont tous égaux
+        const range = passes => {
+            const a = Math.min(...passes), b = Math.max(...passes);
+            return a === b ? this._num(a) : `${this._num(a)}–${this._num(b)}`;
+        };
         const taskHead = tasks.map(k => `<th scope="col">${this._t(...taskName[k])}<small>${this._t('ai_models_study_weight', '/{max} · {w} %', { max: study.TOTALS[k], w: Math.round(study.WEIGHTS[k] * 100) })}</small></th>`).join('');
         const tableRows = rows.map(m => {
             const note = sub(m);
@@ -196,7 +200,8 @@ window.AiModelPicker = {
         const cardRows = perCard.map(p => `
             <tr><td>${card(p.card)}</td><td>${p.model ? `<code>${p.model}</code>` : dash}</td></tr>`).join('');
         const preset = (st.catalog.models || [])[0] || {};
-        const settingVals = { temp: this._num(preset.temperature ?? 0.2), ctx: Math.round((preset.num_ctx || 32768) / 1024) + 'K' };
+        const settingVals = { temp: this._num(preset.temperature ?? 0.2), ctx: Math.round((preset.num_ctx || 32768) / 1024) + 'K',
+            question: this._num(precision.question), margin: this._num(precision.note, 1), questions: study.RULES.tieQuestions };
         const items = keys => keys.map(k => `<li>${this._t(k, '', settingVals)}</li>`).filter(li => li !== '<li></li>').join('');
         const rules = items(['ai_models_study_rule_excluded', 'ai_models_study_rule_tiers', 'ai_models_study_rule_tie', 'ai_models_study_legend']);
         const settings = items(['ai_models_study_set_ctx', 'ai_models_study_set_temp', 'ai_models_study_set_think']);
@@ -218,6 +223,7 @@ window.AiModelPicker = {
                             <tbody>${tableRows}</tbody>
                         </table>
                     </div>
+                    <div class="amp-note">${this._t('ai_models_study_precision', '', settingVals)}</div>
                     <ul>${rules}</ul>
                     <div class="amp-study-sub">${this._t('ai_models_study_cards_title', 'Votre carte graphique → modèle conseillé')}</div>
                     <table class="amp-cards">

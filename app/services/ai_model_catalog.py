@@ -18,16 +18,17 @@ logger = logging.getLogger(__name__)
 # tier : minimum | recommended | top. size_gb : ce que /api/tags annonce une fois téléchargé. vram_gb : mémoire
 # de la carte une fois chargé seul avec num_ctx, en Gio (nvidia-smi moins la carte à vide ; /api/ps la sous-estime).
 # typical_seconds : réponse médiane du conseiller, outils compris, mesurée sur une RTX 3090.
-# Banc du 2026-11-06, 16 modèles, température 0,2, contexte 32768 :
-# - gemma4:e4b : 41-42/45 libellés, 21/22 enveloppes, 9-11/12 au conseiller, ~5 s.
-# - bonsai-2:27b (poids ternaires) : 43/45, 16-20/22, 12/12 sur deux passes, ~16 s, 9,5 Gio au lieu de ~18.
-# - qwen3.8:27b : 44/45, 20/22, 12/12 sur deux passes, ~13 s.
+# Campagne commune du 2026-11-09 au 11 (ai-bench/CAMPAGNE_2026-11.md), 9 modèles, trois passages, température 0,2,
+# contexte 32768 ; gemma4:e4b et gemma4:31b dans leur version du registre du 2026-11-10 :
+# - gemma4:e4b : relevé 67-69/120, 42/45 libellés, 90/97 enveloppes, conseiller 16-19/20, ~3,4 s ; le plus léger.
+# - bonsai-2:27b (poids ternaires) : 71-72/120, 42/45, 93-94/97, 20/20, ~14,6 s, 9,5 Gio au lieu de ~18.
+# - gemma4:31b : 87/120, 44/45, 95/97, 20/20, ~13,8 s ; meilleure note.
 CATALOG = [
-    {"name": "gemma4:e4b", "tier": "minimum", "size_gb": 9.6, "vram_gb": 4.9, "typical_seconds": 5,
+    {"name": "gemma4:e4b", "tier": "minimum", "size_gb": 6.6, "vram_gb": 5.4, "typical_seconds": 3.4,
      "temperature": 0.2, "num_ctx": 32768},
-    {"name": "bonsai-2:27b", "tier": "recommended", "size_gb": 8.3, "vram_gb": 9.5, "typical_seconds": 16,
+    {"name": "bonsai-2:27b", "tier": "recommended", "size_gb": 8.3, "vram_gb": 9.5, "typical_seconds": 14.6,
      "temperature": 0.2, "num_ctx": 32768},
-    {"name": "qwen3.8:27b", "tier": "top", "size_gb": 17.7, "vram_gb": 18.7, "typical_seconds": 13,
+    {"name": "gemma4:31b", "tier": "top", "size_gb": 20.4, "vram_gb": 22.2, "typical_seconds": 13.8,
      "temperature": 0.2, "num_ctx": 32768},
 ]
 _NAMES = {m["name"] for m in CATALOG}
