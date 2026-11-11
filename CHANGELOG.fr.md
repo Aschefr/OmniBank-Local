@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.6.0] - 2026-11-11
 
 ### Ajouts & améliorations
 - **Une nouvelle comparaison des modèles et de nouveaux modèles proposés 📊** : les trois modèles proposés viennent d'un nouveau banc d'essai de 9 modèles, chaque tâche jouée trois fois avec plus de cas (13 situations d'enveloppes, 20 questions au conseiller, chiffres vérifiés 7 fois de plus). Top qualité devient gemma4:31b (meilleure note, 13,8 s), Recommandé reste bonsai-2:27b, et Minimum reste gemma4:e4b dans sa version de novembre, plus rapide (3,4 s) et bien plus fiable au conseiller. Dans Configuration > Assistant IA, « Comment ces modèles ont été choisis » donne à chaque modèle une note de qualité sur 10 à côté de ses scores par tâche, avec le poids de chaque tâche dans l'en-tête de sa colonne (le travail de tous les jours compte le plus : vrai relevé, libellés et enveloppes ; le conseiller compte moins mais doit atteindre 75 %), ainsi que la plus petite carte graphique qui le fait tenir et sa mémoire, mesurée sur la carte elle-même. Deux modèles ne sont à égalité que si leurs notes et chaque tâche sont à 4 questions près ; le plus léger l'emporte alors. Sur téléphone, le tableau défile de côté en gardant le modèle et sa note en vue. Un second tableau donne le modèle conseillé pour une carte de 8, 12, 16 et 24 Go, et les règles derrière chaque étiquette sont écrites sous le tableau.

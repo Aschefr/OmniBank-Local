@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.6.0] - 2026-11-11
 
 ### Added & Improved
 - **A new model comparison and new suggested models 📊**: The three suggested models come from a new benchmark of 9 models, each task run three times with more cases (13 envelope situations, 20 advisor questions, figures checked 7 more times). Top quality is now gemma4:31b (best score, 13.8 s), Recommended stays bonsai-2:27b, and Minimum stays gemma4:e4b in its November version, faster (3.4 s) and much more reliable with the advisor. In Configuration > AI Assistant, "How these models were chosen" gives each model a quality score out of 10 next to its task scores, with each task's weight in its column header (everyday work counts most: real statements, labels and envelopes; the advisor counts less but must still pass 75%), plus the smallest graphics card it fits on and its memory, measured on the card itself. Two models count as tied only when their scores and every task are within 4 questions; the lighter one then wins. On a phone, the table scrolls sideways with the model and its score kept in view. A second table gives the advised model for 8, 12, 16 and 24 GB cards, and the rules behind each label are written under the table.
