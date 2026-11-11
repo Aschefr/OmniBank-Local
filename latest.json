@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhOd2FjcWNzRkJCZXRjNlEyZVRDZE1lWFRsZjlndFBEV2J4SjEzRXJVY2JrOTdyUEY0WFZyY1hnbHN3OFF6Q2Ezd2t5aGJQUzVueHZSdHljaXpzb1FNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MjE0NzA5CWZpbGU6T21uaUJhbmtfMS41LjBfeDY0X2ZyLUZSLm1zaQpqRXVhNTFZS0h0d3V1VFBnYURGY2ljQmxaZkVqZEE4N1Y1S3lLdXBzZkl2cUlxUCs4STMxRzg4TWxKYzY4anptczF6ZHd5N1duaktnWW9vRlZodG9EZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.5.0/OmniBank_1.5.0_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZGejZKcUpqVXcxMGt3NSs4ZTBKc2FsSGgrbStIc1k1V0h0ZjN0dUJWQWllVzhsaHpib1pmMDcvZDFwMGFNbmZWaWRGckREbVAzRnJaZ2FzRXhPblFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0Mzk3Mzk3CWZpbGU6T21uaUJhbmtfMS42LjBfeDY0X2ZyLUZSLm1zaQpzaVl0Q0F2Um5KMzZYb2lHWFRtaDhBaEZYa1ZNTUthVFlBZjR0VGk5SlNaRWZOYlBkR3MxUTdQWHVFRDA5WUttb1V6ZXl6RWxRTVA3WFRXblAzUy9Cdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.6.0/OmniBank_1.6.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-09T08:58:29Z",
-    "version":  "1.5.0",
-    "notes":  "Bank setup in the wizard, first-month forecasts, better sorting, recommended AI models, clearer Accounts page"
+    "pub_date":  "2026-11-11T11:43:17Z",
+    "version":  "1.6.0",
+    "notes":  "Provisional Cockpit figures after a first statement, new AI benchmark with gemma4:31b as Top quality, Undo sends back to review"
 }
