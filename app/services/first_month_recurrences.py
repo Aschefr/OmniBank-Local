@@ -69,7 +69,7 @@ def propose_first_month_recurrences(db: Session, account_id: int, batch_id: Opti
     """Crée une récurrence mensuelle pour chaque charge fixe récente encore sans modèle. Renvoie le nombre créé."""
     if _cfg(db, "auto_promote_recurrences").lower() not in ("true", "1", "yes"):
         return 0
-    from app.services.recurrence_detector import parse_fractional_signature
+    from app.services.recurrence_detector import label_words, parse_fractional_signature
 
     txs = db.query(Transaction).filter(
         Transaction.from_account_id == account_id,
@@ -128,7 +128,10 @@ def propose_first_month_recurrences(db: Session, account_id: int, batch_id: Opti
             Transaction.amount == amt,
             Transaction.date_operation >= op_date + timedelta(days=20),
             Transaction.date_operation <= op_date + timedelta(days=40),
-        ).first()
+        ).all()
+        # Même montant ne suffit pas : l'annonce doit venir du même marchand (un mot de libellé en commun)
+        own_words = label_words(label)
+        announced = next((a for a in announced if label_words(a.raw_description or a.description) & own_words), None)
         if announced:
             announced.recurrence_id = tpl.id
             announced.type = "expense_fixed"

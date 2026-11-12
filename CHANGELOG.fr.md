@@ -2,6 +2,11 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Corrections & ergonomie
+- **Un paiement ne rejoint plus la récurrence d'un autre marchand à cause de son montant 🔄** : quand la création automatique des récurrences était active, toute opération bancaire du même montant qu'une récurrence existante lui était rattachée et comptait comme une charge fixe : une consultation chez le médecin à 10 € devenait les frais de tenue de compte à 10 €, un achat à 49,99 € devenait la box internet. Les prévisions et la jauge de rythme en étaient faussées, avec des charges fixes trop hautes et des dépenses courantes trop basses. Une récurrence ne prend désormais qu'une opération du même marchand, reconnu par un mot de son libellé bancaire. Le même contrôle vaut quand un débit annoncé par la banque est pris pour la prochaine échéance d'une récurrence. Les rattachements faits avant la mise à jour restent en place.
+
 ## [1.6.0] - 2026-11-11
 
 ### Ajouts & améliorations

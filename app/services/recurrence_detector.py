@@ -68,6 +68,43 @@ def get_clean_merchant(label: str) -> str:
     return normalized.strip().upper()
 
 
+# Mots qui ne désignent pas un marchand : passerelles de paiement et termes bancaires génériques
+_NON_MERCHANT_WORDS = {
+    "PAYPAL", "STRIPE", "SUMUP", "LYDIA", "KLARNA", "CARTE", "PRLV", "PRELEVEMENT", "SEPA", "VIREMENT", "VIR",
+    "FACTURE", "PAIEMENT", "ACHAT", "RETRAIT", "WEB", "INST", "VERS", "EUROPE", "SARL", "CIE",
+}
+
+
+def label_words(label: Optional[str]) -> set:
+    """Mots distinctifs d'un libellé (normalisé, 3 lettres et plus, hors passerelles et termes génériques)."""
+    if not label:
+        return set()
+    return {w for w in normalize_raw_label(label).upper().split() if len(w) >= 3 and w not in _NON_MERCHANT_WORDS}
+
+
+def template_matches_labels(db: Session, tpl: RecurrenceTemplate, txs: List[Transaction]) -> bool:
+    """Un modèle de récurrence de même montant ne vaut pour ces opérations que s'il désigne le même marchand :
+    un mot en commun avec les libellés bancaires déjà pointés sur le modèle, ou, s'il n'en a pas, avec son nom."""
+    words = set()
+    for t in txs:
+        words |= label_words(t.raw_description) | label_words(t.description)
+    if not words:
+        return False
+    tx_ids = {t.id for t in txs if t.id is not None}
+    known = set()
+    for tid, raw in db.query(Transaction.id, Transaction.raw_description).filter(
+        Transaction.recurrence_id == tpl.id,
+        Transaction.csv_id.isnot(None),
+        Transaction.raw_description.isnot(None),
+        Transaction.reconciliation_date.isnot(None),  # une annonce « à venir » n'est pas encore une preuve
+    ).all():
+        if tid not in tx_ids:
+            known |= label_words(raw)
+    if known:
+        return bool(known & words)
+    return bool(label_words(tpl.description) & words)
+
+
 def _is_valid_expense_for_recurrence(tx: Transaction) -> bool:
     """
     Filtre strict sur les dépenses récurrentes :
@@ -369,18 +406,17 @@ def process_recurrence_promotions(
             if all(t.recurrence_id is not None for t in o_txs):
                 continue
 
-            # 2. Vérifier si un template (actif ou clôturé) existe déjà pour ce compte
-            existing_tpl = db.query(RecurrenceTemplate).filter(
-                RecurrenceTemplate.from_account_id == account_id,
-                RecurrenceTemplate.amount == amt,
-                (RecurrenceTemplate.is_closed == False) | (RecurrenceTemplate.is_closed.is_(None))
-            ).first()
-
-            closed_tpl = db.query(RecurrenceTemplate).filter(
-                RecurrenceTemplate.from_account_id == account_id,
-                RecurrenceTemplate.amount == amt,
-                RecurrenceTemplate.is_closed == True
-            ).first()
+            # 2. Vérifier si un template (actif ou clôturé) de même montant existe déjà pour ce compte. Le montant
+            # seul ne suffit pas : un médecin à 10 € n'est pas l'« Offre Essentiel » à 10 €.
+            same_amount = [
+                tpl for tpl in db.query(RecurrenceTemplate).filter(
+                    RecurrenceTemplate.from_account_id == account_id,
+                    RecurrenceTemplate.amount == amt,
+                ).all()
+                if template_matches_labels(db, tpl, o_txs)
+            ]
+            existing_tpl = next((tpl for tpl in same_amount if not tpl.is_closed), None)
+            closed_tpl = next((tpl for tpl in same_amount if tpl.is_closed), None)
 
             # Vérifier les recurrence_id existants parmi les transactions
             existing_rec_ids = {t.recurrence_id for t in o_txs if t.recurrence_id}

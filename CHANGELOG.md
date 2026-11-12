@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **A payment no longer joins another merchant's recurrence because of its amount 🔄**: When automatic recurrence creation was on, any bank transaction with the same amount as an existing recurrence was attached to it and counted as a fixed charge: a 10 € doctor's visit became the bank's 10 € account fee, a 49.99 € purchase became the internet box. The forecasts and the pace gauge were skewed by it, with fixed charges too high and day-to-day spending too low. A recurrence now only takes a transaction from the same merchant, recognised by a word of its bank label. The same check applies when a debit announced by the bank is taken as a recurrence's next instalment. Links made before the update stay as they are.
+
 ## [1.6.0] - 2026-11-11
 
 ### Added & Improved
