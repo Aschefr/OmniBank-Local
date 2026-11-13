@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDZGejZKcUpqVXcxMGt3NSs4ZTBKc2FsSGgrbStIc1k1V0h0ZjN0dUJWQWllVzhsaHpib1pmMDcvZDFwMGFNbmZWaWRGckREbVAzRnJaZ2FzRXhPblFJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0Mzk3Mzk3CWZpbGU6T21uaUJhbmtfMS42LjBfeDY0X2ZyLUZSLm1zaQpzaVl0Q0F2Um5KMzZYb2lHWFRtaDhBaEZYa1ZNTUthVFlBZjR0VGk5SlNaRWZOYlBkR3MxUTdQWHVFRDA5WUttb1V6ZXl6RWxRTVA3WFRXblAzUy9Cdz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.6.0/OmniBank_1.6.0_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHl3b2ZrbzgrNTFXcTNreFQrTlc5bjE0RFV4VHNMa3EyNjNVWEc2Tk0xQVZkZ0YyZUIxeCtKeGhRY0luUDhxNUtZeUZkVzI0TVU0eGVlY3c3UGpMY0FnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NTUzODk2CWZpbGU6T21uaUJhbmtfMS42LjFfeDY0X2ZyLUZSLm1zaQpNNG9iR0RCQTQydkkzdUJzd0x6UU9GdXIvNk9OMTFKV3RIaUxWdVVMbmUvaGRiQkh5WlpTbmpwdzk4eUl5Y0ZiWmNNYzcwUlB6L2lBV0xBWHNDdEVEQT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.6.1/OmniBank_1.6.1_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-11T11:43:17Z",
-    "version":  "1.6.0",
-    "notes":  "Provisional Cockpit figures after a first statement, new AI benchmark with gemma4:31b as Top quality, Undo sends back to review"
+    "pub_date":  "2026-11-13T07:11:36Z",
+    "version":  "1.6.1",
+    "notes":  "Recurrences only take payments from the same merchant, the assistant no longer claims to have saved what it did not, no false warning under a question"
 }
