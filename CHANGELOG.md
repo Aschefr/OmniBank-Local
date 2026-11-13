@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Ergonomics
 - **A payment no longer joins another merchant's recurrence because of its amount 🔄**: When automatic recurrence creation was on, any bank transaction with the same amount as an existing recurrence was attached to it and counted as a fixed charge: a 10 € doctor's visit became the bank's 10 € account fee, a 49.99 € purchase became the internet box. The forecasts and the pace gauge were skewed by it, with fixed charges too high and day-to-day spending too low. A recurrence now only takes a transaction from the same merchant, recognised by a word of its bank label. The same check applies when a debit announced by the bank is taken as a recurrence's next instalment. Links made before the update stay as they are.
+- **The assistant no longer says it noted something it did not save 🧠**: With some models (gemma4:e4b every time, gemma4:31b most of the time), the assistant answered "Noted, I've saved it" without anything reaching its memory, so the fact was gone in the next conversation. The assistant is now asked once more to really save it, and if it still does not, a visible note under the answer says the information was not saved and that you can add it yourself in the assistant's memory.
+- **No more false "action could not be prepared" warning under a question ✋**: When the assistant only offered to prepare something ("Would you like me to prepare the adjustment?"), the answer could end with "The announced action could not be prepared". An offer is no longer taken for an announced action.
 
 ## [1.6.0] - 2026-11-11
 

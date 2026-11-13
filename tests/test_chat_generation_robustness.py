@@ -202,3 +202,95 @@ def test_promised_action_still_not_called_gets_a_notice_not_a_guess(monkeypatch,
     assert "```action" not in content
     assert "n'a pas pu être préparée" in content
     assert "D'accord." not in content
+
+
+# --- Garde-fou mémoire : « c'est noté » sans appel de store_financial_fact (gemma4:e4b, 40 fois sur 40) ---
+
+from app.services.chat.memory_guard import claims_memorised  # noqa: E402
+
+
+@pytest.mark.parametrize("text", [
+    "J'ai enregistré que votre loyer passera à **780 €** à partir du mois prochain.",
+    "C'est noté. J'ai enregistré cette préférence : un solde minimum de 500 €.",
+    "C'est noté : je garde en mémoire ce projet (voiture d'occasion, 9 000 €).",
+    "C'est une information importante que je note.",
+    "J'ai noté ce congé sabbatique dans votre dossier.",
+    "<think>rien</think>Je viens d'enregistrer ce congé sabbatique.",
+    "Got it. I've saved your new rent.",    "**Ce que j'ai retenu** : congé sabbatique de janvier à juin 2027, sans salaire.",
+])
+def test_memory_claims_are_recognised(text):
+    assert claims_memorised(text)
+
+
+@pytest.mark.parametrize("text", [
+    "J'ai noté que vos dépenses de loisirs ont augmenté ce mois-ci.",
+    "J'ai retenu que les trois derniers mois pour la moyenne.",
+    "Je note que votre reste à vivre est faible.",
+    "Votre loyer de 780 € est bien pris en compte dans les récurrences.",
+    "As noted above, your rent is 780 €.",
+    "<think>c'est noté</think>Votre solde est de 1 200 €.",
+])
+def test_ordinary_remarks_are_not_memory_claims(text):
+    assert not claims_memorised(text)
+
+
+NOTED = "C'est noté. J'ai enregistré que votre loyer passera à 780 € le mois prochain."
+
+
+def _run_memory(monkeypatch, gen_env, turns):
+    stored = []
+    monkeypatch.setattr(orch, "store_financial_fact_tool",
+                        lambda db, key, value, *a, **k: stored.append((key, value)) or {"status": "success"})
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, turns)
+    return fake, stored, content
+
+
+def _store_call(key="loyer_mensuel", value="780 € à partir de décembre"):
+    return {"message": {"content": "", "tool_calls": [{"function": {"name": "store_financial_fact",
+                                                                    "arguments": {"key": key, "value": value}}}]}}
+
+
+def test_noted_without_saving_asks_the_model_to_save(monkeypatch, gen_env):
+    turns = [
+        [{"message": {"content": NOTED}, "done": True}],
+        [_store_call(), {"message": {"content": ""}, "done": True}],
+    ]
+    fake, stored, content = _run_memory(monkeypatch, gen_env, turns)
+    assert len(fake.payloads) == 2
+    assert "store_financial_fact" in fake.payloads[1]["messages"][-1]["content"]
+    assert stored == [("loyer_mensuel", "780 € à partir de décembre")]
+    assert content.count("C'est noté") == 1
+    assert "n'a pas été enregistrée" not in content
+
+
+def test_noted_still_not_saved_gets_a_notice(monkeypatch, gen_env):
+    turns = [
+        [{"message": {"content": NOTED}, "done": True}],
+        [{"message": {"content": "C'est noté."}, "done": True}],
+    ]
+    fake, stored, content = _run_memory(monkeypatch, gen_env, turns)
+    assert len(fake.payloads) == 2 and stored == []
+    assert "n'a pas été enregistrée dans la mémoire" in content
+
+
+def test_noted_after_a_real_save_is_left_alone(monkeypatch, gen_env):
+    turns = [
+        [_store_call(), {"message": {"content": ""}, "done": True}],
+        [{"message": {"content": NOTED}, "done": True}],
+    ]
+    fake, stored, content = _run_memory(monkeypatch, gen_env, turns)
+    assert len(fake.payloads) == 2 and len(stored) == 1
+    assert "[Message automatique]" not in fake.payloads[1]["messages"][-1]["content"]
+    assert "n'a pas été enregistrée" not in content
+
+
+@pytest.mark.parametrize("text", [
+    "Souhaitez-vous que je prépare l'ajustement ?",
+    "Voulez-vous que je vous prépare une simulation de ce projet ?",
+])
+def test_offering_to_prepare_is_not_an_announced_action(text):
+    assert not orch.announces_prepared_action(text)
+
+
+def test_an_announced_action_is_still_recognised_next_to_an_offer():
+    assert orch.announces_prepared_action("Je vous ai préparé le virement. Voulez-vous que je prépare aussi l'enveloppe ?")

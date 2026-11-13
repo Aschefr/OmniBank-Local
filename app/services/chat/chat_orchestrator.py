@@ -31,6 +31,7 @@ from app.services.chat.chat_compression import (
 )
 from app.services.chat.chat_prompt import load_system_prompt
 from app.services.chat.chat_snapshot import build_entity_snapshots
+from app.services.chat.memory_guard import MEMORY_TOOLS, memory_notice, memory_nudge, unsaved_memory_claim
 from app.services.chat.chat_tools import (
     TOOLS,
     get_tools_for_role,
@@ -617,6 +618,8 @@ _PROMISE_RE = re.compile(
     r"\bi(?: have|'ve) (?:also )?prepared\b|validate (?:it |them )?below|review and (?:validate|confirm)",
     re.IGNORECASE,
 )
+# « Souhaitez-vous que je prépare… ? » propose une action, elle ne l'annonce pas
+_OFFER_RE = re.compile(r"\bque je (?:vous )?prépare\b", re.IGNORECASE)
 
 _NUDGE_FR = (
     "[Message automatique] Votre réponse indique qu'une action a été préparée, mais aucun outil n'a été appelé : "
@@ -632,7 +635,7 @@ _NUDGE_EN = (
 
 def announces_prepared_action(text: str) -> bool:
     """Le texte affirme avoir préparé une action à valider (hors raisonnement interne)."""
-    return bool(_PROMISE_RE.search(_THINK_RE.sub('', text or '')))
+    return bool(_PROMISE_RE.search(_OFFER_RE.sub('', _THINK_RE.sub('', text or ''))))
 
 
 def write_action_from_call(fn_name: str, fn_args: Any) -> Dict[str, Any]:
@@ -992,6 +995,7 @@ async def _run_generation_task(
             nudge_done = False
             session_can_write = any(t["function"]["name"] in _WRITE_TOOLS for t in session_tools)
             session_tool_names = {t["function"]["name"] for t in session_tools}
+            session_can_memorise = "store_financial_fact" in session_tool_names
 
             async def _replace_on_screen(text):
                 await _emit(f"data: {json.dumps({'clear_text': True})}\n\n")
@@ -1055,19 +1059,25 @@ async def _run_generation_task(
                     nudge_pending = False
                     nudge_done = True
                     final_text = accumulated_substantive_text
-                    detected_tool_calls = [tc for tc in detected_tool_calls if tc["function"]["name"] in _WRITE_TOOLS]
+                    detected_tool_calls = [tc for tc in detected_tool_calls
+                                           if tc["function"]["name"] in _WRITE_TOOLS | MEMORY_TOOLS]
                     if not detected_tool_calls:
                         break
                     phase_text = ""
 
                 if not detected_tool_calls:
                     final_text = merge_phase_texts(accumulated_substantive_text, phase_text)
-                    if (session_can_write and not nudge_done and not detected_write_actions
-                            and not error_yielded and announces_prepared_action(final_text)):
-                        logger.info("[Chat] Action annoncée sans appel d'outil — relance du modèle pour obtenir l'appel")
+                    announced = (session_can_write and not detected_write_actions
+                                 and announces_prepared_action(final_text))
+                    unsaved = unsaved_memory_claim(final_text, session_can_memorise, all_tool_names)
+                    if not nudge_done and not error_yielded and (announced or unsaved):
+                        logger.info(f"[Chat] Réponse qui annonce sans appel d'outil (action={announced}, mémoire={unsaved})"
+                                    " — relance du modèle pour obtenir l'appel")
                         accumulated_substantive_text = final_text
+                        nudges = ([_NUDGE_EN if req.lang == "en" else _NUDGE_FR] if announced else []) + \
+                                 ([memory_nudge(req.lang)] if unsaved else [])
                         ollama_msgs.append({"role": "assistant", "content": _THINK_RE.sub('', phase_text).strip()})
-                        ollama_msgs.append({"role": "user", "content": _NUDGE_EN if req.lang == "en" else _NUDGE_FR})
+                        ollama_msgs.append({"role": "user", "content": "\n\n".join(nudges)})
                         nudge_pending = True
                         iteration += 1
                         continue
@@ -1401,6 +1411,12 @@ async def _run_generation_task(
                     if req.lang == "en" else
                     "\n\n*(⚠️ L'action annoncée n'a pas pu être préparée. Redemandez-la pour obtenir la carte de validation.)*"
                 )
+                final_text += notice
+                await _emit(f"data: {json.dumps({'content': notice})}\n\n")
+
+            # « C'est noté » sans enregistrement réel, même après la relance : le dire
+            if final_text and unsaved_memory_claim(final_text, session_can_memorise, all_tool_names):
+                notice = memory_notice(req.lang)
                 final_text += notice
                 await _emit(f"data: {json.dumps({'content': notice})}\n\n")
 

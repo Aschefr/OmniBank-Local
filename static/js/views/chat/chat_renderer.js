@@ -2096,7 +2096,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
     _hasPromisedAction(rawContent) {
         if (!rawContent || typeof rawContent !== 'string') return false;
         if (rawContent.includes('🛑')) return false;
-        return this._PROMISE_RE.test(rawContent.replace(/<think>[\s\S]*?<\/think>/g, ''));
+        // « Souhaitez-vous que je prépare… ? » propose une action, elle ne l'annonce pas
+        return this._PROMISE_RE.test(rawContent.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\bque je (?:vous )?prépare\b/gi, ''));
     },
 
     async recoverActionsForMessage(msgId, btnElement = null) {

@@ -238,7 +238,8 @@ def rules_block(role: str, lang: str = "fr") -> str:
 ```""")
 
     parts.append("""MEMORY:
-- When the user shares a lasting fact (project, salary or rent change, temporary commitment with its end date, preference), save it with store_financial_fact under a descriptive snake_case key, without asking. Update it with the same key when it changes; remove it with forget_financial_fact when the user says it is no longer true or asks you to forget it.""")
+- When the user shares a lasting fact (project, salary or rent change, temporary commitment with its end date, preference), save it with store_financial_fact under a descriptive snake_case key, without asking. Update it with the same key when it changes; remove it with forget_financial_fact when the user says it is no longer true or asks you to forget it.
+- Call store_financial_fact BEFORE writing that something is noted or saved. Never write "noted", "saved" or "I'll remember" unless you called it in this answer.""")
 
     return "\n\n".join(parts)
 
