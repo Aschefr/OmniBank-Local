@@ -109,6 +109,7 @@ window.FormView = {
     },
 
     async open() {
+        this._clearCategorySearch();
         this.currentTxId = null;
         this.currentTxBase = null;
         
@@ -330,6 +331,7 @@ window.FormView = {
     },
 
     async openEdit(tx, options = {}) {
+        this._clearCategorySearch();
         this.currentTxId = tx.id;
         this.currentTxBase = tx;
         this._pendingRecId = tx.recurrence_id || null;
@@ -497,6 +499,7 @@ window.FormView = {
     },
 
     async openDuplicate(tx) {
+        this._clearCategorySearch();
         const dupBtn = document.getElementById('op_dup_btn');
         if (dupBtn) dupBtn.style.display = 'none';
         // Similar to openEdit but resets transaction ID and overrides operation dates to today
@@ -1149,6 +1152,12 @@ window.FormView = {
                 showInlineMessage('Erreur', e.message || 'Impossible de valider le virement');
             }
         }
+    },
+
+    // La recherche de catégorie d'une opération précédente ne doit pas filtrer la suivante
+    _clearCategorySearch() {
+        const searchInput = document.getElementById('op_category_search');
+        if (searchInput) searchInput.value = '';
     },
 
     renderCategories(forceCategoryName = null) {
