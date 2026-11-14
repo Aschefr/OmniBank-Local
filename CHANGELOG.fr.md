@@ -7,6 +7,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 ### Corrections & ergonomie
 - **Un nom de ville ne passe plus pour un commerçant 📍** : les libellés de carte se terminent par la ville (« X1234 FRESHMART MAPLETON »), si bien que tous les commerces d'une même ville partageaient un mot. Un paiement au laboratoire prenait le nom d'un supermarché par sa règle, et la revue proposait de le lier à la prévision du prêt immobilier portant le nom de la ville ; avec le bon écart de montant, l'échéance du prêt pouvait même être liée automatiquement. Un mot qui termine les libellés de carte d'au moins trois commerçants différents, ou qui figure dans leurs libellés sans être dans leur nom, est désormais traité comme un lieu : il n'applique plus de règle, ne propose plus de prévision et ne rattache plus de récurrence. Il en va de même des mots communs à tous les paiements passés par une banque ou un service de paiement.
 - **Plus de prévision suggérée déjà liée à une autre ligne de la banque 🔗** : une prévision que la banque a déjà annoncée sous son propre libellé (une échéance de prêt, par exemple) n'est plus proposée pour un paiement sans rapport d'un autre montant, ni liée automatiquement à lui.
+- **La recherche de catégorie repart vide pour chaque opération 🔎** : dans la fiche d'une opération, une recherche de catégorie tapée pour une opération filtrait encore la liste à l'ouverture de la suivante. Le champ de recherche est désormais vidé à chaque ouverture de la fiche.
 
 ## [1.6.1] - 2026-11-13
 
