@@ -2483,6 +2483,12 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
     # commun (« DR SERGEANT » face à « Offre Essentiel ») ne la prend pas sur le seul montant.
     from app.services.smart_label.normalization import normalize_raw_label
     tx_bank_words = set(normalize_raw_label(tx.raw_description or tx.description or "").split())
+    # Un nom de ville (« Morvance ») revient chez tous les commerçants du village et dans « Maison Morvance » :
+    # il ne rapproche rien
+    from app.services.smart_label.places import is_place_token, place_words
+    from app.services.reconciliation_engine import bank_line_variants, tied_to_other_bank_line
+    places = place_words(db)
+    own_csv_ids = bank_line_variants(tx.csv_id)
     bank_words_by_tpl: Dict[int, set] = {}
 
     def _bank_label_mismatch(cand: Transaction) -> bool:
@@ -2518,8 +2524,10 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
             'paypal', 'stripe', 'sumup', 'lydia', 'klarna', 'carte', 'cb', 'prlv',
             'prelevement', 'virement', 'vir', 'facture', 'paiement', 'achat', 'retrait'
         }
-        cand_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', c_desc) if tok not in _gateway_noise}
-        tx_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', f"{raw_desc} {clean_desc}") if tok not in _gateway_noise}
+        cand_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', c_desc)
+                       if tok not in _gateway_noise and not is_place_token(tok, places)}
+        tx_tokens = {tok for tok in re.findall(r'\b\w{3,}\b', f"{raw_desc} {clean_desc}")
+                     if tok not in _gateway_noise and not is_place_token(tok, places)}
         has_token_overlap = bool(cand_tokens and tx_tokens and (cand_tokens & tx_tokens))
 
         has_substr_match = bool(
@@ -2540,6 +2548,9 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
         has_text_affinity = has_substr_match or has_token_overlap or has_semantic_match
 
         is_valid_candidate = False
+        if not has_exact_amount and tied_to_other_bank_line(c, tx.raw_description or tx.description, own_csv_ids, db=db):
+            # Prévision déjà rattachée à une autre ligne de la banque, au libellé sans rapport
+            continue
         if has_exact_amount and (has_text_affinity or not _bank_label_mismatch(c)):
             # Même montant à quelques centimes près sur le même compte dans la fenêtre temporelle
             is_valid_candidate = True

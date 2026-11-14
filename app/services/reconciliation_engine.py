@@ -107,11 +107,36 @@ def compute_text_score(
             except Exception:
                 pass
 
-        ratio = _compute_match_score(raw_bank_label, candidate_desc)
+        from app.services.smart_label.places import place_words
+        ratio = _compute_match_score(raw_bank_label, candidate_desc, place_words(db) if db else frozenset())
         return round(ratio * 25)
     except Exception as e:
         logger.warning(f"[Reconciliation] Erreur calcul score textuel: {e}")
         return 0
+
+
+def bank_line_variants(csv_id: Optional[str]) -> Set[str]:
+    """L'empreinte bancaire d'une ligne et celle de son annonce « à venir » (ou l'inverse)."""
+    if not csv_id:
+        return set()
+    ids = {csv_id}
+    if csv_id.startswith("woob_coming_"):
+        ids.add(csv_id.replace("woob_coming_", "woob_", 1))
+    elif csv_id.startswith("woob_"):
+        ids.add(csv_id.replace("woob_", "woob_coming_", 1))
+    return ids
+
+
+def tied_to_other_bank_line(candidate_tx: Transaction, bank_label: Optional[str], own_csv_ids: Set[str],
+                            db: Optional[Session] = None) -> bool:
+    """La prévision est déjà rattachée à une autre ligne de la banque, dont le libellé n'a rien de commun avec
+    celui-ci (« 0000123 ECHEANCE » face à « X1234 LABO MORVANCE ») : ce ne peut pas être la même opération."""
+    cand_csv = str(candidate_tx.csv_id or "")
+    if not cand_csv.startswith("woob_") or cand_csv in own_csv_ids:
+        return False
+    if not candidate_tx.raw_description or not bank_label:
+        return False
+    return compute_text_score(candidate_tx.raw_description, bank_label, db=db) == 0
 
 
 def evaluate_candidate(
@@ -533,7 +558,10 @@ def check_reconciliation(
             return None
 
         valid_matches = []
+        own_csv_ids = bank_line_variants(csv_id)
         for cand in candidates:
+            if tied_to_other_bank_line(cand, bank_label, own_csv_ids, db=db):
+                continue
             # Vérifier sens du flux (dépense vs recette)
             raw_float = float(tx_amount)
             cand_is_expense = (cand.type in ("expense_fixed", "expense_var", "transfer") or (cand.from_account_id and not cand.to_account_id))

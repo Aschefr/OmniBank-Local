@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **A town name no longer passes for a merchant 📍**: Card labels end with the town ("X1234 FRESHMART MAPLETON"), so every shop in the same town shared a word. A lab payment was named after a supermarket by its rule, and the review suggested linking it to the house loan forecast named after that town; with the right amount gap, the loan instalment could even be linked automatically. A word that ends the card labels of at least three different merchants, or that appears in their labels without being in their name, is now treated as a place: it no longer applies a rule, suggests a forecast or links a recurrence. The same goes for words shared by every payment through a bank or a payment service.
+- **No more forecast suggestion already tied to another bank line 🔗**: A forecast that the bank has already announced under its own label (a loan instalment, for instance) is no longer suggested for an unrelated payment with a different amount, nor linked to it automatically.
+
 ## [1.6.1] - 2026-11-13
 
 ### Fixed & Ergonomics

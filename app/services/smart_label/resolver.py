@@ -28,6 +28,7 @@ from .categories import (
 )
 from .learning import get_user_habit_descriptions
 from .matcher import _compute_match_score, _compute_match_score_precomputed
+from .places import place_words
 from .normalization import (
     _GENERIC_TOKENS,
     _tokenize,
@@ -107,6 +108,7 @@ def resolve_smart_label(
     raw_str = str(raw_label).strip()
     pattern = normalize_raw_label(raw_str)
     cat_type_map = {c.name: c.type for c in db.query(Category).all() if c.name}
+    places = place_words(db)
 
     # ---------------------------------------------------------
     # NIVEAU 1 : Base de règles (BankLabelMapping)
@@ -210,7 +212,7 @@ def resolve_smart_label(
     best_rule_score = 0.0
 
     for rule in all_rules:
-        score = _compute_match_score(pattern, rule.raw_pattern)
+        score = _compute_match_score(pattern, rule.raw_pattern, places)
         if score > best_rule_score:
             best_rule_score = score
             best_rule = rule
@@ -381,11 +383,11 @@ def resolve_smart_label(
     candidate_matches: List[Tuple[Transaction, float]] = []
 
     for tx in recent_txs:
-        score_desc = _compute_match_score(pattern, tx.description)
+        score_desc = _compute_match_score(pattern, tx.description, places)
         score_raw = 0.0
         if tx.raw_description:
             raw_norm = normalize_raw_label(tx.raw_description)
-            score_raw = _compute_match_score(pattern, raw_norm or tx.raw_description)
+            score_raw = _compute_match_score(pattern, raw_norm or tx.raw_description, places)
         score = max(score_desc, score_raw)
         if score >= 0.75:
             candidate_matches.append((tx, score))
@@ -481,6 +483,7 @@ def resolve_smart_labels_batch(
         return {}
 
     cat_type_map = {c.name: c.type for c in db.query(Category).all() if c.name}
+    places = place_words(db)
 
     # Pré-charger toutes les règles existantes
     all_rules = db.query(BankLabelMapping).all()
@@ -615,7 +618,7 @@ def resolve_smart_labels_batch(
         best_rule = None
         best_rule_score = 0.0
         for r, r_clean, r_tokens, r_sig in rule_data:
-            score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, r_clean, r_tokens, r_sig)
+            score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, r_clean, r_tokens, r_sig, places)
             if score > best_rule_score:
                 best_rule_score = score
                 best_rule = r
@@ -704,10 +707,10 @@ def resolve_smart_labels_batch(
         for tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig, c_cat_type in cand_data:
             if expected_t and not is_category_compatible_with_tx_type(c_cat_type, expected_t):
                 continue
-            score_desc = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig)
+            score_desc = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig, places)
             score_raw = 0.0
             if raw_clean:
-                score_raw = _compute_match_score_precomputed(pattern, p_tokens, p_sig, raw_clean, raw_tokens, raw_sig)
+                score_raw = _compute_match_score_precomputed(pattern, p_tokens, p_sig, raw_clean, raw_tokens, raw_sig, places)
             score = max(score_desc, score_raw)
             if score >= 0.75:
                 candidate_matches.append((tx, score))

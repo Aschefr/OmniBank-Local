@@ -4,13 +4,14 @@ Combine token overlap marchand, détection de préfixes et distance Levenshtein/
 """
 
 import difflib
-from typing import Set
+from typing import FrozenSet, Set
 
 from .normalization import (
     _GENERIC_TOKENS,
     _tokenize,
     normalize_raw_label,
 )
+from .places import shares_only_places
 
 
 def _compute_match_score_precomputed(
@@ -19,15 +20,20 @@ def _compute_match_score_precomputed(
     sig_pat: Set[str],
     cand_clean: str,
     cand_tokens: Set[str],
-    sig_cand: Set[str]
+    sig_cand: Set[str],
+    places: FrozenSet[str] = frozenset()
 ) -> float:
-    """Version optimisée avec tokens et chaînes nettoyées pré-calculées."""
+    """Version optimisée avec tokens et chaînes nettoyées pré-calculées. `places` : mots de lieu du profil
+    (voir places.py) ; deux libellés qui n'ont en commun qu'un lieu ne se ressemblent pas."""
     if not pat_clean or not cand_clean:
         return 0.0
 
     # Match parfait
     if pat_clean == cand_clean:
         return 1.0
+
+    if places and shares_only_places(pat_clean, cand_clean, places):
+        return 0.0
 
     # Inclusion stricte au niveau mot / token (mots entiers, pas de sous-chaîne arbitraire interne)
     # Ex: "NETFLIX" dans "NETFLIX COM", "CARREFOUR" dans "CARREFOUR MARKET"
@@ -128,7 +134,7 @@ def _compute_match_score_precomputed(
     return 0.0
 
 
-def _compute_match_score(pattern: str, candidate: str) -> float:
+def _compute_match_score(pattern: str, candidate: str, places: FrozenSet[str] = frozenset()) -> float:
     """
     Calcule un score de similarité robuste combinant token overlap marchand et distance Levenshtein/difflib.
     Retourne une valeur entre 0.0 et 1.0.
@@ -147,4 +153,4 @@ def _compute_match_score(pattern: str, candidate: str) -> float:
     sig_pat = pat_tokens - _GENERIC_TOKENS
     sig_cand = cand_tokens - _GENERIC_TOKENS
 
-    return _compute_match_score_precomputed(pat_clean, pat_tokens, sig_pat, cand_clean, cand_tokens, sig_cand)
+    return _compute_match_score_precomputed(pat_clean, pat_tokens, sig_pat, cand_clean, cand_tokens, sig_cand, places)
