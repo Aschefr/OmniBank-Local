@@ -177,7 +177,12 @@ def budget_period(db: Session, offset: int = 0, today: Optional[date] = None) ->
                 # Garde-fou : une prédiction aberrante ne doit pas produire un cycle de deux mois
                 if not following or following <= start or following > start + relativedelta(months=1, days=10):
                     following = start + relativedelta(months=1)
-                return _period_dict("cycle", start, following - timedelta(days=1), offset, today)
+                end = following - timedelta(days=1)
+                if idx == len(starts) - 1:
+                    # Paie attendue aujourd'hui ou en retard : la période en cours dure jusqu'à son arrivée,
+                    # sinon les opérations du jour n'appartiendraient à aucune période
+                    end = max(end, today)
+                return _period_dict("cycle", start, end, offset, today)
         except Exception as e:
             logger.debug(f"[Budgets] Cycle de paie indisponible, mois calendaire utilisé : {e}")
     first = date(today.year, today.month, 1) + relativedelta(months=offset)

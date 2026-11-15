@@ -57,6 +57,19 @@ def test_personal_monthly_envelopes_follow_the_pay_cycle(db):
     assert bs.budget_period(db, -1)["end"] == (TODAY - timedelta(days=6)).isoformat()
 
 
+@pytest.mark.parametrize("days_late", [0, 2])
+def test_current_cycle_lasts_until_the_expected_pay_arrives(db, monkeypatch, days_late):
+    # Paie attendue aujourd'hui (ou il y a deux jours), pas encore arrivée : aujourd'hui reste dans la période
+    last_pay = TODAY - timedelta(days=30 + days_late)
+    monkeypatch.setattr(finance_engine, "predict_next_paycheck", lambda db: {
+        "date": last_pay + timedelta(days=30), "amount": 2500.0,
+        "history": [{"date": (last_pay - timedelta(days=30 * k)).isoformat()} for k in range(4)]})
+    p = bs.budget_period(db, 0)
+    assert p["start"] == last_pay.isoformat() and p["end"] == TODAY.isoformat()
+    assert p["days_left"] == 0
+    assert bs.budget_period(db, -1)["end"] == (last_pay - timedelta(days=1)).isoformat()
+
+
 def test_organisation_mode_has_no_pay_cycle(db):
     db.add(GlobalConfig(key="enable_org_mode", value="true"))
     db.commit()

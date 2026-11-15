@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **No more forecast suggestion already tied to another bank line 🔗**: A forecast that the bank has already announced under its own label (a loan instalment, for instance) is no longer suggested for an unrelated payment with a different amount, nor linked to it automatically.
 - **The category search starts empty for each operation 🔎**: In the operation form, a category search typed for one operation still filtered the list when the form was opened for the next one. The search field is now cleared each time the form opens.
 - **Two profiles at the same bank no longer share their bank session 🏦**: Each profile numbers its bank connections from 1, and a connection's saved bank session (cookies, trusted device) was stored under that number and the bank's name only. Two profiles with an account at the same bank could therefore reuse each other's session. The session is now stored per profile. Sessions saved before the update are kept when only one profile has that connection; otherwise the bank asks to log in or confirm once more.
+- **The pay cycle no longer ends before the pay arrives 📅**: On the expected pay day, and each day the pay was late, the current cycle had ended the day before: the day's spending counted in no envelope and the forecast tracking chart stopped before today. The current cycle now lasts until the pay arrives.
 
 ## [1.6.1] - 2026-11-13
 
