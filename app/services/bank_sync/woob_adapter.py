@@ -121,7 +121,13 @@ def get_woob_storage() -> StandardStorage:
     with _STORAGE_LOCK:
         if _STORAGE_INSTANCE is None:
             storage_path = os.path.join(DATA_DIR, "woob_storage.json")
-            _STORAGE_INSTANCE = StandardStorage(storage_path)
+            storage = StandardStorage(storage_path)
+            from app.services.bank_sync.backend_names import migrate_legacy_backend_states
+            try:
+                migrate_legacy_backend_states(storage)
+            except Exception as e:
+                logger.warning(f"[BankSync] Reprise des sessions bancaires ignorée : {e}")
+            _STORAGE_INSTANCE = storage
     return _STORAGE_INSTANCE
 
 

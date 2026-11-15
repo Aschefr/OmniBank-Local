@@ -65,6 +65,15 @@ def _get_woob_storage():
     return default_get_woob_storage()
 
 
+def _connection_instance_name(db: Session, connection: BankConnection) -> str:
+    """Nom de la connexion dans woob, propre au profil : sa session bancaire n'est pas celle d'un autre profil."""
+    from app.database import profile_id_for_session
+    from app.profile_manager import get_active_profile
+    from app.services.bank_sync.backend_names import backend_instance_name
+    pid = profile_id_for_session(db) or get_active_profile().get("id", "default")
+    return backend_instance_name(pid, connection.id, connection.backend)
+
+
 def _apply_hotfixes(w: Woob, backend_name: str, backend: Any = None):
     """Accès dynamique supportant le monkeypatching de bss._apply_module_hotfixes."""
     import app.services.bank_sync_service as bss
@@ -389,7 +398,7 @@ class BankSyncService:
         w = _get_woob()
         storage = _get_woob_storage()
         backend_name = connection.backend
-        backend_instance_name = f"conn_{connection.id}_{backend_name}"
+        backend_instance_name = _connection_instance_name(db, connection)
 
         _apply_hotfixes(w, backend_name)
 
