@@ -301,7 +301,8 @@ async def test_connection_stream(
             main_loop.call_soon_threadsafe(event_queue.put_nowait, None)
 
     import threading
-    worker_thread = threading.Thread(target=test_worker, daemon=True)
+    from app.request_profile import bind_profile
+    worker_thread = threading.Thread(target=bind_profile(test_worker, active_pid), daemon=True)
     worker_thread.start()
 
     async def event_generator():
@@ -527,7 +528,8 @@ async def sync_connection_stream(
             main_loop.call_soon_threadsafe(event_queue.put_nowait, None)  # Sentinel pour fermer le flux
 
     import threading
-    worker_thread = threading.Thread(target=sync_worker, daemon=True)
+    from app.request_profile import bind_profile
+    worker_thread = threading.Thread(target=bind_profile(sync_worker, active_pid), daemon=True)
     worker_thread.start()
 
     async def event_generator():

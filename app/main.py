@@ -53,44 +53,50 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Discovery] Could not start UDP discovery service: {e}")
     
-    # Automatically generate recurrences on startup
+    # Tâches de démarrage, pour chaque profil : plusieurs personnes peuvent utiliser le serveur
     from app.database import SessionLocal
-    db = SessionLocal()
-    try:
-        from app.routers.recurrences import generate_recurrences
-        generate_recurrences(db=db)
-    except Exception as e:
-        logger.error(f"Failed to generate recurrences on startup: {e}")
-    finally:
-        db.close()
+    from app.profile_manager import load_profiles_data
+    from app.request_profile import profile_scope
+    startup_pids = [p["id"] for p in load_profiles_data().get("profiles", [])]
+    for startup_pid in startup_pids:
+        with profile_scope(startup_pid):
+            # Automatically generate recurrences on startup
+            db = SessionLocal()
+            try:
+                from app.routers.recurrences import generate_recurrences
+                generate_recurrences(db=db)
+            except Exception as e:
+                logger.error(f"Failed to generate recurrences on startup: {e}")
+            finally:
+                db.close()
 
-    # Purge old actions on startup
-    db = SessionLocal()
-    try:
-        from datetime import datetime, timedelta, timezone
-        from app.models import GlobalConfig, ActionHistory
-        retention_days = 90
-        cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "history_retention_days").first()
-        if cfg and cfg.value.isdigit():
-            retention_days = int(cfg.value)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-        db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
-        db.commit()
-    except Exception as e:
-        logger.error(f"Failed to purge old action history on startup: {e}")
-    finally:
-        db.close()
+            # Purge old actions on startup
+            db = SessionLocal()
+            try:
+                from datetime import datetime, timedelta, timezone
+                from app.models import GlobalConfig, ActionHistory
+                retention_days = 90
+                cfg = db.query(GlobalConfig).filter(GlobalConfig.key == "history_retention_days").first()
+                if cfg and cfg.value.isdigit():
+                    retention_days = int(cfg.value)
+                cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                db.query(ActionHistory).filter(ActionHistory.timestamp < cutoff).delete()
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to purge old action history on startup: {e}")
+            finally:
+                db.close()
 
-    # Étape 5 Auto-Pilote : Rattrapage des suggestions budgétaires au démarrage
-    db = SessionLocal()
-    try:
-        from app.services.budget_service import evaluate_monthly_budget_suggestions, suggest_new_envelopes_deterministic
-        evaluate_monthly_budget_suggestions(db, force=False)
-        suggest_new_envelopes_deterministic(db, force=False)
-    except Exception as e:
-        logger.warning(f"[AutoPilot] Échec rattrapage suggestions budgétaires au démarrage: {e}")
-    finally:
-        db.close()
+            # Étape 5 Auto-Pilote : Rattrapage des suggestions budgétaires au démarrage
+            db = SessionLocal()
+            try:
+                from app.services.budget_service import evaluate_monthly_budget_suggestions, suggest_new_envelopes_deterministic
+                evaluate_monthly_budget_suggestions(db, force=False)
+                suggest_new_envelopes_deterministic(db, force=False)
+            except Exception as e:
+                logger.warning(f"[AutoPilot] Échec rattrapage suggestions budgétaires au démarrage: {e}")
+            finally:
+                db.close()
         
     # Check/Generate periodic AI financial report on startup in background (avec temporisation de 30s)
     try:
@@ -102,7 +108,11 @@ async def lifespan(app: FastAPI):
             # Temporisation de 30s au démarrage pour libérer le boot et ne pas solliciter l'IA prématurément
             if notif_module._shutdown_event.wait(30.0):
                 return
-            generate_ai_report_task(SessionLocal, False)
+            for report_pid in startup_pids:
+                if notif_module._shutdown_event.is_set():
+                    return
+                with profile_scope(report_pid):
+                    generate_ai_report_task(SessionLocal, False)
 
         t = threading.Thread(target=_delayed_startup_ai_report, daemon=True)
         notif_module._active_report_thread = t
@@ -394,21 +404,36 @@ _PIN_PUBLIC_ROUTES = [
 
 @app.middleware("http")
 async def pin_session_guard(request, call_next):
+    """Fixe le profil de la requête (app.request_profile), puis exige la session PIN de ce profil."""
     path = request.url.path
     if request.method == "OPTIONS" or not path.startswith(_PIN_PROTECTED_PREFIXES):
         return await call_next(request)
-    if any(request.method == m and rx.match(path) for m, rx in _PIN_PUBLIC_ROUTES):
-        return await call_next(request)
+    is_public = any(request.method == m and rx.match(path) for m, rx in _PIN_PUBLIC_ROUTES)
 
-    from app.profile_manager import get_active_profile, has_pin
-    from app.services import pin_session
-    active = get_active_profile()
-    if has_pin(active) and not pin_session.is_valid(pin_session.get_request_token(request), active["id"]):
-        return _JSONResponse(
-            status_code=401,
-            content={"detail": "Profil verrouillé : code PIN requis.", "code": "pin_required", "profile_id": active["id"]},
-        )
-    return await call_next(request)
+    from app.profile_manager import get_active_profile, has_pin, profile_exists
+    from app.request_profile import profile_scope, requested_profile_id
+    from app.services import pin_session, profile_presence
+
+    # Profil nommé par le client, sinon le profil par défaut (clients d'avant les profils simultanés).
+    pid = requested_profile_id(request)
+    if pid and not profile_exists(pid):
+        if not is_public:
+            return _JSONResponse(
+                status_code=409,
+                content={"detail": "Ce profil n'existe plus.", "code": "profile_unknown", "profile_id": pid},
+            )
+        pid = None
+
+    with profile_scope(pid):
+        if not is_public:
+            active = get_active_profile()
+            if has_pin(active) and not pin_session.is_valid(pin_session.get_request_token(request), active["id"]):
+                return _JSONResponse(
+                    status_code=401,
+                    content={"detail": "Profil verrouillé : code PIN requis.", "code": "pin_required", "profile_id": active["id"]},
+                )
+            profile_presence.seen(profile_presence.client_key(request), active["id"])
+        return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,

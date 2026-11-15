@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
@@ -173,8 +173,24 @@ async def download_all_profiles_backup():
         raise HTTPException(status_code=500, detail=f"Échec de la sauvegarde globale: {str(e)}")
 
 
+def _refuse_while_other_profiles_in_use(request: Request):
+    """Une restauration globale ferme toutes les bases : pas pendant que quelqu'un d'autre s'en sert."""
+    from app.services import profile_presence
+    others = profile_presence.other_active_profiles(profile_presence.client_key(request), get_active_profile()["id"])
+    if not others:
+        return
+    names = {p["id"]: p.get("name") or p["id"] for p in load_profiles_data().get("profiles", [])}
+    in_use = ", ".join(f"« {names.get(pid, pid)} »" for pid in others)
+    minutes = profile_presence.ACTIVE_WINDOW_SECONDS // 60
+    raise HTTPException(
+        status_code=409,
+        detail=f"Restauration globale refusée : {in_use} est utilisé en ce moment sur un autre appareil. "
+               f"Réessayez quand ce profil sera fermé depuis {minutes} minutes.",
+    )
+
+
 @router.post("/upload-all")
-async def upload_all_profiles_backup(file: UploadFile = File(...), secrets: Optional[str] = Form(None)):
+async def upload_all_profiles_backup(request: Request, file: UploadFile = File(...), secrets: Optional[str] = Form(None)):
     """Restaure une sauvegarde globale.
 
     Sans `secrets`, répond 409 avec la liste des profils qui exigent un PIN / code de récupération
@@ -182,6 +198,7 @@ async def upload_all_profiles_backup(file: UploadFile = File(...), secrets: Opti
     {profile_id: {"secret": "...", "new_pin": "..."}} ; un profil absent est ignoré."""
     if not file.filename.endswith('.zip'):
         raise HTTPException(status_code=400, detail="Le fichier doit être une archive ZIP.")
+    _refuse_while_other_profiles_in_use(request)
 
     provided = None
     if secrets is not None:

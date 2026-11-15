@@ -20,8 +20,9 @@ from app.profile_manager import (
     verify_pin,
     clear_pin
 )
-from app.profile_manager import regenerate_recovery_code, verify_recovery_code, ensure_backup_key
-from app.database import get_engine, dispose_engine, get_db
+from app.profile_manager import regenerate_recovery_code, verify_recovery_code, ensure_backup_key, get_default_profile
+from app.database import get_engine, get_db
+from app.request_profile import PROFILE_HEADER
 from app.init_data import init_db
 from app.services import stats_cache, pin_session
 
@@ -128,10 +129,10 @@ def list_profiles(db: Session = Depends(get_db)):
     """Liste tous les profils avec indication du profil actif."""
     sync_profile_metadata_from_db(db)
     data = load_profiles_data()
-    active_id = data.get("active_profile_id", "default")
     sanitized_profiles = [_sanitize_profile(p) for p in data.get("profiles", [])]
     return {
-        "active_profile_id": active_id,
+        "active_profile_id": get_active_profile()["id"],
+        "default_profile_id": data.get("active_profile_id", "default"),
         "profiles": sanitized_profiles
     }
 
@@ -144,7 +145,7 @@ def get_active(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def api_create_profile(req: ProfileCreateRequest, response: Response):
+def api_create_profile(req: ProfileCreateRequest, request: Request, response: Response):
     """Crée un nouveau profil maître, configure son PIN optionnel et bascule dessus."""
     if not req.name or not req.name.strip():
         raise HTTPException(status_code=400, detail="Le nom du profil est requis.")
@@ -191,7 +192,8 @@ def api_create_profile(req: ProfileCreateRequest, response: Response):
         reload_req = False
         session_token = None
         if req.auto_activate:
-            set_active_profile(new_prof["id"])
+            if not _client_picks_profile(request):
+                set_active_profile(new_prof["id"])
             reload_req = True
             if recovery_code:
                 session_token = _issue_session(response, new_prof["id"])
@@ -283,7 +285,7 @@ def api_delete_profile(profile_id: str):
 
 
 @router.post("/{profile_id}/activate")
-def api_activate_profile(profile_id: str, response: Response, req: Optional[ProfileActivateRequest] = None):
+def api_activate_profile(profile_id: str, request: Request, response: Response, req: Optional[ProfileActivateRequest] = None):
     """Bascule vers le profil spécifié (ou déverrouille le profil actif s'il est protégé)."""
     data = load_profiles_data()
     target = next((p for p in data.get("profiles", []) if p["id"] == profile_id), None)
@@ -297,30 +299,25 @@ def api_activate_profile(profile_id: str, response: Response, req: Optional[Prof
         ensure_backup_key(profile_id, req.pin)
         session_token = _issue_session(response, profile_id)
 
-    _switch_active_profile(profile_id)
+    _switch_active_profile(profile_id, request)
     return {"ok": True, "active_profile_id": profile_id, "reload_required": True, "session_token": session_token}
 
 
-def _switch_active_profile(profile_id: str):
-    active_profile = get_active_profile()
-    if active_profile["id"] != profile_id:
-        # Verrouiller immédiatement la session du coffre-fort du profil quitté pour garantir l'étanchéité
-        try:
-            from app.services.credential_vault import VaultSessionManager
-            VaultSessionManager.lock_session(profile_id=active_profile["id"])
-        except Exception as e:
-            logger.warning(f"[Profiles] Erreur verrouillage session coffre pour {active_profile['id']}: {e}")
+def _client_picks_profile(request: Request) -> bool:
+    """Le client nomme son profil à chaque requête : changer de profil ne concerne que lui."""
+    return request.headers.get(PROFILE_HEADER) is not None
 
-        # Fermer la connexion active précédente
-        dispose_engine(active_profile["id"])
+
+def _switch_active_profile(profile_id: str, request: Request):
+    """Ouvre le profil cible. Le coffre du profil quitté reste ouvert et sa base aussi : quelqu'un
+    d'autre peut l'utiliser en ce moment, et ses relevés planifiés continuent.
+    Un client qui ne nomme pas son profil (application d'avant les profils simultanés) change
+    le profil par défaut du serveur, comme avant."""
+    if get_active_profile()["id"] != profile_id:
+        init_db(target_engine=get_engine(profile_id))
+    if not _client_picks_profile(request) and get_default_profile()["id"] != profile_id:
         set_active_profile(profile_id)
-
-        # Invalider l'intégralité du cache stats & pending pour étanchéité multi-profils
         stats_cache.invalidate()
-
-        # Assurer l'initialisation de la DB du profil cible
-        target_engine = get_engine(profile_id)
-        init_db(target_engine=target_engine)
 
 
 @router.post("/lock")
@@ -339,7 +336,7 @@ def api_session_ticket(request: Request):
 
 
 @router.post("/{profile_id}/pin/recover")
-def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, response: Response):
+def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, request: Request, response: Response):
     """PIN oublié : réinitialise (ou supprime) le PIN grâce au code de récupération, puis active le profil."""
     data = load_profiles_data()
     target = next((p for p in data.get("profiles", []) if p["id"] == profile_id), None)
@@ -366,7 +363,7 @@ def api_recover_pin(profile_id: str, req: ProfilePinRecoverRequest, response: Re
 
     pin_session.revoke_profile(profile_id)
     session_token = _issue_session(response, profile_id) if new_pin else None
-    _switch_active_profile(profile_id)
+    _switch_active_profile(profile_id, request)
     logger.info(f"[Profiles] PIN réinitialisé via code de récupération pour {profile_id}.")
     return {
         "ok": True,

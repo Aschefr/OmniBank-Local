@@ -86,7 +86,8 @@ def start_label_refinement(profile_id: str) -> None:
     with _lock:
         if not _jobs.get(profile_id) or is_refining(profile_id):
             return
-        thread = threading.Thread(target=_run, args=(profile_id,), daemon=True)
+        from app.request_profile import bind_profile
+        thread = threading.Thread(target=bind_profile(_run, profile_id), args=(profile_id,), daemon=True)
         _threads[profile_id] = thread
         _last_count[profile_id] = 0
     thread.start()

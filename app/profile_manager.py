@@ -177,8 +177,28 @@ def _save_profiles_data(data: dict):
 
 
 def get_active_profile() -> dict:
-    """Retourne le profil actuellement actif."""
+    """Retourne le profil de la requête ou de la tâche en cours (app.request_profile),
+    sinon le profil par défaut du serveur."""
+    from app.request_profile import current_profile_id
     data = load_profiles_data()
+    scoped_id = current_profile_id()
+    if scoped_id:
+        scoped = next((p for p in data.get("profiles", []) if p["id"] == scoped_id), None)
+        if scoped:
+            return scoped
+    return _default_profile(data)
+
+
+def get_default_profile() -> dict:
+    """Profil par défaut du serveur (profiles.json) : celui des clients qui ne nomment pas le leur."""
+    return _default_profile(load_profiles_data())
+
+
+def profile_exists(profile_id: str) -> bool:
+    return any(p["id"] == profile_id for p in load_profiles_data().get("profiles", []))
+
+
+def _default_profile(data: dict) -> dict:
     active_id = data.get("active_profile_id", "default")
     for p in data.get("profiles", []):
         if p["id"] == active_id:

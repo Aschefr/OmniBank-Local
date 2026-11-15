@@ -1517,8 +1517,9 @@ async def _run_generation_task(
                 if lines:
                     context_hint = lines[0][:120]
             logger.info(f"[Chat] Lancement de la génération de titre intelligente pour session {session_id} (profil={active_pid})")
+            from app.request_profile import bind_profile
             threading.Thread(
-                target=generate_session_title,
+                target=bind_profile(generate_session_title, active_pid),
                 args=(active_pid, session_id, req.content, cfg, context_hint),
                 daemon=True,
             ).start()

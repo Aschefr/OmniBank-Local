@@ -1172,8 +1172,9 @@ class BankSyncService:
         try:
             from app.services.recurrence_detector import process_recurrence_promotions, process_auto_skipping
             from app.services.first_month_recurrences import propose_first_month_recurrences
+            from app.database import profile_id_for_session
             from app.profile_manager import get_active_profile
-            active_pid = get_active_profile().get("id", "default")
+            active_pid = profile_id_for_session(db) or get_active_profile().get("id", "default")
             batch_identifier = f"sas_commit_{connection_id}"
             promo_accounts = set(distinct_account_ids)
             if not promo_accounts:

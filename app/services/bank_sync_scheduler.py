@@ -69,25 +69,28 @@ async def _run_scheduled_statement(db, pid: str) -> None:
 
 async def _run_profile_cycle(pid: str) -> None:
     from app.database import get_engine
+    from app.request_profile import bind_profile, profile_scope
     from sqlalchemy.orm import sessionmaker
 
     SessionProf = sessionmaker(autocommit=False, autoflush=False, bind=get_engine(pid))
     db = SessionProf()
+    # Tout le cycle travaille dans ce profil, même le code qui demande « le profil actif »
     try:
-        await _run_scheduled_statement(db, pid)
-        # Indépendante du relevé : attendre un relevé ne doit jamais retarder l'analyse budgétaire
-        try:
-            from app.services.budget_service import run_background_analysis
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, run_background_analysis, db, pid)
-        except Exception as b_eval_err:
-            logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
-        try:
-            from app.services.forecast_tracking import record_period_forecasts
-            await asyncio.get_running_loop().run_in_executor(None, record_period_forecasts, db, pid)
-        except Exception as forecast_err:
-            db.rollback()
-            logger.warning(f"[BankScheduler] Prévision de la période non enregistrée pour le profil '{pid}': {forecast_err}")
+        with profile_scope(pid):
+            await _run_scheduled_statement(db, pid)
+            # Indépendante du relevé : attendre un relevé ne doit jamais retarder l'analyse budgétaire
+            try:
+                from app.services.budget_service import run_background_analysis
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, bind_profile(run_background_analysis), db, pid)
+            except Exception as b_eval_err:
+                logger.debug(f"[BankScheduler] Suggestion budgétaire non exécutée pour profil '{pid}': {b_eval_err}")
+            try:
+                from app.services.forecast_tracking import record_period_forecasts
+                await asyncio.get_running_loop().run_in_executor(None, bind_profile(record_period_forecasts), db, pid)
+            except Exception as forecast_err:
+                db.rollback()
+                logger.warning(f"[BankScheduler] Prévision de la période non enregistrée pour le profil '{pid}': {forecast_err}")
     finally:
         db.close()
 

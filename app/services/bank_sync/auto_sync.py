@@ -601,7 +601,8 @@ def trigger_manual_auto_sync(
             # Démarré avant la fin de ce fil : le navigateur ne voit jamais de creux entre le relevé et l'analyse
             start_label_refinement(pid)
 
-    t = threading.Thread(target=_worker, daemon=True)
+    from app.request_profile import bind_profile
+    t = threading.Thread(target=bind_profile(_worker, pid), daemon=True)
     _ACTIVE_BACKGROUND_THREADS[pid] = t
     t.start()
 
