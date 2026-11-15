@@ -203,6 +203,23 @@ class App {
                 const pData = pDataRes.value;
                 this.activeProfileId = pData.active_profile_id;
                 this.profiles = pData.profiles || [];
+
+                // Profil de ce navigateur : plusieurs personnes peuvent utiliser le serveur en même temps
+                const storedProfileId = API.getProfileId();
+                if (!storedProfileId || !this.profiles.some(p => p.id === storedProfileId)) {
+                    API.setProfileId('');
+                    // Jeton unique d'avant les profils simultanés : il valait pour le profil par défaut
+                    const legacyToken = API.getSessionToken('');
+                    if (legacyToken) {
+                        API.setSessionToken(legacyToken, pData.active_profile_id);
+                        API.setSessionToken('', '');
+                    }
+                    if (this.profiles.length > 1) {
+                        this.showProfilePicker();
+                        return;
+                    }
+                    API.setProfileId(this.activeProfileId);
+                }
                 if (window.ProfileStorage) {
                     window.ProfileStorage.init(this.activeProfileId);
                 }

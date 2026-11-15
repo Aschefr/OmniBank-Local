@@ -366,35 +366,57 @@ window.AppModules.profiles = {
         if (pinForm) pinForm.style.display = 'none';
         if (recoverForm) recoverForm.style.display = 'none';
 
-        if (list) {
-            let html = '';
-            this.profiles.forEach(p => {
-                const isActive = p.id === this.activeProfileId;
-                const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
-                const lockBadge = p.has_pin ? '<span style="margin-left:auto; font-size:12px; opacity:0.8;">🔒 Protégé</span>' : '<span style="margin-left:auto; font-size:11px; opacity:0.5;">Accès libre</span>';
-                const activeTag = isActive ? '<span style="font-size:11px; font-weight:700; background:rgba(99,102,241,0.2); color:var(--accent); padding:2px 8px; border-radius:12px; margin-left:6px;">Actif</span>' : '';
-
-                html += `
-                    <div class="lock-profile-card" data-profile-id="${p.id}" style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-surface); border:1px solid ${isActive ? 'var(--accent)' : 'var(--border-color)'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
-                        <span class="profile-dot" style="background-color:${p.color || '#6366f1'}; width:12px; height:12px; border-radius:50%; flex-shrink:0;"></span>
-                        <div style="font-size:14px; font-weight:600; color:var(--text-main); display:flex; align-items:center;">
-                            ${safeName} ${activeTag}
-                        </div>
-                        ${lockBadge}
-                    </div>
-                `;
-            });
-            list.innerHTML = html;
-
-            list.querySelectorAll('.lock-profile-card').forEach(card => {
-                card.onclick = () => {
-                    const profId = card.getAttribute('data-profile-id');
-                    this.selectLockProfile(profId);
-                };
-            });
-        }
+        this._renderLockProfiles(list, true);
 
         if (overlay) overlay.style.display = 'flex';
+    },
+
+    /** Cartes des profils de l'écran de verrouillage (et du choix du profil d'un nouvel appareil). */
+    _renderLockProfiles(list, markActive) {
+        if (!list) return;
+        let html = '';
+        this.profiles.forEach(p => {
+            const isActive = markActive && p.id === this.activeProfileId;
+            const safeName = window.escapeHtml ? window.escapeHtml(p.name) : p.name;
+            const lockBadge = p.has_pin ? '<span style="margin-left:auto; font-size:12px; opacity:0.8;">🔒 Protégé</span>' : '<span style="margin-left:auto; font-size:11px; opacity:0.5;">Accès libre</span>';
+            const activeTag = isActive ? '<span style="font-size:11px; font-weight:700; background:rgba(99,102,241,0.2); color:var(--accent); padding:2px 8px; border-radius:12px; margin-left:6px;">Actif</span>' : '';
+
+            html += `
+                <div class="lock-profile-card" data-profile-id="${p.id}" style="display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg-surface); border:1px solid ${isActive ? 'var(--accent)' : 'var(--border-color)'}; border-radius:12px; cursor:pointer; transition:all 0.2s;">
+                    <span class="profile-dot" style="background-color:${p.color || '#6366f1'}; width:12px; height:12px; border-radius:50%; flex-shrink:0;"></span>
+                    <div style="font-size:14px; font-weight:600; color:var(--text-main); display:flex; align-items:center;">
+                        ${safeName} ${activeTag}
+                    </div>
+                    ${lockBadge}
+                </div>
+            `;
+        });
+        list.innerHTML = html;
+
+        list.querySelectorAll('.lock-profile-card').forEach(card => {
+            card.onclick = () => {
+                const profId = card.getAttribute('data-profile-id');
+                this.selectLockProfile(profId);
+            };
+        });
+    },
+
+    /** Nouvel appareil, plusieurs profils : la personne choisit le sien (PIN demandé s'il est protégé). */
+    showProfilePicker() {
+        const overlay = document.getElementById('appLockScreen');
+        if (!overlay || !this.profiles || this.profiles.length === 0) return;
+        const t = (key, fallback) => (window.i18n && window.i18n.t && window.i18n.t(key) !== key) ? window.i18n.t(key) : fallback;
+        const icon = document.getElementById('lockScreenIcon');
+        const hint = document.getElementById('lockScreenHint');
+        if (icon) icon.textContent = '👥';
+        if (hint) hint.textContent = t('profiles_picker_hint', 'Quel profil utiliser sur cet appareil ?');
+        ['lockScreenPinForm', 'lockScreenRecoverForm', 'lockScreenError'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        this._renderLockProfiles(document.getElementById('lockScreenProfilesList'), false);
+        if (typeof window.hideAppInitLoader === 'function') window.hideAppInitLoader();
+        overlay.style.display = 'flex';
     },
 
     selectLockProfile(profId) {
@@ -482,7 +504,8 @@ window.AppModules.profiles = {
         try {
             if (errDiv) errDiv.style.display = 'none';
             const res = await API.post(`/api/profiles/${targetId}/pin/recover`, { recovery_code: code, new_pin: newPin || null });
-            API.setSessionToken(res.session_token || '');
+            API.setSessionToken(res.session_token || '', targetId);
+            API.setProfileId(targetId);
             if (res.recovery_code) {
                 await this.showRecoveryCode(res.recovery_code);
             }
@@ -569,10 +592,14 @@ window.AppModules.profiles = {
             } catch (_) {}
 
             const body = pin ? { pin } : {};
-            const res = await API.post(`/api/profiles/${profileId}/activate`, body);
+            // L'en-tête dit au serveur que ce navigateur choisit son profil : le profil par défaut,
+            // celui des autres appareils, ne bouge pas (même au premier choix, sans profil encore rangé)
+            const res = await API.post(`/api/profiles/${profileId}/activate`, body, { headers: { 'X-OmniBank-Profile': profileId } });
             sessionStorage.removeItem('omni_is_locked');
             if (res.ok) {
-                API.setSessionToken(res.session_token || '');
+                if (res.session_token) API.setSessionToken(res.session_token, profileId);
+                // Ce navigateur passe sur ce profil ; les autres appareils gardent le leur
+                API.setProfileId(profileId);
                 // Purge intégrale de sessionStorage pour garantir une étanchéité absolue entre profils
                 try {
                     sessionStorage.clear();

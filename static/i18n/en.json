@@ -2883,6 +2883,7 @@
   "profiles_pin_section_label": "PIN Protection",
   "profiles_pin_status_none": "No PIN code set for this profile",
   "profiles_pin_status_protected": "🔒 Profile protected by PIN",
+  "profiles_picker_hint": "Which profile should this device use?",
   "profiles_pin_wrong": "Incorrect PIN code",
   "profiles_restore_all": "Restore all profiles (ZIP)",
   "profiles_restore_all_tooltip": "Restore all master profiles from a global archive",

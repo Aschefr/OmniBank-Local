@@ -135,28 +135,72 @@ const API = {
             localStorage.removeItem('omnibank_server_url');
         }
     },
-    // Jeton de session des profils protégés par PIN (SEC-08). localStorage : survit au
-    // changement de profil (qui vide sessionStorage) ; le serveur le révoque au verrouillage.
-    SESSION_KEY: 'omni_session_token',
-    getSessionToken() {
-        try { return localStorage.getItem(this.SESSION_KEY) || ''; } catch (_) { return ''; }
+    // Profil de ce navigateur : plusieurs personnes utilisent le même serveur, chacune sur son profil.
+    // Il part dans chaque requête (en-tête X-OmniBank-Profile), jamais dans un cookie. Seul endroit
+    // où il est rangé : remplacer localStorage par sessionStorage ici donnerait un profil par onglet.
+    PROFILE_KEY: 'omni_profile_id',
+    _profileStore() { return localStorage; },
+    getProfileId() {
+        try { return this._profileStore().getItem(this.PROFILE_KEY) || ''; } catch (_) { return ''; }
     },
-    setSessionToken(token) {
+    setProfileId(profileId) {
         try {
-            if (token) localStorage.setItem(this.SESSION_KEY, token);
-            else localStorage.removeItem(this.SESSION_KEY);
+            if (profileId) this._profileStore().setItem(this.PROFILE_KEY, profileId);
+            else this._profileStore().removeItem(this.PROFILE_KEY);
         } catch (_) {}
     },
-    /** URL ouverte hors fetch (EventSource, téléchargements, nouvel onglet) : un ticket à usage unique
-     *  remplace le jeton de session, car une URL finit en clair dans les journaux d'accès. */
+    /** Identifiant de l'appareil : le serveur reconnaît qu'un autre appareil utilise un autre profil. */
+    CLIENT_KEY: 'omni_client_id',
+    getClientId() {
+        try {
+            let id = localStorage.getItem(this.CLIENT_KEY);
+            if (!id) {
+                id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+                localStorage.setItem(this.CLIENT_KEY, id);
+            }
+            return id;
+        } catch (_) { return ''; }
+    },
+    // Jetons de session des profils protégés par PIN (SEC-08), un par profil. localStorage : survit au
+    // changement de profil (qui vide sessionStorage) ; le serveur le révoque au verrouillage.
+    SESSIONS_KEY: 'omni_session_tokens',
+    LEGACY_SESSION_KEY: 'omni_session_token',
+    _sessionTokens() {
+        try { return JSON.parse(localStorage.getItem(this.SESSIONS_KEY) || '{}') || {}; } catch (_) { return {}; }
+    },
+    getSessionToken(profileId = this.getProfileId()) {
+        if (!profileId) {
+            try { return localStorage.getItem(this.LEGACY_SESSION_KEY) || ''; } catch (_) { return ''; }
+        }
+        return this._sessionTokens()[profileId] || '';
+    },
+    setSessionToken(token, profileId = this.getProfileId()) {
+        try {
+            if (!profileId) {
+                if (token) localStorage.setItem(this.LEGACY_SESSION_KEY, token);
+                else localStorage.removeItem(this.LEGACY_SESSION_KEY);
+                return;
+            }
+            const tokens = this._sessionTokens();
+            if (token) tokens[profileId] = token;
+            else delete tokens[profileId];
+            localStorage.setItem(this.SESSIONS_KEY, JSON.stringify(tokens));
+        } catch (_) {}
+    },
+    /** URL ouverte hors fetch (EventSource, téléchargements, nouvel onglet) : elle nomme le profil, et un
+     *  ticket à usage unique remplace le jeton de session, car une URL finit en clair dans les journaux d'accès. */
     async withSession(url) {
-        if (!url || !this.getSessionToken()) return url;
+        if (!url) return url;
+        const addParam = (u, name, value) => `${u}${u.includes('?') ? '&' : '?'}${name}=${encodeURIComponent(value)}`;
+        const profileId = this.getProfileId();
+        const withProfile = profileId ? addParam(url, 'omni_profile', profileId) : url;
+        if (!this.getSessionToken()) return withProfile;
         try {
             const res = await fetch(this.fullUrl('/api/profiles/session-ticket'), { method: 'POST', silent: true });
             const { ticket } = await res.json();
-            if (ticket) return `${url}${url.includes('?') ? '&' : '?'}omni_ticket=${encodeURIComponent(ticket)}`;
+            if (ticket) return addParam(withProfile, 'omni_ticket', ticket);
         } catch (_) {}
-        return url;
+        return withProfile;
     },
     /** L'onglet s'ouvre avant l'attente du ticket : après coup, le navigateur pourrait le bloquer. */
     async openWithSession(url) {
@@ -247,10 +291,11 @@ const API = {
         const { skipMutateEvent, silent, ...restOptions } = extraOptions;
         const targetUrl = this.fullUrl(endpoint);
         const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), restOptions.headers || {});
+        // Les en-têtes fusionnés passent après restOptions : ses propres headers ne doivent pas effacer Content-Type
         const fetchOptions = {
             method: 'POST',
-            headers,
-            ...restOptions
+            ...restOptions,
+            headers
         };
         if (data !== undefined) {
             fetchOptions.body = JSON.stringify(data);
@@ -272,10 +317,11 @@ const API = {
         const { skipMutateEvent, silent, ...restOptions } = extraOptions;
         const targetUrl = this.fullUrl(endpoint);
         const headers = Object.assign({ 'Content-Type': 'application/json' }, this._getCommonHeaders(), restOptions.headers || {});
+        // Les en-têtes fusionnés passent après restOptions : ses propres headers ne doivent pas effacer Content-Type
         const fetchOptions = {
             method: 'PUT',
-            headers,
-            ...restOptions
+            ...restOptions,
+            headers
         };
         if (data !== undefined) {
             fetchOptions.body = JSON.stringify(data);
@@ -298,8 +344,8 @@ const API = {
         const targetUrl = this.fullUrl(endpoint);
         const options = { 
             method: 'DELETE', 
-            headers: Object.assign(this._getCommonHeaders(), customHeaders || {}, restOptions.headers || {}),
-            ...restOptions
+            ...restOptions,
+            headers: Object.assign(this._getCommonHeaders(), customHeaders || {}, restOptions.headers || {})
         };
         if (data !== null && data !== undefined) {
             options.headers['Content-Type'] = 'application/json';
@@ -539,10 +585,14 @@ if (typeof window._originalFetch === 'undefined') {
 
         const needsSession = isApi || urlStr.includes('/uploads/');
         const sessionToken = needsSession ? API.getSessionToken() : '';
-        if (sessionToken && !(resource instanceof Request)) {
+        const profileId = needsSession ? API.getProfileId() : '';
+        if (needsSession && !(resource instanceof Request)) {
             config = Object.assign({}, config);
             const headers = new Headers(config.headers || {});
-            headers.set('X-OmniBank-Session', sessionToken);
+            if (sessionToken) headers.set('X-OmniBank-Session', sessionToken);
+            if (profileId) headers.set('X-OmniBank-Profile', profileId);
+            const clientId = API.getClientId();
+            if (clientId) headers.set('X-OmniBank-Client', clientId);
             config.headers = headers;
         }
 
@@ -564,6 +614,14 @@ if (typeof window._originalFetch === 'undefined') {
                             if (API.getSessionToken() !== sessionToken) return;
                             if (body && body.code === 'pin_required' && window.app && typeof window.app.handlePinRequired === 'function') {
                                 window.app.handlePinRequired();
+                            }
+                        }).catch(() => {});
+                    } else if (res.status === 409 && profileId) {
+                        res.clone().json().then(body => {
+                            // Profil supprimé depuis un autre appareil : en choisir un autre
+                            if (body && body.code === 'profile_unknown' && API.getProfileId() === profileId) {
+                                API.setProfileId('');
+                                window.location.reload();
                             }
                         }).catch(() => {});
                     }

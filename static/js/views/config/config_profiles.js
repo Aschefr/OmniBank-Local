@@ -489,7 +489,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 const payload = { name, color, icon, currency, pay_cycle_day, date_format, auto_activate: true };
                 if (pin) payload.pin = pin;
                 const created = await API.post('/api/profiles/', payload);
-                if (created && created.session_token) API.setSessionToken(created.session_token);
+                if (created && created.session_token) API.setSessionToken(created.session_token, created.id);
+                if (created && created.id) API.setProfileId(created.id);
                 if (created && created.recovery_code && window.app && window.app.showRecoveryCode) {
                     await window.app.showRecoveryCode(created.recovery_code);
                 }
@@ -680,6 +681,9 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
         const modal = document.getElementById('masterProfileDeleteModal');
         try {
             await API.del(`/api/profiles/${this._deleteProfileId}`);
+            API.setSessionToken('', this._deleteProfileId);
+            // Ce navigateur n'a plus de profil : il en choisira un au rechargement
+            API.setProfileId('');
             showToast("Profil supprimé avec succès — réorientation...", "success");
             if (modal) modal.style.display = "none";
             setTimeout(() => { window.location.reload(); }, 500);
