@@ -148,6 +148,24 @@ def get_main_account(db: Session):
         return db.query(Account).filter(Account.id == result.from_account_id).first()
     return db.query(Account).first()
 
+def overdue_echeances(db: Session, account_id: int, current_date: date, next_pay_date: Optional[date] = None):
+    """
+    Échéances récurrentes passées et non prélevées du compte : (en attente de saut, en retard).
+    En attente de saut = délai écoulé et aucune opération du sas ne peut être leur prélèvement ;
+    le reste à vivre ne les déduit plus. En retard = encore déduites.
+    """
+    try:
+        from app.services.recurrence_detector import overdue_unpaid_echeances, pending_bank_ops
+        ready, _held, late = overdue_unpaid_echeances(db, account_id, current_date, pending_bank_ops(db, None, account_id))
+    except Exception as e:
+        logger.warning(f"[FinanceEngine] Échéances en retard non évaluées : {e}")
+        return [], []
+    if next_pay_date:
+        ready = [t for t in ready if t.date_operation < next_pay_date]
+        late = [t for t in late if t.date_operation < next_pay_date]
+    return ready, late
+
+
 def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date, precomputed_balances: dict = None):
     """
     Reste à vivre = solde rapproché du compte principal - dépenses futures avant prochaine paie.
@@ -180,6 +198,10 @@ def calculate_rest_to_live(db: Session, current_date: date, next_pay_date: date,
     ).all()
     
     expenses_sum = sum(t.amount for t in future_tx) + sum(t.amount for t in future_transfers)
+
+    # Échéances dont le délai de saut est écoulé : elles ne seront plus prélevées
+    ready, _late = overdue_echeances(db, account.id, current_date, next_pay_date)
+    expenses_sum -= sum(t.amount for t in ready)
 
     # Anticipation dynamique des charges récurrentes candidates (N >= 2, niveau 1 Auto-Pilote)
     # Déduites sans écriture en base avec filtre anti-doublon si déjà débitées dans le cycle en cours

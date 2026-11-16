@@ -663,6 +663,125 @@ def propagate_recurrence_update(db: Session, template_id: int):
     generate_recurrences(template_id=template_id, db=db)
 
 
+# Une opération du sas non rattachée ne retient une échéance que si son montant
+# reste dans ce facteur (16 € retenu par 8 à 32 €, pas par un achat de 3 €).
+SKIP_HOLD_AMOUNT_FACTOR = 2.0
+
+
+def auto_skip_limit_date(d: date, frequency: Optional[str]) -> date:
+    """Date à partir de laquelle une échéance non prélevée peut être sautée : 1 période + 3 jours."""
+    freq = (frequency or "Monthly").capitalize()
+    if freq == "Monthly":
+        year = d.year + (1 if d.month == 12 else 0)
+        month = 1 if d.month == 12 else d.month + 1
+        return date(year, month, min(d.day, 28)) + timedelta(days=3)
+    if freq == "Weekly":
+        return d + timedelta(days=7 + 3)
+    if freq == "Quarterly":
+        return d + timedelta(days=90 + 3)
+    if freq == "Yearly":
+        return date(d.year + 1, d.month, min(d.day, 28)) + timedelta(days=3)
+    return d + timedelta(days=34)
+
+
+def _config_flag(db: Session, key: str) -> bool:
+    cfg = db.query(GlobalConfig).filter(GlobalConfig.key == key).first()
+    return (cfg.value.strip().lower() in ("true", "1", "yes")) if (cfg and cfg.value) else True
+
+
+def auto_skip_enabled(db: Session) -> bool:
+    """L'auto-saut dépend de l'auto-liaison (hiérarchie des règles)."""
+    return _config_flag(db, "auto_link_deviant_recurrences") and _config_flag(db, "auto_skip_unreconciled_recurrences")
+
+
+def _pending_accounts(db: Session, profile_id: Optional[str], account_id: int) -> List[Dict[str, Any]]:
+    """Entrées du sas d'attente (toutes connexions) pour ce compte."""
+    from app.services.bank_sync.pending_store import _PENDING_SYNC_DATA, _get_config_value, _resolve_profile_id
+    prof_data = _PENDING_SYNC_DATA.get(_resolve_profile_id(profile_id)) or {}
+    if not prof_data:
+        raw = _get_config_value(db, "bank_pending_sync_cache", "")
+        if raw:
+            try:
+                prof_data = json.loads(raw)
+            except Exception:
+                prof_data = {}
+    return [
+        p_acc
+        for data in prof_data.values()
+        for p_acc in (data or {}).get("accounts", [])
+        if p_acc.get("account_id") == account_id
+    ]
+
+
+def pending_bank_ops(db: Session, profile_id: Optional[str], account_id: int) -> List[Dict[str, Any]]:
+    """Opérations du sas encore à traiter pour ce compte."""
+    return [
+        tx
+        for p_acc in _pending_accounts(db, profile_id, account_id)
+        for tx in p_acc.get("transactions", [])
+        if not tx.get("is_dismissed") and not tx.get("_excluded")
+    ]
+
+
+def _pending_op_may_be(op: Dict[str, Any], tx: Transaction) -> bool:
+    """Cette opération du sas pourrait-elle être le prélèvement de l'échéance ?"""
+    matched = op.get("matched_db_id")
+    if matched is not None:
+        return matched == tx.id
+    raw = op.get("raw_amount")
+    if raw is None:
+        raw = -abs(float(op.get("amount") or 0.0))
+    raw = float(raw)
+    if raw >= 0:
+        return False
+    expected = abs(float(tx.amount or 0.0))
+    if expected <= 0:
+        return False
+    return expected / SKIP_HOLD_AMOUNT_FACTOR <= abs(raw) <= expected * SKIP_HOLD_AMOUNT_FACTOR
+
+
+def overdue_unpaid_echeances(
+    db: Session, account_id: int, today: date, pending_ops: Optional[List[Dict[str, Any]]] = None
+) -> Tuple[List[Transaction], List[Transaction], List[Transaction]]:
+    """
+    Échéances récurrentes passées et non prélevées sur ce compte, en trois groupes :
+    - ready  : délai de saut écoulé, aucune opération du sas ne peut être leur prélèvement ;
+    - held   : délai écoulé, mais une opération du sas pourrait l'être ;
+    - late   : en retard, délai de saut pas encore écoulé, et pas encore annoncée par la banque
+               (aucune opération du sas rattachée à elle).
+    Les groupes ready et held ne sont remplis que si l'auto-saut est actif.
+    """
+    rows = db.query(Transaction).filter(
+        Transaction.from_account_id == account_id,
+        Transaction.reconciliation_date.is_(None),
+        Transaction.recurrence_id.isnot(None),
+        Transaction.date_operation < today,
+        or_(Transaction.is_skipped == False, Transaction.is_skipped.is_(None)),
+        or_(Transaction.cross_profile_status.is_(None), Transaction.cross_profile_status != "pending"),
+    ).order_by(Transaction.date_operation).all()
+    if not rows:
+        return [], [], []
+
+    skip_on = auto_skip_enabled(db)
+    ops = pending_ops or []
+    freqs = dict(db.query(RecurrenceTemplate.id, RecurrenceTemplate.frequency).filter(
+        RecurrenceTemplate.id.in_({tx.recurrence_id for tx in rows})
+    ).all())
+    announced = {op.get("matched_db_id") for op in ops if op.get("matched_db_id") is not None}
+    ready, held, late = [], [], []
+    for tx in rows:
+        if tx.recurrence_id not in freqs:
+            continue
+        if not skip_on or today < auto_skip_limit_date(tx.date_operation, freqs[tx.recurrence_id]):
+            if tx.id not in announced:
+                late.append(tx)
+        elif any(_pending_op_may_be(op, tx) for op in ops):
+            held.append(tx)
+        else:
+            ready.append(tx)
+    return ready, held, late
+
+
 def process_auto_skipping(
     db: Session,
     account_id: int,
@@ -675,22 +794,16 @@ def process_auto_skipping(
     Brique 3 & 4 :
     - Auto-Saut conditionnel d'échéances non prélevées sous triple verrou :
         1. Solde bancaire officiel distant == solde pointé OmniBank (|Δ| < 0.005 €)
-        2. Sas d'attente 100% vide pour ce compte (pending == 0)
+        2. Aucune opération du sas ne peut être le prélèvement de l'échéance
+           (rattachée à elle, ou non rattachée avec un montant compatible)
         3. Date d'échéance + 1 période + 3 jours de battement dépassée
     - Auto-Clôture après 3 échéances sautées consécutives (contrats abandonnés ou résiliés).
     """
-    pid = profile_id or "default"
     bid = batch_id or "auto_skip_routine"
     today = current_date or date.today()
 
     # 1. Vérifier si l'auto-saut et l'auto-liaison sont activés (hiérarchie des règles)
-    cfg_link = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_link_deviant_recurrences").first()
-    link_enabled = (cfg_link.value.strip().lower() in ("true", "1", "yes")) if (cfg_link and cfg_link.value) else True
-
-    cfg_skip = db.query(GlobalConfig).filter(GlobalConfig.key == "auto_skip_unreconciled_recurrences").first()
-    skip_enabled = (cfg_skip.value.strip().lower() in ("true", "1", "yes")) if (cfg_skip and cfg_skip.value) else True
-
-    if not (link_enabled and skip_enabled):
+    if not auto_skip_enabled(db):
         return {"skipped_count": 0, "closed_templates": 0}
 
     # 2. Vérifier le triple verrou
@@ -702,25 +815,10 @@ def process_auto_skipping(
     balances_reconciled = calculate_balances(db, only_reconciled=True)
     local_reconciled_bal = round(balances_reconciled.get(acc.id, acc.initial_balance or 0.0), 2)
 
-    from app.services.bank_sync.pending_store import _PENDING_SYNC_DATA, _get_config_value
-    prof_data = _PENDING_SYNC_DATA.get(pid, {})
-    if not prof_data:
-        raw = _get_config_value(db, "bank_pending_sync_cache", "")
-        if raw:
-            try:
-                cached = json.loads(raw)
-                for k, v in cached.items():
-                    prof_data[int(k)] = v
-            except Exception:
-                pass
-
     if bank_balance is None:
-        for cid, data in prof_data.items():
-            for p_acc in data.get("accounts", []):
-                if p_acc.get("account_id") == account_id and p_acc.get("bank_balance") is not None:
-                    bank_balance = float(p_acc["bank_balance"])
-                    break
-            if bank_balance is not None:
+        for p_acc in _pending_accounts(db, profile_id, account_id):
+            if p_acc.get("bank_balance") is not None:
+                bank_balance = float(p_acc["bank_balance"])
                 break
 
     if bank_balance is None:
@@ -732,80 +830,51 @@ def process_auto_skipping(
         logger.info(f"[AutoSkip] Compte #{account_id}: Solde bancaire distant ({bank_balance} €) différent du solde local pointé ({local_reconciled_bal} €). Auto-saut neutralisé.")
         return {"skipped_count": 0, "closed_templates": 0}
 
-    # Verrou 2 : Sas d'attente vide pour ce compte
-    pending_count = 0
-    for cid, data in prof_data.items():
-        for p_acc in data.get("accounts", []):
-            if p_acc.get("account_id") == account_id:
-                for tx in p_acc.get("transactions", []):
-                    if not tx.get("is_dismissed") and not tx.get("_excluded"):
-                        pending_count += 1
-    if pending_count > 0:
-        logger.info(f"[AutoSkip] Compte #{account_id}: Sas non vide ({pending_count} opérations en attente). Auto-saut neutralisé.")
-        return {"skipped_count": 0, "closed_templates": 0}
-
-    # Verrou 3 : Échéance + 1 période + 3 jours dépassée
-    unreconciled_recurrences = db.query(Transaction).filter(
-        Transaction.from_account_id == account_id,
-        Transaction.reconciliation_date.is_(None),
-        Transaction.recurrence_id.isnot(None),
-        or_(Transaction.is_skipped == False, Transaction.is_skipped.is_(None))
-    ).all()
+    # Verrous 2 et 3 : délai écoulé, aucune opération du sas ne peut être le prélèvement
+    ready, held, _late = overdue_unpaid_echeances(db, account_id, today, pending_bank_ops(db, profile_id, account_id))
+    for tx in held:
+        logger.info(f"[AutoSkip] Transaction #{tx.id} ('{tx.description}', {tx.amount} €) retenue : une opération du sas peut être son prélèvement.")
 
     skipped_count = 0
     templates_to_check: Set[int] = set()
+    templates = {t.id: t for t in db.query(RecurrenceTemplate).filter(
+        RecurrenceTemplate.id.in_({tx.recurrence_id for tx in ready})
+    ).all()} if ready else {}
 
-    for tx in unreconciled_recurrences:
-        tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tx.recurrence_id).first()
-        if not tpl or not tx.date_operation:
+    for tx in ready:
+        tpl = templates.get(tx.recurrence_id)
+        if not tpl:
             continue
+        limit_date = auto_skip_limit_date(tx.date_operation, tpl.frequency)
+        tx.is_skipped = True
+        tx.comment = "Auto-sauté (échéance non prélevée)"
+        skipped_count += 1
+        templates_to_check.add(tpl.id)
 
-        freq = (tpl.frequency or "Monthly").capitalize()
-        d = tx.date_operation
-        if freq == "Monthly":
-            year = d.year + (1 if d.month == 12 else 0)
-            month = 1 if d.month == 12 else d.month + 1
-            day = min(d.day, 28)
-            limit_date = date(year, month, day) + timedelta(days=3)
-        elif freq == "Weekly":
-            limit_date = d + timedelta(days=7 + 3)
-        elif freq == "Quarterly":
-            limit_date = d + timedelta(days=90 + 3)
-        elif freq == "Yearly":
-            limit_date = date(d.year + 1, d.month, min(d.day, 28)) + timedelta(days=3)
-        else:
-            limit_date = d + timedelta(days=34)
-
-        if today >= limit_date:
-            tx.is_skipped = True
-            tx.comment = "Auto-sauté (échéance non prélevée)"
-            skipped_count += 1
-            templates_to_check.add(tpl.id)
-
-            snap_payload = {
-                "tx_id": tx.id,
-                "template_id": tpl.id,
-                "template_description": tpl.description,
-                "amount": tx.amount,
-                "date_operation": str(tx.date_operation),
-                "limit_date": str(limit_date),
-                "bank_balance": bank_balance,
-                "local_balance": local_reconciled_bal,
-                "decision_reason": "unreconciled_overdue"
-            }
-            decision = AutopilotDecisionLog(
-                batch_id=bid,
-                decision_type="recurrence_skip",
-                action="AUTO_SKIPPED_UNRECONCILED",
-                entity_type="transaction",
-                entity_id=tx.id,
-                account_id=account_id,
-                raw_snapshot=json.dumps(snap_payload, default=str),
-                confidence_score=100.0,
-                is_undone=False
-            )
-            db.add(decision)
-            logger.info(f"[AutoSkip] Transaction #{tx.id} ('{tx.description}', {tx.amount} €) auto-sautée.")
+        snap_payload = {
+            "tx_id": tx.id,
+            "template_id": tpl.id,
+            "template_description": tpl.description,
+            "amount": tx.amount,
+            "date_operation": str(tx.date_operation),
+            "limit_date": str(limit_date),
+            "bank_balance": bank_balance,
+            "local_balance": local_reconciled_bal,
+            "decision_reason": "unreconciled_overdue"
+        }
+        decision = AutopilotDecisionLog(
+            batch_id=bid,
+            decision_type="recurrence_skip",
+            action="AUTO_SKIPPED_UNRECONCILED",
+            entity_type="transaction",
+            entity_id=tx.id,
+            account_id=account_id,
+            raw_snapshot=json.dumps(snap_payload, default=str),
+            confidence_score=100.0,
+            is_undone=False
+        )
+        db.add(decision)
+        logger.info(f"[AutoSkip] Transaction #{tx.id} ('{tx.description}', {tx.amount} €) auto-sautée.")
 
     # 4. Brique 4 : Auto-Clôture après 3 sauts consécutifs
     closed_templates_count = 0
@@ -868,7 +937,7 @@ def process_auto_skipping(
 
     if skipped_count > 0 or closed_templates_count > 0:
         db.commit()
-        stats_cache.invalidate(pid)
+        stats_cache.invalidate(profile_id)
 
     return {
         "skipped_count": skipped_count,

@@ -1182,6 +1182,11 @@ window.OverviewView = {
         return { rav: currentRav, plannedInc, ravWithInc };
     },
 
+    // Échéances dont le délai de saut est écoulé : le serveur ne les déduit plus, les vues non plus
+    _skipPendingIds(stats) {
+        return new Set(((stats && stats.skip_pending_echeances && stats.skip_pending_echeances.ids) || []).map(String));
+    },
+
     _liquidBalance(stats) {
         if (!stats) return 0;
         if (stats.liquid_net_worth !== undefined && stats.liquid_net_worth !== null) return stats.liquid_net_worth;
@@ -1238,8 +1243,10 @@ window.OverviewView = {
         }
 
         const accIdStr = this._selectedAccountId ? String(this._selectedAccountId) : null;
+        const skipPendingIds = this._skipPendingIds(stats);
         const upcomingTxs = (this._transactions || []).filter(tx => {
             if (tx.reconciliation_date || tx.is_skipped) return false;
+            if (skipPendingIds.has(String(tx.id))) return false;
             if (tx.cross_profile_status === 'pending') return false;
             if (!tx.date_operation) return false;
 
@@ -1682,9 +1689,11 @@ window.OverviewView = {
 
         const pendingMatches = this._pendingData?.matches_by_tx_id || window.BankSyncView?.pendingMatches || {};
         const matchedTxIds = new Set();
+        const skipPendingIds = this._skipPendingIds(stats);
 
         for (const tx of (this._transactions || [])) {
             if (tx.is_skipped) continue;
+            if (skipPendingIds.has(String(tx.id))) continue;
             if (tx.cross_profile_status === 'pending') continue;
             if (!tx.date_operation) continue;
             if (tx.date_operation < cycleStartISO || tx.date_operation > cycleEndISO) continue;
@@ -1772,6 +1781,7 @@ window.OverviewView = {
         let ravColorClass = 'gauge-green';
         let plannedVariant = 'planned-green';
         let ravProvisionalHtml = '';
+        let ravEcheancesHtml = '';
 
         // Variables Mode Organisation spécifiques
         let orgGrossBalance = this._liquidBalance(stats);
@@ -1900,6 +1910,16 @@ window.OverviewView = {
                 if (ravColorClass === 'gauge-green') ravColorClass = 'gauge-provisional';
                 ravProvisionalHtml = `<div class="cockpit-gauge-provisional" title="${tip}">⏳ ${t('cockpit_rav_provisional')}</div>`;
                 gaugeTooltip = `${gaugeTooltip} ${tip}`.trim();
+            }
+
+            // Échéances récurrentes passées et non prélevées : encore déduites (en retard) ou plus déduites (saut en attente)
+            const lateEch = stats.late_echeances || {};
+            const skipEch = stats.skip_pending_echeances || {};
+            if (lateEch.total > 0) {
+                ravEcheancesHtml += `<div class="cockpit-gauge-detail privacy-blur" title="${tp('cockpit_rav_late_echeances_tip', { count: lateEch.count })}">${tp('cockpit_rav_late_echeances', { amount: formatCurrency(lateEch.total) })}</div>`;
+            }
+            if (skipEch.total > 0) {
+                ravEcheancesHtml += `<div class="cockpit-gauge-detail privacy-blur" title="${tp('cockpit_rav_skip_pending_tip', { count: skipEch.count })}">${tp('cockpit_rav_skip_pending', { amount: formatCurrency(skipEch.total) })}</div>`;
             }
 
             showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;
@@ -2211,6 +2231,7 @@ window.OverviewView = {
                     <div class="cockpit-gauge-amount privacy-blur" style="${ravAmount < 0 ? 'color: #ef4444;' : ''}">${formatCurrency(ravAmount)}</div>
                     ${plannedSubHtml}
                     <div class="cockpit-gauge-detail ${ravRef > 0 ? 'privacy-blur' : ''}">${ravDetailText}</div>
+                    ${ravEcheancesHtml}
                     ${ravProvisionalHtml}
                 </div>
             </div>

@@ -12,6 +12,7 @@ from app.services.finance_engine import (
     get_net_worth,
     get_liquid_net_worth,
     calculate_rest_to_live,
+    overdue_echeances,
     get_overdraft_warning,
     predict_next_paycheck,
     get_main_account,
@@ -104,6 +105,12 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             (Transaction.cross_profile_status == None) | (Transaction.cross_profile_status != "pending")
         ).all()
         unreconciled_expenses = sum(tx.amount for tx in unrec_txs)
+
+    # Échéances passées non prélevées : en attente de saut (plus déduites du reste à vivre) ou en retard
+    skip_pending, late = overdue_echeances(db, main_acc.id, today, next_pay_date) if main_acc else ([], [])
+    skip_pending_ids = {t.id for t in skip_pending}
+    if next_pay_date:
+        unreconciled_expenses -= sum(t.amount for t in skip_pending if t.to_account_id is None)
         
     total_unreconciled_expenses = 0.0
     if main_acc:
@@ -260,7 +267,16 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "pay_history": pay_history,
         "logical_period": pay_info.get("logical_period"),
         "overdraft_warning": warning,
-        "unreconciled_expenses": unreconciled_expenses,
+        "unreconciled_expenses": round(unreconciled_expenses, 2),
+        "skip_pending_echeances": {
+            "total": round(sum(t.amount for t in skip_pending), 2),
+            "count": len(skip_pending),
+            "ids": sorted(skip_pending_ids),
+        },
+        "late_echeances": {
+            "total": round(sum(t.amount for t in late), 2),
+            "count": len(late),
+        },
         "total_unreconciled_expenses": total_unreconciled_expenses,
         "unreconciled_income": unreconciled_income,
         "total_unreconciled_income": total_unreconciled_income,
