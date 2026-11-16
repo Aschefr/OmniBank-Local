@@ -169,8 +169,15 @@ def test_dashboard_reports_overdue_echeances(db, setup, monkeypatch):
         data = TestClient(app).get("/api/stats/dashboard").json()
     finally:
         app.dependency_overrides.pop(get_db, None)
-    assert data["skip_pending_echeances"] == {"total": 16.0, "count": 1, "ids": [rows["oct"].id]}
-    assert data["late_echeances"] == {"total": 16.0, "count": 1}
+    tpl_id = rows["oct"].recurrence_id
+    assert data["skip_pending_echeances"] == {
+        "total": 16.0, "count": 1, "ids": [rows["oct"].id],
+        "items": [{"id": rows["oct"].id, "template_id": tpl_id, "date": "2026-10-04"}],
+    }
+    assert data["late_echeances"] == {
+        "total": 16.0, "count": 1,
+        "items": [{"id": rows["nov"].id, "template_id": tpl_id, "date": "2026-11-04"}],
+    }
     assert data["rest_to_live"] == pytest.approx(1000 - 16 - 110.37)
     # Le cadre « non pointé » suit le reste à vivre : octobre n'y est plus
     assert data["unreconciled_expenses"] == pytest.approx(16 + 110.37)

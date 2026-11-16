@@ -60,6 +60,11 @@ def get_accounts(db: Session = Depends(get_db)):
     stats_cache.set(profile_id, "accounts", result)
     return result
 
+def _echeance_items(rows):
+    """Échéance, récurrence et date : de quoi ouvrir la page Récurrences dessus."""
+    return [{"id": t.id, "template_id": t.recurrence_id, "date": str(t.date_operation)} for t in rows]
+
+
 @router.get("/dashboard")
 def get_dashboard_stats(db: Session = Depends(get_db)):
     # PERF: Vérifier le cache avant de calculer
@@ -272,10 +277,12 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "total": round(sum(t.amount for t in skip_pending), 2),
             "count": len(skip_pending),
             "ids": sorted(skip_pending_ids),
+            "items": _echeance_items(skip_pending),
         },
         "late_echeances": {
             "total": round(sum(t.amount for t in late), 2),
             "count": len(late),
+            "items": _echeance_items(late),
         },
         "total_unreconciled_expenses": total_unreconciled_expenses,
         "unreconciled_income": unreconciled_income,

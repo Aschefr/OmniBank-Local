@@ -1182,6 +1182,20 @@ window.OverviewView = {
         return { rav: currentRav, plannedInc, ravWithInc };
     },
 
+    // Lignes « en retard » / « en attente de saut » : la page Récurrences, sur l'année de la plus ancienne,
+    // avec ces récurrences dépliées et ces échéances mises en évidence
+    openOverdueEcheances(group) {
+        const items = (this._overdueEcheances && this._overdueEcheances[group]) || [];
+        if (!items.length || !window.RecurrenceView || !window.app) return;
+        const dates = items.map(i => i.date).sort();
+        window.RecurrenceView._pendingFocus = {
+            year: parseInt(dates[0].substring(0, 4), 10),
+            templateIds: [...new Set(items.map(i => i.template_id))],
+            txIds: items.map(i => i.id),
+        };
+        window.app.loadView('recurrences');
+    },
+
     // Échéances dont le délai de saut est écoulé : le serveur ne les déduit plus, les vues non plus
     _skipPendingIds(stats) {
         return new Set(((stats && stats.skip_pending_echeances && stats.skip_pending_echeances.ids) || []).map(String));
@@ -1915,11 +1929,13 @@ window.OverviewView = {
             // Échéances récurrentes passées et non prélevées : encore déduites (en retard) ou plus déduites (saut en attente)
             const lateEch = stats.late_echeances || {};
             const skipEch = stats.skip_pending_echeances || {};
+            this._overdueEcheances = { late: lateEch.items || [], skip: skipEch.items || [] };
+            const echLine = (group, tipKey, textKey, ech) => `<div class="cockpit-gauge-detail cockpit-gauge-link privacy-blur" role="link" tabindex="0" title="${tp(tipKey, { count: ech.count })}" onclick="event.stopPropagation(); window.OverviewView.openOverdueEcheances('${group}')" onkeydown="if (event.key === 'Enter') { event.stopPropagation(); window.OverviewView.openOverdueEcheances('${group}'); }">${tp(textKey, { amount: formatCurrency(ech.total) })} →</div>`;
             if (lateEch.total > 0) {
-                ravEcheancesHtml += `<div class="cockpit-gauge-detail privacy-blur" title="${tp('cockpit_rav_late_echeances_tip', { count: lateEch.count })}">${tp('cockpit_rav_late_echeances', { amount: formatCurrency(lateEch.total) })}</div>`;
+                ravEcheancesHtml += echLine('late', 'cockpit_rav_late_echeances_tip', 'cockpit_rav_late_echeances', lateEch);
             }
             if (skipEch.total > 0) {
-                ravEcheancesHtml += `<div class="cockpit-gauge-detail privacy-blur" title="${tp('cockpit_rav_skip_pending_tip', { count: skipEch.count })}">${tp('cockpit_rav_skip_pending', { amount: formatCurrency(skipEch.total) })}</div>`;
+                ravEcheancesHtml += echLine('skip', 'cockpit_rav_skip_pending_tip', 'cockpit_rav_skip_pending', skipEch);
             }
 
             showPlannedArc = plannedInc > 0 && plannedPercent > ravPercent;

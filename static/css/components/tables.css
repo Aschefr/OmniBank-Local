@@ -287,7 +287,8 @@ tr.overdraft-flash td,
 }
 tr.highlight-flash,
 tr.highlight-flash td,
-.mobile-card-table tbody tr.highlight-flash {
+.mobile-card-table tbody tr.highlight-flash,
+.rec-instance-row.highlight-flash {
     animation: rowHighlightFade 3.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 

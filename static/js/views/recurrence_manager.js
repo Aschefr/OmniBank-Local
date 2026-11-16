@@ -393,8 +393,21 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         this.activeDurationFilter = ProfileStorage.get('recurrences_durationFilter') || 'all';
         this.activePeriodFilter = ProfileStorage.get('recurrences_periodFilter') || 'all';
 
+        // Venue du Cockpit (échéances en retard ou en attente de saut) : leur année, leurs récurrences dépliées
+        const focus = this._pendingFocus;
+        this._pendingFocus = null;
+        if (focus) {
+            this.selectedYear = focus.year;
+            const yearDisplay = document.getElementById('recYearDisplay');
+            if (yearDisplay) yearDisplay.textContent = this.selectedYear;
+            focus.templateIds.forEach(id => this.expandedTemplateIds.add(id));
+            this._pendingHighlightTemplateId = focus.templateIds[0];
+            this._pendingFlashTxIds = focus.txIds;
+        }
+
         // SWR : Rendu instantané si des récurrences sont déjà en mémoire de session (0 ms)
-        if (this.templates && this.templates.length > 0 && this.allTransactions && this.allTransactions.length > 0) {
+        // (pas avec une mise en évidence : le rendu suivant l'effacerait)
+        if (!focus && this.templates && this.templates.length > 0 && this.allTransactions && this.allTransactions.length > 0) {
             this._computeAndRender(this.allTransactions);
         }
 
@@ -610,6 +623,22 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             const tid = this._pendingHighlightTemplateId;
             this._pendingHighlightTemplateId = null;
             requestAnimationFrame(() => this.scrollToAndHighlightTemplate(tid));
+        }
+        if (this._pendingFlashTxIds) {
+            const txIds = this._pendingFlashTxIds;
+            this._pendingFlashTxIds = null;
+            // Après le défilement vers la récurrence : la première échéance visée au centre, liste de détail comprise
+            setTimeout(() => {
+                const rows = txIds
+                    .map(id => document.getElementById(`rec_date_${id}`)?.closest('.rec-instance-row'))
+                    .filter(Boolean);
+                if (rows.length) rows[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                rows.forEach(row => {
+                    row.classList.remove('highlight-flash');
+                    void row.offsetWidth;
+                    row.classList.add('highlight-flash');
+                });
+            }, 900);
         }
 
         // Dynamically compute the sticky offset so headers stick flush at the scroll viewport top

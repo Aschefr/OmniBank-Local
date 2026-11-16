@@ -12,7 +12,7 @@
 @import url('./components/buttons.css?v=83');
 @import url('./components/forms.css?v=84');
 @import url('./components/modals.css?v=98');
-@import url('./components/tables.css?v=83');
+@import url('./components/tables.css?v=84');
 @import url('./components/badges.css?v=82');
 @import url('./components/category_picker.css?v=82');
 @import url('./components/notifications.css?v=95');
@@ -27,7 +27,7 @@
 @import url('./views/settings.css?v=96');
 @import url('./views/accounts.css?v=2');
 @import url('./views/autopilot.css?v=89');
-@import url('./views/cockpit.css?v=87');
+@import url('./views/cockpit.css?v=88');
 
 /* 4. Themes & Overrides */
 @import url('./themes/titanium.css?v=82');

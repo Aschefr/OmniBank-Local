@@ -214,6 +214,19 @@
     margin-top: 3px;
 }
 
+/* Échéances en retard / en attente de saut : mènent à la page Récurrences */
+.cockpit-gauge-link {
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+.cockpit-gauge-link:hover,
+.cockpit-gauge-link:focus-visible {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 /* Reste à vivre provisoire : historique encore court (premier relevé) */
 .cockpit-gauge-provisional {
     font-size: 12px;
