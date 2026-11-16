@@ -133,6 +133,7 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
     # Collecter tous les libellés bruts des transactions non rapprochées et leurs types
     raw_labels = []
     tx_types_map = {}
+    amounts_map = {}
     for acc in pending.get("accounts", []):
         for tx in acc.get("transactions", []):
             if not tx.get("is_reconciled"):
@@ -141,6 +142,7 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                     raw_labels.append(raw_desc)
                     raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                     tx_types_map[raw_desc] = "expense_var" if raw_amt < 0 else "income"
+                    amounts_map[raw_desc] = abs(raw_amt)
 
     if raw_labels:
         # Résolution déterministe ultra-rapide (règles, historique, repli) sans appel bloquant IA au boot
@@ -149,6 +151,7 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
             raw_labels,
             use_ai_fallback=False,
             tx_types=tx_types_map,
+            amounts=amounts_map,
             auto_fallback_category=True
         )
         for acc in pending.get("accounts", []):

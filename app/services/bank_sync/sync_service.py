@@ -892,6 +892,7 @@ class BankSyncService:
 
                 all_raw_labels = []
                 tx_types_map = {}
+                amounts_map = {}
                 for acc in accounts_preview:
                     for tx in acc.get("transactions", []):
                         if not tx.get("is_reconciled"):
@@ -900,6 +901,7 @@ class BankSyncService:
                                 all_raw_labels.append(raw_lbl)
                                 raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                                 tx_types_map[raw_lbl] = "expense_var" if raw_amt < 0 else "income"
+                                amounts_map[raw_lbl] = abs(raw_amt)
 
                 if all_raw_labels:
                     resolutions = resolve_smart_labels_batch(
@@ -907,6 +909,7 @@ class BankSyncService:
                         all_raw_labels,
                         use_ai_fallback=ai_active,
                         tx_types=tx_types_map,
+                        amounts=amounts_map,
                         auto_fallback_category=True
                     )
                     for acc in accounts_preview:

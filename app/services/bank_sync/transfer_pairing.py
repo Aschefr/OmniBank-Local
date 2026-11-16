@@ -22,7 +22,9 @@ TRANSFER_CATEGORY = "Virement interne"
 MAX_DAYS_APART = 15
 REVIEW_DAYS_APART = 3  # au-delà, la paire est gardée mais à vérifier
 _LOAN_WORDS = ("prêt", "pret", "emprunt", "loan", "crédit", "credit")
-_LEARNED_REASONS = ("rule", "history")  # nom donné par une règle ou l'historique de l'utilisateur : on le garde
+# Nom donné par une règle de l'utilisateur : on le garde. Un nom venu de l'historique, non : l'historique ne
+# propose que des dépenses et des revenus, jamais un virement (« iCloud Camille » pour « WEB MARTIN CAMILLE »).
+_KEPT_NAME_SOURCES = ("rule",)
 
 
 def _is_loan(account: Account) -> bool:
@@ -71,7 +73,8 @@ def pair_internal_transfers(db: Session, created: List[Tuple[Transaction, Autopi
         out_tx.category = TRANSFER_CATEGORY
         out_tx.needs_review = days_apart > REVIEW_DAYS_APART
         # « WEB M. NOM » ne dit rien : on nomme le virement par ses deux comptes, sauf nom appris de l'utilisateur
-        learned = json.loads(out_dec.raw_snapshot or "{}").get("decision_reason") in _LEARNED_REASONS
+        bank_tx = json.loads(out_dec.raw_snapshot or "{}").get("bank_tx") or {}
+        learned = bank_tx.get("smart_source") in _KEPT_NAME_SOURCES
         if not learned and out_tx.from_account_id in names and in_tx.to_account_id in names:
             out_tx.description = f"{names[out_tx.from_account_id]} → {names[in_tx.to_account_id]}"
         out_tx.created_by = "Automatisme (Liaison Virement)"

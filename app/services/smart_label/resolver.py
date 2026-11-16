@@ -464,16 +464,30 @@ def resolve_smart_label(
     }
 
 
+HISTORY_AMOUNT_FACTOR = 10
+
+
+def _amount_fits(amount: float, seen: Optional[Tuple[float, float]]) -> bool:
+    """Montant du même ordre que ceux déjà vus sous ce nom (moins de HISTORY_AMOUNT_FACTOR fois d'écart)."""
+    if not seen or seen[1] <= 0:
+        return True
+    low, high = seen
+    amount = abs(amount)
+    return low / HISTORY_AMOUNT_FACTOR <= amount <= high * HISTORY_AMOUNT_FACTOR
+
+
 def resolve_smart_labels_batch(
     db: Session,
     raw_labels: List[str],
     use_ai_fallback: bool = False,
     include_user_habits: bool = True,
     tx_types: Optional[Dict[str, str]] = None,
-    auto_fallback_category: bool = False
+    auto_fallback_category: bool = False,
+    amounts: Optional[Dict[str, float]] = None
 ) -> Dict[str, Dict[str, Any]]:
     """
     Résolution groupée ultra-performante pour un lot de libellés bancaires.
+    amounts (libellé -> montant) : l'historique ne prête pas un nom vu pour un montant sans rapport.
     Pré-charge les règles et l'historique en mémoire pour un traitement O(N).
     Si use_ai_fallback=True et Ollama est actif, transmet les libellés inconnus en 1 seule requête groupée.
     Si auto_fallback_category=True, applique le filet de sécurité déterministe ('Dépenses diverses' / 'Revenus divers')
@@ -534,6 +548,15 @@ def resolve_smart_labels_batch(
         raw_sig = raw_tokens - _GENERIC_TOKENS if raw_clean else set()
 
         cand_data.append((tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig, cat_type_map.get(tx.category)))
+
+    # Montants déjà vus sous chaque nom : un abonnement iCloud à 0,99 € ne nomme pas un virement de 250 €
+    amount_ranges: Dict[str, Tuple[float, float]] = {}
+    if amounts:
+        for desc, low, high in db.query(
+            Transaction.description, func.min(func.abs(Transaction.amount)), func.max(func.abs(Transaction.amount))
+        ).filter(Transaction.description.isnot(None)).group_by(Transaction.description).all():
+            if low is not None and high is not None:
+                amount_ranges[desc] = (float(low), float(high))
 
     results: Dict[str, Dict[str, Any]] = {}
 
@@ -704,8 +727,11 @@ def resolve_smart_labels_batch(
         # 3. Match historique (uniquement variables / recettes et compatibles)
         candidate_matches = []
         expected_t = tx_types.get(raw_str) if tx_types else None
+        amount = amounts.get(raw_str) if amounts else None
         for tx, c_clean, c_tokens, c_sig, raw_clean, raw_tokens, raw_sig, c_cat_type in cand_data:
             if expected_t and not is_category_compatible_with_tx_type(c_cat_type, expected_t):
+                continue
+            if amount and not _amount_fits(amount, amount_ranges.get(tx.description)):
                 continue
             score_desc = _compute_match_score_precomputed(pattern, p_tokens, p_sig, c_clean, c_tokens, c_sig, places)
             score_raw = 0.0

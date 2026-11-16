@@ -102,7 +102,12 @@ def _compute_match_score_precomputed(
     cand_sig_ordered = [t for t in cand_clean.split() if t in sig_cand]
     pat_prefix_in_cand = any(t in sig_cand for t in pat_sig_ordered[:2]) if pat_sig_ordered else False
     cand_prefix_in_pat = any(t in sig_pat for t in cand_sig_ordered[:2]) if cand_sig_ordered else False
-    has_merchant_overlap = (pat_prefix_in_cand and cand_prefix_in_pat) or (
+    # Un seul mot de tête en commun doit ouvrir au moins un des deux libellés : un prénom en deuxième position
+    # des deux côtés (« WEB MARTIN CAMILLE » / « ICLOUD CAMILLE ») ne fait pas un même commerçant
+    shared_heads = {t for t in pat_sig_ordered[:2] if t in sig_cand} | {t for t in cand_sig_ordered[:2] if t in sig_pat}
+    leading = set(pat_sig_ordered[:1]) | set(cand_sig_ordered[:1])
+    heads_agree = len(shared_heads) >= 2 or bool(shared_heads & leading)
+    has_merchant_overlap = (pat_prefix_in_cand and cand_prefix_in_pat and heads_agree) or (
         len(strong_matches) >= 2 and sum(len(t) for t in strong_matches) >= 8
     )
 

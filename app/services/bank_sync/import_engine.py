@@ -221,6 +221,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
     # Résolution des libellés intelligents pour toutes les opérations qui ne sont plus rapprochées
     raw_labels = []
     tx_types_map = {}
+    amounts_map = {}
     for acc in preview_data.get("accounts", []):
         for tx in acc.get("transactions", []):
             if not tx.get("is_reconciled"):
@@ -229,6 +230,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                     raw_labels.append(raw_desc)
                     raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                     tx_types_map[raw_desc] = "expense_var" if raw_amt < 0 else "income"
+                    amounts_map[raw_desc] = abs(raw_amt)
 
     if raw_labels:
         try:
@@ -240,6 +242,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                 raw_labels,
                 use_ai_fallback=ai_active,
                 tx_types=tx_types_map,
+                amounts=amounts_map,
                 auto_fallback_category=True
             )
             for acc in preview_data.get("accounts", []):

@@ -372,6 +372,7 @@ def process_incoming_batch(
     try:
         unresolved_labels = []
         tx_types_map = {}
+        amounts_map = {}
         for acc in preview_data.get("accounts", []):
             for tx in acc.get("transactions", []):
                 if not tx.get("is_reconciled") and not tx.get("smart_suggested"):
@@ -380,6 +381,7 @@ def process_incoming_batch(
                         unresolved_labels.append(raw)
                         raw_amt = float(tx.get("raw_amount") if tx.get("raw_amount") is not None else (tx.get("amount") or 0.0))
                         tx_types_map[raw] = "expense_var" if raw_amt < 0 else "income"
+                        amounts_map[raw] = abs(raw_amt)
 
         use_ai = False
         try:
@@ -397,6 +399,7 @@ def process_incoming_batch(
                 unresolved_labels,
                 use_ai_fallback=use_ai,
                 tx_types=tx_types_map,
+                amounts=amounts_map,
                 auto_fallback_category=True
             )
             for acc in preview_data.get("accounts", []):
