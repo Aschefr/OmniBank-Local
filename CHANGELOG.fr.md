@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-16
 
 ### Ajouts & améliorations
 - **Plusieurs personnes peuvent utiliser OmniBank en même temps, chacune sur son profil 👥** : le profil ouvert était commun à tout le serveur : quand quelqu'un changeait de profil sur son téléphone, tout le monde changeait aussi, et le coffre-fort du profil quitté se verrouillait, ce qui arrêtait aussi ses relevés planifiés. Chaque appareil garde désormais son propre profil : un foyer peut partager un seul serveur, avec les virements suivis entre profils. Un nouvel appareil demande quel profil utiliser quand il y en a plusieurs (une fois par navigateur après la mise à jour) ; un profil protégé demande toujours son code PIN, et chaque profil garde sa propre session déverrouillée. Changer de profil ne verrouille plus le coffre-fort de l'autre profil. La restauration d'une sauvegarde de tous les profils est refusée pendant qu'un autre appareil utilise un autre profil, puisqu'elle ferme tous les profils. Un code PIN sur chaque profil est conseillé, pour que personne n'ouvre celui d'un autre.

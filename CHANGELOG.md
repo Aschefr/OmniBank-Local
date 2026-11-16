@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-16
 
 ### Added & Improved
 - **Several people can use OmniBank at the same time, each on their own profile 👥**: The open profile used to be shared by the whole server: when someone switched profile on their phone, everyone else switched too, and the vault of the profile left was locked, which also stopped its scheduled statements. Each device now keeps its own profile, so a household can share one server, with tracked transfers between profiles. A new device asks which profile to use when there are several (once per browser after the update); a protected profile still asks for its PIN, and each profile keeps its own unlocked session. Switching profile no longer locks the other profile's vault. Restoring a backup of all profiles is refused while another device is using another profile, since it closes every profile. A PIN on each profile is advised, so that nobody opens someone else's.
