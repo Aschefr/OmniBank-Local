@@ -156,7 +156,8 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     const isSkipped = tx.is_skipped === true || tx.is_skipped === 'true';
                     const isReconciled = tx.reconciliation_date != null && !isSkipped;
                     
-                    let segmentClass = 'gantt-segment-pending';
+                    const autoSkipInfo = (!isSkipped && !isReconciled && this.getAutoSkipStatus) ? this.getAutoSkipStatus(tx, t) : null;
+                    let segmentClass = autoSkipInfo ? 'gantt-segment-autoskip' : 'gantt-segment-pending';
                     if (isSkipped) segmentClass = 'gantt-segment-skipped';
                     else if (isReconciled) {
                         segmentClass = tx.needs_review ? 'gantt-segment-review' : 'gantt-segment-reconciled';
@@ -186,7 +187,6 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         statusText = tx.needs_review ? `${window.i18n.t('rec_gantt_status_reconciled')} (${window.i18n.t('rec_gantt_status_needs_review') || 'À vérifier'})` : window.i18n.t('rec_gantt_status_reconciled');
                     } else if (isSkipped) statusText = window.i18n.t('rec_gantt_status_skipped');
                     else {
-                        const autoSkipInfo = this.getAutoSkipStatus ? this.getAutoSkipStatus(tx, t) : null;
                         if (autoSkipInfo) {
                             statusText += ` (⚙️ ${autoSkipInfo.timelineText})`;
                         }
