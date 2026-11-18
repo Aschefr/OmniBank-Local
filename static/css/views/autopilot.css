@@ -1782,8 +1782,9 @@ body.theme-titanium-light .ap-override-rule-card {
 }
 
 .ap-hero-master-switch.is-active.preset-full .ap-cylon-eye {
-    background: linear-gradient(90deg, transparent 0%, #a855f7 30%, #38bdf8 50%, #ffffff 70%, transparent 100%);
-    box-shadow: 0 0 8px #a855f7, 0 0 16px #38bdf8, 0 0 4px #ffffff;
+    --ap-cylon-tail: 168, 85, 247;
+    --ap-cylon-glow: 56, 189, 248;
+    --ap-cylon-core: #ffffff;
 }
 
 .ap-hero-master-switch.is-active.preset-full .ap-cylon-label {
@@ -1934,32 +1935,97 @@ body.theme-titanium-light .ap-override-rule-card {
     box-sizing: border-box;
 }
 
+/* Zone du faisceau : assez haute pour le halo, fondue aux deux bouts pour ne pas buter sur les coins */
 .ap-cylon-track {
     position: absolute;
     top: 0;
+    left: 10px;
+    right: 10px;
+    height: 12px;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+
+/* La fente, creusée dans le cadran */
+.ap-cylon-track::before {
+    content: '';
+    position: absolute;
+    top: 2px;
     left: 0;
     right: 0;
-    height: 2.5px;
-    background: rgba(255, 255, 255, 0.08);
-    overflow: hidden;
+    height: 2px;
+    border-radius: 1px;
+    background: rgba(0, 0, 0, 0.55);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
+/* Support aussi large que la fente : son bord droit porte la tête du faisceau */
 .ap-cylon-eye {
+    --ap-cylon-tail: 16, 185, 129;
+    --ap-cylon-glow: 52, 211, 153;
+    --ap-cylon-core: #ecfdf5;
     position: absolute;
-    top: 0;
-    height: 100%;
-    width: 48px;
-    background: linear-gradient(90deg, transparent 0%, #10b981 30%, #34d399 50%, #a7f3d0 70%, transparent 100%);
-    box-shadow: 0 0 8px #10b981, 0 0 16px #34d399, 0 0 4px #ffffff;
-    animation: apCylonLaserScan 2.2s ease-in-out infinite alternate;
+    inset: 0;
+    will-change: transform;
+    animation: apCylonSweep 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
 }
 
-@keyframes apCylonLaserScan {
-    0% {
-        left: -48px;
+/* Traînée : suit la vitesse, nulle aux demi-tours, puis repart de l'autre côté de la tête */
+.ap-cylon-eye::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 0;
+    width: 46%;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, rgba(var(--ap-cylon-tail), 0), rgba(var(--ap-cylon-tail), 0.35) 40%, rgba(var(--ap-cylon-tail), 0.9) 78%, rgb(var(--ap-cylon-glow)));
+    transform-origin: right center;
+    will-change: transform;
+    animation: apCylonTrail 4.8s infinite;
+}
+
+/* Tête : point chauffé à blanc et halo qui déborde sur le cadran */
+.ap-cylon-eye::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    right: -18px;
+    width: 36px;
+    height: 12px;
+    background:
+        radial-gradient(ellipse 5px 1.2px at center, var(--ap-cylon-core) 45%, transparent 100%),
+        radial-gradient(ellipse 12px 2.6px at center, rgba(var(--ap-cylon-glow), 0.95), transparent 100%),
+        radial-gradient(ellipse 18px 6px at center, rgba(var(--ap-cylon-tail), 0.38), transparent 100%);
+}
+
+@keyframes apCylonSweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes apCylonTrail {
+    0%, 50% {
+        animation-timing-function: cubic-bezier(0.61, 1, 0.88, 1);
     }
-    100% {
-        left: calc(100% - 4px);
+    25%, 75% {
+        animation-timing-function: cubic-bezier(0.12, 0, 0.39, 0);
+    }
+    0%, 50%, 100% { transform: scaleX(0); }
+    25% { transform: scaleX(1); }
+    75% { transform: scaleX(-1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ap-cylon-eye {
+        animation: none;
+        transform: translateX(-50%);
+    }
+
+    .ap-cylon-eye::before {
+        animation: none;
+        transform: scaleX(0);
     }
 }
 
@@ -1967,6 +2033,7 @@ body.theme-titanium-light .ap-override-rule-card {
     display: flex;
     flex-direction: column;
     gap: 1px;
+    margin-top: 1px;
     z-index: 1;
 }
 
