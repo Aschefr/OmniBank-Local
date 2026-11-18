@@ -2,10 +2,10 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.7.1] - 2026-11-18
 
 ### Corrections & ergonomie
-- **Le reste à vivre ne déduit plus une échéance qui ne viendra pas ⏭️** : une échéance récurrente jamais prélevée par la banque, par exemple des frais de tenue de compte supprimés par la banque, restait déduite du reste à vivre jusqu'à son saut. Après une période complète et trois jours sans prélèvement, elle n'est plus déduite. Deux lignes sous la jauge indiquent ces montants : les échéances en retard, encore déduites, et celles en attente de saut, qui ne le sont plus. Un clic sur l'une des lignes ouvre la page Récurrences sur ces échéances. Le saut automatique était aussi retenu par n'importe quelle opération en attente de validation, si bien qu'avec un relevé quotidien il pouvait attendre des semaines. Seule une opération qui peut être le prélèvement le retient désormais : rattachée à cette échéance, ou non rattachée avec un montant proche.
+- **Le reste à vivre ne déduit plus une échéance qui ne viendra pas ⏭️** : une échéance récurrente jamais prélevée par la banque, par exemple des frais de tenue de compte supprimés par la banque, restait déduite du reste à vivre jusqu'à son saut. Après une période complète et trois jours sans prélèvement, elle n'est plus déduite. Deux lignes sous la jauge indiquent ces montants : les échéances en retard, encore déduites, et celles en attente de saut, qui ne le sont plus. Un clic sur l'une des lignes ouvre la page Récurrences sur ces échéances, où le chronogramme montre en violet les échéances surveillées par le saut automatique. Le saut automatique était aussi retenu par n'importe quelle opération en attente de validation, si bien qu'avec un relevé quotidien il pouvait attendre des semaines. Seule une opération qui peut être le prélèvement le retient désormais : rattachée à cette échéance, ou non rattachée avec un montant proche.
 
 ## [1.7.0] - 2026-11-16
 

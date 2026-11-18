@@ -2,10 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.7.1] - 2026-11-18
 
 ### Fixed & Ergonomics
-- **The left-to-live amount no longer deducts a payment that will not come ⏭️**: A recurring payment the bank never took, such as an account fee dropped by the bank, was deducted from the left-to-live amount until it was skipped. Once a full period and three days have passed without the debit, it is no longer deducted. The amount now shows on two lines below the gauge: late payments, still deducted, and payments awaiting their skip, no longer deducted. A click on either line opens the Recurrences page on those payments. The automatic skip was also held back by any operation waiting for validation, so with a daily statement it could wait for weeks. Only an operation that may be the debit now holds it back: one linked to that payment, or an unlinked one with a similar amount.
+- **The left-to-live amount no longer deducts a payment that will not come ⏭️**: A recurring payment the bank never took, such as an account fee dropped by the bank, was deducted from the left-to-live amount until it was skipped. Once a full period and three days have passed without the debit, it is no longer deducted. The amount now shows on two lines below the gauge: late payments, still deducted, and payments awaiting their skip, no longer deducted. A click on either line opens the Recurrences page on those payments, where the timeline shows in violet the payments watched by the automatic skip. The automatic skip was also held back by any operation waiting for validation, so with a daily statement it could wait for weeks. Only an operation that may be the debit now holds it back: one linked to that payment, or an unlinked one with a similar amount.
 
 ## [1.7.0] - 2026-11-16
 
