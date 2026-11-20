@@ -114,16 +114,37 @@ def _catch_up_days(db: Session, account_id: int, base_days: int) -> int:
     return max(base_days, min((today - last_line).days + CATCH_UP_MARGIN_DAYS, MAX_CATCH_UP_DAYS))
 
 
-COMING_POSTED_MAX_DAYS = 7
+# Le débit d'un paiement carte porte en pratique la date du paiement, parfois le lendemain
+COMING_POSTED_MAX_DAYS = 3
+_TRUNCATED_LABEL_MIN = 12
 
 
-def drop_coming_already_posted(history_raw: list, coming_raw: list, acc_label: str = "") -> list:
+def _same_bank_label(coming_label: str, posted_label: str, places: frozenset) -> bool:
+    """La banque coupe et abrège autrement le libellé à venir et le libellé débité
+    (« CONFISERIE LA RO VIL » / « CONFISERIE LA ROSE ») : même libellé, l'un est l'autre coupé,
+    ou un mot de commerçant en commun (pas un nom de ville)."""
+    from app.services.recurrence_detector import label_words
+    from app.services.smart_label.places import is_place_token
+    a, b = (" ".join((label or "").upper().split()) for label in (coming_label, posted_label))
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    short, long_ = sorted((a, b), key=len)
+    if len(short) >= _TRUNCATED_LABEL_MIN and long_.startswith(short[:max(_TRUNCATED_LABEL_MIN, len(short) - 3)]):
+        return True
+    shared = label_words(coming_label) & label_words(posted_label)
+    return any(not is_place_token(word, places) for word in shared)
+
+
+def drop_coming_already_posted(history_raw: list, coming_raw: list, acc_label: str = "",
+                               places: frozenset = frozenset()) -> list:
     """Retire les opérations à venir que la banque liste encore alors que leur débit figure déjà dans l'historique
-    du même relevé (paiement carte entre les deux listes). Débit = même montant, même libellé, daté du jour de
-    l'opération à venir ou de quelques jours après. Chaque ligne débitée ne sert qu'une fois : deux achats
-    identiques dont un seul est débité gardent l'autre à venir."""
-    def label_key(item):
-        return " ".join((item.get("raw_description") or item.get("description") or "").upper().split())
+    du même relevé (paiement carte entre les deux listes). Débit = même montant, libellé du même commerçant, daté
+    du jour de l'opération à venir ou de quelques jours après. Chaque ligne débitée ne sert qu'une fois : deux
+    achats identiques dont un seul est débité gardent l'autre à venir."""
+    def label(item):
+        return item.get("raw_description") or item.get("description") or ""
 
     # Paires possibles, les plus proches en date d'abord
     pairs = sorted(
@@ -132,8 +153,8 @@ def drop_coming_already_posted(history_raw: list, coming_raw: list, acc_label: s
             for ci, c in enumerate(coming_raw)
             for hi, h in enumerate(history_raw)
             if round(h["raw_amount"], 2) == round(c["raw_amount"], 2)
-            and label_key(h) == label_key(c)
             and 0 <= (h["tx_date_obj"] - c["tx_date_obj"]).days <= COMING_POSTED_MAX_DAYS
+            and _same_bank_label(label(c), label(h), places)
         ),
         key=lambda pair: pair[0],
     )
@@ -696,7 +717,9 @@ class BankSyncService:
                     logger.debug(f"[BankSync] iter_coming non supporté ou ignoré pour {acc_label}: {coming_err}")
 
                 _t_coming = time.time() - _t_acc - _t_hist
-                coming_raw = drop_coming_already_posted(history_raw, coming_raw, acc_label)
+                if coming_raw:
+                    from app.services.smart_label.places import place_words
+                    coming_raw = drop_coming_already_posted(history_raw, coming_raw, acc_label, place_words(db))
                 _t_match = time.time()
                 parsed_txs = []
 

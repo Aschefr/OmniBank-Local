@@ -111,3 +111,26 @@ def test_other_coming_lines_are_kept(statement, coming):
 def test_purchase_after_the_posted_one_stays_coming(statement):
     txs = statement(history=[(YESTERDAY, -6.0, BAKERY)], coming=[(TODAY, -6.0, BAKERY)])
     assert len(txs) == 2
+
+
+@pytest.mark.parametrize("coming_label, posted_label", [
+    ("X1234 CONFISERIE LA RO VIL", "X1234 CONFISERIE LA ROSE"),          # abrégé autrement
+    ("PayPal Europe S.a.r.l. et Cie S.C.A", "PayPal Europe S.a.r.l. et Cie S."),  # coupé
+    ("X1234 DAC HYPER V VL BOURG", "X1234 UEP*DAC HYPER V BOURG"),        # préfixe de passerelle
+])
+def test_coming_line_with_a_differently_cut_label_is_dropped(statement, coming_label, posted_label):
+    txs = statement(history=[(TODAY, -23.5, posted_label)], coming=[(TODAY, -23.5, coming_label)])
+    assert len(txs) == 1
+    assert txs[0].reconciliation_date is not None
+
+
+def test_debit_more_than_three_days_later_is_another_purchase(statement):
+    txs = statement(history=[(TODAY, -108.36, GRILL)], coming=[(TODAY - timedelta(days=4), -108.36, GRILL)])
+    assert len(txs) == 2
+
+
+def test_two_shops_of_the_same_town_are_not_the_same_label():
+    places = frozenset({"VILLEFRANCHE"})
+    assert not sync_service._same_bank_label("X1234 FRESHMART VILLEFRANCHE", "X1234 BOUCHERIE VILLEFRANCHE", places)
+    assert not sync_service._same_bank_label("X1234 FRESHMART VILLEF", "X1234 BOUCHERIE VILLEF", places)
+    assert sync_service._same_bank_label("X1234 FRESHMART VILLEFRANCHE", "X1234 FRESHMART VILLEF", places)

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed & Ergonomics
-- **A card payment no longer appears twice when the bank still lists it as upcoming 💳**: The bank can list a card payment as debited and still as upcoming in the same statement. Both versions were added, so the payment showed twice in the operations to review and the upcoming one stayed deducted from the left-to-live amount. An upcoming payment whose debit is in the same statement, with the same amount and label, is now left out. Payments added twice before the update stay: delete the upcoming copy.
+- **A card payment no longer appears twice when the bank still lists it as upcoming 💳**: The bank can list a card payment as debited and still as upcoming in the same statement. Both versions were added, so the payment showed twice in the operations to review and the upcoming one stayed deducted from the left-to-live amount. An upcoming payment whose debit is in the same statement, with the same amount and the same merchant, even when the bank cuts its label differently, is now left out. Payments added twice before the update stay: delete the upcoming copy.
 
 ## [1.7.1] - 2026-11-18
 
