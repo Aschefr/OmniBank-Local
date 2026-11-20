@@ -114,6 +114,42 @@ def _catch_up_days(db: Session, account_id: int, base_days: int) -> int:
     return max(base_days, min((today - last_line).days + CATCH_UP_MARGIN_DAYS, MAX_CATCH_UP_DAYS))
 
 
+COMING_POSTED_MAX_DAYS = 7
+
+
+def drop_coming_already_posted(history_raw: list, coming_raw: list, acc_label: str = "") -> list:
+    """Retire les opérations à venir que la banque liste encore alors que leur débit figure déjà dans l'historique
+    du même relevé (paiement carte entre les deux listes). Débit = même montant, même libellé, daté du jour de
+    l'opération à venir ou de quelques jours après. Chaque ligne débitée ne sert qu'une fois : deux achats
+    identiques dont un seul est débité gardent l'autre à venir."""
+    def label_key(item):
+        return " ".join((item.get("raw_description") or item.get("description") or "").upper().split())
+
+    # Paires possibles, les plus proches en date d'abord
+    pairs = sorted(
+        (
+            ((h["tx_date_obj"] - c["tx_date_obj"]).days, ci, hi)
+            for ci, c in enumerate(coming_raw)
+            for hi, h in enumerate(history_raw)
+            if round(h["raw_amount"], 2) == round(c["raw_amount"], 2)
+            and label_key(h) == label_key(c)
+            and 0 <= (h["tx_date_obj"] - c["tx_date_obj"]).days <= COMING_POSTED_MAX_DAYS
+        ),
+        key=lambda pair: pair[0],
+    )
+    dropped, used_posted = set(), set()
+    for _gap, ci, hi in pairs:
+        if ci in dropped or hi in used_posted:
+            continue
+        dropped.add(ci)
+        used_posted.add(hi)
+        logger.info(
+            f"[BankSync] [{acc_label}] Opération à venir du {coming_raw[ci]['date_operation']} ignorée : "
+            f"déjà débitée le {history_raw[hi]['date_operation']} dans ce relevé"
+        )
+    return [c for ci, c in enumerate(coming_raw) if ci not in dropped]
+
+
 def evaluate_historical_fingerprint(
     db: Session,
     account_id: int,
@@ -660,6 +696,7 @@ class BankSyncService:
                     logger.debug(f"[BankSync] iter_coming non supporté ou ignoré pour {acc_label}: {coming_err}")
 
                 _t_coming = time.time() - _t_acc - _t_hist
+                coming_raw = drop_coming_already_posted(history_raw, coming_raw, acc_label)
                 _t_match = time.time()
                 parsed_txs = []
 
