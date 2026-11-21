@@ -1754,6 +1754,18 @@ _REVIEWABLE_NEW_ENTRY = {
     "AUTO_COMMIT_COMING": "AUTO_COMMIT_COMING_PENDING_REVIEW",
 }
 
+# Champs de la décision qu'une liaison manuelle réécrit pour sa prévision cible ; gardés pour être remis au déliement.
+_LINK_REPLACED_KEYS = ("before", "after", "actual_amount", "original_amount", "is_amount_deviant", "decision_reason",
+                       "user_override")
+
+
+def _csv_id_free_for(db: Session, csv_id: Optional[str], tx_id: int) -> Optional[str]:
+    """csv_id à remettre sur l'opération, sauf si une autre opération le porte (contrainte d'unicité)."""
+    if not csv_id:
+        return None
+    holder = db.query(Transaction.id).filter(Transaction.csv_id == csv_id, Transaction.id != tx_id).first()
+    return None if holder else csv_id
+
 
 def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
     """Annule sémantiquement une décision spécifique enregistrée dans AutopilotDecisionLog."""
@@ -1808,6 +1820,14 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
             if tx:
                 before_s = snapshot_entity(tx)
                 orig_snap = snap.get("before") or {}
+                if orig_snap.get("id") not in (None, tx.id):
+                    # Instantané d'une autre prévision (liaison déplacée puis défaite par une version précédente) :
+                    # on dépointe celle-ci en lui rendant son état prévu, sans toucher à son libellé ni sa catégorie.
+                    planned = planned_forecast_state(db, tx) or {}
+                    orig_snap = {"reconciliation_date": None, "raw_description": None, "needs_review": False,
+                                 "confidence_score": None, "csv_id": planned.get("csv_id")}
+                    if planned:
+                        orig_snap.update(amount=planned["amount"], comment=planned.get("comment"))
                 tx.reconciliation_date = orig_snap.get("reconciliation_date")
                 if "amount" in orig_snap:
                     tx.amount = orig_snap["amount"]
@@ -1818,7 +1838,7 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
                 if "comment" in orig_snap:
                     tx.comment = orig_snap["comment"]
                 tx.raw_description = orig_snap.get("raw_description")
-                tx.csv_id = orig_snap.get("csv_id")
+                tx.csv_id = _csv_id_free_for(db, orig_snap.get("csv_id"), tx.id)
                 tx.needs_review = bool(orig_snap.get("needs_review", False))
                 tx.confidence_score = orig_snap.get("confidence_score")
                 record_action(
@@ -2341,6 +2361,12 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
     snap.pop("linked_to_forecast_id", None)
     snap.pop("linked_to_forecast_description", None)
     snap.pop("forecast_description", None)
+    # L'instantané « avant/après » de la prévision cible ne vaut plus pour la décision rendue à sa source
+    for key, value in (manual_link.get("replaced") or {}).items():
+        if value is None:
+            snap.pop(key, None)
+        else:
+            snap[key] = value
     decision.raw_snapshot = json.dumps(snap, default=str)
 
     # 5. Marquer les ActionHistory antérieures de liaison/fusion comme annulées
@@ -2710,10 +2736,10 @@ def planned_forecast_state(db: Session, tx: Transaction) -> Optional[Dict[str, A
             continue
         if (str(new.get("csv_id") or "").startswith("woob_") and not str(prev.get("csv_id") or "").startswith("woob_")
                 and prev.get("amount")):
-            return {"amount": float(prev["amount"]), "comment": prev.get("comment")}
+            return {"amount": float(prev["amount"]), "comment": prev.get("comment"), "csv_id": prev.get("csv_id")}
     tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tx.recurrence_id).first() if tx.recurrence_id else None
     if tpl and tpl.amount:
-        return {"amount": abs(float(tpl.amount)), "comment": None}
+        return {"amount": abs(float(tpl.amount)), "comment": None, "csv_id": None}
     return None
 
 
@@ -2926,6 +2952,8 @@ def link_review_transaction(
                 pass
 
         existing_snap["manual_linked_forecast"] = {
+            # Ce que la liaison remplace dans la décision, remis tel quel si elle est défaite
+            "replaced": {k: existing_snap.get(k) for k in _LINK_REPLACED_KEYS},
             "original_source_id": tx_review.id,
             "original_decision_type": orig_type,
             "original_action": orig_action,

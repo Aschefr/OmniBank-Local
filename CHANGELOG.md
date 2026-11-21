@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Ergonomics
 - **Moving a bank line from one forecast to another is easier 🔗**: In the list to link an operation, a forecast that already holds a bank line showed that line's amount (an 8 € insurance at 51 €), so it could not be recognised and the next month's forecast looked like the right choice. The list now shows the planned amount with a "already linked" tag giving the bank amount, puts forecasts close to the operation's date first, and no longer offers skipped forecasts. A forecast whose bank line is moved elsewhere gets its planned amount back. The Auto-Pilot also gives more weight to the amount: a forecast far off in amount (8 € for a 51 € debit) no longer wins over a closer one for a better label or a closer date.
+- **Undoing a link that was moved and put back works again ↩️**: When a bank line linked by the Auto-Pilot had been moved to another forecast and then unlinked, "Undo" on that decision failed with an error. It now undoes the right forecast and gives it back its planned amount, including for decisions already affected.
 
 ## [1.7.2] - 2026-11-21
 
