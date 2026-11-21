@@ -183,6 +183,16 @@ def update_review(
         raise HTTPException(status_code=500, detail="Erreur lors de la modification de l'opération.")
 
 
+@router.get("/link-candidates/{tx_id}")
+def get_link_candidates(tx_id: int, search: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    """Opérations non pointées auxquelles lier cette ligne de la banque, les plus proches en date d'abord."""
+    from app.services.autopilot_service import list_link_candidates
+    try:
+        return list_link_candidates(db, tx_id, search=search)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.post("/review/{tx_id}/link")
 def link_review(
     tx_id: int,

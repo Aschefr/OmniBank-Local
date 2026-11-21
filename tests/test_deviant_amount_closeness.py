@@ -25,7 +25,7 @@ CONTRACTS = [
     ("Assurance - Habitation", 48.00, 22),
     ("Assurance - Acc. de la vie", 22.50, 22),
     ("Assurance - Prot. juridique", 8.00, 22),
-    ("Assurance - Auto", 68.00, 25),
+    ("Mutuelle - Auto", 68.00, 25),            # nom proche du libellé, contrairement aux autres
 ]
 
 
@@ -124,3 +124,12 @@ def test_suggestion_skips_skipped_forecasts_and_forecasts_held_by_another_bank_l
     names = [c["description"] for c in find_candidate_forecasts_for_tx(db, _review_line(db, 23.10))]
     assert "Assurance - Acc. de la vie" not in names
     assert "Assurance - Habitation" not in names
+
+
+def test_a_forecast_far_off_in_amount_loses_even_with_a_better_label_or_date(db, forecasts):
+    # Seule l'Auto (68, -25 %) et la Prot. juridique (8, +534 %) sont libres ; la Prot. juridique est plus proche en date
+    for amount in (48.00, 22.50):
+        forecasts[amount].reconciliation_date = BANK_DAY
+    db.commit()
+    results = _statement(db, [50.70])
+    assert db.get(Transaction, results[0]["id"]).amount == 68.00

@@ -53,11 +53,12 @@ def known_bank_label_score(db: Session, recurrence_id: Optional[int], bank_label
 
 
 def deviant_amount_score(expected: float, actual: float) -> int:
-    """Proximité d'un montant bancaire à une prévision au montant différent (0 à 30 pts) : 1 point de moins par
-    point d'écart, rien au-delà de 30 %."""
+    """Proximité d'un montant bancaire à une prévision au montant différent (-30 à 30 pts) : 1 point de moins par
+    point d'écart. Au-delà de 30 % d'écart, le score devient négatif : une prévision de 8 € pour un débit de 51 €
+    ne doit pas l'emporter sur une de 68 € pour quelques points de date ou de libellé."""
     if expected <= 0:
         return 0
-    return max(0, 30 - round(abs(actual - expected) / expected * 100))
+    return max(-30, 30 - round(abs(actual - expected) / expected * 100))
 
 
 def compute_temporal_score(candidate_dt, bank_dt) -> int:
@@ -598,10 +599,10 @@ def check_reconciliation(
 
             # Similarité textuelle marchand
             txt_score = compute_text_score(cand.description, bank_label, candidate_cat=cand.category, db=db)
-            if txt_score < 20:
-                # Libellé bancaire déjà débité sous cette récurrence : il désigne le créancier mieux que le nom
-                # donné à la prévision (« Assurance - Prot. juridique » face à « 0765432 MUTUELLE DU NORD »)
-                txt_score = max(txt_score, known_bank_label_score(db, cand.recurrence_id, bank_label, known_labels_cache))
+            # Libellé bancaire déjà débité sous cette récurrence : il désigne le créancier mieux que le nom donné à la
+            # prévision (« Assurance - Prot. juridique » face à « 0765432 MUTUELLE DU NORD »). Pris pour toutes les
+            # prévisions, sinon celle dont le nom ressemble moins au libellé gagne des points sur les autres.
+            txt_score = max(txt_score, known_bank_label_score(db, cand.recurrence_id, bank_label, known_labels_cache))
             if txt_score < 20:
                 # Vérifier aussi si clean merchants concordent nettement
                 try:

@@ -2024,21 +2024,20 @@ window.FormView = {
         const fromAcc = document.getElementById('op_from_account')?.value || this.currentTxBase?.from_account_id;
 
         try {
-            // Point 2 : Tri par date inversé (de la plus ancienne à la plus récente) avec order=asc
-            let url = `/api/transactions/?limit=100&unreconciled_only=true&order=asc`;
-            if (fromAcc) url += `&account_id=${fromAcc}`;
-            if (query) url += `&search=${encodeURIComponent(query)}`;
-
-            const items = await API.get(url);
-            const candidates = (items || []).filter(tx => tx.id !== this.currentTxId);
-
-            // Tri explicite côté client du plus ancien au plus récent
-            candidates.sort((a, b) => {
-                const da = a.date_operation ? new Date(a.date_operation).getTime() : 0;
-                const db = b.date_operation ? new Date(b.date_operation).getTime() : 0;
-                if (da !== db) return da - db;
-                return (a.id || 0) - (b.id || 0);
-            });
+            // Opération connue : le serveur trie par proximité de date et donne le montant prévu des prévisions
+            // qui portent déjà une ligne de la banque (elles affichent sinon le montant de cette ligne)
+            const sourceTxId = this.autopilotContext?.txId || this.currentTxId;
+            let candidates;
+            if (sourceTxId) {
+                let url = `/api/autopilot/link-candidates/${sourceTxId}`;
+                if (query) url += `?search=${encodeURIComponent(query)}`;
+                candidates = await API.get(url) || [];
+            } else {
+                let url = `/api/transactions/?limit=100&unreconciled_only=true&order=asc`;
+                if (fromAcc) url += `&account_id=${fromAcc}`;
+                if (query) url += `&search=${encodeURIComponent(query)}`;
+                candidates = (await API.get(url) || []).filter(tx => !tx.is_skipped);
+            }
 
             if (candidates.length === 0) {
                 resultsEl.innerHTML = `<div style="text-align: center; padding: 14px; color: var(--text-muted); font-size: 11.5px;">${window.i18n ? (window.i18n.t('ghost_link_no_results') || 'Aucune opération non pointée trouvée.') : 'Aucune opération non pointée trouvée.'}</div>`;
@@ -2047,13 +2046,15 @@ window.FormView = {
 
             resultsEl.innerHTML = candidates.map(c => {
                 const isSelected = (this._selectedLinkTarget?.id === c.id);
-                const amt = Number(c.amount || 0).toFixed(2);
+                const shownAmount = c.planned_amount != null ? c.planned_amount : c.amount;
+                const amt = Number(shownAmount || 0).toFixed(2);
+                const heldChip = c.holds_bank_line ? `<span title="${window.i18n ? window.i18n.t('link_candidate_held_tip') : ''}" style="font-size: 10.5px; font-weight: 600; color: #f59e0b; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; padding: 1px 5px; margin-left: 6px; white-space: nowrap;">${window.i18n ? window.i18n.tp('link_candidate_held', { amount: Number(c.amount || 0).toFixed(2) + ' €' }) : ''}</span>` : '';
                 const dateStr = c.date_operation ? String(c.date_operation).substring(0, 10) : '—';
                 const catStr = c.category || (window.i18n ? window.i18n.t('no_category') : 'Sans catégorie');
                 const safeJson = JSON.stringify({
                     id: c.id,
                     description: c.description || '',
-                    amount: c.amount || 0,
+                    amount: shownAmount || 0,
                     category: c.category || '',
                     date_operation: c.date_operation || ''
                 }).replace(/"/g, '&quot;');
@@ -2062,7 +2063,7 @@ window.FormView = {
                     <div class="candidate-link-card" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 6px; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'}; background: ${isSelected ? 'rgba(99,102,241,0.12)' : 'var(--bg-surface)'}; cursor: pointer; transition: all 0.15s ease;" onclick="window.FormView.selectLinkCandidate(${safeJson})">
                         <div style="flex: 1; min-width: 0; padding-right: 10px;">
                             <div style="font-weight: 600; font-size: 12px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.escapeHtml ? window.escapeHtml(c.description) : c.description}</div>
-                            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 1px;">📅 ${dateStr} • 🏷️ ${window.escapeHtml ? window.escapeHtml(catStr) : catStr}</div>
+                            <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 1px;">📅 ${dateStr} • 🏷️ ${window.escapeHtml ? window.escapeHtml(catStr) : catStr}${heldChip}</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                             <span style="font-weight: 700; font-size: 12.5px; color: var(--accent);">${amt} €</span>

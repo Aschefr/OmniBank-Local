@@ -2,6 +2,11 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Corrections & ergonomie
+- **Déplacer une ligne de la banque d'une prévision à une autre est plus simple 🔗** : dans la liste pour lier une opération, une prévision qui porte déjà une ligne de la banque affichait le montant de cette ligne (une assurance de 8 € à 51 €) : on ne la reconnaissait pas, et la prévision du mois suivant semblait le bon choix. La liste affiche désormais le montant prévu, avec une étiquette « déjà liée » qui donne le montant de la banque, met en tête les prévisions proches de la date de l'opération et ne propose plus les prévisions sautées. Une prévision dont la ligne de la banque est déplacée ailleurs retrouve son montant prévu. L'Auto-Pilote donne aussi plus de poids au montant : une prévision très éloignée en montant (8 € pour un débit de 51 €) ne l'emporte plus sur une plus proche pour un meilleur libellé ou une date plus proche.
+
 ## [1.7.2] - 2026-11-21
 
 ### Ajouts & améliorations

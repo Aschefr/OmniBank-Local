@@ -4150,5 +4150,7 @@
   "license_contract_required": "Cochez la case pour accepter le contrat de licence.",
   "license_contract_title": "Contrat de licence",
   "license_contract_lang_note": "Le texte français fait foi.",
-  "license_contract_error": "Le contrat n'a pas pu être chargé."
+  "license_contract_error": "Le contrat n'a pas pu être chargé.",
+  "link_candidate_held": "Déjà liée : {amount}",
+  "link_candidate_held_tip": "Cette prévision porte déjà une ligne de la banque. La choisir la lui retire : liez d'abord cette ligne ailleurs."
 }

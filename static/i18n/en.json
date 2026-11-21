@@ -4150,5 +4150,7 @@
   "license_contract_required": "Tick the box to accept the license agreement.",
   "license_contract_title": "License agreement",
   "license_contract_lang_note": "This agreement is in French, the version that prevails.",
-  "license_contract_error": "The agreement could not be loaded."
+  "license_contract_error": "The agreement could not be loaded.",
+  "link_candidate_held": "Already linked: {amount}",
+  "link_candidate_held_tip": "This forecast already holds a bank line. Choosing it takes that line away: link that line elsewhere first."
 }

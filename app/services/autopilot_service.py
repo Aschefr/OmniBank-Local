@@ -2690,6 +2690,76 @@ def get_review_queue(db: Session, profile_id: Optional[str] = None) -> List[Dict
     return results
 
 
+def planned_forecast_state(db: Session, tx: Transaction) -> Optional[Dict[str, Any]]:
+    """Montant (et commentaire) d'une prévision avant que la première ligne de la banque ne lui donne le sien, d'après
+    l'historique des actions ; à défaut, le montant de sa récurrence. None si rien ne permet de le savoir."""
+    from app.models import ActionHistory, RecurrenceTemplate
+    rows = db.query(ActionHistory).filter(
+        ActionHistory.entity_type == "transaction", ActionHistory.entity_id == tx.id
+    ).order_by(ActionHistory.id.asc()).all()
+    for h in rows:
+        try:
+            prev = json.loads(h.previous_state or "null") or {}
+            new = json.loads(h.new_state or "null") or {}
+        except (ValueError, TypeError):
+            continue
+        if (str(new.get("csv_id") or "").startswith("woob_") and not str(prev.get("csv_id") or "").startswith("woob_")
+                and prev.get("amount")):
+            return {"amount": float(prev["amount"]), "comment": prev.get("comment")}
+    tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == tx.recurrence_id).first() if tx.recurrence_id else None
+    if tpl and tpl.amount:
+        return {"amount": abs(float(tpl.amount)), "comment": None}
+    return None
+
+
+def list_link_candidates(db: Session, tx_id: int, search: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    """Opérations non pointées auxquelles lier une ligne de la banque, les plus proches en date d'abord.
+    Une prévision qui porte déjà une ligne de la banque affiche le montant de cette ligne : on donne aussi son montant
+    prévu, pour qu'elle reste reconnaissable. Les prévisions sautées ne sont pas proposées."""
+    import unicodedata
+    from sqlalchemy import and_, func, or_
+    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    if not tx:
+        raise ValueError(f"Opération #{tx_id} introuvable.")
+    acc_id = tx.from_account_id or tx.to_account_id
+    query = db.query(Transaction).filter(
+        Transaction.id != tx.id,
+        Transaction.reconciliation_date == None,
+        or_(Transaction.is_skipped == False, Transaction.is_skipped == None),
+        or_(Transaction.cross_profile_status == None, Transaction.cross_profile_status != "pending"),
+    )
+    if acc_id:
+        query = query.filter(or_(Transaction.from_account_id == acc_id, Transaction.to_account_id == acc_id))
+    if search and search.strip():
+        text = "".join(c for c in unicodedata.normalize("NFD", search.strip()) if unicodedata.category(c) != "Mn").lower()
+        pattern = f"%{text}%"
+        conditions = [func.unaccent(Transaction.description).like(pattern), func.unaccent(Transaction.category).like(pattern)]
+        try:
+            value = float(search.strip().replace(",", "."))
+            conditions.append(and_(Transaction.amount >= value - 0.05, Transaction.amount <= value + 0.05))
+        except ValueError:
+            pass
+        query = query.filter(or_(*conditions))
+    candidates = query.all()
+    ref = tx.date_operation or date.today()
+    candidates.sort(key=lambda c: (abs(((c.date_operation or ref) - ref).days), c.date_operation or ref, c.id))
+    out = []
+    for c in candidates[:limit]:
+        holds_bank_line = bool(c.csv_id and str(c.csv_id).startswith("woob_"))
+        planned = planned_forecast_state(db, c) if (holds_bank_line and c.recurrence_id) else None
+        out.append({
+            "id": c.id,
+            "description": c.description,
+            "amount": c.amount,
+            "planned_amount": planned["amount"] if planned else None,
+            "holds_bank_line": holds_bank_line,
+            "category": c.category,
+            "date_operation": c.date_operation.isoformat() if c.date_operation else None,
+            "recurrence_id": c.recurrence_id,
+        })
+    return out
+
+
 def link_review_transaction(
     db: Session,
     tx_id: int,
@@ -2763,6 +2833,11 @@ def link_review_transaction(
         # Il s'agit d'une prévision récurrente légitime qui avait été associée à tort
         # ou présentée en revue : on ne la supprime pas, on réinitialise ses métadonnées bancaires
         tx_review.raw_description = None
+        # Elle redevient une prévision : son montant prévu, pas celui de la ligne de la banque qu'elle portait
+        planned = planned_forecast_state(db, tx_review)
+        if planned:
+            tx_review.amount = planned["amount"]
+            tx_review.comment = planned.get("comment")
         orig_csv = before_snap_review.get("csv_id") if before_snap_review else None
         if orig_csv and not str(orig_csv).startswith("woob_"):
             tx_review.csv_id = orig_csv
