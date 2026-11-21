@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDhtS3ZHWHpsbzYra2pFWEsxUlowQ3lPSXN1VU55VjZWdE1TUFhyZFF5UFFCSWJCOHpIR2RiMjd4SkYzVUphV2xuckRUWElUN3lDZmp6aTlSakI3ZmdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0OTg0MDU5CWZpbGU6T21uaUJhbmtfMS43LjFfeDY0X2ZyLUZSLm1zaQp0R2UzWVpyRWZOcXZzRWJtNTlxZWZGY1ZKczlxbjhxYmcxMVVuY05zRVAySzAxeEdobnVhQ3ZrYjJDcVdJb2poZEx0b2FCMnRiT1RMRkZvK29GSFpCdz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.7.1/OmniBank_1.7.1_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSHhYWXZxdTVhanhQczdQeU1uRTBPT3dFdDlRTFRZQ1lNT2NwWm1PVjE4aGt1MjBPaGlDdS9UQSs3a3o1ejlxWGpXU3Q1WGcwci9FQVU0eDU1T3pxTHcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MjUyOTc5CWZpbGU6T21uaUJhbmtfMS43LjJfeDY0X2ZyLUZSLm1zaQoxbzg3Z1ZpZDZBbkNLUExNc01NdC9Fa3NIUnRLS2diY2J6TmRIbWxpVytYT3cyMHJlR1pDSzJhKzgwdjFaSkhMSlkyZ2x5aGorYjZkNlpVb1dGUnRDdz09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.7.2/OmniBank_1.7.2_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-18T06:40:59Z",
-    "version":  "1.7.1",
-    "notes":  "Left-to-live no longer deducts recurring payments that will not come; overdue lines open Recurrences; violet auto-skip cells"
+    "pub_date":  "2026-11-21T09:22:59Z",
+    "version":  "1.7.2",
+    "notes":  "Insurances whose amounts change together linked to the right forecast; no more card payment twice; clearer countdown light"
 }
