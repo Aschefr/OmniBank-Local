@@ -302,7 +302,8 @@ def process_incoming_batch(
     db: Session,
     conn_id: int,
     preview_data: Dict[str, Any],
-    profile_id: Optional[str] = None
+    profile_id: Optional[str] = None,
+    restore_point: bool = True
 ) -> Dict[str, Any]:
     """
     Point d'entrée d'orchestration unifié pour les flux d'ingestion (Woob & fichiers).
@@ -361,6 +362,10 @@ def process_incoming_batch(
 
     batch_id = str(uuid.uuid4())
     logger.info(f"[AutoPilot] Début du cycle d'ingestion autonome (lot {batch_id}, connexion={conn_id}, profil={pid})")
+    if restore_point:
+        # Copie de la base avant que le lot n'y touche, avec ses lignes : on pourra revenir ici et rejouer le lot
+        from app.services.restore_points import create_point_for_batch
+        create_point_for_batch(db, pid, batch_id, conn_id, preview_data)
     threshold = get_auto_reconcile_threshold(db)
 
     # Comptes dont c'est le premier relevé : leur solde de départ sera recalé sur la banque une fois le lot écrit

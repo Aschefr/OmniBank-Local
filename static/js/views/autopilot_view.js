@@ -402,6 +402,9 @@ window.AutopilotView = {
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
                                         <span data-i18n="autopilot_show_undone">${window.i18n.t('autopilot_show_undone') || 'Inclure annulées'}</span>
                                     </label>
+                                    <button class="btn btn-secondary btn-sm" onclick="window.AutopilotView.openRestoreDialog()" style="font-size: 12px; padding: 4px 10px;" data-i18n="autopilot_restore_points_btn">
+                                        ${window.i18n ? window.i18n.t('autopilot_restore_points_btn') : 'Points de restauration'}
+                                    </button>
                                     <button id="apToggleAllBatchesBtn" class="btn btn-secondary btn-sm" onclick="window.AutopilotView.toggleAllBatches()" style="font-size: 12px; padding: 4px 10px;" data-i18n="autopilot_feed_collapse_batches">
                                         ${window.i18n ? window.i18n.t('autopilot_feed_collapse_batches') : 'Replier les lots'}
                                     </button>
@@ -2123,7 +2126,11 @@ window.AutopilotView = {
             if (this._filterAction) params.append('action', this._filterAction);
             if (this._filterBatch) params.append('batch_id', this._filterBatch);
 
-            const res = await API.get(`/api/autopilot/decisions?${params.toString()}`);
+            const [res, points] = await Promise.all([
+                API.get(`/api/autopilot/decisions?${params.toString()}`),
+                API.get('/api/autopilot/restore-points').catch(() => [])
+            ]);
+            this._restorePoints = points || [];
             this._decisions = res.items || [];
             this._totalDecisions = res.total || 0;
             this.renderDecisions();
@@ -2186,7 +2193,12 @@ window.AutopilotView = {
                             <span style="font-size: 12px; color: var(--text-muted);">${batchDate}</span>
                             <span class="badge" style="font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${escapeHtml(actionsCountLabel)}</span>
                         </div>
-                        <div onclick="event.stopPropagation()">
+                        <div onclick="event.stopPropagation()" style="display: flex; align-items: center; gap: 6px;">
+                            ${this._restorePointForBatch(batchId) ? `
+                                <button class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 3px 8px;" data-point-id="${escapeHtml(this._restorePointForBatch(batchId).id)}" onclick="window.AutopilotView.openRestoreDialog(this.dataset.pointId)">
+                                    <span data-i18n="autopilot_restore_btn">${window.i18n ? window.i18n.t('autopilot_restore_btn') : 'Restaurer avant ce lot'}</span>
+                                </button>
+                            ` : ''}
                             ${!isAllUndone && !isUnbatched ? `
                                 <button class="btn btn-danger btn-sm" style="font-size: 12px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
                                     ${this._icons.undo} <span data-i18n="autopilot_feed_batch_rollback">${window.i18n ? window.i18n.t('autopilot_feed_batch_rollback') : 'Annuler le lot'}</span>
@@ -2703,6 +2715,61 @@ window.AutopilotView = {
             } catch (e) {
                 showToast(window.i18n ? window.i18n.t('autopilot_toast_batch_rollback_error') : 'Échec du rollback de lot', 'error');
             }
+        }
+    },
+
+    _restorePointForBatch(batchId) {
+        return (this._restorePoints || []).find(p => p.batch_id && p.batch_id === batchId) || null;
+    },
+
+    _restorePointLabel(p) {
+        const when = p.created_at ? new Date(p.created_at).toLocaleString() : '';
+        if (p.source === 'before_restore') {
+            return window.i18n.tp('autopilot_restore_point_before', { date: when });
+        }
+        return window.i18n.tp('autopilot_restore_point_batch', {
+            date: when, batch: (p.batch_id || '').substring(0, 8), count: p.line_count || 0
+        });
+    },
+
+    async openRestoreDialog(preselectId = null) {
+        let points = this._restorePoints;
+        try {
+            points = await API.get('/api/autopilot/restore-points');
+            this._restorePoints = points;
+        } catch (e) { /* liste déjà chargée */ }
+        const title = window.i18n.t('autopilot_restore_title');
+        if (!points || points.length === 0) {
+            await showInlineMessage(title, window.i18n.t('autopilot_restore_none'));
+            return;
+        }
+        const selected = preselectId || points[0].id;
+        const rows = points.map(p => `
+            <label style="display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 12.5px; cursor: pointer;">
+                <input type="radio" name="apRestorePoint" value="${escapeHtml(p.id)}" ${p.id === selected ? 'checked' : ''}>
+                <span>${escapeHtml(this._restorePointLabel(p))}</span>
+            </label>`).join('');
+        const html = `
+            <p style="margin: 0 0 10px; font-size: 12.5px; line-height: 1.5;">${escapeHtml(window.i18n.t('autopilot_restore_explain'))}</p>
+            <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 8px; margin-bottom: 10px;">${rows}</div>
+            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer;">
+                <input type="checkbox" id="apRestoreReplay" checked style="margin-top: 2px;">
+                <span>${escapeHtml(window.i18n.t('autopilot_restore_replay'))}</span>
+            </label>`;
+        if (!(await showInlineConfirm(title, html))) return;
+        const pointId = document.querySelector('input[name="apRestorePoint"]:checked')?.value;
+        const replay = document.getElementById('apRestoreReplay')?.checked ?? true;
+        if (!pointId) return;
+        try {
+            const res = await API.post(`/api/autopilot/restore-points/${encodeURIComponent(pointId)}/restore`, { replay });
+            const when = res.restored_at ? new Date(res.restored_at).toLocaleString() : '';
+            const msg = res.replayed
+                ? window.i18n.tp('autopilot_restore_done_replay', { date: when, count: res.replayed.lines })
+                : window.i18n.tp('autopilot_restore_done', { date: when });
+            sessionStorage.setItem('omnibank_restore_notice', msg);
+            window.location.reload();
+        } catch (e) {
+            showToast(window.i18n.t('autopilot_restore_error'), 'error');
         }
     },
 
@@ -3357,3 +3424,14 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+// Message laissé par une restauration avant le rechargement de la page
+window.addEventListener('load', () => {
+    try {
+        const notice = sessionStorage.getItem('omnibank_restore_notice');
+        if (notice) {
+            sessionStorage.removeItem('omnibank_restore_notice');
+            setTimeout(() => showToast(notice, 'success'), 1200);
+        }
+    } catch (e) { /* stockage indisponible : pas de message */ }
+});

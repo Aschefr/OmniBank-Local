@@ -4152,5 +4152,16 @@
   "license_contract_lang_note": "Le texte français fait foi.",
   "license_contract_error": "Le contrat n'a pas pu être chargé.",
   "link_candidate_held": "Déjà liée : {amount}",
-  "link_candidate_held_tip": "Cette prévision porte déjà une ligne de la banque. La choisir la lui retire : liez d'abord cette ligne ailleurs."
+  "link_candidate_held_tip": "Cette prévision porte déjà une ligne de la banque. La choisir la lui retire : liez d'abord cette ligne ailleurs.",
+  "autopilot_restore_points_btn": "Points de restauration",
+  "autopilot_restore_btn": "Restaurer avant ce lot",
+  "autopilot_restore_title": "Restaurer un point",
+  "autopilot_restore_explain": "Les données du profil reviennent telles qu'elles étaient juste avant ce point. Tout ce qui a été fait depuis est perdu : lots de l'Auto-Pilote, opérations saisies ou corrigées. Vos réglages et l'accès bancaire restent ceux d'aujourd'hui. Un point est pris juste avant, pour pouvoir annuler la restauration.",
+  "autopilot_restore_replay": "Rejouer ensuite les lignes de ce lot avec la version actuelle, sans contacter la banque. Les relevés suivants reviendront au prochain relevé.",
+  "autopilot_restore_point_batch": "{date} : avant le lot #{batch} ({count} lignes)",
+  "autopilot_restore_point_before": "{date} : état avant une restauration",
+  "autopilot_restore_none": "Aucun point de restauration pour l'instant. Un point est pris avant chaque lot de l'Auto-Pilote et gardé 14 jours.",
+  "autopilot_restore_done": "Données restaurées au {date}.",
+  "autopilot_restore_done_replay": "Données restaurées au {date}, lot rejoué ({count} lignes).",
+  "autopilot_restore_error": "La restauration a échoué."
 }

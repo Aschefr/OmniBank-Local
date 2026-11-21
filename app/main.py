@@ -542,6 +542,7 @@ from app.routers import (
     bank_sync,
     bank_sync_vault,
     bank_sync_pending,
+    restore_points,
     diagnostics,
     smart_labels,
     autopilot
@@ -575,6 +576,7 @@ app.include_router(bank_sync_pending.router)
 app.include_router(diagnostics.router)
 app.include_router(smart_labels.router)
 app.include_router(autopilot.router)
+app.include_router(restore_points.router)
 
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException

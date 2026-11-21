@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Restore points for the Auto-Pilot ⏪**: Before each batch it processes (bank statement or file import), the Auto-Pilot now keeps a copy of the profile's data with the lines it received, for 14 days. From the audit journal, "Restore before this batch" puts the data back as it was just before, keeping today's settings and bank access, then can replay the batch's lines with the current version without contacting the bank: a batch handled badly by an older version is redone cleanly. A point is taken before each restore, so it can be undone from "Restore points".
+
 ### Fixed & Ergonomics
 - **Moving a bank line from one forecast to another is easier 🔗**: In the list to link an operation, a forecast that already holds a bank line showed that line's amount (an 8 € insurance at 51 €), so it could not be recognised and the next month's forecast looked like the right choice. The list now shows the planned amount with a "already linked" tag giving the bank amount, puts forecasts close to the operation's date first, and no longer offers skipped forecasts. A forecast whose bank line is moved elsewhere gets its planned amount back. The Auto-Pilot also gives more weight to the amount: a forecast far off in amount (8 € for a 51 € debit) no longer wins over a closer one for a better label or a closer date.
 

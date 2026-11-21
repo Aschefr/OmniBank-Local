@@ -4152,5 +4152,16 @@
   "license_contract_lang_note": "This agreement is in French, the version that prevails.",
   "license_contract_error": "The agreement could not be loaded.",
   "link_candidate_held": "Already linked: {amount}",
-  "link_candidate_held_tip": "This forecast already holds a bank line. Choosing it takes that line away: link that line elsewhere first."
+  "link_candidate_held_tip": "This forecast already holds a bank line. Choosing it takes that line away: link that line elsewhere first.",
+  "autopilot_restore_points_btn": "Restore points",
+  "autopilot_restore_btn": "Restore before this batch",
+  "autopilot_restore_title": "Restore a point",
+  "autopilot_restore_explain": "The profile's data goes back to how it was just before this point. Everything done since is lost: Auto-Pilot batches, operations entered or corrected. Your settings and bank access stay as they are today. A point is taken just before, so the restore can be undone.",
+  "autopilot_restore_replay": "Then replay this batch's lines with the current version, without contacting the bank. Later statements come back with the next statement.",
+  "autopilot_restore_point_batch": "{date}: before batch #{batch} ({count} lines)",
+  "autopilot_restore_point_before": "{date}: state before a restore",
+  "autopilot_restore_none": "No restore point yet. A point is taken before each Auto-Pilot batch and kept 14 days.",
+  "autopilot_restore_done": "Data restored to {date}.",
+  "autopilot_restore_done_replay": "Data restored to {date}, batch replayed ({count} lines).",
+  "autopilot_restore_error": "The restore failed."
 }

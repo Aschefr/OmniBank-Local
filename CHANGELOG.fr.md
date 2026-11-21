@@ -4,6 +4,9 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 
 ## [Unreleased]
 
+### Ajouts & améliorations
+- **Points de restauration de l'Auto-Pilote ⏪** : avant chaque lot qu'il traite (relevé bancaire ou import de fichier), l'Auto-Pilote garde désormais une copie des données du profil avec les lignes reçues, pendant 14 jours. Depuis le journal d'audit, « Restaurer avant ce lot » remet les données telles qu'elles étaient juste avant, en gardant les réglages et l'accès bancaire d'aujourd'hui, puis peut rejouer les lignes du lot avec la version actuelle, sans contacter la banque : un lot mal traité par une version précédente est refait proprement. Un point est pris avant chaque restauration, pour pouvoir l'annuler depuis « Points de restauration ».
+
 ### Corrections & ergonomie
 - **Déplacer une ligne de la banque d'une prévision à une autre est plus simple 🔗** : dans la liste pour lier une opération, une prévision qui porte déjà une ligne de la banque affichait le montant de cette ligne (une assurance de 8 € à 51 €) : on ne la reconnaissait pas, et la prévision du mois suivant semblait le bon choix. La liste affiche désormais le montant prévu, avec une étiquette « déjà liée » qui donne le montant de la banque, met en tête les prévisions proches de la date de l'opération et ne propose plus les prévisions sautées. Une prévision dont la ligne de la banque est déplacée ailleurs retrouve son montant prévu. L'Auto-Pilote donne aussi plus de poids au montant : une prévision très éloignée en montant (8 € pour un débit de 51 €) ne l'emporte plus sur une plus proche pour un meilleur libellé ou une date plus proche.
 
