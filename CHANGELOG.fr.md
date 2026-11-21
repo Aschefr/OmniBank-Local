@@ -2,7 +2,10 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.7.2] - 2026-11-21
+
+### Ajouts & améliorations
+- **Un compte à rebours de l'Auto-Pilote plus lisible ✨** : la barre lumineuse qui balaie le compte à rebours du prochain relevé court désormais dans une fente creusée, avec une tête brillante et une traînée qui suit son sens. Elle reste immobile quand le système demande de réduire les animations.
 
 ### Corrections & ergonomie
 - **Un paiement carte n'apparaît plus deux fois quand la banque le liste encore à venir 💳** : la banque peut lister un paiement carte à la fois débité et encore à venir dans le même relevé. Les deux versions étaient ajoutées : le paiement apparaissait deux fois dans les opérations à vérifier, et la version à venir restait déduite du reste à vivre. Une opération à venir dont le débit figure dans le même relevé, avec le même montant et le même commerçant, même si la banque coupe son libellé autrement, est désormais écartée. Les paiements ajoutés en double avant la mise à jour restent : supprimez la copie à venir.
