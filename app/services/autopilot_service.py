@@ -2455,6 +2455,7 @@ process_incoming_transactions_batch = process_incoming_batch
 def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3) -> List[Dict[str, Any]]:
     """Cherche les transactions prévisionnelles non pointées candidates au rapprochement."""
     from datetime import timedelta
+    from sqlalchemy import or_
     acc_id = tx.from_account_id or tx.to_account_id
     if not acc_id or not tx.date_operation:
         return []
@@ -2468,6 +2469,7 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
         Transaction.id != tx.id,
         Transaction.needs_review == False,
         Transaction.reconciliation_date == None,
+        or_(Transaction.is_skipped == False, Transaction.is_skipped == None),
         Transaction.date_operation >= start_d,
         Transaction.date_operation <= end_d,
     )
@@ -2489,8 +2491,9 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
     # Un nom de ville (« Morvance ») revient chez tous les commerçants du village et dans « Maison Morvance » :
     # il ne rapproche rien
     from app.services.smart_label.places import is_place_token, place_words
-    from app.services.reconciliation_engine import bank_line_variants, tied_to_other_bank_line
+    from app.services.reconciliation_engine import bank_line_variants, known_bank_label_score, tied_to_other_bank_line
     places = place_words(db)
+    known_labels_cache: Dict[int, List[str]] = {}
     own_csv_ids = bank_line_variants(tx.csv_id)
     bank_words_by_tpl: Dict[int, set] = {}
 
@@ -2549,13 +2552,22 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
             pass
 
         has_text_affinity = has_substr_match or has_token_overlap or has_semantic_match
+        # Déjà débitée sous ce libellé bancaire : la meilleure preuve que c'est le même créancier. Un mot partagé avec
+        # le nom de la prévision (« Nord » de la banque dans « Cotisation Compte Banque du Nord-Est ») l'est bien moins.
+        has_known_bank_label = known_bank_label_score(db, c.recurrence_id, tx.raw_description or tx.description,
+                                                      known_labels_cache) >= 20
 
         is_valid_candidate = False
+        if c.csv_id and str(c.csv_id).startswith("woob_") and c.csv_id not in own_csv_ids:
+            # Prévision déjà rattachée à une autre ligne de la banque (débit annoncé) : la proposer la lui retirerait
+            continue
         if not has_exact_amount and tied_to_other_bank_line(c, tx.raw_description or tx.description, own_csv_ids, db=db):
             # Prévision déjà rattachée à une autre ligne de la banque, au libellé sans rapport
             continue
         if has_exact_amount and (has_text_affinity or not _bank_label_mismatch(c)):
             # Même montant à quelques centimes près sur le même compte dans la fenêtre temporelle
+            is_valid_candidate = True
+        elif has_known_bank_label:
             is_valid_candidate = True
         elif has_text_affinity and (rel_diff <= 0.35 or amt_diff <= 15.00):
             # Même marchand/motif identifié avec montant variable ou ajusté
@@ -2575,11 +2587,18 @@ def find_candidate_forecasts_for_tx(db: Session, tx: Transaction, limit: int = 3
             "date_operation": c.date_operation.isoformat() if c.date_operation else None,
             "recurrence_id": c.recurrence_id,
             "amt_diff": amt_diff,
+            "rel_diff": rel_diff,
             "date_diff": date_diff,
-            "priority": 0 if (has_exact_amount or (has_text_affinity and (c.recurrence_id is not None or has_semantic_match))) else 1
+            "priority": (
+                0 if has_exact_amount
+                else 1 if has_known_bank_label
+                else 2 if (has_text_affinity and (c.recurrence_id is not None or has_semantic_match))
+                else 3
+            )
         })
 
-    results.sort(key=lambda x: (x.get("priority", 1), x["amt_diff"], x["date_diff"]))
+    # Écart en proportion : 15 € d'écart sur 8 € ne vaut pas mieux que 7 € d'écart sur 16 €
+    results.sort(key=lambda x: (x.get("priority", 3), x["rel_diff"], x["date_diff"]))
     return results[:limit]
 
 

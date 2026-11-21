@@ -430,7 +430,7 @@ class BankSyncService:
         defer_ai : ne pas attendre l'IA ; les opérations à lui soumettre sont marquées (voir label_refine).
         catch_up : après une absence, remonter chaque compte jusqu'à sa dernière ligne traitée (voir _catch_up_days).
         """
-        from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
+        from app.services.reconciliation_engine import check_reconciliation, reserve_deviant_matches, reserve_exact_amount_matches
 
         if not master_password:
             raise Exception("Coffre-fort verrouillé : veuillez déverrouiller votre coffre pour synchroniser vos comptes.")
@@ -747,6 +747,7 @@ class BankSyncService:
                             matched_ids_global.add(rec_info.get("id"))
 
                 reserve_exact_amount_matches(db, history_raw, history_rec, matched_ids_global, local_acc.id)
+                reserve_deviant_matches(db, history_raw, history_rec, matched_ids_global, local_acc.id)
 
                 for i, item in enumerate(history_raw):
                     tx_date = item["tx_date_obj"]
@@ -836,6 +837,7 @@ class BankSyncService:
                             matched_ids_global.add(rec_info.get("id"))
 
                 reserve_exact_amount_matches(db, coming_raw, coming_rec, matched_ids_global, local_acc.id, is_coming=True)
+                reserve_deviant_matches(db, coming_raw, coming_rec, matched_ids_global, local_acc.id, is_coming=True)
 
                 for i, item in enumerate(coming_raw):
                     tx_date = item["tx_date_obj"]

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Ergonomics
 - **A card payment no longer appears twice when the bank still lists it as upcoming 💳**: The bank can list a card payment as debited and still as upcoming in the same statement. Both versions were added, so the payment showed twice in the operations to review and the upcoming one stayed deducted from the left-to-live amount. An upcoming payment whose debit is in the same statement, with the same amount and the same merchant, even when the bank cuts its label differently, is now left out. Payments added twice before the update stay: delete the upcoming copy.
+- **Insurances whose amounts change together are linked to the right forecast 🛡️**: When a creditor raises several payments at once under the same bank label (a bank's home, car and legal insurances, up a few percent each), the Auto-Pilot linked each debit to the first free forecast, without looking at the amount: +48 % on one, -63 % on another, and one link confirmed automatically. Among several forecasts of the same creditor, the closest amount now wins, across the whole statement. The suggested forecast for an operation to review first offers a forecast already debited under the same bank label, and no longer offers a skipped forecast or one already tied to another bank line. Links made before the update stay as they are.
 
 ## [1.7.1] - 2026-11-18
 

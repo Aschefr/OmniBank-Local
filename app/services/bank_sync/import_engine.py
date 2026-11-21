@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.models import Transaction
 from app.services.chat.ollama_client import get_ollama_config
 from app.services.finance_engine import calculate_balances
-from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
+from app.services.reconciliation_engine import check_reconciliation, reserve_deviant_matches, reserve_exact_amount_matches
 from app.services.smart_label_service import resolve_smart_labels_batch
 
 logger = logging.getLogger(__name__)
@@ -123,6 +123,7 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
 
             if local_acc_id:
                 reserve_exact_amount_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag, excluded_by_csv=rejected_by_csv)
+                reserve_deviant_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag, excluded_by_csv=rejected_by_csv)
 
             # Passe 2 : Prédictions, rapprochements flous et règles métier pour les opérations restantes
             for i, tx in enumerate(tx_list):

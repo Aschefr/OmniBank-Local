@@ -34,6 +34,32 @@ UNIVERSAL_MERCHANT_ALIASES: Dict[str, List[str]] = {
 }
 
 
+def known_bank_label_score(db: Session, recurrence_id: Optional[int], bank_label: Optional[str],
+                           cache: Optional[Dict[int, List[str]]] = None) -> int:
+    """Meilleur score textuel (0 à 25) entre une ligne de la banque et les libellés bancaires déjà débités sous
+    cette récurrence."""
+    if not recurrence_id or not bank_label:
+        return 0
+    cache = cache if cache is not None else {}
+    if recurrence_id not in cache:
+        rows = db.query(Transaction.raw_description).filter(
+            Transaction.recurrence_id == recurrence_id,
+            Transaction.reconciliation_date.isnot(None),
+            Transaction.csv_id.isnot(None),
+            Transaction.raw_description.isnot(None),
+        ).distinct().limit(10).all()
+        cache[recurrence_id] = [label for (label,) in rows]
+    return max((compute_text_score(label, bank_label, db=db) for label in cache[recurrence_id]), default=0)
+
+
+def deviant_amount_score(expected: float, actual: float) -> int:
+    """Proximité d'un montant bancaire à une prévision au montant différent (0 à 30 pts) : 1 point de moins par
+    point d'écart, rien au-delà de 30 %."""
+    if expected <= 0:
+        return 0
+    return max(0, 30 - round(abs(actual - expected) / expected * 100))
+
+
 def compute_temporal_score(candidate_dt, bank_dt) -> int:
     """Calcule le score de proximité temporelle (0 à 35 pts)."""
     if not candidate_dt or not bank_dt:
@@ -558,6 +584,7 @@ def check_reconciliation(
             return None
 
         valid_matches = []
+        known_labels_cache: Dict[int, List[str]] = {}
         own_csv_ids = bank_line_variants(csv_id)
         for cand in candidates:
             if tied_to_other_bank_line(cand, bank_label, own_csv_ids, db=db):
@@ -571,6 +598,10 @@ def check_reconciliation(
 
             # Similarité textuelle marchand
             txt_score = compute_text_score(cand.description, bank_label, candidate_cat=cand.category, db=db)
+            if txt_score < 20:
+                # Libellé bancaire déjà débité sous cette récurrence : il désigne le créancier mieux que le nom
+                # donné à la prévision (« Assurance - Prot. juridique » face à « 0765432 MUTUELLE DU NORD »)
+                txt_score = max(txt_score, known_bank_label_score(db, cand.recurrence_id, bank_label, known_labels_cache))
             if txt_score < 20:
                 # Vérifier aussi si clean merchants concordent nettement
                 try:
@@ -607,7 +638,10 @@ def check_reconciliation(
                 continue
 
             tmp_score = compute_temporal_score(cand.date_operation, target_dt)
-            valid_matches.append((cand, exp_amt, act_amt, txt_score + tmp_score, is_direct_clean_match))
+            # Le montant le plus proche l'emporte : plusieurs prévisions d'un même créancier (les assurances d'une
+            # banque, sous un seul libellé) ne se départagent ni par le libellé ni par la date
+            amount_score = deviant_amount_score(exp_amt, act_amt)
+            valid_matches.append((cand, exp_amt, act_amt, txt_score + tmp_score + amount_score, is_direct_clean_match))
 
         if not valid_matches:
             return None
@@ -631,6 +665,7 @@ def check_reconciliation(
             "is_amount_deviant": True,
             "original_forecast_amount": best_exp,
             "actual_amount": best_act,
+            "amount_gap": abs(best_act - best_exp) / best_exp,
             "match_score": final_score,
             "collision_detected": collision,
             "suggested_match": not should_auto_commit,
@@ -807,3 +842,58 @@ def reserve_exact_amount_matches(
         if rec_info and rec_info.get("id"):
             results[i] = rec_info
             matched_ids.add(rec_info["id"])
+
+
+def reserve_deviant_matches(
+    db: Session,
+    lines: List[Dict[str, Any]],
+    results: List[Optional[Dict[str, Any]]],
+    matched_ids: Set[int],
+    account_id: Optional[int],
+    is_coming: bool = False,
+    excluded_by_csv: Optional[Dict[str, Set[int]]] = None
+) -> None:
+    """
+    Après les montants exacts, attribue les prévisions de récurrence aux lignes dont le montant a changé, pour tout
+    le relevé à la fois : quand deux lignes visent la même prévision, la plus proche en montant la garde et l'autre
+    cherche ailleurs. Lues une à une dans l'ordre de la banque, quatre assurances d'un même créancier augmentées de
+    quelques pour cent prenaient la première prévision libre (+48 %, -63 %). Remplit `results` et `matched_ids` en place.
+    """
+    def best_deviant(i: int) -> Optional[Dict[str, Any]]:
+        line = lines[i]
+        csv_id = line.get("csv_id")
+        try:
+            rec = check_reconciliation(
+                db,
+                date.fromisoformat(str(line["date_operation"])[:10]),
+                float(line["raw_amount"]),
+                matched_ids=set(matched_ids) | (excluded_by_csv or {}).get(csv_id, set()),
+                account_id=account_id,
+                is_coming=is_coming,
+                bank_label=line.get("raw_description") or line.get("description"),
+                csv_id=csv_id,
+            )
+        except Exception as err:
+            logger.warning(f"[Reconciliation] Erreur sur la passe des montants changés: {err}")
+            return None
+        return rec if rec and rec.get("id") and rec.get("is_amount_deviant") else None
+
+    pending = [
+        i for i, line in enumerate(lines)
+        if results[i] is None and line.get("raw_amount") is not None and line.get("date_operation")
+    ]
+    for _round in range(5):
+        claims: Dict[int, List[Tuple[float, int, Dict[str, Any]]]] = {}
+        for i in pending:
+            rec = best_deviant(i)
+            if rec:
+                claims.setdefault(rec["id"], []).append((rec.get("amount_gap", 0.0), i, rec))
+        pending = []
+        for forecast_id, claimants in claims.items():
+            claimants.sort(key=lambda claim: claim[0])
+            _gap, i, rec = claimants[0]
+            results[i] = rec
+            matched_ids.add(forecast_id)
+            pending += [j for _g, j, _r in claimants[1:]]
+        if not pending:
+            break

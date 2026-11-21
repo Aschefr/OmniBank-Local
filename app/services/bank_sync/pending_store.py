@@ -242,7 +242,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
     Garantit l'unicité stricte par compte en conservant systématiquement la version la plus récente.
     """
     global _PENDING_SYNC_DATA
-    from app.services.reconciliation_engine import check_reconciliation, reserve_exact_amount_matches
+    from app.services.reconciliation_engine import check_reconciliation, reserve_deviant_matches, reserve_exact_amount_matches
     from datetime import date, timedelta
     total_matches = 0
     total_confirmed_matches = 0
@@ -400,6 +400,7 @@ def get_all_pending_sync(db: Session, profile_id: Optional[str] = None) -> Dict[
 
             if local_acc_id:
                 reserve_exact_amount_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag)
+                reserve_deviant_matches(db, tx_list, rec_results, matched_ids_global, local_acc_id, is_coming=is_coming_flag)
 
             # Passe 2 : Prédictions, rapprochements flous et règles métier pour les opérations restantes
             for i, tx in enumerate(tx_list):
