@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.8.0] - 2026-11-22
 
 ### Ajouts & améliorations
 - **Points de restauration de l'Auto-Pilote ⏪** : avant chaque lot qu'il traite (relevé bancaire ou import de fichier), l'Auto-Pilote garde désormais une copie des données du profil avec les lignes reçues, pendant 14 jours. Depuis le journal d'audit, « Restaurer avant ce lot » remet les données telles qu'elles étaient juste avant, en gardant les réglages et l'accès bancaire d'aujourd'hui, puis peut rejouer les lignes du lot avec la version actuelle, sans contacter la banque : un lot mal traité par une version précédente est refait proprement. Un point est pris avant chaque restauration, pour pouvoir l'annuler depuis « Points de restauration ».

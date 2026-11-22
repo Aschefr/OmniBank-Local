@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.8.0] - 2026-11-22
 
 ### Added & Improved
 - **Restore points for the Auto-Pilot ⏪**: Before each batch it processes (bank statement or file import), the Auto-Pilot now keeps a copy of the profile's data with the lines it received, for 14 days. From the audit journal, "Restore before this batch" puts the data back as it was just before, keeping today's settings and bank access, then can replay the batch's lines with the current version without contacting the bank: a batch handled badly by an older version is redone cleanly. A point is taken before each restore, so it can be undone from "Restore points".
