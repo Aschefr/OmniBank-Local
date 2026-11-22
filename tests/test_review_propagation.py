@@ -106,3 +106,25 @@ def test_amazon_rows_with_the_same_label_follow_a_merchant_named_category(db):
     db.refresh(second)
     assert res["propagated"] == 1
     assert (second.category, second.description, second.needs_review) == ("Amazon", "Achat sur Amazon", True)
+
+
+def test_one_insurer_label_for_several_contracts_keeps_each_contract_name(db):
+    """Un assureur, un libellé de banque, plusieurs contrats (une récurrence chacun) : nommer l'un ne renomme pas les
+    autres ; la catégorie suit toujours."""
+    label = "0765432 MUTUELLE DU NORD"
+    contracts = []
+    for days, amount in ((3, 68.0), (4, 48.0)):
+        tpl = RecurrenceTemplate(description="Mutuelle du Nord", amount=amount, type="expense_fixed",
+                                 category="Dépenses diverses", frequency="Monthly", day_of_month=22, from_account_id=1)
+        db.add(tpl)
+        db.flush()
+        tx = _review(db, label, "Dépenses diverses", desc="Mutuelle du Nord", days=days, amount=amount)
+        tx.recurrence_id = tpl.id
+        db.commit()
+        contracts.append(tx)
+    car, home = contracts
+
+    update_review_transaction(db, car.id, description="Assurance - Auto", category="Assurance", learn_rule=True)
+
+    db.refresh(home)
+    assert (home.description, home.category) == ("Mutuelle du Nord", "Assurance")

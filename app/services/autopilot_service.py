@@ -1819,12 +1819,16 @@ def _unreconcile_from_decision(db: Session, tx: Transaction, snap: Dict[str, Any
         tx.reconciliation_date = date.fromisoformat(tx.reconciliation_date[:10])
     if "amount" in orig_snap:
         tx.amount = orig_snap["amount"]
-    if "category" in orig_snap:
-        tx.category = orig_snap["category"]
-    if "description" in orig_snap:
-        tx.description = orig_snap["description"]
-    if "comment" in orig_snap:
-        tx.comment = orig_snap["comment"]
+    # Libellé, catégorie, commentaire : remis seulement si la décision les avait changés et que personne n'y a touché
+    # depuis (un renommage fait en revue après la décision est gardé)
+    after = snap.get("after") or {}
+    after_is_this = after.get("id") in (None, tx.id)
+    for field in ("category", "description", "comment"):
+        if field not in orig_snap:
+            continue
+        if after_is_this and field in after and getattr(tx, field) != after.get(field):
+            continue
+        setattr(tx, field, orig_snap[field])
     tx.raw_description = orig_snap.get("raw_description")
     tx.csv_id = _csv_id_free_for(db, orig_snap.get("csv_id"), tx.id)
     tx.needs_review = bool(orig_snap.get("needs_review", False))
@@ -2063,8 +2067,11 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
         acc_id = d.account_id or (bank_tx.get("account_id") if bank_tx else None)
         if d.conn_id is not None and main_conn_id is None:
             main_conn_id = d.conn_id
+        # Opération créée par le lot puis supprimée à la main (doublon écarté) : sa ligne ne revient pas dans le Sas
+        deleted_by_hand = bool(d.decision_type == "new_entry" and d.entity_id
+                               and db.query(Transaction.id).filter(Transaction.id == d.entity_id).first() is None)
 
-        if bank_tx and acc_id:
+        if bank_tx and acc_id and not deleted_by_hand:
             if acc_id not in grouped_txs:
                 grouped_txs[acc_id] = []
             grouped_txs[acc_id].append(bank_tx)

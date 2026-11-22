@@ -232,3 +232,29 @@ def test_unlinking_keeps_the_journal_on_the_operation_that_holds_the_line(db, in
     for forecast, planned in ((home, 48.00), (car, 68.00), (car_next, 68.00)):
         if not (forecast.csv_id or "").startswith("woob_"):
             assert (forecast.amount, forecast.raw_description) == (planned, None)
+
+
+def test_undoing_the_batch_keeps_a_name_given_since(db, insurances):
+    """Une prévision renommée en revue après la liaison garde son nom quand on annule le lot."""
+    home, _car, _next, _dh, _dc = insurances
+    home.description = "Assurance - Maison"
+    db.commit()
+    rollback_autopilot_cycle(db, "b1")
+    db.expire_all()
+    assert (home.description, home.amount, home.comment) == ("Assurance - Maison", 48.00, None)
+
+
+def test_undoing_the_batch_leaves_out_lines_whose_operation_was_deleted_by_hand(db, insurances):
+    from app.models import BankConnection
+    from app.services.bank_sync.pending_store import get_all_pending_sync
+    db.add(BankConnection(id=1, backend="fake", label="Banque", account_mapping=json.dumps({"0001": 1})))
+    ghost = AutopilotDecisionLog(batch_id="b1", decision_type="new_entry", action="AUTO_COMMIT_COMING",
+                                 entity_type="transaction", entity_id=999, conn_id=1, account_id=1,
+                                 raw_snapshot=json.dumps({"bank_tx": {"csv_id": "woob_coming_bank_0001_dup",
+                                                                      "raw_amount": -6.0, "amount": 6.0, "account_id": 1}}))
+    db.add(ghost)
+    db.commit()
+    rollback_autopilot_cycle(db, "b1")
+    pending = json.dumps(get_all_pending_sync(db), default=str)
+    assert "woob_coming_bank_0001_home" in pending
+    assert "woob_coming_bank_0001_dup" not in pending

@@ -62,7 +62,10 @@ def propagate_correction(db: Session, source: Transaction) -> int:
         follows = res.get("category") == source.category and res.get("source") in _LEARNED_SOURCES
         if not (same_label or follows):
             continue
-        new_description: Optional[str] = source.description if same_label else tx.description
+        # Un même libellé de banque peut couvrir plusieurs contrats (un assureur, plusieurs assurances) : le nom ne passe
+        # pas à une opération d'une autre récurrence, seule la catégorie suit
+        other_series = bool(tx.recurrence_id) and tx.recurrence_id != source.recurrence_id
+        new_description: Optional[str] = source.description if (same_label and not other_series) else tx.description
         if tx.category == source.category and tx.description == new_description:
             continue
         before = snapshot_entity(tx)
