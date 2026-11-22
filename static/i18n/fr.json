@@ -2283,6 +2283,8 @@
   "history_title": "Historique de l'Activité & Annulations",
   "history_undo_btn": "↩ Annuler",
   "history_undo_fail": "Impossible d'annuler cette action : {error}",
+  "history_bank_line_conflict": "Impossible : une autre opération porte maintenant cette ligne de la banque.",
+  "history_redo_fail": "Impossible de rétablir cette action : {error}",
   "history_undo_prefix": "Annuler",
   "history_undo_success": "Action annulée avec succès.",
   "history_undo_toast": "↩ Annuler",

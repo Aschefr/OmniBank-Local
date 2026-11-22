@@ -557,7 +557,7 @@ class App {
                         await this.refreshSidebar();
                     }
                 } catch (e) {
-                    showToast("Failed to undo", 'error');
+                    showToast(this._historyErrorMessage(e, 'history_undo_fail'), 'error');
                     this.updateHeaderHistoryState();
                 }
             };
@@ -574,13 +574,19 @@ class App {
                         await this.refreshSidebar();
                     }
                 } catch (e) {
-                    showToast("Failed to redo", 'error');
+                    showToast(this._historyErrorMessage(e, 'history_redo_fail'), 'error');
                     this.updateHeaderHistoryState();
                 }
             };
         }
         this.updateHeaderHistoryState();
         this.updateAutopilotBadge();
+    }
+
+    _historyErrorMessage(e, key) {
+        // 409 : une autre opération porte maintenant la ligne de la banque que l'action voudrait remettre
+        if (e && e.status === 409) return window.i18n.t('history_bank_line_conflict');
+        return (window.i18n.t(key) || '{error}').replace('{error}', (e && e.detail) || '');
     }
 
     async updateAutopilotBadge() {

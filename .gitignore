@@ -31,6 +31,7 @@ data/profiles.json
 data/profiles/
 data/uploads/
 data/backups/
+data/restore_points/
 data/*.txt
 data/e2e_test_data/
 data/woob_storage.json

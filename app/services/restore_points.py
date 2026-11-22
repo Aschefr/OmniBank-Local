@@ -131,7 +131,8 @@ def list_points(profile_id: str, with_preview: bool = False) -> List[Dict[str, A
         if not with_preview:
             meta.pop("preview_data", None)
         points.append(meta)
-    points.sort(key=lambda m: m.get("created_at", ""), reverse=True)
+    # L'identifiant porte la date à la microseconde : deux points de la même seconde restent dans l'ordre
+    points.sort(key=lambda m: m.get("id", ""), reverse=True)
     return points
 
 

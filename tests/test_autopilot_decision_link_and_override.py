@@ -26,7 +26,7 @@ from app.services.autopilot_service import (
     override_autopilot_decision,
     link_decision_to_forecast,
 )
-from app.services.history_service import undo_action
+from app.services.history_service import undo_entry
 
 
 @pytest.fixture
@@ -421,8 +421,8 @@ def test_history_undo_synchronizes_autopilot_decision(test_db, client):
     # Prendre l'action de liaison sur la prévision (UPDATE 701)
     liaison_act = next(a for a in actions if a.entity_id == 701)
 
-    # 4. Annuler l'action via history_service.undo_action
-    success, warn = undo_action(test_db, liaison_act)
+    # 4. Annuler l'action comme la flèche de l'en-tête (toute la liaison, en un appui)
+    success, warn = undo_entry(test_db, liaison_act)
     assert success is True
     test_db.commit()
 

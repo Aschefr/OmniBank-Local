@@ -24,7 +24,7 @@ from app.models import (
     BankConnection,
     Category,
 )
-from app.services.history_service import record_action, snapshot_entity
+from app.services.history_service import grouped_action, record_action, snapshot_entity
 from app.services import stats_cache
 from app.services.bank_sync_scheduler import (
     save_pending_sync_data,
@@ -647,9 +647,29 @@ def process_incoming_batch(
                             if db_t0.description:
                                 snap_tx["db_description"] = snap_tx.get("db_description") or db_t0.description
                             if csv_id and (not db_t0.csv_id or not db_t0.csv_id.startswith("woob_")):
-                                db_t0.csv_id = csv_id
-                                db.flush()
+                                # Une autre opération peut porter cette ligne (déplacée à la main) : c'est elle la bonne
+                                holder = db.query(Transaction).filter(Transaction.csv_id == csv_id).first()
+                                if holder is None:
+                                    db_t0.csv_id = csv_id
+                                    db.flush()
+                                elif holder.id != db_t0.id:
+                                    snap_tx["matched_db_id"] = holder.id
                     continue
+                if csv_id and csv_id in existing_unreconciled_csv_ids and not is_coming:
+                    # Ligne débitée déjà portée par une opération non pointée (liaison déplacée ou défaite à la main) :
+                    # c'est cette opération que la banque confirme, on la pointe au lieu d'en chercher une autre
+                    holder = db.query(Transaction).filter(Transaction.csv_id == csv_id).first()
+                    if holder is not None:
+                        before_h = snapshot_entity(holder)
+                        holder.reconciliation_date = date.today()
+                        record_action(db, "transaction", holder.id, "UPDATE", before_h, snapshot_entity(holder),
+                                      user_name="Automatisme (Rapprochement)")
+                        snap_tx["audit_status"] = "already_reconciled"
+                        snap_tx["audit_action"] = "ALREADY_RECONCILED"
+                        snap_tx["matched_db_id"] = holder.id
+                        existing_reconciled_csv_ids.add(csv_id)
+                        auto_reconciled_count += 1
+                        continue
                 if csv_id and csv_id in existing_unreconciled_csv_ids and is_coming:
                     # Déjà liée/créée en base lors d'une synchronisation précédente, maintien dans le Sas pour badge "À venir"
                     snap_tx["audit_status"] = "coming"
@@ -1767,6 +1787,52 @@ def _csv_id_free_for(db: Session, csv_id: Optional[str], tx_id: int) -> Optional
     return None if holder else csv_id
 
 
+def _restore_bank_line(db: Session, tx: Transaction, csv_id: Optional[str]) -> None:
+    """Remet sa ligne de la banque à une opération restaurée. Si une autre opération la porte désormais, une prévision
+    reprend son état prévu (montant, commentaire, sans libellé de la banque) au lieu de garder le montant de cette ligne."""
+    free = _csv_id_free_for(db, csv_id, tx.id)
+    tx.csv_id = free
+    if csv_id and not free and str(csv_id).startswith("woob_") and tx.recurrence_id:
+        planned = planned_forecast_state(db, tx) or {}
+        if planned:
+            tx.amount = planned["amount"]
+            tx.comment = planned.get("comment")
+        tx.csv_id = _csv_id_free_for(db, planned.get("csv_id"), tx.id)
+        tx.raw_description = None
+        tx.reconciliation_date = None
+
+
+def _unreconcile_from_decision(db: Session, tx: Transaction, snap: Dict[str, Any], user_name: str) -> None:
+    """Défait un rapprochement de l'Auto-Pilote : l'opération retrouve l'état d'avant la décision et libère la ligne de
+    la banque. Si l'instantané « avant » est celui d'une autre opération (liaison déplacée puis défaite par une version
+    précédente), elle retrouve son état prévu, sans toucher à son libellé ni à sa catégorie."""
+    before_s = snapshot_entity(tx)
+    orig_snap = snap.get("before") or {}
+    if orig_snap.get("id") not in (None, tx.id):
+        planned = planned_forecast_state(db, tx) or {}
+        orig_snap = {"reconciliation_date": None, "raw_description": None, "needs_review": False,
+                     "confidence_score": None, "csv_id": planned.get("csv_id")}
+        if planned:
+            orig_snap.update(amount=planned["amount"], comment=planned.get("comment"))
+    tx.reconciliation_date = orig_snap.get("reconciliation_date")
+    if isinstance(tx.reconciliation_date, str):
+        tx.reconciliation_date = date.fromisoformat(tx.reconciliation_date[:10])
+    if "amount" in orig_snap:
+        tx.amount = orig_snap["amount"]
+    if "category" in orig_snap:
+        tx.category = orig_snap["category"]
+    if "description" in orig_snap:
+        tx.description = orig_snap["description"]
+    if "comment" in orig_snap:
+        tx.comment = orig_snap["comment"]
+    tx.raw_description = orig_snap.get("raw_description")
+    tx.csv_id = _csv_id_free_for(db, orig_snap.get("csv_id"), tx.id)
+    tx.needs_review = bool(orig_snap.get("needs_review", False))
+    tx.confidence_score = orig_snap.get("confidence_score")
+    record_action(db, "transaction", tx.id, "UPDATE", before_s, snapshot_entity(tx), user_name=user_name)
+
+
+@grouped_action
 def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
     """Annule sémantiquement une décision spécifique enregistrée dans AutopilotDecisionLog."""
     pid = _resolve_profile_id(profile_id)
@@ -1785,6 +1851,7 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
 
     if snap.get("manual_linked_forecast") or decision.action == "LINKED_MANUAL":
         return unlink_forecast_decision(db, decision_id, profile_id=pid)
+    decision_before = snapshot_entity(decision)
 
     # 1. Traitement par type de décision
     if decision.decision_type == "new_entry":
@@ -1796,6 +1863,8 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
             tx.needs_review = True
             decision.action = _REVIEWABLE_NEW_ENTRY[decision.action]
             record_action(db, "transaction", tx.id, "UPDATE", before_s, snapshot_entity(tx),
+                          user_name="Rollback Auto-Pilote (Renvoi en revue)")
+            record_action(db, "autopilot_decision", decision.id, "UPDATE", decision_before, snapshot_entity(decision),
                           user_name="Rollback Auto-Pilote (Renvoi en revue)")
             db.commit()
             stats_cache.invalidate(pid)
@@ -1818,38 +1887,7 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
         if decision.entity_id:
             tx = db.query(Transaction).filter(Transaction.id == decision.entity_id).first()
             if tx:
-                before_s = snapshot_entity(tx)
-                orig_snap = snap.get("before") or {}
-                if orig_snap.get("id") not in (None, tx.id):
-                    # Instantané d'une autre prévision (liaison déplacée puis défaite par une version précédente) :
-                    # on dépointe celle-ci en lui rendant son état prévu, sans toucher à son libellé ni sa catégorie.
-                    planned = planned_forecast_state(db, tx) or {}
-                    orig_snap = {"reconciliation_date": None, "raw_description": None, "needs_review": False,
-                                 "confidence_score": None, "csv_id": planned.get("csv_id")}
-                    if planned:
-                        orig_snap.update(amount=planned["amount"], comment=planned.get("comment"))
-                tx.reconciliation_date = orig_snap.get("reconciliation_date")
-                if "amount" in orig_snap:
-                    tx.amount = orig_snap["amount"]
-                if "category" in orig_snap:
-                    tx.category = orig_snap["category"]
-                if "description" in orig_snap:
-                    tx.description = orig_snap["description"]
-                if "comment" in orig_snap:
-                    tx.comment = orig_snap["comment"]
-                tx.raw_description = orig_snap.get("raw_description")
-                tx.csv_id = _csv_id_free_for(db, orig_snap.get("csv_id"), tx.id)
-                tx.needs_review = bool(orig_snap.get("needs_review", False))
-                tx.confidence_score = orig_snap.get("confidence_score")
-                record_action(
-                    db,
-                    "transaction",
-                    tx.id,
-                    "UPDATE",
-                    before_s,
-                    snapshot_entity(tx),
-                    user_name="Rollback Auto-Pilote (Dépointage)"
-                )
+                _unreconcile_from_decision(db, tx, snap, "Rollback Auto-Pilote (Dépointage)")
     elif decision.decision_type in ("recurrence_promotion", "recurrence_hike"):
         if decision.entity_id:
             tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == decision.entity_id).first()
@@ -1967,11 +2005,14 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
 
     decision.is_undone = True
     decision.undone_at = datetime.now(timezone.utc)
+    record_action(db, "autopilot_decision", decision.id, "UPDATE", decision_before, snapshot_entity(decision),
+                  user_name="Rollback Auto-Pilote")
     db.commit()
     stats_cache.invalidate(pid)
     return {"success": True, "decision_id": decision_id, "message": "Décision annulée avec succès."}
 
 
+@grouped_action
 def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Rollback sémantique complet d'un lot d'ingestion.
@@ -1997,6 +2038,18 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
     grouped_txs = {}
     main_conn_id = None
 
+    # Liaisons faites à la main depuis le lot : les défaire d'abord, de la plus récente à la plus ancienne (une liaison
+    # plus ancienne remettrait sinon un état que la suivante a changé). Chaque décision retrouve son opération d'origine.
+    def _manual_link(dec):
+        try:
+            return (json.loads(dec.raw_snapshot) if dec.raw_snapshot else {}).get("manual_linked_forecast")
+        except Exception:
+            return None
+    for d in sorted((d for d in decisions if _manual_link(d)), key=lambda d: _manual_link(d).get("linked_at") or "",
+                    reverse=True):
+        unlink_forecast_decision(db, d.id, profile_id=pid)
+        db.refresh(d)
+
     for d in decisions:
         snap = {}
         if d.raw_snapshot:
@@ -2004,6 +2057,7 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
                 snap = json.loads(d.raw_snapshot)
             except Exception:
                 pass
+        decision_before = snapshot_entity(d)
 
         bank_tx = snap.get("bank_tx")
         acc_id = d.account_id or (bank_tx.get("account_id") if bank_tx else None)
@@ -2028,21 +2082,7 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
         elif d.decision_type == "reconciliation" and d.entity_id:
             tx = db.query(Transaction).filter(Transaction.id == d.entity_id).first()
             if tx:
-                before_s = snapshot_entity(tx)
-                tx.reconciliation_date = None
-                orig_snap = snap.get("before") or {}
-                if "amount" in orig_snap:
-                    tx.amount = orig_snap["amount"]
-                if "category" in orig_snap:
-                    tx.category = orig_snap["category"]
-                if "description" in orig_snap:
-                    tx.description = orig_snap["description"]
-                if "comment" in orig_snap:
-                    tx.comment = orig_snap["comment"]
-                record_action(
-                    db, "transaction", tx.id, "UPDATE", before_s, snapshot_entity(tx),
-                    user_name="Rollback Cycle Auto-Pilote (Dépointage)"
-                )
+                _unreconcile_from_decision(db, tx, snap, "Rollback Cycle Auto-Pilote (Dépointage)")
         elif d.decision_type == "recurrence_promotion" and d.entity_id:
             tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == d.entity_id).first()
             if tpl:
@@ -2053,6 +2093,8 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
 
         d.is_undone = True
         d.undone_at = datetime.now(timezone.utc)
+        record_action(db, "autopilot_decision", d.id, "UPDATE", decision_before, snapshot_entity(d),
+                      user_name="Rollback Cycle Auto-Pilote")
         undone_count += 1
 
     # Reconstitution du lot dans le Sas si des données de transactions bancaires ont été retrouvées
@@ -2082,6 +2124,7 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
     }
 
 
+@grouped_action
 def override_autopilot_decision(
     db: Session,
     decision_id: int,
@@ -2213,6 +2256,7 @@ def override_autopilot_decision(
     return {"success": False, "message": "Type d'entité non modifiable."}
 
 
+@grouped_action
 def link_decision_to_forecast(
     db: Session,
     decision_id: int,
@@ -2265,6 +2309,7 @@ def link_decision_to_forecast(
     return res
 
 
+@grouped_action
 def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Annule la liaison manuelle d'une décision Auto-Pilote avec une prévision :
@@ -2301,11 +2346,17 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
     orig_action = manual_link.get("original_action", "AUTO_COMMIT")
     orig_score = manual_link.get("original_confidence_score", 85.0)
 
-    # 1. Libérer le csv_id sur tx_target avant de rétablir tx_source pour éviter conflit UNIQUE
+    decision_before = snapshot_entity(decision)
+
+    # 1. Libérer les lignes de la banque des deux opérations avant de les remettre (unicité du csv_id, échange compris)
     tx_target = db.query(Transaction).filter(Transaction.id == target_forecast_id).first() if target_forecast_id else None
-    if tx_target:
-        tx_target.csv_id = forecast_before.get("csv_id")
-        db.flush()
+    tx_source_live = db.query(Transaction).filter(Transaction.id == original_source_id).first() if original_source_id else None
+    target_before_live = snapshot_entity(tx_target) if tx_target else None
+    source_before_live = snapshot_entity(tx_source_live) if tx_source_live else None
+    for live in (tx_target, tx_source_live):
+        if live is not None:
+            live.csv_id = None
+    db.flush()
 
     # 2. Rétablir la transaction source
     if original_source_id:
@@ -2314,6 +2365,7 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
             tx_source = Transaction()
             restore_state(tx_source, source_snapshot, db)
             tx_source.id = original_source_id
+            _restore_bank_line(db, tx_source, tx_source.csv_id)
             db.add(tx_source)
             db.flush()
             record_action(
@@ -2326,8 +2378,10 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
                 user_name="Auto-Pilote (Rétablissement écriture)"
             )
         elif tx_source and source_snapshot:
-            before_s = snapshot_entity(tx_source)
+            before_s = source_before_live
             restore_state(tx_source, source_snapshot, db)
+            _restore_bank_line(db, tx_source, tx_source.csv_id)
+            db.flush()
             record_action(
                 db,
                 "transaction",
@@ -2340,8 +2394,9 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
 
     # 3. Restaurer la prévision cible à son état avant rapprochement
     if tx_target and forecast_before:
-        before_current = snapshot_entity(tx_target)
+        before_current = target_before_live
         restore_state(tx_target, forecast_before, db)
+        _restore_bank_line(db, tx_target, tx_target.csv_id)
         record_action(
             db,
             "transaction",
@@ -2352,8 +2407,13 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
             user_name="Auto-Pilote (Déliement prévision)"
         )
 
-    # 4. Restaurer la décision AutopilotDecisionLog
+    # 4. Restaurer la décision AutopilotDecisionLog (sur l'opération qui porte sa ligne, si une autre l'a reprise)
     decision.entity_id = original_source_id
+    line_csv = (snap.get("bank_tx") or {}).get("csv_id") or (source_snapshot or {}).get("csv_id")
+    if line_csv:
+        holder = db.query(Transaction).filter(Transaction.csv_id == line_csv).first()
+        if holder is not None and holder.id != original_source_id:
+            decision.entity_id = holder.id
     decision.decision_type = orig_type
     decision.action = orig_action
     decision.confidence_score = orig_score
@@ -2368,6 +2428,15 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
         else:
             snap[key] = value
     decision.raw_snapshot = json.dumps(snap, default=str)
+    record_action(db, "autopilot_decision", decision.id, "UPDATE", decision_before, snapshot_entity(decision),
+                  user_name="Auto-Pilote (Déliement prévision)")
+    # Décisions de la ligne échangée : elles reviennent avec elle sur la prévision cible
+    for other in db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.id.in_(manual_link.get("displaced_decision_ids") or [])).all():
+        other_before = snapshot_entity(other)
+        other.entity_id = target_forecast_id
+        record_action(db, "autopilot_decision", other.id, "UPDATE", other_before, snapshot_entity(other),
+                      user_name="Auto-Pilote (Déliement prévision)")
 
     # 5. Marquer les ActionHistory antérieures de liaison/fusion comme annulées
     act_history = db.query(ActionHistory).filter(
@@ -2376,8 +2445,12 @@ def unlink_forecast_decision(db: Session, decision_id: int, profile_id: Optional
         ActionHistory.user_name.in_(["Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"]),
         ActionHistory.is_undone == False
     ).all()
+    # Liaisons d'avant les groupes d'actions seulement : une liaison groupée reste dans la pile de l'en-tête, Annuler
+    # défait d'abord ce déliement puis la liaison, dans l'ordre.
+    from app.services.history_service import group_of
     for act in act_history:
-        act.is_undone = True
+        if not group_of(act):
+            act.is_undone = True
 
     db.commit()
     stats_cache.invalidate(pid)
@@ -2791,6 +2864,7 @@ def list_link_candidates(db: Session, tx_id: int, search: Optional[str] = None, 
     return out
 
 
+@grouped_action
 def link_review_transaction(
     db: Session,
     tx_id: int,
@@ -2835,6 +2909,24 @@ def link_review_transaction(
     final_desc = description.strip() if (description and description.strip()) else tx_forecast.description
     final_cat = category.strip() if (category and category.strip()) else tx_forecast.category
 
+    # La prévision cible porte déjà une autre ligne de la banque : cette ligne passe sur l'opération de départ
+    # (échange). Sinon elle ne serait plus portée par personne jusqu'au relevé suivant, qui la rattacherait au hasard.
+    displaced = None
+    displaced_dlogs = []
+    if tx_forecast.csv_id and str(tx_forecast.csv_id).startswith("woob_") and tx_forecast.csv_id != bank_csv_id \
+            and tx_forecast.id != tx_review.id:
+        displaced = {
+            "csv_id": tx_forecast.csv_id, "amount": tx_forecast.amount, "raw_description": tx_forecast.raw_description,
+            "reconciliation_date": tx_forecast.reconciliation_date,
+        }
+        displaced_dlogs = db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.entity_type == "transaction",
+            AutopilotDecisionLog.entity_id == tx_forecast.id,
+            AutopilotDecisionLog.is_undone == False,
+        ).all()
+        tx_forecast.csv_id = None
+    forecast_planned = planned_forecast_state(db, tx_forecast) if (displaced and tx_forecast.recurrence_id) else None
+
     # Libérer le csv_id sur la transaction de revue avant de l'assigner à la prévision
     tx_review.csv_id = None
     db.flush()
@@ -2844,11 +2936,13 @@ def link_review_transaction(
     if final_cat:
         ensure_category_exists(db, final_cat, tx_forecast.type)
         tx_forecast.category = final_cat
+    orig_amt = forecast_planned["amount"] if forecast_planned else tx_forecast.amount
     if final_amount is not None and final_amount > 0:
-        orig_amt = tx_forecast.amount
         tx_forecast.amount = final_amount
         if orig_amt is not None and abs(orig_amt - final_amount) > 0.005:
             tx_forecast.comment = f"Auto-ajusté : {orig_amt:.2f} € → {final_amount:.2f} €"
+        elif forecast_planned:
+            tx_forecast.comment = forecast_planned.get("comment")
 
     tx_forecast.raw_description = bank_raw_lbl
     if bank_csv_id:
@@ -2859,6 +2953,8 @@ def link_review_transaction(
     is_coming = bool(bank_csv_id and str(bank_csv_id).startswith("woob_coming_"))
     if not is_coming:
         tx_forecast.reconciliation_date = tx_review.reconciliation_date or tx_forecast.date_operation or date.today()
+    elif displaced:
+        tx_forecast.reconciliation_date = None
 
     if tx_review.recurrence_id is not None:
         # Il s'agit d'une prévision récurrente légitime qui avait été associée à tort
@@ -2869,14 +2965,25 @@ def link_review_transaction(
         if planned:
             tx_review.amount = planned["amount"]
             tx_review.comment = planned.get("comment")
-        orig_csv = before_snap_review.get("csv_id") if before_snap_review else None
+        orig_csv = (planned or {}).get("csv_id")
+        if not orig_csv:
+            orig_csv = before_snap_review.get("csv_id") if before_snap_review else None
         if orig_csv and not str(orig_csv).startswith("woob_"):
-            tx_review.csv_id = orig_csv
+            tx_review.csv_id = _csv_id_free_for(db, orig_csv, tx_review.id)
         else:
             tx_review.csv_id = None
         tx_review.reconciliation_date = None
         tx_review.needs_review = False
         tx_review.confidence_score = None
+        if displaced:
+            # Elle prend la ligne que portait la prévision cible
+            tx_review.csv_id = displaced["csv_id"]
+            tx_review.raw_description = displaced["raw_description"]
+            tx_review.reconciliation_date = displaced["reconciliation_date"]
+            planned_amt = tx_review.amount
+            tx_review.amount = displaced["amount"]
+            if planned_amt is not None and abs(planned_amt - displaced["amount"]) > 0.005:
+                tx_review.comment = f"Auto-ajusté : {planned_amt:.2f} € → {displaced['amount']:.2f} €"
         record_action(
             db,
             "transaction",
@@ -2884,8 +2991,19 @@ def link_review_transaction(
             "UPDATE",
             before_snap_review,
             snapshot_entity(tx_review),
-            user_name="Auto-Pilote (Déliement prévision récurrente)"
+            user_name="Auto-Pilote (Échange de ligne)" if displaced else "Auto-Pilote (Déliement prévision récurrente)"
         )
+    elif displaced:
+        # L'opération à vérifier devient la ligne déplacée, à vérifier à son tour
+        if (tx_review.raw_description or "") != (displaced["raw_description"] or ""):
+            tx_review.description = displaced["raw_description"] or tx_review.description
+        tx_review.csv_id = displaced["csv_id"]
+        tx_review.raw_description = displaced["raw_description"]
+        tx_review.amount = displaced["amount"]
+        tx_review.reconciliation_date = displaced["reconciliation_date"]
+        tx_review.needs_review = True
+        record_action(db, "transaction", tx_review.id, "UPDATE", before_snap_review, snapshot_entity(tx_review),
+                      user_name="Auto-Pilote (Échange de ligne)")
     else:
         # Supprimer la transaction temporaire de revue (import bancaire orphelin)
         db.delete(tx_review)
@@ -2935,6 +3053,7 @@ def link_review_transaction(
         ).order_by(AutopilotDecisionLog.id.desc()).limit(1).all()
 
     for dlog in dlogs:
+        dlog_before = snapshot_entity(dlog)
         orig_score = dlog.confidence_score
         orig_type = dlog.decision_type
         orig_action = dlog.action
@@ -2964,6 +3083,7 @@ def link_review_transaction(
             "forecast_before": before_snap_forecast,
             "forecast_after": snapshot_entity(tx_forecast),
             "adjust_amount": adjust_amount,
+            "displaced_decision_ids": [x.id for x in displaced_dlogs],
             "linked_at": datetime.now(timezone.utc).isoformat()
         }
         existing_snap["linked_to_forecast_id"] = tx_forecast.id
@@ -2993,6 +3113,15 @@ def link_review_transaction(
         existing_snap["user_override"] = uo
 
         dlog.raw_snapshot = json.dumps(existing_snap, default=str)
+        record_action(db, "autopilot_decision", dlog.id, "UPDATE", dlog_before, snapshot_entity(dlog),
+                      user_name="Auto-Pilote (Liaison prévision)")
+
+    # Les décisions de la ligne déplacée suivent cette ligne sur l'opération de départ
+    for dlog in displaced_dlogs:
+        dlog_before = snapshot_entity(dlog)
+        dlog.entity_id = tx_review.id
+        record_action(db, "autopilot_decision", dlog.id, "UPDATE", dlog_before, snapshot_entity(dlog),
+                      user_name="Auto-Pilote (Échange de ligne)")
 
     db.commit()
     stats_cache.invalidate(pid)
@@ -3006,6 +3135,7 @@ def link_review_transaction(
     }
 
 
+@grouped_action
 def validate_review_transaction(
     db: Session,
     tx_id: int,
@@ -3086,6 +3216,7 @@ def validate_review_transaction(
     return {"success": True, "id": tx.id}
 
 
+@grouped_action
 def update_review_transaction(
     db: Session,
     tx_id: int,

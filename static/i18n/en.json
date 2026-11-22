@@ -2283,6 +2283,8 @@
   "history_title": "Activity History & Undo",
   "history_undo_btn": "↩ Undo",
   "history_undo_fail": "Cannot undo this action: {error}",
+  "history_bank_line_conflict": "Not possible: another operation now holds this bank line.",
+  "history_redo_fail": "Cannot redo this action: {error}",
   "history_undo_prefix": "Undo",
   "history_undo_success": "Action successfully undone.",
   "history_undo_toast": "↩ Undo",

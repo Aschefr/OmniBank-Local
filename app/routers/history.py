@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
@@ -8,6 +9,29 @@ from app.services.history_service import check_undo_safety
 from app.services import stats_cache
 
 router = APIRouter(prefix="/api/history", tags=["history"])
+
+# Une autre opération porte déjà la ligne de la banque que l'annulation voudrait remettre
+_BANK_LINE_CONFLICT = "Impossible : une autre opération porte maintenant cette ligne de la banque."
+
+
+def _apply(db: Session, fn, action: ActionHistory, failure: str, extra: dict = None):
+    try:
+        success, warning = fn(db, action)
+        if not success:
+            raise HTTPException(status_code=400, detail=warning or failure)
+        db.commit()
+        stats_cache.invalidate()
+        return {"ok": True, "warning": warning, **(extra or {})}
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=_BANK_LINE_CONFLICT)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("")
 def get_history(limit: int = 50, offset: int = 0, db: Session = Depends(get_db)):
@@ -49,32 +73,14 @@ def undo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
             "conflicts": safety["conflicts"]
         })
 
-    try:
-        success, warning = history_service.undo_action(db, action)
-        if not success:
-            raise HTTPException(status_code=400, detail=warning or "Failed to undo action")
-        db.commit()
-        stats_cache.invalidate()
-        return {"ok": True, "warning": warning}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return _apply(db, history_service.undo_entry, action, "Failed to undo action")
 
 @router.post("/{action_id}/redo")
 def redo_action_endpoint(action_id: int, db: Session = Depends(get_db)):
     action = db.query(ActionHistory).filter(ActionHistory.id == action_id).first()
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
-    try:
-        success, warning = history_service.redo_action(db, action)
-        if not success:
-            raise HTTPException(status_code=400, detail=warning or "Failed to redo action")
-        db.commit()
-        stats_cache.invalidate()
-        return {"ok": True, "warning": warning}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return _apply(db, history_service.redo_entry, action, "Failed to redo action")
 
 @router.delete("/purge")
 def purge_history(older_than_days: int = Query(90), db: Session = Depends(get_db)):
@@ -154,48 +160,29 @@ def _extract(action):
 
 @router.get("/status")
 def get_history_status(db: Session = Depends(get_db)):
-    action_to_undo = db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(desc(ActionHistory.timestamp)).first()
-    action_to_redo = db.query(ActionHistory).filter(ActionHistory.is_undone == True).order_by(desc(ActionHistory.timestamp)).first()
-    
-    can_undo = action_to_undo is not None
-    can_redo = action_to_redo is not None
-    
+    action_to_undo = history_service.representative(db, history_service.last_undoable(db))
+    action_to_redo = history_service.representative(db, history_service.next_redoable(db))
     return {
-        "can_undo": can_undo,
-        "can_redo": can_redo,
-        "undo": _extract(action_to_undo) if can_undo else None,
-        "redo": _extract(action_to_redo) if can_redo else None
+        "can_undo": action_to_undo is not None,
+        "can_redo": action_to_redo is not None,
+        "undo": _extract(action_to_undo) if action_to_undo else None,
+        "redo": _extract(action_to_redo) if action_to_redo else None
     }
+
 
 @router.post("/undo_last")
 def undo_last_action(db: Session = Depends(get_db)):
-    action = db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(desc(ActionHistory.timestamp)).first()
+    action = history_service.last_undoable(db)
     if not action:
         raise HTTPException(status_code=400, detail="Nothing to undo")
-    try:
-        success, warning = history_service.undo_action(db, action)
-        if not success:
-            raise HTTPException(status_code=400, detail=warning or "Failed to undo action")
-        db.commit()
-        stats_cache.invalidate()
-        return {"ok": True, "warning": warning, "entity_type": action.entity_type, "action_type": action.action_type}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    return _apply(db, history_service.undo_entry, action, "Failed to undo action",
+                  {"entity_type": action.entity_type, "action_type": action.action_type})
+
 
 @router.post("/redo_last")
 def redo_last_action(db: Session = Depends(get_db)):
-    action = db.query(ActionHistory).filter(ActionHistory.is_undone == True).order_by(desc(ActionHistory.timestamp)).first()
+    action = history_service.next_redoable(db)
     if not action:
         raise HTTPException(status_code=400, detail="Nothing to redo")
-    try:
-        success, warning = history_service.redo_action(db, action)
-        if not success:
-            raise HTTPException(status_code=400, detail=warning or "Failed to redo action")
-        db.commit()
-        stats_cache.invalidate()
-        return {"ok": True, "warning": warning, "entity_type": action.entity_type, "action_type": action.action_type}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return _apply(db, history_service.redo_entry, action, "Failed to redo action",
+                  {"entity_type": action.entity_type, "action_type": action.action_type})

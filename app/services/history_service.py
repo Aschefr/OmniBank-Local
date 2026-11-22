@@ -1,6 +1,10 @@
+import contextvars
+import functools
 import json
 import logging
-from datetime import date, datetime
+import uuid
+from contextlib import contextmanager
+from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import Date, DateTime, desc
 from app.models import (
     ActionHistory, Transaction, Account, Category, Budget,
@@ -213,7 +217,56 @@ def restore_state(entity, state_dict, db=None):
         for cat_name in state_dict["_categories"]:
             db.add(BudgetCategory(budget_id=entity.id, category_name=cat_name))
 
+_ACTION_GROUP = contextvars.ContextVar("omnibank_action_group", default=None)
+# Vrai pendant Annuler / Rétablir : ce qu'ils écrivent n'est pas une nouvelle action et ne vide pas la pile à rétablir
+_REPLAYING = contextvars.ContextVar("omnibank_history_replaying", default=False)
+REDO_BARRIER_KEY = "history_redo_barrier"
+GROUP_KEY = "_group"
+# Les entrées d'un même groupe sont écrites dans la même requête : quelques secondes les séparent au plus
+_GROUP_WINDOW = timedelta(minutes=2)
+
+
+@contextmanager
+def action_group():
+    """Regroupe les entrées d'historique d'une même action de l'utilisateur : Annuler et Rétablir (en-tête) les
+    défont et refont ensemble, en un seul appui. Les appels imbriqués rejoignent le groupe en cours."""
+    if _ACTION_GROUP.get():
+        yield _ACTION_GROUP.get()
+        return
+    token = _ACTION_GROUP.set(uuid.uuid4().hex)
+    try:
+        yield _ACTION_GROUP.get()
+    finally:
+        _ACTION_GROUP.reset(token)
+
+
+def grouped_action(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with action_group():
+            return fn(*args, **kwargs)
+    return wrapper
+
+
+def _move_redo_barrier(db) -> None:
+    """Une nouvelle action vide la pile à rétablir : ce qui a été annulé avant elle ne se rétablit plus."""
+    stamp = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == REDO_BARRIER_KEY).first()
+    if row:
+        row.value = stamp
+    else:
+        db.add(GlobalConfig(key=REDO_BARRIER_KEY, value=stamp))
+
+
 def record_action(db, entity_type: str, entity_id: int, action_type: str, previous_state: dict, new_state: dict, user_name: str = None) -> int:
+    if not _REPLAYING.get():
+        _move_redo_barrier(db)
+    group = _ACTION_GROUP.get()
+    if group:
+        if new_state:
+            new_state = {**new_state, GROUP_KEY: group}
+        elif previous_state:
+            previous_state = {**previous_state, GROUP_KEY: group}
     prev_str = json.dumps(previous_state, default=default_serializer) if previous_state else None
     new_str = json.dumps(new_state, default=default_serializer) if new_state else None
 
@@ -297,7 +350,34 @@ def _restore_global_configs(db, state: dict, is_undo: bool):
             else:
                 row.value = val
 
-def undo_action(db, action: ActionHistory):
+_UNDONE_DECISIONS_KEY = "_undone_decisions"
+
+
+def _set_decisions_undone(db, action: ActionHistory, undone: bool) -> None:
+    """Annuler la création d'une opération met ses décisions actives du journal en « annulées » ; Rétablir les remet."""
+    state = json.loads(action.new_state) if action.new_state else {}
+    if undone:
+        decisions = db.query(AutopilotDecisionLog).filter(
+            AutopilotDecisionLog.entity_type == "transaction",
+            AutopilotDecisionLog.entity_id == action.entity_id,
+            AutopilotDecisionLog.is_undone == False,
+        ).all()
+        if not decisions:
+            return
+        for d in decisions:
+            d.is_undone = True
+            d.undone_at = datetime.now(timezone.utc)
+        state[_UNDONE_DECISIONS_KEY] = [d.id for d in decisions]
+    else:
+        ids = state.pop(_UNDONE_DECISIONS_KEY, None)
+        if not ids:
+            return
+        db.query(AutopilotDecisionLog).filter(AutopilotDecisionLog.id.in_(ids)).update(
+            {"is_undone": False, "undone_at": None}, synchronize_session="fetch")
+    action.new_state = json.dumps(state, default=default_serializer)
+
+
+def undo_action(db, action: ActionHistory, _in_group: bool = False):
     """Reverts the changes recorded in action."""
     if action.is_undone:
         return False, "Action already undone"
@@ -329,6 +409,8 @@ def undo_action(db, action: ActionHistory):
         entity = db.query(model_class).filter(model_class.id == action.entity_id).first()
         if entity:
             if action.entity_type == "transaction":
+                # Les décisions de l'Auto-Pilote sur cette opération partent avec elle (et reviennent si on rétablit)
+                _set_decisions_undone(db, action, True)
                 recurrence_id = getattr(entity, "recurrence_id", None)
                 if recurrence_id:
                     # Look for sibling CREATE action of recurrence_template
@@ -512,8 +594,10 @@ def undo_action(db, action: ActionHistory):
     action.is_undone = True
     db.flush()
 
-    # Synchronisation spécifique pour les liaisons / fusions Auto-Pilote
-    if action.entity_type == "transaction" and action.user_name in ("Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"):
+    # Synchronisation spécifique pour les liaisons / fusions Auto-Pilote d'avant les groupes d'actions
+    # (un groupe porte lui-même l'état de la décision du journal)
+    if (not _in_group and action.entity_type == "transaction"
+            and action.user_name in ("Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)")):
         try:
             dlogs = db.query(AutopilotDecisionLog).filter(
                 AutopilotDecisionLog.entity_type == "transaction"
@@ -539,15 +623,7 @@ def undo_action(db, action: ActionHistory):
                     db.flush()
                     break
 
-            # Annuler également l'action jumelle (Liaison <-> Fusion) si elle n'a pas encore été annulée
-            sibling_act = db.query(ActionHistory).filter(
-                ActionHistory.entity_type == "transaction",
-                ActionHistory.user_name.in_(["Auto-Pilote (Liaison prévision)", "Auto-Pilote (Fusion prévision)"]),
-                ActionHistory.id != action.id,
-                ActionHistory.is_undone == False
-            ).order_by(ActionHistory.id.desc()).first()
-            if sibling_act and abs((action.timestamp - sibling_act.timestamp).total_seconds()) <= 15.0:
-                undo_action(db, sibling_act)
+            # L'entrée jumelle (opération de départ) est défaite avec celle-ci par undo_entry (_legacy_pair)
         except Exception as e_ap_undo:
             logger.warning(f"[History] Erreur synchronisation Auto-Pilote lors du rollback: {e_ap_undo}")
 
@@ -609,6 +685,8 @@ def redo_action(db, action: ActionHistory):
         restore_state(new_entity, new_state, db)
         new_entity.id = action.entity_id
         db.add(new_entity)
+        if action.entity_type == "transaction":
+            _set_decisions_undone(db, action, False)
 
         # If we just redid a recurrence template creation or transaction with a grouped template,
         # regenerate future instances to ensure they are present.
@@ -708,3 +786,208 @@ def redo_action(db, action: ActionHistory):
     db.flush()
     return True, warning
 
+
+
+# ─────────────── Groupes d'actions : Annuler / Rétablir de l'en-tête ───────────────
+
+def group_of(action: ActionHistory):
+    for raw in (action.new_state, action.previous_state):
+        if raw:
+            try:
+                group = (json.loads(raw) or {}).get(GROUP_KEY)
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                group = None
+            if group:
+                return group
+    return None
+
+
+def _group_members(db, action: ActionHistory, group: str):
+    rows = db.query(ActionHistory).filter(
+        ActionHistory.timestamp >= action.timestamp - _GROUP_WINDOW,
+        ActionHistory.timestamp <= action.timestamp + _GROUP_WINDOW,
+    ).all()
+    return [r for r in rows if group_of(r) == group]
+
+
+def _release_bank_lines(db, members) -> None:
+    """Libère les lignes de la banque des opérations du groupe avant de les remettre : un échange de lignes entre deux
+    prévisions se défait sans heurter l'unicité, quel que soit l'ordre des entrées."""
+    ids = {m.entity_id for m in members if m.entity_type == "transaction" and m.entity_id}
+    if ids:
+        db.query(Transaction).filter(Transaction.id.in_(ids)).update({"csv_id": None}, synchronize_session="fetch")
+        db.flush()
+
+
+UNDONE_AT_KEY = "_undone_at"
+
+
+def _json_field(action: ActionHistory):
+    """Champ JSON de l'entrée où ranger des marques internes (celui qui porte l'état, sinon l'autre)."""
+    return "new_state" if action.new_state else "previous_state"
+
+
+def _set_mark(action: ActionHistory, key: str, value) -> None:
+    field = _json_field(action)
+    raw = getattr(action, field)
+    try:
+        state = json.loads(raw) if raw else {}
+    except (json.JSONDecodeError, TypeError):
+        return
+    if not isinstance(state, dict):
+        return
+    if value is None:
+        state.pop(key, None)
+    else:
+        state[key] = value
+    setattr(action, field, json.dumps(state, default=default_serializer))
+
+
+def _mark(action: ActionHistory, key: str):
+    for raw in (action.new_state, action.previous_state):
+        if raw:
+            try:
+                value = (json.loads(raw) or {}).get(key)
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                value = None
+            if value:
+                return value
+    return None
+
+
+def _stamp_undone(members) -> None:
+    stamp = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    for m in members:
+        _set_mark(m, UNDONE_AT_KEY, stamp)
+
+
+# Entrées écrites ensemble par une liaison ou un déliement d'avant les groupes d'actions : (départ, cible), consécutives
+_LEGACY_PAIRS = (
+    (("Auto-Pilote (Déliement prévision récurrente)", "Auto-Pilote (Fusion prévision)"), "Auto-Pilote (Liaison prévision)"),
+    (("Auto-Pilote (Rétablissement écriture)",), "Auto-Pilote (Déliement prévision)"),
+)
+
+
+def _legacy_pair(db, action: ActionHistory):
+    """Les deux entrées d'une liaison (ou d'un déliement) d'avant les groupes : elles se suivent dans l'historique."""
+    if action.entity_type != "transaction":
+        return [action]
+    for sources, target in _LEGACY_PAIRS:
+        if action.user_name == target:
+            other = db.get(ActionHistory, action.id - 1)
+            ok = other is not None and other.user_name in sources
+        elif action.user_name in sources:
+            other = db.get(ActionHistory, action.id + 1)
+            ok = other is not None and other.user_name == target
+        else:
+            continue
+        if ok and other.is_undone == action.is_undone and other.entity_type == "transaction"                 and abs((action.timestamp - other.timestamp).total_seconds()) <= 5.0:
+            return sorted([action, other], key=lambda m: m.id)
+    return [action]
+
+
+def _undo_entry(db, action: ActionHistory):
+    """Annule une entrée et, si elle appartient à un groupe, tout le groupe (du plus récent au plus ancien)."""
+    group = group_of(action)
+    if not group:
+        members = sorted(_legacy_pair(db, action), key=lambda m: m.id, reverse=True)
+        if len(members) > 1:
+            _release_bank_lines(db, members)
+        warning = None
+        for m in members:
+            ok, w = undo_action(db, m)
+            if not ok:
+                return ok, w
+            warning = warning or w
+        _stamp_undone(members)
+        return True, warning
+    members = sorted((m for m in _group_members(db, action, group) if not m.is_undone), key=lambda m: m.id, reverse=True)
+    _release_bank_lines(db, members)
+    warning = None
+    for m in members:
+        ok, w = undo_action(db, m, _in_group=True)
+        if not ok:
+            return False, w
+        warning = warning or w
+    _stamp_undone(members)
+    return True, warning
+
+
+def _redo_entry(db, action: ActionHistory):
+    """Rétablit une entrée et, si elle appartient à un groupe, tout le groupe (dans l'ordre d'origine)."""
+    group = group_of(action)
+    if not group:
+        members = _legacy_pair(db, action)
+        if len(members) > 1:
+            _release_bank_lines(db, members)
+        warning = None
+        for m in members:
+            ok, w = redo_action(db, m)
+            if not ok:
+                return ok, w
+            _set_mark(m, UNDONE_AT_KEY, None)
+            warning = warning or w
+        return True, warning
+    members = sorted((m for m in _group_members(db, action, group) if m.is_undone), key=lambda m: m.id)
+    _release_bank_lines(db, members)
+    warning = None
+    for m in members:
+        ok, w = redo_action(db, m)
+        if not ok:
+            return False, w
+        _set_mark(m, UNDONE_AT_KEY, None)
+        warning = warning or w
+    return True, warning
+
+
+def undo_entry(db, action: ActionHistory):
+    """Annule une entrée et, si elle appartient à un groupe, tout le groupe (du plus récent au plus ancien)."""
+    token = _REPLAYING.set(True)
+    try:
+        return _undo_entry(db, action)
+    finally:
+        _REPLAYING.reset(token)
+
+
+def redo_entry(db, action: ActionHistory):
+    """Rétablit une entrée et, si elle appartient à un groupe, tout le groupe (dans l'ordre d'origine)."""
+    token = _REPLAYING.set(True)
+    try:
+        return _redo_entry(db, action)
+    finally:
+        _REPLAYING.reset(token)
+
+
+def representative(db, action: ActionHistory):
+    """Entrée qui décrit l'action dans les infobulles Annuler / Rétablir : pour un groupe, l'opération principale
+    (la prévision liée, sinon la première opération touchée) plutôt que la décision du journal."""
+    if action is None or action.entity_type == "transaction":
+        return action
+    group = group_of(action)
+    if not group:
+        return action
+    txs = sorted((m for m in _group_members(db, action, group) if m.entity_type == "transaction"), key=lambda m: m.id)
+    if not txs:
+        return action
+    return next((m for m in txs if m.user_name and "Liaison" in m.user_name), txs[0])
+
+
+def last_undoable(db):
+    return db.query(ActionHistory).filter(ActionHistory.is_undone == False).order_by(
+        desc(ActionHistory.timestamp), desc(ActionHistory.id)).first()
+
+
+def next_redoable(db):
+    """Prochaine entrée à rétablir : la dernière annulée, si aucune nouvelle action n'a eu lieu depuis (Rétablir refait
+    dans l'ordre inverse d'Annuler). Avant la première nouvelle action de cette version, les entrées annulées sans
+    marque restent rétablissables, de la plus récente à la plus ancienne, comme avant."""
+    undone = db.query(ActionHistory).filter(ActionHistory.is_undone == True).all()
+    if not undone:
+        return None
+    row = db.query(GlobalConfig).filter(GlobalConfig.key == REDO_BARRIER_KEY).first()
+    barrier = row.value if row else None
+    if barrier:
+        undone = [a for a in undone if (_mark(a, UNDONE_AT_KEY) or "") > barrier]
+        if not undone:
+            return None
+    return max(undone, key=lambda a: (_mark(a, UNDONE_AT_KEY) or "", a.timestamp or datetime.min, a.id))
