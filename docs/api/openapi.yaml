@@ -37,7 +37,7 @@ info:
     - `Content-Type: application/json` pour tous les payloads de mutation POST/PUT.
 
     '
-  version: 1.2.11
+  version: 1.8.0
 paths:
   /uploads/{file_path}:
     get:
@@ -299,6 +299,13 @@ paths:
           type: boolean
           default: false
           title: Propagate
+      - name: new_series
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: New Series
       requestBody:
         required: true
         content:
@@ -336,6 +343,34 @@ paths:
           content:
             application/json:
               schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/transactions/{tx_id}/new-series:
+    post:
+      tags:
+      - transactions
+      summary: Start New Series
+      description: Crée une nouvelle série à partir d'une opération déjà enregistrée
+        (opérations suivies par l'Auto-Pilote).
+      operationId: start_new_series_api_transactions__tx_id__new_series_post
+      parameters:
+      - name: tx_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Tx Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionOut'
         '422':
           description: Validation Error
           content:
@@ -676,6 +711,40 @@ paths:
           content:
             application/json:
               schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/recurrences/from-transaction/{tx_id}:
+    post:
+      tags:
+      - recurrences
+      summary: Create Template From Transaction
+      description: 'Rend récurrente une opération existante : la série part d''elle
+        et ses prochaines échéances sont générées.'
+      operationId: create_template_from_transaction_api_recurrences_from_transaction__tx_id__post
+      parameters:
+      - name: tx_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Tx Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurrenceFromTransactionRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurrenceTemplateOut'
         '422':
           description: Validation Error
           content:
@@ -1448,12 +1517,85 @@ paths:
       - config
       summary: Get Ollama Models
       operationId: get_ollama_models_api_config_ollama_models_get
+      parameters:
+      - name: url
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/config/ollama/catalog:
+    get:
+      tags:
+      - config
+      summary: Get Ollama Catalog
+      description: Modèles recommandés, avec leurs réglages, vus depuis le serveur
+        configuré (installés ou non).
+      operationId: get_ollama_catalog_api_config_ollama_catalog_get
+      parameters:
+      - name: url
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/config/ollama/pull:
+    post:
+      tags:
+      - config
+      summary: Pull Ollama Model
+      description: Télécharge un modèle recommandé sur le serveur Ollama configuré,
+        en tâche de fond.
+      operationId: pull_ollama_model_api_config_ollama_pull_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties:
+                type: string
+              type: object
+              title: Data
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/config/exchange-rates:
     get:
       tags:
@@ -2669,30 +2811,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/Body_import_to_pending_api_csv_import_to_pending_post'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/csv/analyze_heuristic:
-    post:
-      tags:
-      - csv
-      summary: Analyze Heuristic
-      operationId: analyze_heuristic_api_csv_analyze_heuristic_post
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Body_analyze_heuristic_api_csv_analyze_heuristic_post'
         required: true
       responses:
         '200':
@@ -4163,9 +4281,9 @@ paths:
     get:
       tags:
       - license
-      summary: License Status
+      summary: Get License Status
       description: Return current license status.
-      operationId: license_status_api_license_status_get
+      operationId: get_license_status_api_license_status_get
       responses:
         '200':
           description: Successful Response
@@ -5154,6 +5272,35 @@ paths:
       description: Retourne la synthèse prévisionnelle multi-horizons (7j / cycle
         / 3 mois) pour le Cockpit.
       operationId: get_forecast_summary_api_simulator_forecast_summary_get
+      parameters:
+      - name: account_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Account Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/simulator/forecast-tracking:
+    get:
+      tags:
+      - simulator
+      summary: Get Forecast Tracking Route
+      description: Le réel comparé à la prévision enregistrée pour la période en cours
+        (Cockpit).
+      operationId: get_forecast_tracking_route_api_simulator_forecast_tracking_get
       parameters:
       - name: account_id
         in: query
@@ -6966,6 +7113,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/autopilot/link-candidates/{tx_id}:
+    get:
+      tags:
+      - autopilot
+      summary: Get Link Candidates
+      description: Opérations non pointées auxquelles lier cette ligne de la banque,
+        les plus proches en date d'abord.
+      operationId: get_link_candidates_api_autopilot_link_candidates__tx_id__get
+      parameters:
+      - name: tx_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Tx Id
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Search
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/autopilot/review/{tx_id}/link:
     post:
       tags:
@@ -7301,6 +7483,55 @@ paths:
           content:
             application/json:
               schema: {}
+  /api/autopilot/restore-points:
+    get:
+      tags:
+      - autopilot
+      summary: List Restore Points
+      description: Points du profil, du plus récent au plus ancien (sans les lignes
+        gardées).
+      operationId: list_restore_points_api_autopilot_restore_points_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /api/autopilot/restore-points/{point_id}/restore:
+    post:
+      tags:
+      - autopilot
+      summary: Restore
+      description: Remet les données du profil telles qu'au point, puis rejoue au
+        besoin les lignes du lot avec la version actuelle.
+      operationId: restore_api_autopilot_restore_points__point_id__restore_post
+      parameters:
+      - name: point_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Point Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/RestoreRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /:
     get:
       summary: Serve Spa
@@ -8058,6 +8289,16 @@ components:
         amount:
           type: number
           title: Amount
+        bank_amount:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Bank Amount
+        forecast_amount:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Forecast Amount
         type:
           type: string
           title: Type
@@ -8098,6 +8339,10 @@ components:
           type: array
           title: Candidate Forecasts
           default: []
+        ai_pending:
+          type: boolean
+          title: Ai Pending
+          default: false
       type: object
       required:
       - id
@@ -8577,22 +8822,6 @@ components:
           title: Is Active
       type: object
       title: BankConnectionUpdate
-    Body_analyze_heuristic_api_csv_analyze_heuristic_post:
-      properties:
-        file:
-          type: string
-          contentMediaType: application/octet-stream
-          title: File
-        account_id:
-          type: integer
-          title: Account Id
-        section_title:
-          type: string
-          title: Section Title
-      type: object
-      required:
-      - file
-      title: Body_analyze_heuristic_api_csv_analyze_heuristic_post
     Body_import_csv_ai_api_ai_import_csv_post:
       properties:
         file:
@@ -9170,6 +9399,10 @@ components:
         key:
           type: string
           title: Key
+        contract_version:
+          type: string
+          title: Contract Version
+          default: ''
       type: object
       required:
       - email
@@ -9535,6 +9768,24 @@ components:
           title: Closure Date
       type: object
       title: RecurrenceCloseRequest
+    RecurrenceFromTransactionRequest:
+      properties:
+        frequency:
+          type: string
+          title: Frequency
+          default: Monthly
+        max_occurrences:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Occurrences
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+      type: object
+      title: RecurrenceFromTransactionRequest
     RecurrenceTemplateCreate:
       properties:
         description:
@@ -9714,6 +9965,14 @@ components:
       required:
       - labels
       title: ResolveBatchRequest
+    RestoreRequest:
+      properties:
+        replay:
+          type: boolean
+          title: Replay
+          default: true
+      type: object
+      title: RestoreRequest
     ScenarioCreate:
       properties:
         name:
@@ -10151,12 +10410,18 @@ components:
           - type: 'null'
           title: Conservative Weight
           default: 0.2
+        scenario_level:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Scenario Level
+          default: 0.0
         outlier_sensitivity:
           anyOf:
           - type: integer
           - type: 'null'
           title: Outlier Sensitivity
-          default: 2
+          default: 4
         seasonality_mode:
           anyOf:
           - type: string
