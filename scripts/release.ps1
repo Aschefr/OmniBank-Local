@@ -119,38 +119,12 @@ if (-not (Test-Path $sidecarExe)) {
     Write-Host "ERROR: Sidecar executable not found at $sidecarExe" -ForegroundColor Red
     exit 1
 }
-Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 300
-
+# Smoke test on a temporary data folder, never the machine's real data (see sidecar_smoke.ps1)
+. (Join-Path $PSScriptRoot "sidecar_smoke.ps1")
+$smokeStdout = Join-Path $ProjectRoot "build\release_smoke_stdout.log"
 $smokeStderr = Join-Path $ProjectRoot "build\release_smoke_stderr.log"
-if (Test-Path $smokeStderr) { Remove-Item -Force $smokeStderr }
-$proc = Start-Process -FilePath $sidecarExe -RedirectStandardError $smokeStderr -PassThru -WindowStyle Hidden
-
-$healthy = $false
-for ($i = 0; $i -lt 16; $i++) {
-    Start-Sleep -Milliseconds 500
-    if ($proc.HasExited) { break }
-    try {
-        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:8434/api/health" -Method Get -TimeoutSec 1 -ErrorAction Stop
-        if ($resp.status -eq "ok" -or $resp -match "ok") {
-            $healthy = $true
-            break
-        }
-    } catch {}
-}
-
-if (-not $proc.HasExited) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-}
-Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-if (-not $healthy) {
+if (-not (Invoke-SidecarSmokeTest -Exe $sidecarExe -StdoutLog $smokeStdout -StderrLog $smokeStderr)) {
     Write-Host "CRITICAL ERROR: Sidecar Smoke Test failed! Aborting release build." -ForegroundColor Red
-    if (Test-Path $smokeStderr) {
-        Write-Host "`n--- Sidecar Stderr Output ---" -ForegroundColor Yellow
-        Get-Content $smokeStderr
-        Write-Host "-----------------------------" -ForegroundColor Yellow
-    }
     exit 1
 }
 Write-Host "  Sidecar is healthy and ready for bundling." -ForegroundColor Green

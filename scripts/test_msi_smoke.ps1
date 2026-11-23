@@ -49,43 +49,11 @@ Write-Host "  Executable extrait trouve : $TestExe" -ForegroundColor Green
 # 2. Execution du Smoke Test sur le binaire extrait
 Write-Host "`n[2/3] Demarrage du binaire extrait et verification de sante (/api/health)..." -ForegroundColor Yellow
 
-# Tuer tout processus orphelin
-Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 300
-
+# Smoke test sur un dossier de donnees temporaire, jamais les vraies donnees de la machine (voir sidecar_smoke.ps1)
+. (Join-Path $PSScriptRoot "sidecar_smoke.ps1")
 $SmokeStdout = Join-Path $ProjectRoot "build\msi_smoke_stdout.log"
 $SmokeStderr = Join-Path $ProjectRoot "build\msi_smoke_stderr.log"
-if (Test-Path $SmokeStdout) { Remove-Item -Force $SmokeStdout }
-if (Test-Path $SmokeStderr) { Remove-Item -Force $SmokeStderr }
-
-$sidecarProc = Start-Process -FilePath $TestExe `
-    -RedirectStandardOutput $SmokeStdout `
-    -RedirectStandardError $SmokeStderr `
-    -PassThru -WindowStyle Hidden
-
-$healthy = $false
-for ($i = 0; $i -lt 16; $i++) {
-    Start-Sleep -Milliseconds 500
-    if ($sidecarProc.HasExited) {
-        Write-Host "  -> Le processus sidecar extrait s'est arrete prematurement (Code de sortie : $($sidecarProc.ExitCode)) !" -ForegroundColor Red
-        break
-    }
-    try {
-        $resp = Invoke-RestMethod -Uri "http://127.0.0.1:8434/api/health" -Method Get -TimeoutSec 1 -ErrorAction Stop
-        if ($resp.status -eq "ok" -or $resp -match "ok") {
-            $healthy = $true
-            break
-        }
-    } catch {
-        # En attente du demarrage du serveur HTTP
-    }
-}
-
-# Nettoyage processus
-if (-not $sidecarProc.HasExited) {
-    Stop-Process -Id $sidecarProc.Id -Force -ErrorAction SilentlyContinue
-}
-Get-Process "omnibank-api" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+$healthy = Invoke-SidecarSmokeTest -Exe $TestExe -StdoutLog $SmokeStdout -StderrLog $SmokeStderr
 
 # 3. Verdict
 Write-Host "`n[3/3] Verdict du Smoke Test MSI :" -ForegroundColor Yellow
