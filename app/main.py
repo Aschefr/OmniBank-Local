@@ -454,6 +454,36 @@ async def no_cache_api_responses(request, call_next):
         response.headers["Pragma"] = "no-cache"
     return response
 
+
+# Le texte venu d'ailleurs (libellés de banque, fichiers importés, réponses de l'IA) est échappé à l'affichage ; si un
+# oubli laissait passer un script, cette politique l'empêche de charger du code ou d'envoyer des données hors de
+# l'application. Les gestionnaires onclick en ligne imposent 'unsafe-inline'. ipc: et http://ipc.localhost : appels
+# de l'app Windows (Tauri) vers son cœur natif (version, mise à jour).
+CONTENT_SECURITY_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' ipc: http://ipc.localhost",
+    "media-src 'self' blob:",
+    "frame-src 'self' blob: data:",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+])
+_CSP_EXEMPT = ("/docs", "/redoc", "/openapi.json")
+
+
+@app.middleware("http")
+async def content_security_policy(request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith(_CSP_EXEMPT):
+        response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+    return response
+
 class NoCacheStaticFiles(StaticFiles):
     def file_response(self, *args, **kwargs) -> FileResponse:
         response = super().file_response(*args, **kwargs)

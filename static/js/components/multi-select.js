@@ -118,10 +118,10 @@ window.MultiSelect = {
 
         for (const item of inst.items) {
             const checked = inst.selected.has(item) ? 'checked' : '';
-            const escaped = item.replace(/"/g, '&quot;');
+            const escaped = window.escapeHtml(item);
             html += `<label class="ms-item">
-                <input type="checkbox" value="${escaped}" ${checked} onchange="window.MultiSelect._toggleItem('${id}', '${escaped}', this.checked)">
-                <span>${item}</span>
+                <input type="checkbox" value="${escaped}" ${checked} onchange="window.MultiSelect._toggleItem('${id}', ${window.jsArg(item)}, this.checked)">
+                <span>${window.escapeHtml(item)}</span>
             </label>`;
         }
 

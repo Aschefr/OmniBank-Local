@@ -704,7 +704,7 @@ window.SetupWizard = {
             <div class="wizard-account-card">
                 <button class="wizard-star-btn ${isMain ? 'active' : ''}" onclick="window.SetupWizard._setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
                 <div class="wizard-account-info">
-                    <strong>${acc.name}</strong>
+                    <strong>${window.escapeHtml(acc.name)}</strong>
                     <span class="wizard-account-type">${acc.type} <small style="opacity:0.8;">(${curr})</small></span>
                 </div>
                 <div class="wizard-account-balance">${formatCurrency(acc.initial_balance, curr)}</div>
@@ -852,7 +852,7 @@ window.SetupWizard = {
         return this._orgUsers.filter(u => u.is_active).map(u => `
             <div class="wizard-account-card">
                 <div class="wizard-account-info">
-                    <strong>👤 ${u.name}</strong>
+                    <strong>👤 ${window.escapeHtml(u.name)}</strong>
                 </div>
                 <button class="wizard-btn-remove" onclick="window.SetupWizard._removeWizUser(${u.id})">✕</button>
             </div>
@@ -1367,7 +1367,7 @@ window.SetupWizard = {
                 const select = document.getElementById('wizAIModel');
                 if (select) {
                     select.innerHTML = data.models.map(m =>
-                        `<option value="${m.name}">${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`
+                        `<option value="${window.escapeHtml(m.name)}">${window.escapeHtml(m.name)} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`
                     ).join('');
                 }
                 if (container) container.style.display = 'block';
@@ -1510,7 +1510,7 @@ window.SetupWizard = {
 
         const accountsHtml = this.createdAccounts.map(a =>
             `<div class="wizard-recap-item">
-                <span>🏦 <strong>${a.name}</strong> <em>(${a.type})</em></span>
+                <span>🏦 <strong>${window.escapeHtml(a.name)}</strong> <em>(${a.type})</em></span>
                 <span>${formatCurrency(a.initial_balance)}</span>
             </div>`
         ).join('');
@@ -1684,8 +1684,8 @@ window.SetupWizard = {
             <div class="wiz-scene" id="wizScene${i}">
                 <div class="wiz-scene-icon">${s.icon}</div>
                 <div>
-                    <div class="wiz-scene-title">${s.title}</div>
-                    <div class="wiz-scene-desc">${s.desc}</div>
+                    <div class="wiz-scene-title">${window.escapeHtml(s.title)}</div>
+                    <div class="wiz-scene-desc">${window.escapeHtml(s.desc)}</div>
                     <span class="wiz-scene-tag">🤖 ${s.tagLabel}</span>
                 </div>
             </div>`).join('');

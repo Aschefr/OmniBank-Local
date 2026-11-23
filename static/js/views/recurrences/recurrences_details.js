@@ -105,9 +105,9 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
             let statusHTML = '';
             if (isAutoAdjusted) {
-                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(99, 102, 241, 0.18); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚡ ${window.i18n.t('rec_status_auto_adjusted') || 'Ajusté auto'}</span>`;
+                statusHTML = `<span class="badge" title="${window.escapeHtml(tx.comment || '')}" style="background: rgba(99, 102, 241, 0.18); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⚡ ${window.i18n.t('rec_status_auto_adjusted') || 'Ajusté auto'}</span>`;
             } else if (isAutoSkipped) {
-                statusHTML = `<span class="badge" title="${tx.comment || ''}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_status_auto_skipped') || 'Sauté auto'}</span>`;
+                statusHTML = `<span class="badge" title="${window.escapeHtml(tx.comment || '')}" style="background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: line-through; white-space: nowrap;" onclick="event.stopPropagation(); window.RecurrenceView.showSegmentPopover(${tx.id}, ${templateId}, this)">⏭️ ${window.i18n.t('rec_status_auto_skipped') || 'Sauté auto'}</span>`;
             } else if (isReconciled) {
                 if (tx.needs_review) {
                     const conf = Math.round(tx.confidence_score || 0);

@@ -70,7 +70,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     <tr id="fact-row-${f.id}" class="ai-memory-row">
                         <td class="ai-memory-cell-key" data-label="${window.i18n.t('config_ai_memory_col_key')}">${f.fact_key}</td>
                         <td class="ai-memory-cell-val" data-label="${window.i18n.t('config_ai_memory_col_value')}">
-                            <input type="text" id="fact-input-${f.id}" class="inline-input ai-memory-input" value="${f.fact_value.replace(/"/g, '&quot;')}" onchange="window.ChatView.saveFactInline(${f.id})">
+                            <input type="text" id="fact-input-${f.id}" class="inline-input ai-memory-input" value="${window.escapeHtml(f.fact_value)}" onchange="window.ChatView.saveFactInline(${f.id})">
                         </td>
                         <td class="ai-memory-cell-scope" data-label="${window.i18n.t('config_ai_memory_col_scope')}">${scopeLabel}</td>
                         <td class="ai-memory-cell-action">
@@ -221,7 +221,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             const toolsHtml = g.tools.split(', ').map(t => {
                 const toolLabel = (window.i18n && window.i18n.t(`tool_${t}`)) || t;
                 const toolDesc = (window.i18n && window.i18n.t(`tool_${t}_desc`)) || toolLabel;
-                return `<code title="${toolDesc.replace(/"/g, '&quot;')}" class="chat-info-tool-code">${toolLabel}</code>`;
+                return `<code title="${window.escapeHtml(toolDesc)}" class="chat-info-tool-code">${toolLabel}</code>`;
             }).join(' ');
 
             // Card layout (works both on desktop and mobile via CSS)
@@ -229,11 +229,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 <div class="chat-info-group-header">
                     <span class="chat-info-group-emoji">${g.emoji}</span>
                     <div class="chat-info-group-meta">
-                        <strong class="chat-info-group-name">${g.name}</strong>
+                        <strong class="chat-info-group-name">${window.escapeHtml(g.name)}</strong>
                         ${accessBadge}
                     </div>
                 </div>
-                <p class="chat-info-group-desc">${g.desc}</p>
+                <p class="chat-info-group-desc">${window.escapeHtml(g.desc)}</p>
                 <div class="chat-info-group-tools">${toolsHtml}</div>
             </div>`;
         }).join('');
@@ -493,7 +493,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 </div>
             ` : `
                 <div class="chat-sidebar-group-header">
-                    <span>${g.title}</span>
+                    <span>${window.escapeHtml(g.title)}</span>
                     <button type="button" class="chat-group-delete-btn"
                         onclick="event.stopPropagation(); window.ChatView.startDeleteGroup('${g.key}')"
                         title="${window.i18n ? window.i18n.t('chat_group_delete_tooltip') : 'Tout supprimer dans cette section'}">

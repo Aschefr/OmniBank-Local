@@ -702,7 +702,7 @@ window.ConfigSmartLabels = {
 
         matched.forEach(c => {
             const isSel = (c.name === selectedVal);
-            html += `<option value="${c.name.replace(/"/g, '&quot;')}" ${isSel ? 'selected' : ''}>🏷️ ${c.name}</option>`;
+            html += `<option value="${window.escapeHtml(c.name)}" ${isSel ? 'selected' : ''}>🏷️ ${window.escapeHtml(c.name)}</option>`;
         });
 
         if (matched.length === 0 && !html) {

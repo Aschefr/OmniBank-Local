@@ -294,7 +294,7 @@ window.DataCleanupModal = {
             console.error(`[DataCleanupModal] Erreur chargement détail ${toolId}:`, e);
             container.innerHTML = `
                 <div style="padding:20px; color:#ef4444; background:rgba(239,68,68,0.1); border-radius:10px; border:1px solid rgba(239,68,68,0.25);">
-                    <strong>Erreur de chargement :</strong> ${e.message}
+                    <strong>Erreur de chargement :</strong> ${window.escapeHtml(e.message)}
                 </div>
             `;
         }
@@ -351,7 +351,7 @@ window.DataCleanupModal = {
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:8px 12px; background:var(--bg-surface); border-radius:8px; border:1px solid rgba(245,158,11,0.35); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${op.date_operation}</span>
-                        <strong style="color:var(--text-main); font-size:12.5px;">${op.description}</strong>
+                        <strong style="color:var(--text-main); font-size:12.5px;">${window.escapeHtml(op.description)}</strong>
                         <span style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:12px;">
                             ⚠️ Rattachée par erreur
                         </span>
@@ -370,7 +370,7 @@ window.DataCleanupModal = {
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:7px 10px; background:var(--bg-surface); border-radius:6px; border:1px solid var(--border-color); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${op.date_operation}</span>
-                        <span style="color:var(--text-main); font-weight:500;">${op.description}</span>
+                        <span style="color:var(--text-main); font-weight:500;">${window.escapeHtml(op.description)}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px;">
                         <strong style="color:var(--text-main); font-size:12.5px;">${formatCurrency(op.amount)}</strong>
@@ -386,7 +386,7 @@ window.DataCleanupModal = {
                 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:6px 10px; background:var(--bg-surface); border-radius:6px; border:1px solid var(--border-color); font-size:12px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="color:var(--text-muted); font-family:monospace; font-size:12px;">${p.date_operation}</span>
-                        <span style="color:var(--text-main); font-weight:500;">${p.description}</span>
+                        <span style="color:var(--text-main); font-weight:500;">${window.escapeHtml(p.description)}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <strong style="color:#ef4444; font-size:12px;">${formatCurrency(p.amount)}</strong>
@@ -402,7 +402,7 @@ window.DataCleanupModal = {
                     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; font-size:14px; color:var(--text-main);">
                             <input type="checkbox" class="cleanup-abandoned-cb" value="${tpl.id}" checked style="width:17px; height:17px; accent-color:var(--accent); cursor:pointer;">
-                            <span>${tpl.description}</span>
+                            <span>${window.escapeHtml(tpl.description)}</span>
                             <span style="font-size:12px; font-weight:500; color:var(--text-muted); padding:2px 8px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px;">
                                 ${freqLabel} • ${amtStr}
                             </span>
@@ -413,7 +413,7 @@ window.DataCleanupModal = {
                     <div style="font-size:12.5px; color:#f59e0b; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                         <div style="display:flex; align-items:center; gap:6px;">
                             <span>⚠️</span>
-                            <span>${tpl.reason}</span>
+                            <span>${window.escapeHtml(tpl.reason)}</span>
                         </div>
                         <button type="button" class="cleanup-inspect-btn" id="cleanupInspectBtn_${tpl.id}" data-total-ops="${totalOps}" onclick="window.DataCleanupModal.toggleInspect(${tpl.id})">
                             ${hasSuspicious ? '🙈 Masquer le détail (' + totalOps + ')' : '👁️ Voir les opérations (' + totalOps + ')'}
@@ -629,8 +629,8 @@ window.DataCleanupModal = {
                     <label style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border-color); cursor:pointer; font-size:12px;">
                         <input type="checkbox" class="cleanup-orphan-cb" value="${tx.id}" checked style="width:16px; height:16px; accent-color:var(--accent);">
                         <span style="color:var(--text-muted); min-width:80px;">${dateStr}</span>
-                        <span style="font-weight:600; flex:1;">${tx.description}</span>
-                        <span style="color:var(--text-muted);">${tx.category || ''}</span>
+                        <span style="font-weight:600; flex:1;">${window.escapeHtml(tx.description)}</span>
+                        <span style="color:var(--text-muted);">${window.escapeHtml(tx.category || '')}</span>
                         <span style="font-weight:700; min-width:80px; text-align:right;">${formatCurrency(tx.amount)}</span>
                     </label>
                 `;
@@ -640,7 +640,7 @@ window.DataCleanupModal = {
                 <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
                     <div style="padding:10px 14px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; gap:8px;">
                         <span>🔄</span>
-                        <strong style="font-size:13px; color:var(--text-main);">${group.template_description}</strong>
+                        <strong style="font-size:13px; color:var(--text-main);">${window.escapeHtml(group.template_description)}</strong>
                         ${closedBadge}
                         <span style="margin-left:auto; font-size:12px; color:var(--text-muted);">${group.transactions.length} op.</span>
                     </div>
@@ -756,21 +756,21 @@ window.DataCleanupModal = {
             return `
                 <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                        <strong style="font-size:14px; color:var(--text-main);">🏷️ ${c.name}</strong>
+                        <strong style="font-size:14px; color:var(--text-main);">🏷️ ${window.escapeHtml(c.name)}</strong>
                         <span style="font-size:12px; color:var(--text-muted);">${c.total_txs} op. • ${c.templates_count} modèle(s)</span>
                     </div>
 
                     <div style="font-size:12px; color:#f59e0b; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:6px; padding:6px 10px;">
-                        ⚠️ ${c.reason}
+                        ⚠️ ${window.escapeHtml(c.reason)}
                     </div>
 
                     <div style="display:flex; align-items:center; gap:16px; margin-top:2px; font-size:12px;">
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:700; color:#10b981;">
-                            <input type="radio" name="cleanup_misplaced_${idx}" value="${c.suggested_type}" checked data-cat="${c.name}">
+                            <input type="radio" name="cleanup_misplaced_${idx}" value="${c.suggested_type}" checked data-cat="${window.escapeHtml(c.name)}">
                             <span>Reclasser en « ${sugLabel} » (recommandé)</span>
                         </label>
                         <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted);">
-                            <input type="radio" name="cleanup_misplaced_${idx}" value="${c.current_type}" data-cat="${c.name}">
+                            <input type="radio" name="cleanup_misplaced_${idx}" value="${c.current_type}" data-cat="${window.escapeHtml(c.name)}">
                             <span>Garder actuel (${curLabel})</span>
                         </label>
                     </div>
@@ -794,11 +794,11 @@ window.DataCleanupModal = {
             return `
                 <tr style="border-bottom:1px solid var(--border-color);">
                     <td style="padding:6px 10px; color:var(--text-muted); font-size:12px; white-space:nowrap;">${m.date}</td>
-                    <td style="padding:6px 10px; font-weight:600; color:var(--text-main); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${m.description}">${m.description}</td>
+                    <td style="padding:6px 10px; font-weight:600; color:var(--text-main); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${window.escapeHtml(m.description)}">${window.escapeHtml(m.description)}</td>
                     <td style="padding:6px 10px; text-align:right; font-weight:700; white-space:nowrap;">${amountStr}</td>
                     <td style="padding:6px 10px; color:var(--text-muted); white-space:nowrap;">${curTypeLabel}</td>
                     <td style="padding:6px 10px; white-space:nowrap;">
-                        <span style="font-weight:600;">${m.category}</span>
+                        <span style="font-weight:600;">${window.escapeHtml(m.category)}</span>
                         <span style="font-size:12px; color:var(--text-muted);">(${catTypeLabel})</span>
                     </td>
                     <td style="padding:6px 10px; white-space:nowrap;">
@@ -964,7 +964,7 @@ window.DataCleanupModal = {
             return;
         }
 
-        const catsList = (preview.affected_categories || []).map(c => `<li><strong>${c.name}</strong> (${c.shared ? 'partagée' : 'exclusive'})</li>`).join('');
+        const catsList = (preview.affected_categories || []).map(c => `<li><strong>${window.escapeHtml(c.name)}</strong> (${c.shared ? 'partagée' : 'exclusive'})</li>`).join('');
 
         container.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:14px; flex-shrink:0;">
@@ -1041,7 +1041,7 @@ window.DataCleanupModal = {
                 <label style="display:flex; align-items:center; gap:10px; padding:6px 12px; font-size:12px; cursor:pointer;">
                     <input type="checkbox" class="cleanup-zeroed-cb" value="${tx.id}" checked style="accent-color:var(--accent);">
                     <span style="color:var(--text-muted);">${tx.date_operation}</span>
-                    <span style="font-weight:600; flex:1;">${tx.description}</span>
+                    <span style="font-weight:600; flex:1;">${window.escapeHtml(tx.description)}</span>
                     <span style="font-weight:700;">0,00 €</span>
                 </label>
             `).join('');
@@ -1049,7 +1049,7 @@ window.DataCleanupModal = {
             return `
                 <div style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
                     <div style="padding:10px 14px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-                        <strong style="font-size:13px; color:var(--text-main);">🔄 ${g.template_description}</strong>
+                        <strong style="font-size:13px; color:var(--text-main);">🔄 ${window.escapeHtml(g.template_description)}</strong>
                         <span style="font-size:12px; color:#10b981; font-weight:700;">${fallbackStr}</span>
                     </div>
                     <div>${txItems}</div>

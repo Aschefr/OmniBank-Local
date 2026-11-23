@@ -78,7 +78,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <td style="padding: 10px; text-align: center;">
                         <input type="checkbox" id="wiz_renew_${t.id}" ${t.is_closed ? '' : 'checked'} style="width: 20px; height: 20px; cursor: pointer;" onchange="window.RecurrenceView.onRowRenewChange(this, '${t.id}')">
                     </td>
-                    <td style="padding: 10px; font-weight: bold; font-size: 14px;">${t.description}</td>
+                    <td style="padding: 10px; font-weight: bold; font-size: 14px;">${window.escapeHtml(t.description)}</td>
                     <td style="padding: 10px;">
                         <select id="wiz_freq_${t.id}" class="inline-input" style="width:100%; font-size: 13px;">
                             ${freqOptions}
@@ -87,7 +87,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <td style="padding: 10px;">
                         <select id="wiz_cat_${t.id}" class="inline-input" style="width:100%; font-size: 13px;" onchange="window.RecurrenceView.onWizardCategoryChange(this, '${t.id}')">
                             <option value="">${window.i18n.t('wizard_opt_no_category')}</option>
-                            ${categories.filter(c => c.type === 'expense_fixed' || c.name === t.category).map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
+                            ${categories.filter(c => c.type === 'expense_fixed' || c.name === t.category).map(c => `<option value="${window.escapeHtml(c.name)}" ${t.category === c.name ? 'selected' : ''}>${window.escapeHtml(c.name)}</option>`).join('')}
                             <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${window.i18n.t('wizard_opt_new_category') || 'New category...'}</option>
                         </select>
                     </td>
@@ -267,7 +267,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         const categories = this.categories || [];
         // Filter categories of type expense_fixed
         const fixedCats = categories.filter(c => c.type === 'expense_fixed');
-        const catOptions = fixedCats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        const catOptions = fixedCats.map(c => `<option value="${window.escapeHtml(c.name)}">${window.escapeHtml(c.name)}</option>`).join('');
         const newId = 'new_' + Date.now();
         
         const cfg = window.app.config || {};
@@ -369,7 +369,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
         }
         
         let html = `<option value="">${noCatLabel}</option>`;
-        html += displayCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        html += displayCategories.map(c => `<option value="${window.escapeHtml(c.name)}">${window.escapeHtml(c.name)}</option>`).join('');
         html += `<option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ ${newCatLabel}</option>`;
         
         selectElement.innerHTML = html;

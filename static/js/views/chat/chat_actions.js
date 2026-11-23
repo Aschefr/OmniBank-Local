@@ -323,14 +323,14 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                     const strikeStyle = (isIdKey || !hasChanged) ? 'none' : 'line-through';
                     
                     detailsHtml += `<tr>
-                        <td style="padding:6px 8px; font-weight:600; width:30%;">${label}</td>
-                        <td style="padding:6px 8px; color:var(--text-muted); text-decoration:${strikeStyle}; width:35%;">${oldVal}</td>
-                        <td style="padding:6px 8px; color:var(--accent); font-weight:600; width:35%;">${displayVal}</td>
+                        <td style="padding:6px 8px; font-weight:600; width:30%;">${window.escapeHtml(label)}</td>
+                        <td style="padding:6px 8px; color:var(--text-muted); text-decoration:${strikeStyle}; width:35%;">${window.escapeHtml(oldVal)}</td>
+                        <td style="padding:6px 8px; color:var(--accent); font-weight:600; width:35%;">${window.escapeHtml(displayVal)}</td>
                     </tr>`;
                 } else {
                     detailsHtml += `<tr>
-                        <td style="padding:6px 8px; font-weight:600; width:40%;">${label}</td>
-                        <td style="padding:6px 8px; color:var(--accent); font-weight:600;">${displayVal}</td>
+                        <td style="padding:6px 8px; font-weight:600; width:40%;">${window.escapeHtml(label)}</td>
+                        <td style="padding:6px 8px; color:var(--accent); font-weight:600;">${window.escapeHtml(displayVal)}</td>
                     </tr>`;
                 }
             }
@@ -354,7 +354,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         const fieldLabels = { category: window.i18n.t('field_label_category'), description: window.i18n.t('field_label_description'), amount: window.i18n.t('field_label_amount'), date_operation: window.i18n.t('field_label_date') };
 
         let detailsHtml = `<strong>Transaction #${actionObj.id}</strong>`;
-        if (currentTx?.description) detailsHtml += ` — <em>${currentTx.description}</em>`;
+        if (currentTx?.description) detailsHtml += ` — <em>${window.escapeHtml(currentTx.description)}</em>`;
         detailsHtml += `<table style="width:100%; margin-top:12px; border-collapse:collapse; font-size:12px;">`;
         detailsHtml += `<thead><tr>
             <th style="text-align:left; padding:4px 8px; color:var(--text-muted);" data-i18n="chat_th_field">${window.i18n.t('chat_th_field')}</th>
@@ -364,11 +364,11 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
         for (const [key, newVal] of Object.entries(actionObj.updates || {})) {
             const label = fieldLabels[key] || key;
-            const oldVal = currentTx ? (currentTx[key] ?? '<em>vide</em>') : '...';
+            const oldVal = currentTx ? (currentTx[key] != null ? window.escapeHtml(currentTx[key]) : '<em>vide</em>') : '...';
             detailsHtml += `<tr>
-                <td style="padding:6px 8px; font-weight:600;">${label}</td>
+                <td style="padding:6px 8px; font-weight:600;">${window.escapeHtml(label)}</td>
                 <td style="padding:6px 8px; color:var(--text-muted); text-decoration:line-through;">${oldVal}</td>
-                <td style="padding:6px 8px; color:var(--accent); font-weight:600;">${newVal}</td>
+                <td style="padding:6px 8px; color:var(--accent); font-weight:600;">${window.escapeHtml(newVal)}</td>
             </tr>`;
         }
         detailsHtml += `</tbody></table>`;

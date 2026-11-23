@@ -54,18 +54,18 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             
             const catOptionsHtml = (this.categories || [])
                 .filter(c => (!c.is_closed || c.name === t.category) && (!t.type || c.type === t.type))
-                .map(c => `<option value="${c.name}" ${t.category === c.name ? 'selected' : ''}>${c.name}</option>`)
+                .map(c => `<option value="${window.escapeHtml(c.name)}" ${t.category === c.name ? 'selected' : ''}>${window.escapeHtml(c.name)}</option>`)
                 .join('');
             
             tableHtml += `
                 <tr id="rec-row-${t.id}" onclick="window.RecurrenceView.toggleRow(${t.id})" style="cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(99,102,241,0.03)'" onmouseout="this.style.backgroundColor=''">
                     <td style="width: 3px; min-width: 3px; max-width: 3px; padding: 0; position: relative; overflow: visible;" onclick="event.stopPropagation()">
-                        <div style="position: absolute; top: 0; bottom: 0; left: -2px; width: 3px; background: ${typeColors.border}; box-shadow: -3px 0 8px -1px ${typeColors.border}; cursor: help;" title="${typeColors.label}"></div>
+                        <div style="position: absolute; top: 0; bottom: 0; left: -2px; width: 3px; background: ${typeColors.border}; box-shadow: -3px 0 8px -1px ${typeColors.border}; cursor: help;" title="${window.escapeHtml(typeColors.label)}"></div>
                     </td>
                     <td style="padding: 12px; text-align: center;">
                         <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
                     </td>
-                    <td data-label="Description" style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${t.description}</td>
+                    <td data-label="Description" style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${window.escapeHtml(t.description)}</td>
                     <td data-label="${window.i18n.t('col_category') || 'Catégorie'}" style="padding: 6px 12px;" onclick="event.stopPropagation()">
                         <select class="inline-input" style="padding: 4px 8px; border-radius: 6px; font-size: 13px; width: 100%; border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" onchange="window.RecurrenceView.changeTemplateCategory(this, ${t.id})">
                             <option value="">-- Sans catégorie --</option>
@@ -227,11 +227,11 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             timelineHtml += `
                 <div id="rec-row-${t.id}" class="gantt-row" onclick="window.RecurrenceView.toggleRow(${t.id})" style="position: relative;">
                     <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ${typeColors.border}; box-shadow: -3px 0 8px -1px ${typeColors.border}; z-index: 2;"></div>
-                    <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 10px; cursor: help; z-index: 3;" title="${typeColors.label}" onclick="event.stopPropagation()"></div>
+                    <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 10px; cursor: help; z-index: 3;" title="${window.escapeHtml(typeColors.label)}" onclick="event.stopPropagation()"></div>
                     <div class="gantt-desc">
                         <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
-                        <span style="margin-left: 5px;">${t.description}</span>
-                        <div style="font-size: 12px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">${t.category || '--'} • ${freqLabel} • <span class="privacy-blur" style="color: ${typeColors.text};">${formatCurrency(t.displayAmount)}</span></div>
+                        <span style="margin-left: 5px;">${window.escapeHtml(t.description)}</span>
+                        <div style="font-size: 12px; font-weight: normal; color: var(--text-muted); margin-top: 2px;">${window.escapeHtml(t.category || '--')} • ${freqLabel} • <span class="privacy-blur" style="color: ${typeColors.text};">${formatCurrency(t.displayAmount)}</span></div>
                     </div>
                     <div class="gantt-bar-container">${segmentsHtml}</div>
                 </div>
@@ -391,7 +391,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <span>${window.i18n.t('rec_popover_title') || 'Options de l\'échéance'}</span>
                     ${autoBadgeHtml}
                 </div>
-                <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${tx.description}</div>
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${window.escapeHtml(tx.description)}</div>
                 <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">📅 ${formattedDate} • <span class="privacy-blur">${formatCurrency(tx.amount)}</span></div>
                 ${reviewBannerHtml}
                 ${autoBannerHtml}

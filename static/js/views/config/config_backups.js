@@ -336,8 +336,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 const rows = preview.sample.slice(0, 5).map(tx => `
                     <tr>
                         <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.date_operation || '-'}</td>
-                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.description || '-'}</td>
-                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${tx.category || '-'}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${window.escapeHtml(tx.description || '-')}</td>
+                        <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;">${window.escapeHtml(tx.category || '-')}</td>
                         <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;text-align:right;">${formatCurrency(tx.amount)}</td>
                         <td style="padding:6px 8px;border-bottom:1px solid var(--border-color);font-size:12px;color:var(--color-expense);">variable → <span style="color:#10b981;">fixe</span></td>
                     </tr>
@@ -378,12 +378,12 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     </p>
                     ${sharedCats.map(c => `
                         <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;background:var(--bg-surface);border-radius:8px;">
-                            <span style="flex:1;font-weight:600;font-size:13px;">${c.name}</span>
+                            <span style="flex:1;font-weight:600;font-size:13px;">${window.escapeHtml(c.name)}</span>
                             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);">
-                                <input type="radio" name="cat_${c.name}" value="move" checked> ${window.i18n.t('maintenance_cat_move') || 'Move to Fixed charges'}
+                                <input type="radio" name="cat_${window.escapeHtml(c.name)}" value="move" checked> ${window.i18n.t('maintenance_cat_move') || 'Move to Fixed charges'}
                             </label>
                             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);">
-                                <input type="radio" name="cat_${c.name}" value="keep"> ${window.i18n.t('maintenance_cat_keep') || 'Keep as Variable'}
+                                <input type="radio" name="cat_${window.escapeHtml(c.name)}" value="keep"> ${window.i18n.t('maintenance_cat_keep') || 'Keep as Variable'}
                             </label>
                         </div>`).join('')}
                 </div>`;
@@ -396,7 +396,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 <div style="padding:10px;background:rgba(16,185,129,0.06);border-radius:8px;border:1px solid rgba(16,185,129,0.25);">
                     <div style="font-size:12px;color:#10b981;margin-bottom:4px;font-weight:600;">✅ ${window.i18n.t('maintenance_auto_move') || 'Categories moved automatically'}</div>
                     <p style="font-size:12px;color:var(--text-muted);margin:0;">
-                        ${nonSharedCats.map(c => '<span style="background:var(--bg-surface);padding:2px 8px;border-radius:4px;margin-right:4px;font-weight:500;">' + c.name + '</span>').join('')}
+                        ${nonSharedCats.map(c => '<span style="background:var(--bg-surface);padding:2px 8px;border-radius:4px;margin-right:4px;font-weight:500;">' + window.escapeHtml(c.name) + '</span>').join('')}
                     </p>
                 </div>`;
             }
@@ -486,7 +486,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     const sampleRows = (c.sample || []).map(tx => `
                         <tr style="font-size:12px;color:var(--text-muted);">
                             <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.date}</td>
-                            <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${tx.description}</td>
+                            <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);">${window.escapeHtml(tx.description)}</td>
                             <td style="padding:3px 6px;border-bottom:1px solid var(--border-color);text-align:right;font-weight:600;">${formatCurrency(tx.amount)}</td>
                         </tr>
                     `).join('');
@@ -495,7 +495,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div style="background:var(--bg-surface);border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid var(--border-color);">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <strong style="font-size:15px;color:var(--text-main);">🏷️ ${c.name}</strong>
+                                <strong style="font-size:15px;color:var(--text-main);">🏷️ ${window.escapeHtml(c.name)}</strong>
                                 <span style="font-size:12px;padding:2px 8px;border-radius:12px;font-weight:600;${curStyle}">${curLabel}</span>
                                 <span style="font-size:13px;color:var(--text-muted);">➔</span>
                                 <span style="font-size:12px;padding:2px 8px;border-radius:12px;font-weight:600;${sugStyle}">${sugLabel}</span>
@@ -504,7 +504,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                         </div>
                         
                         <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;line-height:1.4;">
-                            ⚠️ ${c.reason}
+                            ⚠️ ${window.escapeHtml(c.reason)}
                         </p>
 
                         ${sampleRows ? `
@@ -523,11 +523,11 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
                         <div style="display:flex;align-items:center;gap:12px;background:var(--bg-main);padding:8px 12px;border-radius:8px;">
                             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#10b981;">
-                                <input type="radio" name="misplaced_cat_${idx}" value="${c.suggested_type}" checked data-cat="${c.name}">
+                                <input type="radio" name="misplaced_cat_${idx}" value="${c.suggested_type}" checked data-cat="${window.escapeHtml(c.name)}">
                                 <span>${(window.i18n.t('maintenance_misplaced_cats_reclassify_to') || 'Reclasser en « {type} » (recommandé)').replace('{type}', sugLabel)}</span>
                             </label>
                             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-muted);">
-                                <input type="radio" name="misplaced_cat_${idx}" value="${c.current_type}" data-cat="${c.name}">
+                                <input type="radio" name="misplaced_cat_${idx}" value="${c.current_type}" data-cat="${window.escapeHtml(c.name)}">
                                 <span>${(window.i18n.t('maintenance_misplaced_cats_keep') || 'Conserver le type actuel ({type})').replace('{type}', curLabel)}</span>
                             </label>
                         </div>
@@ -638,7 +638,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
                         <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;">
                             <span style="font-size:14px;">🔄</span>
-                            <strong style="font-size:13px;">${group.template_description}</strong>
+                            <strong style="font-size:13px;">${window.escapeHtml(group.template_description)}</strong>
                             ${closedBadge}
                             <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${group.transactions.length} op.</span>
                         </div>
@@ -651,8 +651,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <input type="checkbox" class="orphan-tx-cb" value="${tx.id}" checked style="width:16px;height:16px;flex-shrink:0;">
                                 <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                                     <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
-                                    <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
-                                    <span style="color:var(--text-muted);font-size:12px;">${tx.category || ''}</span>
+                                    <span style="font-weight:500;flex:1;min-width:120px;">${window.escapeHtml(tx.description)}</span>
+                                    <span style="color:var(--text-muted);font-size:12px;">${window.escapeHtml(tx.category || '')}</span>
                                     <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
                                 </span>
                             </label>`;
@@ -755,10 +755,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     <div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:10px;overflow:hidden;" id="wizard-group-${group.template_id}">
                         <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;">
                             <span style="font-size:14px;">🔄</span>
-                            <strong style="font-size:13px;">${group.template_description}</strong>
+                            <strong style="font-size:13px;">${window.escapeHtml(group.template_description)}</strong>
                             ${fallbackHtml}
                             <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">${group.transactions.length} ${opsSuffix}</span>
-                            <button type="button" class="wizard-close-tpl-btn" data-tpl-id="${group.template_id}" data-tpl-name="${group.template_description}" title="${window.i18n.t('maintenance_close_recurrence_tooltip') || 'Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.'}" style="margin-left:8px;background:none;border:1px solid var(--danger-color);color:var(--danger-color);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;" onmouseover="this.style.background='var(--danger-color)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--danger-color)'"
+                            <button type="button" class="wizard-close-tpl-btn" data-tpl-id="${group.template_id}" data-tpl-name="${window.escapeHtml(group.template_description)}" title="${window.i18n.t('maintenance_close_recurrence_tooltip') || 'Fermer définitivement cette récurrence. Elle ne générera plus de nouvelles échéances.'}" style="margin-left:8px;background:none;border:1px solid var(--danger-color);color:var(--danger-color);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap;" onmouseover="this.style.background='var(--danger-color)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--danger-color)'"
                             >🚫 ${window.i18n.t('maintenance_close_recurrence') || 'Fermer'}</button>
                         </div>
                         <div style="padding:0;">`;
@@ -770,8 +770,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                                 <input type="checkbox" class="convert-tx-cb" value="${tx.id}" checked style="width:16px;height:16px;flex-shrink:0;">
                                 <span style="flex:1;font-size:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                                     <span style="color:var(--text-muted);min-width:85px;">${dateStr}</span>
-                                    <span style="font-weight:500;flex:1;min-width:120px;">${tx.description}</span>
-                                    <span style="color:var(--text-muted);font-size:12px;">${tx.category || ''}</span>
+                                    <span style="font-weight:500;flex:1;min-width:120px;">${window.escapeHtml(tx.description)}</span>
+                                    <span style="color:var(--text-muted);font-size:12px;">${window.escapeHtml(tx.category || '')}</span>
                                     <span style="font-weight:700;min-width:80px;text-align:right;">${formatCurrency(tx.amount)}</span>
                                 </span>
                             </label>`;
@@ -910,8 +910,8 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                     const fSize = (f.size_bytes / 1024 / 1024).toFixed(2) + ' MB';
                     html += `
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px;">
-                        <span>📦 ${f.filename} <span style="color: var(--text-muted);">(${fDate} — ${fSize})</span></span>
-                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="window.ConfigView.downloadAutoBackup('${f.filename}')">💾</button>
+                        <span>📦 ${window.escapeHtml(f.filename)} <span style="color: var(--text-muted);">(${fDate} — ${fSize})</span></span>
+                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="window.ConfigView.downloadAutoBackup(${window.jsArg(f.filename)})">💾</button>
                     </div>`;
                 }
                 html += '</div>';

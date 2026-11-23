@@ -15,7 +15,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <input type="checkbox" name="budgetAccount" value="${a.id}" data-color="${accColor}" ${isSelected ? 'checked' : ''} onchange="window.BudgetsView.onAccountChange(this)">
                     <span style="width:10px;height:10px;border-radius:50%;background:${accColor};flex-shrink:0;"></span>
                     <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-                        <span style="font-weight:${isSelected ? '600' : 'normal'};color:${isSelected ? accColor : 'inherit'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${a.name}">${a.name}</span>
+                        <span style="font-weight:${isSelected ? '600' : 'normal'};color:${isSelected ? accColor : 'inherit'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.escapeHtml(a.name)}">${window.escapeHtml(a.name)}</span>
                     </div>
                 </label>
             `;
@@ -187,7 +187,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 <li class="bv-op${planned ? ' bv-op--planned' : ''}${it.added ? ' bv-op--added' : ''}">
                     <span class="bv-op-date">${dateText}</span>
                     <span class="bv-op-desc">
-                        <span class="bv-op-label">${it.label}</span>
+                        <span class="bv-op-label">${window.escapeHtml(it.label)}</span>
                         ${planned ? `<span class="bv-op-tag">${t('bv_op_planned', 'prévue')}</span>` : ''}
                     </span>
                     ${it.category ? `<span class="bv-op-cat">${esc(it.category)}</span>` : '<span></span>'}
@@ -464,7 +464,6 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 const effectiveBalance = balance - tempWithdrawn;
                 const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
                 const goalReached = balance >= goal && goal > 0;
-                const safeName = budgetName.replace(/'/g, "\\'");
 
                 const hostedPerAccount = {};
                 for (const a of allocs) {
@@ -490,8 +489,8 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     ${accountSelectDetail}
                     <input type="text" id="detailAllocNote" class="inline-input bv-detail-alloc-note" placeholder="${t('budget_savings_note_placeholder', 'Note')}">
                     <div class="bv-detail-alloc-actions">
-                        <button type="button" class="btn btn-primary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, '${safeName}', ${year}, ${month})">${t('budget_savings_deposit', 'Déposer')}</button>
-                        <button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, '${safeName}', ${year}, ${month})">${t('budget_savings_withdrawal', 'Retirer')}</button>
+                        <button type="button" class="btn btn-primary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, 1, ${window.jsArg(budgetName)}, ${year}, ${month})">${t('budget_savings_deposit', 'Déposer')}</button>
+                        <button type="button" class="btn btn-secondary bv-btn-compact" onclick="window.BudgetsView.addAllocationFromDetail(${budgetId}, -1, ${window.jsArg(budgetName)}, ${year}, ${month})">${t('budget_savings_withdrawal', 'Retirer')}</button>
                     </div>
                 </div>`;
 
@@ -505,7 +504,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     items.push({
                         date: a.date, amount: a.amount, isIncome: a.amount > 0, sign: '−',
                         label: `${esc(note)}${acc ? ` <span class="bv-env-account" style="--acc:${acc.color || 'var(--accent)'}">${esc(acc.name)}</span>` : ''}`,
-                        action: `<button type="button" class="bv-icon-btn bv-icon-btn--danger" aria-label="${t('tooltip_delete', 'Supprimer')}" title="${t('tooltip_delete', 'Supprimer')}" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${a.id},'${safeName}',${year},${month})">${this._bvIcon('close', 14)}</button>`,
+                        action: `<button type="button" class="bv-icon-btn bv-icon-btn--danger" aria-label="${t('tooltip_delete', 'Supprimer')}" title="${t('tooltip_delete', 'Supprimer')}" onclick="event.stopPropagation();window.BudgetsView.deleteAllocation(${budgetId},${a.id},${window.jsArg(budgetName)},${year},${month})">${this._bvIcon('close', 14)}</button>`,
                     });
                 }
                 items.sort((a, b) => b.date.localeCompare(a.date));

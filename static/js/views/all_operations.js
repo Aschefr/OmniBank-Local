@@ -338,7 +338,7 @@ window.AllOperationsView = {
             accs.forEach(a => {
                 const icon = a.type && (a.type.toLowerCase().includes('livret') || a.type.toLowerCase().includes('epargne') || a.type.toLowerCase().includes('saving')) ? '🏦 ' :
                             (a.type && (a.type.toLowerCase().includes('prêt') || a.type.toLowerCase().includes('pret') || a.type.toLowerCase().includes('emprunt') || a.type.toLowerCase().includes('loan')) ? '📑 ' : '💳 ');
-                accHtml += `<option value="${a.id}">${icon}${a.name}</option>`;
+                accHtml += `<option value="${a.id}">${icon}${window.escapeHtml(a.name)}</option>`;
             });
             accSelect.innerHTML = accHtml;
             if (currentAccVal) {
@@ -767,11 +767,11 @@ window.AllOperationsView = {
             const depuisTitle = fromAcc ? fromAcc.name : (tx.cross_profile_label || '');
             const versTitle = toAcc ? toAcc.name : (tx.cross_profile_label || '');
             
-            let depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}18;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${fromAcc.color || '#3366ff'};"></span>${fromAcc.name}</span>` : '-';
-            let versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}18;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${toAcc.color || '#3366ff'};"></span>${toAcc.name}</span>` : '-';
+            let depuisBadge = fromAcc ? `<span class="account-badge" style="background:${fromAcc.color || '#3366ff'}18;color:${fromAcc.color || '#3366ff'};border-color:${fromAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${fromAcc.color || '#3366ff'};"></span>${window.escapeHtml(fromAcc.name)}</span>` : '-';
+            let versBadge = toAcc ? `<span class="account-badge" style="background:${toAcc.color || '#3366ff'}18;color:${toAcc.color || '#3366ff'};border-color:${toAcc.color || '#3366ff'}40;"><span class="acc-badge-dot" style="background:${toAcc.color || '#3366ff'};"></span>${window.escapeHtml(toAcc.name)}</span>` : '-';
 
             if (tx.cross_profile_label) {
-                const cpBadge = `<span class="account-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);" title="${tx.cross_profile_label}"><span class="acc-badge-dot" style="background:#818cf8;"></span>${tx.cross_profile_label}</span>`;
+                const cpBadge = `<span class="account-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3);" title="${window.escapeHtml(tx.cross_profile_label)}"><span class="acc-badge-dot" style="background:#818cf8;"></span>${window.escapeHtml(tx.cross_profile_label)}</span>`;
                 if (!fromAcc) depuisBadge = cpBadge;
                 if (!toAcc) versBadge = cpBadge;
             }
@@ -799,24 +799,24 @@ window.AllOperationsView = {
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${statusSubtext}${reviewBadge}</td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${window.escapeHtml(tx.description || '')}"><span class="desc-text">${window.escapeHtml ? window.escapeHtml(tx.description || '') : (tx.description || '')}</span>${statusSubtext}${reviewBadge}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type)}">${window.app.getTypeLabel(tx.type)}</td>
-                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span class="cat-badge">${tx.category || '-'}</span></td>
+                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" title="${window.escapeHtml(tx.category || '')}"><span class="cat-badge">${window.escapeHtml(tx.category || '-')}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
                 </td>
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">${reconCellHtml}</td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='all_operations'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" class="budget-badge" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && this.budgetsMap[tx.budget_id]) ? this.budgetsMap[tx.budget_id] : (tx.category && this.categoryToBudgetMap && this.categoryToBudgetMap[tx.category]) ? this.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='all_operations'; window.BudgetsView._pendingHighlightName=${window.jsArg(bName)};window.app.loadView('budgets')" class="budget-badge" title="${window.escapeHtml(bName)}">🗂️ ${window.escapeHtml(bName)}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
                 <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuisBadge}</td>
                 <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${versBadge}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
 
                 <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.slip_number ? '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">' + tx.slip_number + '</span>' : '-'}</td>
-                <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-'}</td>
-                <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
-                <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
-                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}"${tx.attachments && !tx.attachments.includes(',') ? ` style="cursor:pointer;" onclick="event.stopPropagation(); window.AllOperationsView._openAttachment('${tx.attachments.replace(/'/g, "\'")}')"` : ''}>${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
+                <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${tx.attachments ? `<span style="cursor:pointer;" title="${window.escapeHtml(tx.attachments)}" onclick="window.AllOperationsView._openAttachment(${window.jsArg(tx.attachments)})">📎</span>` : '-'}</td>
+                <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${window.escapeHtml(tx.created_by)}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
+                <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${window.escapeHtml(tx.modified_by)}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
+                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}"${tx.attachments && !tx.attachments.includes(',') ? ` style="cursor:pointer;" onclick="event.stopPropagation(); window.AllOperationsView._openAttachment(${window.jsArg(tx.attachments)})"` : ''}>${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {

@@ -295,54 +295,56 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                             `;
                         }
                     } else if (actionObj.action !== undefined) {
-                        let desc = window.i18n.tp('chat_action_generic_propose', { action: actionObj.action });
+                        // Paramètres écrits par l'IA (noms, libellés) : échappés, car les traductions qui les reçoivent contiennent du HTML
+                        const escParams = Object.fromEntries(Object.entries(actionObj.params || {}).map(([k, v]) => [k, typeof v === 'string' ? window.escapeHtml(v) : v]));
+                        let desc = window.i18n.tp('chat_action_generic_propose', { action: window.escapeHtml(actionObj.action) });
                         if (actionObj.action === 'create_budget_envelope') {
-                            desc = window.i18n.tp('chat_action_propose_create_budget', { name: actionObj.params.name, amount: actionObj.params.monthly_amount });
+                            desc = window.i18n.tp('chat_action_propose_create_budget', { name: escParams.name, amount: escParams.monthly_amount });
                         } else if (actionObj.action === 'update_budget_envelope') {
-                            desc = window.i18n.tp('chat_action_propose_update_budget', { name: actionObj.params.name || actionObj.params.budget_id });
+                            desc = window.i18n.tp('chat_action_propose_update_budget', { name: escParams.name || escParams.budget_id });
                         } else if (actionObj.action === 'delete_budget_envelope') {
-                            desc = window.i18n.tp('chat_action_propose_delete_budget', { id: actionObj.params.budget_id });
+                            desc = window.i18n.tp('chat_action_propose_delete_budget', { id: escParams.budget_id });
                         } else if (actionObj.action === 'allocate_savings_funds') {
-                            const actKey = actionObj.params.amount >= 0 ? 'chat_action_propose_allocate_savings_action_deposit' : 'chat_action_propose_allocate_savings_action_withdraw';
+                            const actKey = escParams.amount >= 0 ? 'chat_action_propose_allocate_savings_action_deposit' : 'chat_action_propose_allocate_savings_action_withdraw';
                             const actName = window.i18n.t(actKey);
-                            desc = window.i18n.tp('chat_action_propose_allocate_savings', { action: actName, amount: Math.abs(actionObj.params.amount), id: actionObj.params.budget_id });
+                            desc = window.i18n.tp('chat_action_propose_allocate_savings', { action: actName, amount: Math.abs(escParams.amount), id: escParams.budget_id });
                         } else if (actionObj.action === 'create_recurrence_template') {
-                            desc = window.i18n.tp('chat_action_propose_create_recurrence', { desc: actionObj.params.description, amount: actionObj.params.amount });
+                            desc = window.i18n.tp('chat_action_propose_create_recurrence', { desc: escParams.description, amount: escParams.amount });
                         } else if (actionObj.action === 'update_recurrence_template') {
-                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
-                            if (actionObj.params.is_active === true) {
+                            const recName = escParams.description ? `"${escParams.description}"` : ('#' + (escParams.template_id || ''));
+                            if (escParams.is_active === true) {
                                 desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_reactivate_recurrence', { desc: recName }) : `Réactivation de la charge récurrente ${recName}`;
-                            } else if (actionObj.params.is_active === false) {
+                            } else if (escParams.is_active === false) {
                                 desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_deactivate_recurrence', { desc: recName }) : `Désactivation de la charge récurrente ${recName}`;
                             } else {
                                 desc = window.i18n.tp('chat_action_propose_update_recurrence', { desc: recName });
                             }
                         } else if (actionObj.action === 'close_recurrence_template') {
-                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
+                            const recName = escParams.description ? `"${escParams.description}"` : ('#' + (escParams.template_id || ''));
                             desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_close_recurrence', { desc: recName }) : `Clôture de la charge récurrente ${recName} : arrêt des échéances futures et conservation de l'historique`;
                         } else if (actionObj.action === 'delete_recurrence_template') {
-                            const recName = actionObj.params.description ? `"${actionObj.params.description}"` : ('#' + (actionObj.params.template_id || ''));
+                            const recName = escParams.description ? `"${escParams.description}"` : ('#' + (escParams.template_id || ''));
                             desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_delete_recurrence_def', { desc: recName }) : `Suppression définitive de la charge récurrente ${recName}`;
                         } else if (actionObj.action === 'create_category') {
-                            desc = window.i18n.tp('chat_action_propose_create_category', { name: actionObj.params.name });
+                            desc = window.i18n.tp('chat_action_propose_create_category', { name: escParams.name });
                         } else if (actionObj.action === 'delete_category') {
-                            desc = window.i18n.tp('chat_action_propose_delete_category', { name: actionObj.params.name });
+                            desc = window.i18n.tp('chat_action_propose_delete_category', { name: escParams.name });
                         } else if (actionObj.action === 'set_predicted_paycheck') {
-                            desc = window.i18n.tp('chat_action_propose_set_paycheck', { amount: actionObj.params.amount, day: actionObj.params.day_of_month });
+                            desc = window.i18n.tp('chat_action_propose_set_paycheck', { amount: escParams.amount, day: escParams.day_of_month });
                         } else if (actionObj.action === 'delete_transaction') {
-                            desc = window.i18n.tp('chat_action_propose_delete_transaction', { id: actionObj.params.transaction_id });
+                            desc = window.i18n.tp('chat_action_propose_delete_transaction', { id: escParams.transaction_id });
                         } else if (actionObj.action === 'apply_transaction_correction') {
-                            const txId = actionObj.params.transaction_id || actionObj.params.id;
+                            const txId = escParams.transaction_id || escParams.id;
                             const parts = [];
-                            if (actionObj.params.category) parts.push(`${window.i18n.t('field_label_category') || 'Catégorie'} : ${actionObj.params.category}`);
-                            if (actionObj.params.description) parts.push(`${window.i18n.t('field_label_description') || 'Libellé'} : ${actionObj.params.description}`);
-                            if (actionObj.params.amount !== undefined) parts.push(`${window.i18n.t('field_label_amount') || 'Montant'} : ${actionObj.params.amount} €`);
+                            if (escParams.category) parts.push(`${window.i18n.t('field_label_category') || 'Catégorie'} : ${escParams.category}`);
+                            if (escParams.description) parts.push(`${window.i18n.t('field_label_description') || 'Libellé'} : ${escParams.description}`);
+                            if (escParams.amount !== undefined) parts.push(`${window.i18n.t('field_label_amount') || 'Montant'} : ${escParams.amount} €`);
                             const fieldsStr = parts.join(', ');
                             desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_apply_correction', { id: txId, fields: fieldsStr }) : `Correction de l'opération #${txId} (${fieldsStr})`;
                         } else if (actionObj.action === 'create_planned_transfer') {
-                            const fromA = actionObj.params.from_account || 'Compte source';
-                            const toA = actionObj.params.to_account || 'Compte destination';
-                            const amt = actionObj.params.amount !== undefined ? `${actionObj.params.amount} €` : '';
+                            const fromA = escParams.from_account || 'Compte source';
+                            const toA = escParams.to_account || 'Compte destination';
+                            const amt = escParams.amount !== undefined ? `${escParams.amount} €` : '';
                             desc = window.i18n.tp ? window.i18n.tp('chat_action_propose_create_transfer', { amount: amt, from: fromA, to: toA }) : `Enregistrement d'un virement prévisionnel de ${amt} (${fromA} ➔ ${toA})`;
                         } else if (actionObj.action === 'trigger_bank_sync') {
                             desc = window.i18n.t('chat_action_propose_sync_bank') || `Lancement d'une synchronisation et d'un relevé bancaire en ligne (rapprochement Auto-Pilote)`;
@@ -591,7 +593,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                         const descKey = `tool_${t}_desc`;
                         const translatedDesc = window.i18n ? window.i18n.t(descKey) : null;
                         const tooltipDesc = (translatedDesc && translatedDesc !== descKey) ? translatedDesc : label;
-                        return `<span class="tool-badge" title="${tooltipDesc.replace(/"/g, '&quot;')}">${emoji} ${label}</span>`;
+                        return `<span class="tool-badge" title="${window.escapeHtml(tooltipDesc)}">${emoji} ${label}</span>`;
                     }).join(' ');
                 }
             }
@@ -1699,10 +1701,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 ${txHtml}
 
                 <div style="display:flex; gap:8px; margin-top:12px;">
-                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToBudget(${budgetId || snapshot?.id || 0}, '${window.escapeHtml(budgetName)}', ${y}, ${m})">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToBudget(${budgetId || snapshot?.id || 0}, ${window.jsArg(budgetName)}, ${y}, ${m})">
                         📊 ${window.i18n.t('chat_entity_open_budget') || 'Ouvrir dans Budgets'}
                     </button>
-                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(budgetName)}', ${snapshotContextJson})">
+                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory(${window.jsArg(budgetName)}, ${snapshotContextJson})">
                         🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir opérations'}
                     </button>
                 </div>
@@ -1849,7 +1851,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 ${txListHtml}
 
                 <div style="display:flex; gap:8px; margin-top:12px;">
-                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}', ${snapshotContextJson})">
+                    <button class="btn btn-primary" style="width:100%; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory(${window.jsArg(categoryName)}, ${snapshotContextJson})">
                         🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir toutes les opérations'}
                     </button>
                 </div>
@@ -1857,7 +1859,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
         } catch (e) {
             popover.innerHTML = `
                 <div style="font-weight:700; font-size:13px; margin-bottom:8px;">🛒 ${window.escapeHtml(categoryName)}</div>
-                <button class="btn btn-primary" style="width:100%; font-size:11px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(categoryName)}')">
+                <button class="btn btn-primary" style="width:100%; font-size:11px;" onclick="window.ChatView.navigateToHistory(${window.jsArg(categoryName)})">
                     🔍 ${window.i18n.t('chat_entity_filter_ops') || 'Voir les opérations'}
                 </button>
             `;
@@ -1952,10 +1954,10 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 </div>
 
                 <div style="display:flex; gap:8px;">
-                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToRecurrences(${recId || snapshot?.id || 0}, '${window.escapeHtml(desc)}')">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToRecurrences(${recId || snapshot?.id || 0}, ${window.jsArg(desc)})">
                         🔄 Gérer dans Récurrences
                     </button>
-                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory('${window.escapeHtml(desc)}')">
+                    <button class="btn btn-secondary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToHistory(${window.jsArg(desc)})">
                         🔍 Voir opérations
                     </button>
                 </div>
@@ -2053,7 +2055,7 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 </div>
 
                 <div style="display:flex; gap:8px;">
-                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToTransaction(${txId || snapshot?.id || 0}, '${window.escapeHtml(desc)}', '${dateOp}')">
+                    <button class="btn btn-primary" style="flex:1; padding:6px 8px; font-size:11px; border-radius:6px;" onclick="window.ChatView.navigateToTransaction(${txId || snapshot?.id || 0}, ${window.jsArg(desc)}, '${dateOp}')">
                         🔍 Voir dans l'historique
                     </button>
                 </div>

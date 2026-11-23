@@ -8,7 +8,7 @@ window.ImportWizard = {
             this.descriptions = await API.get('/api/transactions/descriptions');
             const dataList = document.getElementById('importDescList');
             if (dataList) {
-                dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${d}">`).join('');
+                dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${window.escapeHtml(d)}">`).join('');
             }
         } catch (e) {
             console.error('Failed to load descriptions', e);

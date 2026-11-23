@@ -2182,7 +2182,7 @@ window.AutopilotView = {
 
             html += `
                 <div class="ap-batch-card" id="apBatch_${escapeHtml(batchId)}" data-batch-id="${escapeHtml(batchId)}" style="opacity: ${isAllUndone ? '0.6' : '1'};">
-                    <div class="ap-batch-header" onclick="window.AutopilotView.toggleBatch('${escapeHtml(batchId)}')">
+                    <div class="ap-batch-header" onclick="window.AutopilotView.toggleBatch(${window.jsArg(batchId)})">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span class="ap-batch-chevron">▾</span>
                             <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.package}</span>

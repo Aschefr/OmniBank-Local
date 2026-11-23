@@ -1041,7 +1041,7 @@ window.OverviewView = {
                 <div class="overview-acc-group">
                     <div class="overview-acc-group-header">
                         <span class="overview-acc-group-icon">${grp.icon}</span>
-                        <span>${grp.label}</span>
+                        <span>${window.escapeHtml(grp.label)}</span>
                     </div>
                     <div class="overview-acc-group-items">
             `;
@@ -3241,7 +3241,7 @@ window.OverviewView = {
             rowsEl.style.display = 'flex';
             rowsEl.innerHTML = data.rows.map(r => `
                 <div class="cockpit-info-sheet-row">
-                    <span class="cockpit-info-sheet-row-label">${r.label}</span>
+                    <span class="cockpit-info-sheet-row-label">${window.escapeHtml(r.label)}</span>
                     <span class="cockpit-info-sheet-row-value privacy-blur ${r.valueClass || ''}">${r.value}</span>
                 </div>
             `).join('');
@@ -3530,7 +3530,7 @@ window.OverviewView = {
         } else if (periodGroup) {
             periodGroup.innerHTML = periods.map(p => `
                 <button type="button" class="cockpit-sheet-period-btn ${p.key === period ? 'active' : ''}" data-period="${p.key}">
-                    ${p.label}
+                    ${window.escapeHtml(p.label)}
                 </button>
             `).join('');
             periodGroup.querySelectorAll('.cockpit-sheet-period-btn').forEach(btn => {

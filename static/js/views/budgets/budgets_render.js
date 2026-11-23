@@ -164,7 +164,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
 
         const optionsHtml = secondaryAccounts.map(a => {
             const h = hostedPerAccount[a.id] || 0.0;
-            return `<option value="${a.id}">🏦 ${a.name} · ${formatCurrency(h)} ${suffix}</option>`;
+            return `<option value="${a.id}">🏦 ${window.escapeHtml(a.name)} · ${formatCurrency(h)} ${suffix}</option>`;
         }).join('');
 
         return `
@@ -369,7 +369,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const envList = envs.length ? envs.map(b => `
             <label class="bv-pref-env">
                 <input type="checkbox" ${prefs.pinned.includes(b.id) ? 'checked' : ''} onchange="window.BudgetsView.togglePin(${b.id})">
-                <span class="bv-pref-env-name">${b.name}</span>
+                <span class="bv-pref-env-name">${window.escapeHtml(b.name)}</span>
                 <span class="bv-pref-env-period">${periodName[b.period || 'monthly'] || ''}</span>
             </label>`).join('') : `<p class="bv-pref-hint">${t('bv_prefs_no_env', 'Aucune enveloppe de dépenses.')}</p>`;
 
@@ -568,7 +568,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
             let label = title ? `<h3>${title}</h3>` : totalLabel(p);
             if (key !== '__global__' && withAccounts) {
                 const names = key.split(',').map(id => this.accounts?.find(a => a.id === parseInt(id))).filter(Boolean)
-                    .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
+                    .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${window.escapeHtml(a.name)}</span>`);
                 const accHtml = names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ');
                 label = title ? `${label}${accHtml}` : `${accHtml}<span class="bv-total-period">${label}</span>`;
             } else if (title && isOrg) {
@@ -624,24 +624,23 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     <span>${tp('bv_sugg', { amount: formatCurrency(autoSugg.suggested_amount) }, 'Plafond proposé : {amount}')}</span>
                 </button>` : '';
 
-            const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const y = b.period === 'yearly' ? this.yearlyYear : (period ? parseInt(period.start.slice(0, 4)) : new Date().getFullYear());
             const issue = this._envIssue(b);
             const m = period ? parseInt(period.start.slice(5, 7)) : new Date().getMonth() + 1;
             return `
             <article class="bv-env bv-tone-${tone}${b.is_closed ? ' bv-env--closed' : ''}${change ? ' bv-env--changed' : ''}" data-budget-id="${b.id}" tabindex="0"
-                     onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})"
-                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, '${safeName}', ${y}, ${m})}">
+                     onclick="window.BudgetsView.showDetail(${b.id}, ${window.jsArg(b.name)}, ${y}, ${m})"
+                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, ${window.jsArg(b.name)}, ${y}, ${m})}">
                 <div class="bv-env-head">
                     <div class="bv-env-name">
-                        <strong>${b.name}</strong>
+                        <strong>${window.escapeHtml(b.name)}</strong>
                         ${b.is_locked ? `<span class="bv-env-lock" title="${t('bv_locked', "Verrouillée : pas d'ajustement automatique")}">${this._bvIcon('lock', 13)}</span>` : ''}
                         ${prefs.pinned.includes(b.id) ? `<span class="bv-env-lock" title="${t('bv_pinned', 'Épinglée dans la barre latérale')}">${this._bvIcon('pin', 13)}</span>` : ''}
                     </div>
                     <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(spent)}</strong><span${change ? ' class="bv-changed-value"' : ''}> / ${formatCurrency(limit)}</span></div>
                     <div class="bv-env-actions" onclick="event.stopPropagation()">
-                        <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.editBudget(${b.id})" aria-label="${t('tooltip_edit', 'Modifier')} ${safeName}" title="${t('tooltip_edit', 'Modifier')}">${this._bvIcon('pencil')}</button>
-                        <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')} ${safeName}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
+                        <button type="button" class="bv-icon-btn" onclick="window.BudgetsView.editBudget(${b.id})" aria-label="${t('tooltip_edit', 'Modifier')} ${window.escapeHtml(b.name)}" title="${t('tooltip_edit', 'Modifier')}">${this._bvIcon('pencil')}</button>
+                        <button type="button" class="bv-icon-btn bv-icon-btn--danger" onclick="window.BudgetsView.deleteBudget(${b.id})" aria-label="${t('tooltip_delete', 'Supprimer')} ${window.escapeHtml(b.name)}" title="${t('tooltip_delete', 'Supprimer')}">${this._bvIcon('trash')}</button>
                     </div>
                 </div>
                 ${this._envBarHtml(gauge)}
@@ -706,7 +705,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                 let title = t('budget_summary_global', 'Toutes les enveloppes');
                 if (key !== '__global__') {
                     const names = key.split(',').map(id => this.accounts?.find(a => a.id === parseInt(id))).filter(Boolean)
-                        .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${a.name}</span>`);
+                        .map(a => `<span class="bv-env-account" style="--acc:${a.color || 'var(--accent)'}">${window.escapeHtml(a.name)}</span>`);
                     title = names.length ? names.join(' ') : (list[0]?.account_names || []).join(' + ');
                 }
                 html += renderSection('org', title, list, `org-${key}`);
@@ -755,7 +754,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
                     </div>
                     ${single ? barBlock(single) : fixedBars.map(f => `
                     <div class="bv-fold-period bv-tone-${f.tone}">
-                        <div class="bv-total-head"><span class="bv-total-label"><span class="bv-total-period">${f.label}</span>${f.nav}</span>${figures(f)}</div>
+                        <div class="bv-total-head"><span class="bv-total-label"><span class="bv-total-period">${window.escapeHtml(f.label)}</span>${f.nav}</span>${figures(f)}</div>
                         ${barBlock(f)}
                     </div>`).join('')}
                 </summary>
@@ -822,14 +821,13 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         const effectiveBalance = balance - tempWithdrawn;
         const pct = goal > 0 ? Math.min((effectiveBalance / goal) * 100, 100) : 0;
         const goalReached = balance >= goal && goal > 0;
-        const safeName = b.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const now = new Date();
         return `
             <article class="bv-env bv-env--savings${goalReached ? ' bv-tone-near' : ' bv-tone-ok'}${b.is_closed ? ' bv-env--closed' : ''}" data-budget-id="${b.id}" tabindex="0"
-                     onclick="window.BudgetsView.showDetail(${b.id}, '${safeName}', ${now.getFullYear()}, ${now.getMonth() + 1})"
-                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, '${safeName}', ${now.getFullYear()}, ${now.getMonth() + 1})}">
+                     onclick="window.BudgetsView.showDetail(${b.id}, ${window.jsArg(b.name)}, ${now.getFullYear()}, ${now.getMonth() + 1})"
+                     onkeydown="if(event.key==='Enter'&&event.target===this){window.BudgetsView.showDetail(${b.id}, ${window.jsArg(b.name)}, ${now.getFullYear()}, ${now.getMonth() + 1})}">
                 <div class="bv-env-head">
-                    <div class="bv-env-name"><strong>${b.name}</strong></div>
+                    <div class="bv-env-name"><strong>${window.escapeHtml(b.name)}</strong></div>
                     <div class="bv-env-figures privacy-blur"><strong>${formatCurrency(effectiveBalance)}</strong><span> / ${formatCurrency(goal)}</span></div>
                     <div class="bv-env-actions" onclick="event.stopPropagation()">
                         ${!b.is_closed ? `<button type="button" class="bv-icon-btn" onclick="window.BudgetsView.showAllocationForm(${b.id})" aria-label="${t('budget_savings_add_funds', 'Alimenter')}" title="${t('budget_savings_add_funds', 'Alimenter')}">${this._bvIcon('plus')}</button>` : ''}

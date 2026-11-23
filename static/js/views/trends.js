@@ -358,9 +358,8 @@ window.TrendsView = {
         const tooltip = escapeHtml(window.i18n.t('overview_top3_click_tooltip') || "Voir les opérations dans l'historique");
         container.innerHTML = top6.map((item, i) => {
             const cat = escapeHtml(item.category);
-            const catForJs = cat.replace(/'/g, "\\'");
             return `
-                <div class="overview-top3-item overview-top3-item-clickable" onclick="window.TrendsView.drillDownToHistory('${catForJs}', '${month}')" title="${tooltip}">
+                <div class="overview-top3-item overview-top3-item-clickable" onclick="window.TrendsView.drillDownToHistory(${window.jsArg(cat)}, '${month}')" title="${tooltip}">
                     <div class="overview-top3-header">
                         <span class="overview-top3-name">${medals[i]} ${cat}</span>
                         <span class="overview-top3-amt privacy-blur">${formatCurrency(item.amount)}</span>
@@ -468,7 +467,7 @@ window.TrendsView = {
         const activeAccounts = this.accounts.filter(a => !a.is_closed);
         let options = `<option value="total" style="font-weight:bold;" data-i18n="trends_opt_total">${window.i18n.t('trends_opt_total')}</option>`;
         options += activeAccounts.map(a =>
-            `<option value="${a.id}">${a.name}</option>`
+            `<option value="${a.id}">${window.escapeHtml(a.name)}</option>`
         ).join('');
         if (sel) sel.innerHTML = options;
 
@@ -1009,7 +1008,7 @@ window.TrendsView = {
                         <td style="padding:10px 6px;">
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${row.color}; flex-shrink:0;"></span>
-                                <span style="font-weight:600; color:var(--text-main); white-space:nowrap;">${row.label}</span>
+                                <span style="font-weight:600; color:var(--text-main); white-space:nowrap;">${window.escapeHtml(row.label)}</span>
                             </div>
                         </td>
                         <td style="padding:10px 6px; text-align:right; font-weight:600; color:${varColor};"><span class="privacy-blur">${varPrefix}${formatCurrency(row.variation)}</span></td>

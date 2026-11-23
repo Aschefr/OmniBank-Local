@@ -256,7 +256,7 @@ window.BudgetsView = Object.assign(window.BudgetsView || {}, {
         } catch(e) {
             const container = document.getElementById('budgetStatusContainer');
             if (container) {
-                container.innerHTML = `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+                container.innerHTML = `<p style="color:#ff5630;">${window.i18n.t('title_error')} : ${window.escapeHtml(e.message)}</p>`;
             }
         }
     },

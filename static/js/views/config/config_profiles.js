@@ -48,10 +48,10 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
 
                         <div class="config-profile-actions" style="display:flex; gap:6px; flex-wrap:wrap; border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 8px;">
                             ${!isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.app.switchProfile('${p.id}')" data-i18n="profiles_btn_switch">${txtSwitch}</button>` : ''}
-                            ${isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._showEditProfileModal('${p.id}', '${safeName.replace(/'/g, "\\'")}', '${p.color}', '${pIcon.replace(/'/g, "\\'")}', '${p.currency || 'EUR'}', ${p.pay_cycle_day || 28}, '${p.date_format || 'DD/MM/YYYY'}')" data-i18n="profiles_btn_edit">${txtEdit}</button>` : ''}
+                            ${isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._showEditProfileModal('${p.id}', ${window.jsArg(p.name)}, '${p.color}', ${window.jsArg(pIcon)}, '${p.currency || 'EUR'}', ${p.pay_cycle_day || 28}, '${p.date_format || 'DD/MM/YYYY'}')" data-i18n="profiles_btn_edit">${txtEdit}</button>` : ''}
                             ${isActive ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._showManagePinModal('${p.id}', ${p.has_pin})" data-i18n="profiles_btn_pin">${txtPin}</button>` : ''}
                             ${(isActive && p.has_pin) ? `<button class="btn btn-secondary config-profile-btn" onclick="window.ConfigView._regenerateRecoveryCode('${p.id}')">🗝️ ${p.has_recovery_code ? 'Nouveau code de récupération' : 'Créer un code de récupération'}</button>` : ''}
-                            ${(isActive && !isDefault) ? `<button class="btn btn-danger config-profile-btn" style="margin-left:auto;" onclick="window.ConfigView._deleteProfilePrompt('${p.id}', '${safeName.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+                            ${(isActive && !isDefault) ? `<button class="btn btn-danger config-profile-btn" style="margin-left:auto;" onclick="window.ConfigView._deleteProfilePrompt('${p.id}', ${window.jsArg(p.name)})">🗑️</button>` : ''}
                         </div>
                     </div>
                 `;

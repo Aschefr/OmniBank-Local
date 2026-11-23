@@ -791,7 +791,7 @@ Object.assign(window.BankSyncView, {
         if (accs.length <= 1) {
             const isSusp0 = Boolean(accs[0]?.is_suspicious_statement && !accs[0]?._suspicious_dismissed);
             const prefix0 = isSusp0 ? '🛡️ ' : (!accs[0]?.account_id ? '⚠️ ' : '');
-            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: ${isSusp0 ? '#ef4444' : 'var(--text-main)'};">${prefix0}${accs[0]?.account_name || 'Compte'}</span>`;
+            container.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: ${isSusp0 ? '#ef4444' : 'var(--text-main)'};">${prefix0}${window.escapeHtml(accs[0]?.account_name || 'Compte')}</span>`;
             return;
         }
 
@@ -1175,7 +1175,7 @@ Object.assign(window.BankSyncView, {
                 descSublineHtml = `
                     <div class="review-desc-subline" style="font-size: 12px; margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                         ${showRaw ? `
-                            <div class="review-raw-desc" style="color: var(--text-muted); font-style: italic; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${rawTip} : ${(tx.raw_description || '').replace(/"/g, '&quot;')}">
+                            <div class="review-raw-desc" style="color: var(--text-muted); font-style: italic; opacity: 0.85; display: inline-flex; align-items: center; gap: 4px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${rawTip} : ${window.escapeHtml(tx.raw_description || '')}">
                                 <span>🏛️</span> <span>${rawLabelEscaped}</span>
                             </div>
                         ` : '<span></span>'}
@@ -1189,8 +1189,8 @@ Object.assign(window.BankSyncView, {
                 : '';
 
             const descInput = isRec 
-                ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${descSublineHtml}` 
-                : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${(tx.description || '').replace(/"/g, '&quot;')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${descSublineHtml}`;
+                ? `${dbDesc}<input type="text" class="sync-desc input-styled" value="${window.escapeHtml(tx.description || '')}" style="width: 100%; border: 1px solid transparent; background: transparent; padding: 4px; color: var(--text-muted);" readonly>${descSublineHtml}` 
+                : `${dbDesc}<input type="text" class="sync-desc input-styled" list="bankSyncDescList" value="${window.escapeHtml(tx.description || '')}" style="width: 100%; padding: 4px;" oninput="window.BankSyncView.onSyncDescInput(${this.currentAccountIndex}, '${tx.csv_id}', this)" onchange="window.BankSyncView.updateTxDesc(${this.currentAccountIndex}, '${tx.csv_id}', this.value)">${descSublineHtml}`;
 
             const isDebit = (tx.raw_amount < 0);
             const allowedTypes = isDebit ? ['expense_var', 'expense_fixed'] : ['income'];
@@ -1211,7 +1211,7 @@ Object.assign(window.BankSyncView, {
                 : (window.i18n ? (window.i18n.t('smart_label_auto_classify_tooltip') || 'Suggérer la catégorie automatiquement') : 'Suggérer la catégorie automatiquement');
 
             const aiButtonHtml = (!isRec) ? `
-                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 12px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${aiBtnTitle.replace(/"/g, '&quot;')}">✨</button>
+                <button class="btn btn-secondary review-ai-btn" style="padding: 3px 6px; font-size: 12px; border-radius: 6px;" onclick="window.BankSyncView.classifyRowWithAI('${tx.csv_id}', this)" title="${window.escapeHtml(aiBtnTitle)}">✨</button>
             ` : '';
 
             const catSelect = isRec 
@@ -2030,8 +2030,7 @@ Object.assign(window.BankSyncView, {
 
                 const shouldShowAdjustBtn = !isResolvedBySync && !isExplainedByComing;
 
-                const escapedAccName = (window.escapeHtml ? window.escapeHtml(currentAcc.account_name || 'Compte') : (currentAcc.account_name || 'Compte')).replace(/'/g, "\\'");
-                const adjustBtnHtml = `<span onclick="window.BankSyncView.openBalanceAdjustModal(${currentAcc.account_id}, '${escapedAccName}', ${currentAcc.bank_balance}, ${currentAcc.local_reconciled_balance}, ${delta})" style="cursor: pointer; background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 3px; font-size: 12px; margin-left: 6px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde').replace(/"/g, '&quot;')}">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>`;
+                const adjustBtnHtml = `<span onclick="window.BankSyncView.openBalanceAdjustModal(${currentAcc.account_id}, ${window.jsArg(currentAcc.account_name || 'Compte')}, ${currentAcc.bank_balance}, ${currentAcc.local_reconciled_balance}, ${delta})" style="cursor: pointer; background: rgba(239, 68, 68, 0.2); padding: 1px 5px; border-radius: 3px; font-size: 12px; margin-left: 6px;" title="${(window.i18n ? window.i18n.t('bank_sync_balance_adjust_tooltip') : 'Cliquer pour ajuster le solde').replace(/"/g, '&quot;')}">${window.i18n ? window.i18n.t('bank_sync_balance_adjust_btn') || '⚡ Ajuster' : '⚡ Ajuster'}</span>`;
 
                 const badgeBg = isResolvedBySync ? 'rgba(16, 185, 129, 0.12)' : (isExplainedByComing ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)');
                 const badgeColor = isResolvedBySync ? '#10b981' : (isExplainedByComing ? '#d97706' : '#ef4444');

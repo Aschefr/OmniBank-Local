@@ -187,8 +187,8 @@ window.HistoryView = {
                         </span>
                     </td>
                     <td data-label="${lblEntity}" class="col-history-entity" style="padding: 10px 15px; font-weight: 500;">${entityText}</td>
-                    <td data-label="${lblDetail}" class="col-history-detail" style="padding: 10px 15px;">${detail}</td>
-                    <td data-label="${lblUser}" class="col-history-user" style="padding: 10px 15px; color: var(--text-muted);">${this.formatUserName(act.user_name)}</td>
+                    <td data-label="${lblDetail}" class="col-history-detail" style="padding: 10px 15px;">${window.escapeHtml(detail)}</td>
+                    <td data-label="${lblUser}" class="col-history-user" style="padding: 10px 15px; color: var(--text-muted);">${window.escapeHtml(this.formatUserName(act.user_name))}</td>
                     <td class="mobile-card-actions col-history-actions" style="padding: 10px 15px; text-align: right;">${detailBtn}${undoBtn}</td>
                 </tr>
             `;
@@ -342,7 +342,9 @@ window.HistoryView = {
             return r ? r.description : `ID: ${id}`;
         };
 
-        const formatValue = (key, val) => {
+        // Texte brut (noms, libellés de banque) : échappé avant d'être inséré dans le tableau
+        const formatValue = (key, val) => window.escapeHtml(rawValue(key, val));
+        const rawValue = (key, val) => {
             if (val === undefined || val === null || val === '') return '-';
             if (key === 'from_account_id' || key === 'to_account_id') {
                 return getAccountName(val);
@@ -396,7 +398,7 @@ window.HistoryView = {
         let html = `
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <div><strong>${window.i18n.t('history_col_date') || 'Date / Heure'} :</strong> <span style="color: var(--text-muted);">${formattedDate}</span></div>
-                <div><strong>${window.i18n.t('history_col_user') || 'Utilisateur'} :</strong> <span style="color: var(--text-muted);">${this.formatUserName(act.user_name)}</span></div>
+                <div><strong>${window.i18n.t('history_col_user') || 'Utilisateur'} :</strong> <span style="color: var(--text-muted);">${window.escapeHtml(this.formatUserName(act.user_name))}</span></div>
                 <div><strong>${window.i18n.t('history_col_action') || 'Action'} :</strong> <span style="color: ${actionConf.color}; font-weight: 600;">${actionText}</span></div>
                 <div><strong>${window.i18n.t('history_col_entity') || 'Entité'} :</strong> <span style="color: var(--text-muted); font-weight: 500;">${entityText} (ID: ${act.entity_id})</span></div>
             </div>
@@ -432,7 +434,7 @@ window.HistoryView = {
                 const valNew = formatValue(k, next[k]);
                 html += `
                     <tr style="border-bottom: 1px solid var(--border-color); font-family: monospace;">
-                        <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${k}</td>
+                        <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${window.escapeHtml(k)}</td>
                         <td style="padding: 8px 10px; background: rgba(255, 86, 48, 0.1); color: #ff5630;">${valOld}</td>
                         <td style="padding: 8px 10px; background: rgba(16, 185, 129, 0.1); color: #10b981;">${valNew}</td>
                     </tr>
@@ -444,7 +446,7 @@ window.HistoryView = {
                 const val = formatValue(k, prev[k]);
                 html += `
                     <tr class="unchanged-field-row" style="border-bottom: 1px solid var(--border-color); font-family: monospace; display: none; opacity: 0.6;">
-                        <td style="padding: 8px 10px; font-weight: 600;">${k}</td>
+                        <td style="padding: 8px 10px; font-weight: 600;">${window.escapeHtml(k)}</td>
                         <td style="padding: 8px 10px;">${val}</td>
                         <td style="padding: 8px 10px;">${val}</td>
                     </tr>
@@ -476,7 +478,7 @@ window.HistoryView = {
                     const val = formatValue(k, state[k]);
                     html += `
                         <tr style="border-bottom: 1px solid var(--border-color); font-family: monospace;">
-                            <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${k}</td>
+                            <td style="padding: 8px 10px; font-weight: 600; color: var(--text-main);">${window.escapeHtml(k)}</td>
                             <td style="padding: 8px 10px; color: var(--text-muted);">${val}</td>
                         </tr>
                     `;

@@ -48,7 +48,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         </div>
                         <div class="modal-header-info">
                             <h3 class="modal-header-title">${title}</h3>
-                            <div class="modal-header-desc">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+                            <div class="modal-header-desc">${window.escapeHtml(tpl.description)} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" onclick="document.getElementById('closeSubscriptionModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
@@ -217,7 +217,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
         const categoryOptions = (this.categories || [])
             .filter(c => (!c.is_closed || c.name === tpl.category) && (!tpl.type || c.type === tpl.type))
-            .map(c => `<option value="${c.name}" ${tpl.category === c.name ? 'selected' : ''}>${c.name}</option>`)
+            .map(c => `<option value="${window.escapeHtml(c.name)}" ${tpl.category === c.name ? 'selected' : ''}>${window.escapeHtml(c.name)}</option>`)
             .join('');
 
         const freqOptions = [
@@ -230,8 +230,8 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
             ['Bi-Monthly', 'rec_bimonthly', 'Tous les 2 mois']
         ].map(([val, key, fallback]) => `<option value="${val}" ${tpl.frequency === val ? 'selected' : ''}>${window.i18n.t(key) || fallback}</option>`).join('');
 
-        const fromAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.from_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
-        const toAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.to_account_id === a.id ? 'selected' : ''}>${a.name}</option>`).join('');
+        const fromAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.from_account_id === a.id ? 'selected' : ''}>${window.escapeHtml(a.name)}</option>`).join('');
+        const toAccOptions = `<option value="">-- Aucun --</option>` + accounts.map(a => `<option value="${a.id}" ${tpl.to_account_id === a.id ? 'selected' : ''}>${window.escapeHtml(a.name)}</option>`).join('');
 
         const monthOptions = Array.from({length: 12}, (_, i) => i + 1)
             .map(m => `<option value="${m}" ${tpl.month_of_year == m ? 'selected' : ''}>${new Date(2000, m - 1, 1).toLocaleDateString('fr-FR', {month: 'long'})}</option>`)
@@ -246,7 +246,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                         </div>
                         <div class="modal-header-info">
                             <h3 class="modal-header-title">${window.i18n.t('edit_recurrence_title') || 'Modifier la récurrence'}</h3>
-                            <div class="modal-header-desc">${tpl.description} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
+                            <div class="modal-header-desc">${window.escapeHtml(tpl.description)} (${formatCurrency(tpl.displayAmount || tpl.amount)})</div>
                         </div>
                     </div>
                     <button type="button" class="modal-close-btn" onclick="document.getElementById('editRecurrenceModal')?.remove()" aria-label="${window.i18n?.t('btn_close') || 'Fermer'}" title="${window.i18n?.t('btn_close') || 'Fermer'}">✕</button>
@@ -257,7 +257,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                     <div class="op-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_description')}</label>
-                            <input type="text" id="edit_desc" class="inline-input" value="${tpl.description || ''}" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
+                            <input type="text" id="edit_desc" class="inline-input" value="${window.escapeHtml(tpl.description || '')}" required style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-base); color: inherit;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 5px;">
                             <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">${window.i18n.t('col_amount')}</label>
@@ -406,7 +406,7 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
 
         const noCatText = window.i18n.t('edit_category_option_none') || '-- Sans catégorie --';
         catSelect.innerHTML = `<option value="">${noCatText}</option>` +
-            matchingCats.map(c => `<option value="${c.name}" ${c.name === currentCat ? 'selected' : ''}>${c.name}</option>`).join('');
+            matchingCats.map(c => `<option value="${window.escapeHtml(c.name)}" ${c.name === currentCat ? 'selected' : ''}>${window.escapeHtml(c.name)}</option>`).join('');
 
         if (!isCurrentValid) {
             catSelect.value = '';

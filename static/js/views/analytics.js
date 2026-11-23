@@ -178,7 +178,7 @@ window.AnalyticsView = {
                 color:${isActive ? c : 'var(--text-muted)'};
                 border:1px solid ${isActive ? c + '60' : 'var(--border-color)'};
                 opacity:${isActive ? '1' : '0.5'};"
-                onclick="window.AnalyticsView.toggleAccount(${acc.id})">${acc.name}</button>`;
+                onclick="window.AnalyticsView.toggleAccount(${acc.id})">${window.escapeHtml(acc.name)}</button>`;
         });
 
         bar.innerHTML = html;
@@ -334,7 +334,7 @@ window.AnalyticsView = {
         } catch (e) {
             if (!this.data) {
                 document.getElementById('analyticsContainer').innerHTML =
-                    `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${e.message}</p>`;
+                    `<p style="color:var(--color-expense);padding:20px;">${window.i18n.t('title_error')} : ${window.escapeHtml(e.message)}</p>`;
             }
         }
     },
@@ -550,8 +550,8 @@ window.AnalyticsView = {
                 const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
                 const bg = v > 0 ? `${cfg.color}${alphaHex}` : 'transparent';
                 return `<td data-year="${mk.split('-')[0]}" data-col-type="month" data-val="${v}" style="text-align:right;background:${bg};transition:opacity 0.2s;cursor:pointer;"
-                    onclick="window.AnalyticsView.drillDown('${cat.replace(/'/g, "\\'")}','${mk}')"
-                    title="🔍 ${cat} — ${this.formatShortMonth(mk)} — Voir les opérations">
+                    onclick="window.AnalyticsView.drillDown(${window.jsArg(cat)},'${mk}')"
+                    title="🔍 ${window.escapeHtml(cat)} — ${this.formatShortMonth(mk)} — Voir les opérations">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
@@ -559,16 +559,16 @@ window.AnalyticsView = {
             const yearCells = displayYears.map(yr => {
                 const v = annCat[yr] || 0;
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
-                    onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
-                    title="🔍 ${cat} — ${yr}">
+                    onclick="window.AnalyticsView.drillDownYear(${window.jsArg(cat)},'${yr}')"
+                    title="🔍 ${window.escapeHtml(cat)} — ${yr}">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
 
-            html += `<tr data-category="${cat.replace(/"/g, '&quot;')}">
-                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:500;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
+            html += `<tr data-category="${window.escapeHtml(cat)}">
+                <td title="${window.escapeHtml(cat)}" style="font-weight:500;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
                     background:var(--bg-surface);
-                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${cat}</td>
+                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${window.escapeHtml(cat)}</td>
                 ${monthCells}
                 ${yearCells}
             </tr>`;
@@ -584,15 +584,15 @@ window.AnalyticsView = {
             const yearCells = displayYears.map(yr => {
                 const v = annData[yr] || 0;
                 return `<td data-year="${yr}" data-col-type="year" style="text-align:right;border-left:${annualSep};background:${hb};font-weight:500;cursor:pointer;"
-                    onclick="window.AnalyticsView.drillDownYear('${cat.replace(/'/g, "\\'")}','${yr}')"
-                    title="🔍 ${cat} — ${yr}">
+                    onclick="window.AnalyticsView.drillDownYear(${window.jsArg(cat)},'${yr}')"
+                    title="🔍 ${window.escapeHtml(cat)} — ${yr}">
                     <span class="privacy-blur">${v > 0 ? formatCurrency(v) : '<span style="color:var(--text-muted);">—</span>'}</span>
                 </td>`;
             }).join('');
-            html += `<tr data-inactive="${txType}" data-category="${cat.replace(/"/g, '&quot;')}" style="display:${showInactive ? '' : 'none'};opacity:0.6;font-style:italic;">
-                <td title="${cat.replace(/"/g, '&quot;')}" style="font-weight:400;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
+            html += `<tr data-inactive="${txType}" data-category="${window.escapeHtml(cat)}" style="display:${showInactive ? '' : 'none'};opacity:0.6;font-style:italic;">
+                <td title="${window.escapeHtml(cat)}" style="font-weight:400;width:${catW}px;min-width:60px;max-width:500px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:${forPrint ? 'static' : 'sticky'};left:0;z-index:5;
                     background:var(--bg-surface);color:var(--text-muted);
-                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${cat}</td>
+                    box-shadow:${forPrint ? 'none' : '3px 0 8px rgba(0,0,0,0.25)'};">${window.escapeHtml(cat)}</td>
                 ${monthCells}
                 ${yearCells}
             </tr>`;
@@ -934,7 +934,7 @@ window.AnalyticsView = {
 
         let colsHtml = allCols.map(c => `
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-                <input type="checkbox" class="export-col-cb" value="${c.id}" ${savedCols.includes(c.id) ? 'checked' : ''} onchange="window.AnalyticsView.triggerLivePreviewUpdate()"> ${c.label}
+                <input type="checkbox" class="export-col-cb" value="${c.id}" ${savedCols.includes(c.id) ? 'checked' : ''} onchange="window.AnalyticsView.triggerLivePreviewUpdate()"> ${window.escapeHtml(c.label)}
             </label>
         `).join('');
 
@@ -947,7 +947,7 @@ window.AnalyticsView = {
         const orgHeaderHtml = isOrgMode ? `
         <div style="padding: 12px; background: rgba(99,102,241,0.06); border-radius: 8px; border: 1px solid rgba(99,102,241,0.2);">
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <input type="text" id="exportHeaderTitle" class="inline-input" list="exportTitlePresets" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${savedHeaderTitle.replace(/"/g, '&quot;')}" style="width:100%;" oninput="ProfileStorage.set('print_header_title', this.value); window.AnalyticsView.triggerLivePreviewUpdate();">
+                <input type="text" id="exportHeaderTitle" class="inline-input" list="exportTitlePresets" placeholder="${window.i18n.t('export_header_title_placeholder') || 'Titre du document'}" value="${window.escapeHtml(savedHeaderTitle)}" style="width:100%;" oninput="ProfileStorage.set('print_header_title', this.value); window.AnalyticsView.triggerLivePreviewUpdate();">
                 <datalist id="exportTitlePresets">
                     <option value="${window.i18n.t('export_preset_annual') || 'Bilan Financier Annuel'}">
                     <option value="${window.i18n.t('export_preset_result') || 'Compte de Résultat'}">
@@ -1280,7 +1280,7 @@ window.AnalyticsView = {
                 const catChecked = isCatChecked(cat, type);
                 return `
                 <label style="display:flex;align-items:center;gap:8px;margin-left:20px;cursor:pointer;font-size:12px;">
-                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${cat.replace(/"/g, '&quot;')}" ${catChecked ? 'checked' : ''} onchange="window.AnalyticsView._saveExportCategorySelection()"> ${cat}
+                    <input type="checkbox" class="export-cat-cb" data-type="${type}" value="${window.escapeHtml(cat)}" ${catChecked ? 'checked' : ''} onchange="window.AnalyticsView._saveExportCategorySelection()"> ${window.escapeHtml(cat)}
                 </label>`;
             }).join('');
 
@@ -2115,7 +2115,7 @@ window.AnalyticsView = {
             const balanceRows = balanceAccounts.map(a => {
                 const c = a.color || '#3366ff';
                 return `<tr>
-                    <td style="padding:6px 12px;border-bottom:1px solid #eee;"><span style="color:${c};font-weight:600;">● ${a.name}</span></td>
+                    <td style="padding:6px 12px;border-bottom:1px solid #eee;"><span style="color:${c};font-weight:600;">● ${window.escapeHtml(a.name)}</span></td>
                     <td style="padding:6px 12px;border-bottom:1px solid #eee;color:var(--text-muted);">${a.type}</td>
                     <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${formatCurrency(a.balance)}</td>
                 </tr>`;
@@ -2438,7 +2438,7 @@ window.AnalyticsView = {
             ? incomeEntries.map(([cat, amt]) => {
                 const pct = totalOperatingIncome > 0 ? ((amt / totalOperatingIncome) * 100).toFixed(1) : '0.0';
                 return `<tr>
-                    <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#0f172a;">${cat}</td>
+                    <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#0f172a;">${window.escapeHtml(cat)}</td>
                     <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#10b981;font-weight:600;">${formatCurrency(amt)} <span style="font-size:9px;color:#94a3b8;font-weight:400;">(${pct}%)</span></td>
                 </tr>`;
             }).join('')
@@ -2448,7 +2448,7 @@ window.AnalyticsView = {
             ? expenseEntries.map(([cat, amt]) => {
                 const pct = totalOperatingExpense > 0 ? ((amt / totalOperatingExpense) * 100).toFixed(1) : '0.0';
                 return `<tr>
-                    <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#0f172a;">${cat}</td>
+                    <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;font-weight:500;color:#0f172a;">${window.escapeHtml(cat)}</td>
                     <td style="padding:4px 6px;border-bottom:1px solid #f1f5f9;text-align:right;color:#ef4444;font-weight:600;">${formatCurrency(amt)} <span style="font-size:9px;color:#94a3b8;font-weight:400;">(${pct}%)</span></td>
                 </tr>`;
             }).join('')
@@ -2631,7 +2631,7 @@ window.AnalyticsView = {
                     onchange="this.style.borderColor = this.querySelector('input').checked ? '${c}' : 'var(--border-color)'; this.querySelector('span:last-child').style.color = this.querySelector('input').checked ? '${c}' : 'inherit'; this.querySelector('span:last-child').style.fontWeight = this.querySelector('input').checked ? '600' : 'normal'; window.AnalyticsView.triggerLivePreviewUpdate();">
                     <input type="checkbox" class="export-balance-cb" value="${acc.id}" checked>
                     <span style="width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;"></span>
-                    <span style="color:${c};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${acc.name}">${acc.name}</span>
+                    <span style="color:${c};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${window.escapeHtml(acc.name)}">${window.escapeHtml(acc.name)}</span>
                     <span class="privacy-blur" style="margin-left:auto;font-size:11px;color:var(--text-muted);white-space:nowrap;">${formatCurrency(acc.balance)}</span>
                 </label>
             `;
@@ -2659,7 +2659,7 @@ window.AnalyticsView = {
                 color:${isActive ? c : 'var(--text-muted)'};
                 border:1px solid ${isActive ? c + '60' : 'var(--border-color)'};
                 opacity:${isActive ? '1' : '0.5'};" 
-                onclick="window.AnalyticsView._toggleExportAccount(${acc.id})">${acc.name}</button>`;
+                onclick="window.AnalyticsView._toggleExportAccount(${acc.id})">${window.escapeHtml(acc.name)}</button>`;
         });
         container.innerHTML = html;
     },
@@ -3073,7 +3073,7 @@ window.AnalyticsView = {
                 <div style="display:flex; align-items:center; justify-content:space-between; font-size:11px; margin-bottom:4px; gap:8px;">
                     <div style="display:flex; align-items:center; gap:6px; min-width:0;">
                         <span style="display:inline-block; width:10px; height:10px; border-radius:3px; background:${color}; flex-shrink:0;"></span>
-                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:#0f172a;">${c.name}</span>
+                        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:#0f172a;">${window.escapeHtml(c.name)}</span>
                     </div>
                     <span style="font-weight:600; white-space:nowrap; color:#0f172a;">${formatCurrency(c.amount)} (${pct.toFixed(1)}%)</span>
                 </div>
@@ -3171,7 +3171,7 @@ window.AnalyticsView = {
                         ${window.i18n.t('print_signature_audit_desc') || 'Document certifié exact et conforme aux écritures comptables enregistrées dans OmniBank Local.'}
                     </div>
                     <div style="font-size:11px; font-weight:600; margin-top:8px; color:#0f172a;">
-                        Émis par : <span style="color:#0f172a;">${userName}</span> — le <span style="color:#0f172a;">${dateStr}</span>
+                        Émis par : <span style="color:#0f172a;">${window.escapeHtml(userName)}</span> — le <span style="color:#0f172a;">${dateStr}</span>
                     </div>
                 </div>
                 <div style="width:200px; height:80px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; background:#fff; display:flex; flex-direction:column; justify-content:space-between;">

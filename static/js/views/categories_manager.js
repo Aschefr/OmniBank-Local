@@ -202,7 +202,7 @@ window.CategoriesView = {
                     
                     html += `
                     <tr style="${rowStyle}">
-                        <td style="padding-left: 10px;"><strong>${cat.name}</strong></td>
+                        <td style="padding-left: 10px;"><strong>${window.escapeHtml(cat.name)}</strong></td>
                         <td>${statusBadge}</td>
                         <td style="text-align: right; white-space: nowrap; overflow: visible;">
                             <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Edit'}">✏️</button>
@@ -345,7 +345,7 @@ window.CategoriesView = {
         
         this.categories.forEach(c => {
             if (c.id !== id && !c.is_closed && c.type === cat.type) {
-                options += `<option value="${c.name}">${window.i18n.t('cat_reallocate_to') || 'Reallocate to'} ${c.name}</option>`;
+                options += `<option value="${window.escapeHtml(c.name)}">${window.i18n.t('cat_reallocate_to') || 'Reallocate to'} ${window.escapeHtml(c.name)}</option>`;
             }
         });
         select.innerHTML = options;

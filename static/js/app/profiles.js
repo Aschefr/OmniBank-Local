@@ -23,9 +23,9 @@ window.AppModules.profiles = {
 
         const badges = document.getElementById('userPickerBadges');
         badges.innerHTML = users.map(u => `
-            <div class="user-picker-badge" data-user="${u.name}">
+            <div class="user-picker-badge" data-user="${window.escapeHtml(u.name)}">
                 <div class="user-picker-badge-avatar">👤</div>
-                <div class="user-picker-badge-name">${u.name}</div>
+                <div class="user-picker-badge-name">${window.escapeHtml(u.name)}</div>
             </div>
         `).join('');
 
@@ -91,9 +91,9 @@ window.AppModules.profiles = {
                 } catch (e) { console.error(e); }
 
                 let itemsHtml = users.map(u => `
-                    <div class="user-switcher-item ${u.name === this.currentUser ? 'active' : ''}" data-user="${u.name}">
+                    <div class="user-switcher-item ${u.name === this.currentUser ? 'active' : ''}" data-user="${window.escapeHtml(u.name)}">
                         ${u.name === this.currentUser ? '<span class="user-item-dot"></span>' : '<span style="width:8px"></span>'}
-                        <span>👤 ${u.name}</span>
+                        <span>👤 ${window.escapeHtml(u.name)}</span>
                     </div>
                 `).join('');
 

@@ -7,7 +7,8 @@
     "shell:allow-open",
     "updater:default",
     "core:app:default",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "allow-get-app-version"
   ],
   "remote": {
     "urls": [

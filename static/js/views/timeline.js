@@ -969,6 +969,7 @@ window.TimelineView = {
             const idAttr = tx._isOldestUnreconciled ? 'id="oldest-unreconciled"' : (tx._isFirstReconciled ? 'id="first-reconciled"' : '');
             
             const reconcileHTML = window.ReconciliationStates.resolve(tx, { view: 'timeline', formatDate }).html;
+            const esc = window.escapeHtml;
 
             const accounts = window.app.accounts || [];
             const getAcc = (id) => accounts.find(x => x.id === id);
@@ -976,7 +977,7 @@ window.TimelineView = {
                 const a = getAcc(id);
                 if (!a) return '-';
                 const c = a.color || '#3366ff';
-                return `<span class="account-badge" style="background:${c}18;color:${c};border-color:${c}40;"><span class="acc-badge-dot" style="background:${c};"></span>${a.name}</span>`;
+                return `<span class="account-badge" style="background:${c}18;color:${c};border-color:${c}40;"><span class="acc-badge-dot" style="background:${c};"></span>${esc(a.name)}</span>`;
             };
             const depuis = tx.from_account_id ? getAccBadge(tx.from_account_id) : '-';
             const vers = tx.to_account_id ? getAccBadge(tx.to_account_id) : '-';
@@ -988,7 +989,7 @@ window.TimelineView = {
             if (tx.is_yearly) recText = window.i18n.t('rec_yearly');
             if (tx.is_bimonthly) recText = window.i18n.t('rec_bimonthly');
 
-            const attachHtml = tx.attachments ? `<span style="cursor:pointer;" title="${tx.attachments}" onclick="window.TimelineView._openAttachment('${tx.attachments.replace(/'/g, "\\'")}')">📎</span>` : '-';
+            const attachHtml = tx.attachments ? `<span style="cursor:pointer;" title="${esc(tx.attachments)}" onclick="window.TimelineView._openAttachment(${window.jsArg(tx.attachments)})">📎</span>` : '-';
 
             const origSubtext = (tx.original_amount && tx.original_currency) ? `<div style="font-size: 10px; font-weight: 500; opacity: 0.8; color: var(--accent); white-space: nowrap;">🌐 ${formatCurrency(tx.original_amount, tx.original_currency)}</div>` : '';
 
@@ -999,9 +1000,9 @@ window.TimelineView = {
                 <td class="row-marker"></td>
                 <td class="col-dateSaisie" data-label="${window.i18n.t('dl_date_entry')}">${formatDate(tx.date_saisie)}</td>
                 <td class="col-date" data-label="${window.i18n.t('dl_date_op')}">${renderDateWithStatus(tx)}</td>
-                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${(tx.description || '').replace(/"/g, '&quot;')}"><span class="desc-text">${tx.description}</span>${reviewBadge}</td>
+                <td class="col-desc" data-label="${window.i18n.t('dl_description')}" title="${esc(tx.description || '')}"><span class="desc-text">${esc(tx.description)}</span>${reviewBadge}</td>
                 <td class="col-type" data-label="${window.i18n.t('dl_type')}" title="${window.app.getTypeLabel(tx.type) || '-'}">${window.app.getTypeLabel(tx.type) || '-'}</td>
-                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${(tx.category || '').replace(/"/g, '&quot;')}"><span class="cat-badge">${tx.category || '-'}</span></td>
+                <td class="col-cat" data-label="${window.i18n.t('dl_category')}" style="white-space: nowrap;" title="${esc(tx.category || '')}"><span class="cat-badge">${esc(tx.category || '-')}</span></td>
                 <td class="col-amount" data-label="${window.i18n.t('dl_amount')}">
                     <span class="privacy-blur" style="color: ${amountColor}; font-weight: bold;">${formatCurrency(tx.amount)}</span>
                     ${origSubtext}
@@ -1009,15 +1010,15 @@ window.TimelineView = {
                 <td class="col-recon" data-label="${window.i18n.t('dl_reconciled')}" style="text-align: center;">
                     ${reconcileHTML}
                 </td>
-                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && window.TimelineView.budgetsMap[tx.budget_id]) ? window.TimelineView.budgetsMap[tx.budget_id] : (tx.category && window.TimelineView.categoryToBudgetMap && window.TimelineView.categoryToBudgetMap[tx.category]) ? window.TimelineView.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='timeline'; window.BudgetsView._pendingHighlightName='${bName.replace(/'/g, "\\'")}';window.app.loadView('budgets')" class="budget-badge" title="${bName}">🗂️ ${bName}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
-                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${depuisTitle}">${depuis}</td>
-                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${versTitle}">${vers}</td>
+                <td class="col-budget" data-label="${window.i18n.t('dl_envelope')}">${(() => { const bName = (tx.budget_id && window.TimelineView.budgetsMap[tx.budget_id]) ? window.TimelineView.budgetsMap[tx.budget_id] : (tx.category && window.TimelineView.categoryToBudgetMap && window.TimelineView.categoryToBudgetMap[tx.category]) ? window.TimelineView.categoryToBudgetMap[tx.category] : null; return bName ? `<span onclick="if(window.BudgetsView) window.BudgetsView.backToView='timeline'; window.BudgetsView._pendingHighlightName=${window.jsArg(bName)};window.app.loadView('budgets')" class="budget-badge" title="${esc(bName)}">🗂️ ${esc(bName)}</span>` : '<span style="color:var(--text-muted);font-size:11px;">—</span>'; })()}</td>
+                <td class="col-depuis" data-label="${window.i18n.t('dl_from')}" title="${esc(depuisTitle)}">${depuis}</td>
+                <td class="col-vers" data-label="${window.i18n.t('dl_to')}" title="${esc(versTitle)}">${vers}</td>
                 <td class="col-recurrence" data-label="${window.i18n.t('dl_recurrence')}" title="${recText}">${recText}</td>
-                <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${tx.check_slip_number || '-'}</td>
+                <td class="col-slip" data-label="${window.i18n.t('dl_slip')}">${esc(tx.check_slip_number || '-')}</td>
                 <td class="col-attachments" data-label="${window.i18n.t('dl_attachments')}">${attachHtml}</td>
-                <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${tx.created_by}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.created_at}</span>` : ''}` : '-'}</td>
-                <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${tx.modified_by}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${tx.modified_at}</span>` : ''}` : '-'}</td>
-                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}"${tx.attachments && !tx.attachments.includes(',') ? ` style="cursor:pointer;" onclick="event.stopPropagation(); window.TimelineView._openAttachment('${tx.attachments.replace(/'/g, "\'")}')"` : ''}>${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
+                <td class="col-createdBy" data-label="${window.i18n.t('dl_created_by')}">${tx.created_by ? `${esc(tx.created_by)}${tx.created_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${esc(tx.created_at)}</span>` : ''}` : '-'}</td>
+                <td class="col-modifiedBy" data-label="${window.i18n.t('dl_modified_by')}">${tx.modified_by ? `${esc(tx.modified_by)}${tx.modified_at ? `<br><span style="font-size:10px;color:var(--text-muted);">${esc(tx.modified_at)}</span>` : ''}` : '-'}</td>
+                <td class="col-mflags"><span class="mflag" title="${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? window.i18n.t('col_recurrence') : ''}">${(tx.recurrence_id || tx.is_monthly || tx.is_yearly) ? '🔁' : ''}</span><span class="mflag" title="${tx.attachments ? window.i18n.t('col_attachments') : ''}"${tx.attachments && !tx.attachments.includes(',') ? ` style="cursor:pointer;" onclick="event.stopPropagation(); window.TimelineView._openAttachment(${window.jsArg(tx.attachments)})"` : ''}>${tx.attachments ? '📎' : ''}</span><span class="mflag" title="${tx.budget_id ? window.i18n.t('col_envelope') : ''}">${tx.budget_id ? '🗂️' : ''}</span></td>
                 <td class="col-actions mobile-card-actions">
                     <div class="row-actions-group">
                         ${(() => {

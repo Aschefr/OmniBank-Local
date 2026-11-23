@@ -96,12 +96,12 @@ window.FormView = {
             let optionsHtml = '<option value="">-- Aucune enveloppe --</option>';
             if (projects.length > 0) {
                 optionsHtml += `<optgroup label="${window.i18n.t('budget_optgroup_projects')}">`;
-                optionsHtml += projects.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                optionsHtml += projects.map(b => `<option value="${b.id}">${window.escapeHtml(b.name)}</option>`).join('');
                 optionsHtml += '</optgroup>';
             }
             if (savings.length > 0) {
                 optionsHtml += `<optgroup label="🏦 ${window.i18n.t('budget_optgroup_savings')}">`;
-                optionsHtml += savings.map(b => `<option value="${b.id}">🏦 ${b.name}</option>`).join('');
+                optionsHtml += savings.map(b => `<option value="${b.id}">🏦 ${window.escapeHtml(b.name)}</option>`).join('');
                 optionsHtml += '</optgroup>';
             }
             select.innerHTML = optionsHtml;
@@ -453,14 +453,13 @@ window.FormView = {
             const rawDesc = tx.raw_description;
             if (rawDesc && rawDesc !== tx.description) {
                 const escapedRaw = (window.escapeHtml ? window.escapeHtml(rawDesc) : rawDesc).replace(/"/g, '&quot;');
-                const rawForJs = rawDesc.replace(/'/g, "\\'");
                 const origLabel = window.i18n ? window.i18n.t('smart_label_orig_bank') || 'En banque :' : 'En banque :';
                 const restoreLabel = window.i18n ? window.i18n.t('smart_label_restore') || 'Restaurer' : 'Restaurer';
                 const reviewItem = (window.AutopilotView?._reviewQueue || []).find(item => item.id === tx.id);
                 const bankAmount = reviewItem && reviewItem.bank_amount != null && typeof formatCurrency === 'function'
                     ? ` <strong class="privacy-blur" style="color:var(--text-main); font-style:normal;">${formatCurrency(reviewItem.bank_amount)}</strong>`
                     : '';
-                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong>${bankAmount} <button type="button" onclick="document.getElementById('op_desc').value='${rawForJs}'; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
+                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong>${bankAmount} <button type="button" onclick="document.getElementById('op_desc').value=${window.jsArg(rawDesc)}; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
                 rawHintEl.style.display = 'block';
             } else {
                 rawHintEl.style.display = 'none';
@@ -596,10 +595,9 @@ window.FormView = {
             const rawDesc = ghostTx.raw_description || ghostTx.description;
             if (rawDesc && rawDesc !== ghostTx.description) {
                 const escapedRaw = (window.escapeHtml ? window.escapeHtml(rawDesc) : rawDesc).replace(/"/g, '&quot;');
-                const rawForJs = rawDesc.replace(/'/g, "\\'");
                 const origLabel = window.i18n ? window.i18n.t('smart_label_orig_bank') || 'En banque :' : 'En banque :';
                 const restoreLabel = window.i18n ? window.i18n.t('smart_label_restore') || 'Restaurer' : 'Restaurer';
-                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong> <button type="button" onclick="document.getElementById('op_desc').value='${rawForJs}'; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
+                rawHintEl.innerHTML = `🏦 ${origLabel} <strong style="color:var(--text-main); font-style:normal;">${escapedRaw}</strong> <button type="button" onclick="document.getElementById('op_desc').value=${window.jsArg(rawDesc)}; window.FormView.onDescriptionInput();" style="background:none; border:none; color:var(--accent, #6366f1); font-size:11px; cursor:pointer; text-decoration:underline; padding:0 4px;" title="${restoreLabel}">(${restoreLabel})</button>`;
                 rawHintEl.style.display = 'block';
             } else {
                 rawHintEl.style.display = 'none';
@@ -799,7 +797,7 @@ window.FormView = {
             const blank = window.MobileOpForm && window.MobileOpForm.isMobile() ? '<option value="">—</option>' : '';
             select.innerHTML = blank + this.accounts
                 .filter(a => !a.is_closed || a.id == currentVal)
-                .map(a => `<option value="${a.id}">${a.name}${a.is_closed ? (window.i18n.t('acc_closed_suffix') || ' (Fermé)') : ''}</option>`).join('');
+                .map(a => `<option value="${a.id}">${window.escapeHtml(a.name)}${a.is_closed ? (window.i18n.t('acc_closed_suffix') || ' (Fermé)') : ''}</option>`).join('');
             select.value = currentVal || '';
         };
         renderAcc('op_from_account', currentFrom);
@@ -811,7 +809,7 @@ window.FormView = {
             this.descriptions = await API.get('/api/transactions/descriptions');
             const dataList = document.getElementById('descList');
             // descriptions is now a dictionary: { "Desc": {category, from_account_id, to_account_id}, ... }
-            dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${d}">`).join('');
+            dataList.innerHTML = Object.keys(this.descriptions).map(d => `<option value="${window.escapeHtml(d)}">`).join('');
             this._initCustomDescSuggest();
         } catch (e) {
             console.error('Failed to load descriptions', e);
@@ -1016,7 +1014,7 @@ window.FormView = {
             const selectProf = document.getElementById('op_target_profile');
             if (selectProf) {
                 selectProf.innerHTML = (this.profilesList || []).map(p =>
-                    `<option value="${p.id}">${p.icon || '👤'} ${p.name}</option>`
+                    `<option value="${p.id}">${window.escapeHtml(p.icon || '👤')} ${window.escapeHtml(p.name)}</option>`
                 ).join('');
             }
             this.onTargetProfileChange();
@@ -1053,7 +1051,7 @@ window.FormView = {
         try {
             const accounts = await API.get(`/api/cross-profile/${targetProfileId}/accounts`);
             selectAcc.innerHTML = (accounts || []).map(a =>
-                `<option value="${a.id}">${a.name} (${a.type})</option>`
+                `<option value="${a.id}">${window.escapeHtml(a.name)} (${window.escapeHtml(a.type)})</option>`
             ).join('');
         } catch(e) {
             selectAcc.innerHTML = '<option value="">-- Erreur --</option>';
@@ -1089,10 +1087,10 @@ window.FormView = {
                     <div style="background:var(--bg-base); border:1px solid var(--border-color); border-radius:10px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
                         <div>
                             <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-bottom:2px;">
-                                ↔ ${tx.cross_profile_label || 'Virement inter-profil'}
+                                ↔ ${window.escapeHtml(tx.cross_profile_label || 'Virement inter-profil')}
                             </div>
                             <div style="font-size:12px; color:var(--text-muted);">
-                                ${tx.description} • ${tx.date_operation}
+                                ${window.escapeHtml(tx.description)} • ${tx.date_operation}
                             </div>
                             <div style="font-size:14px; font-weight:800; color:#10b981; margin-top:4px;">
                                 +${fmtAmt}
@@ -1192,7 +1190,7 @@ window.FormView = {
             if (typeMatch) {
                 const isSelected = (c.name === validSelectedVal);
                 if (!search || window.permissiveMatch(c.name, search) || isSelected) {
-                    html += `<option value="${c.name}" ${isSelected ? 'selected' : ''}>${c.name}</option>`;
+                    html += `<option value="${window.escapeHtml(c.name)}" ${isSelected ? 'selected' : ''}>${window.escapeHtml(c.name)}</option>`;
                 }
             }
         });

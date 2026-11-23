@@ -408,7 +408,7 @@ const ServerConfig = {
                 discList.innerHTML = found.map(s => `
                     <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-base); padding:8px 12px; border-radius:8px; border:1px solid var(--border-color); cursor:pointer;" onclick="window.ServerConfig.selectDiscovered('${s.ip}', ${s.port})">
                         <div>
-                            <div style="font-weight:700; font-size:13px; color:var(--text-main);">🟢 ${s.name} (${s.ip}:${s.port})</div>
+                            <div style="font-weight:700; font-size:13px; color:var(--text-main);">🟢 ${window.escapeHtml(s.name)} (${s.ip}:${s.port})</div>
                             <div style="font-size:11px; color:var(--text-muted);">OmniBank v${s.version}</div>
                         </div>
                         <button class="btn btn-primary" style="font-size:11px; padding:4px 10px;">Connexion 1-Clic</button>

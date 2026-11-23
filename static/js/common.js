@@ -59,13 +59,22 @@ const ProfileSessionStorage = {
 window.ProfileSessionStorage = ProfileSessionStorage;
 
 window.escapeHtml = function(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+};
+
+/**
+ * Texte passé en argument d'un gestionnaire en ligne : onclick="f(${jsArg(nom)})", sans guillemets autour.
+ * escapeHtml seul ne suffit pas dans un onclick : le navigateur décode &#39; en ' avant d'exécuter le JS, et
+ * « Livret d'épargne » casse alors la chaîne (ou un libellé de banque y glisse du code).
+ */
+window.jsArg = function(value) {
+    return window.escapeHtml(JSON.stringify(value === null || value === undefined ? '' : String(value)));
 };
 
 /**
@@ -859,7 +868,7 @@ function showToast(message, type = 'success', duration = 3000, options = null) {
         pointer-events: auto; cursor: pointer;
     `;
     const msgSpan = document.createElement('span');
-    msgSpan.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${message}`;
+    msgSpan.innerHTML = `<span style="font-size:16px;">${c.icon}</span> ${window.escapeHtml(message)}`;
     toast.appendChild(msgSpan);
 
     if (options && options.action) {
@@ -990,7 +999,7 @@ function showUndoToast(message, actionId, onUndoSuccess = null) {
     `;
     
     const textSpan = document.createElement('span');
-    textSpan.innerHTML = `<span style="font-size:16px;">✅</span> ${message}`;
+    textSpan.innerHTML = `<span style="font-size:16px;">✅</span> ${window.escapeHtml(message)}`;
     
     const undoBtn = document.createElement('button');
     undoBtn.textContent = undoText;

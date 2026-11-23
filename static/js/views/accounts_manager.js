@@ -335,8 +335,8 @@ window.AccountsView = {
             <tr class="acc-group-tr">
                 <td colspan="5">
                     <div class="acc-group-row">
-                        <span class="acc-group-title">${group.title} <span class="acc-group-count">${group.accounts.length}</span></span>
-                        <span class="acc-group-total"><span class="acc-group-label">${group.label}</span> ${totalsHtml || `<b class="privacy-blur">${formatCurrency(0, base)}</b>`}</span>
+                        <span class="acc-group-title">${window.escapeHtml(group.title)} <span class="acc-group-count">${group.accounts.length}</span></span>
+                        <span class="acc-group-total"><span class="acc-group-label">${window.escapeHtml(group.label)}</span> ${totalsHtml || `<b class="privacy-blur">${formatCurrency(0, base)}</b>`}</span>
                     </div>
                 </td>
             </tr>`;
@@ -612,7 +612,7 @@ window.AccountsView = {
             { value: 'PER', label: window.i18n.t('wizard_type_per') },
             { value: 'Prêt / Emprunt', label: window.i18n ? (window.i18n.t('wizard_type_loan') || 'Prêt / Emprunt') : 'Prêt / Emprunt' },
             { value: '__other__', label: window.i18n.t('wizard_type_other') }
-        ].map(o => `<option value="${o.value}" ${(isCustomType ? o.value === '__other__' : acc.type === o.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+        ].map(o => `<option value="${o.value}" ${(isCustomType ? o.value === '__other__' : acc.type === o.value) ? 'selected' : ''}>${window.escapeHtml(o.label)}</option>`).join('');
 
         const currencyOpts = ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'JPY'].map(c =>
             `<option value="${c}" ${currentCurrency === c ? 'selected' : ''}>${c}</option>`

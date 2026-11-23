@@ -125,21 +125,21 @@ window.AiModelPicker = {
                 const drifted = s && !isNaN(s.temperature) && !isNaN(s.num_ctx)
                     && (Math.abs(s.temperature - m.temperature) > 1e-6 || s.num_ctx !== m.num_ctx);
                 const reapply = drifted
-                    ? `<button type="button" class="amp-btn" onclick="window.AiModelPicker.pick('${containerId}', '${m.name}')">${this._t('ai_models_reapply', 'Remettre ses réglages ({temp} · {ctx})', { temp: this._num(m.temperature), ctx: Math.round(m.num_ctx / 1024) + 'K' })}</button>`
+                    ? `<button type="button" class="amp-btn" onclick="window.AiModelPicker.pick('${containerId}', ${window.jsArg(m.name)})">${this._t('ai_models_reapply', 'Remettre ses réglages ({temp} · {ctx})', { temp: this._num(m.temperature), ctx: Math.round(m.num_ctx / 1024) + 'K' })}</button>`
                     : '';
                 actions = isCurrent
                     ? `<div class="amp-current">✓ ${this._t('ai_models_in_use', 'En service')}</div>${reapply}`
-                    :`<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pick('${containerId}', '${m.name}')">${this._t('ai_models_use', 'Utiliser')}</button>`;
+                    :`<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pick('${containerId}', ${window.jsArg(m.name)})">${this._t('ai_models_use', 'Utiliser')}</button>`;
             } else if (downloadable) {
-                actions = `<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pull('${containerId}', '${m.name}')">${this._t('ai_models_get', 'Télécharger ({gb} Go)', { gb: this._num(m.size_gb) })}</button>`;
+                actions = `<button type="button" class="amp-btn ${m.tier === 'recommended' ? 'primary' : ''}" onclick="window.AiModelPicker.pull('${containerId}', ${window.jsArg(m.name)})">${this._t('ai_models_get', 'Télécharger ({gb} Go)', { gb: this._num(m.size_gb) })}</button>`;
             } else {
-                actions = `<div class="amp-note">${this._t('ai_models_manual', 'À installer sur le serveur : {cmd}', { cmd: `<code>ollama pull ${m.name}</code>` })}</div>`;
+                actions = `<div class="amp-note">${this._t('ai_models_manual', 'À installer sur le serveur : {cmd}', { cmd: `<code>ollama pull ${window.escapeHtml(m.name)}</code>` })}</div>`;
             }
             const err = m.error ? `<div class="amp-error">${this._t('ai_models_pull_failed', 'Échec du téléchargement : {e}', { e: window.escapeHtml ? window.escapeHtml(m.error) : m.error })}</div>` : '';
             return `
                 <div class="amp-card tier-${m.tier} ${isCurrent ? 'is-current' : ''}">
                     <div class="amp-tier">${tierLabel[m.tier] || m.tier}</div>
-                    <div class="amp-name">${m.name}</div>
+                    <div class="amp-name">${window.escapeHtml(m.name)}</div>
                     <ul class="amp-facts">${facts}</ul>
                     <div class="amp-actions">${actions}${err}</div>
                 </div>`;
@@ -189,7 +189,7 @@ window.AiModelPicker = {
             const note = sub(m);
             return `
             <tr class="${m.excluded ? 'is-rejected' : m.tier ? 'is-tier' : ''}">
-                <td class="amp-col-model"><code>${m.name}</code>${note ? `<small>${note}</small>` : ''}</td>
+                <td class="amp-col-model"><code>${window.escapeHtml(m.name)}</code>${note ? `<small>${note}</small>` : ''}</td>
                 <td class="amp-col-score">${this._num(m.note, 1)}</td>
                 ${tasks.map(k => `<td class="${m.excluded === k ? 'is-bad' : ''}">${range(m[k])}</td>`).join('')}
                 <td>${card(m.card)}</td>

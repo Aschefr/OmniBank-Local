@@ -288,9 +288,9 @@ Object.assign(window.BankSyncView, {
                 } else if (displayError) {
                     alertBoxHtml = `
                         <div class="bank-connection-error-box">
-                            <div class="bank-connection-error-text">⚠️ ${displayError}</div>
+                            <div class="bank-connection-error-text">⚠️ ${window.escapeHtml(displayError)}</div>
                             <div class="bank-connection-diag-actions">
-                                <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError.replace(/'/g, "\\'")}');" title="${window.i18n ? window.i18n.t('diag_btn_copy_tooltip') : 'Copier'}">
+                                <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard(${window.jsArg(`Erreur connexion bancaire: ${conn.backend || conn.id} - ${displayError}`)});" title="${window.i18n ? window.i18n.t('diag_btn_copy_tooltip') : 'Copier'}">
                                     📋 <span>${window.i18n ? window.i18n.t('diag_btn_copy') : 'Copier'}</span>
                                 </button>
                                 <button class="btn btn-secondary btn-diag-action" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur connexion bancaire: ${conn.backend || conn.id}');" title="${window.i18n ? window.i18n.t('diag_btn_issue_tooltip') : 'Issue'}">
@@ -318,7 +318,7 @@ Object.assign(window.BankSyncView, {
                         </div>
                         <div class="bank-connection-content">
                             <div class="bank-connection-header">
-                                <h4 class="bank-connection-title">${conn.label}</h4>
+                                <h4 class="bank-connection-title">${window.escapeHtml(conn.label)}</h4>
                                 ${statusBadge}
                             </div>
                             <div class="bank-connection-meta">
@@ -423,11 +423,11 @@ Object.assign(window.BankSyncView, {
         }
 
         grid.innerHTML = backendsList.map(b => `
-            <div class="backend-card" onclick="window.BankSyncView.selectBackend('${b.name}')" 
+            <div class="backend-card" onclick="window.BankSyncView.selectBackend(${window.jsArg(b.name)})" 
                  style="padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 16px;">🏦</span>
                 <div style="font-size: 12px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${b.description || b.name}
+                    ${window.escapeHtml(b.description || b.name)}
                 </div>
             </div>
         `).join('');
@@ -443,7 +443,7 @@ Object.assign(window.BankSyncView, {
         document.getElementById('btnSaveConnection').style.display = 'inline-block';
 
         document.getElementById('selectedBankBanner').innerHTML = `
-            🏦 <strong>${backend.description || backend.name}</strong> (${backend.name})
+            🏦 <strong>${backend.description || backend.name}</strong> (${window.escapeHtml(backend.name)})
         `;
         document.getElementById('connLabelInput').value = backend.description || backend.name;
 
@@ -516,12 +516,12 @@ Object.assign(window.BankSyncView, {
 
         container.innerHTML = fields.map(f => {
             const reqMark = f.required ? '*' : '';
-            const descHtml = f.description ? `<p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 6px 0;">${f.description}</p>` : '';
+            const descHtml = f.description ? `<p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 6px 0;">${window.escapeHtml(f.description)}</p>` : '';
             let inputHtml = '';
 
             if (f.type === 'select' && f.choices) {
                 const options = Object.entries(f.choices).map(([val, label]) => 
-                    `<option value="${val}" ${f.default === val ? 'selected' : ''}>${label}</option>`
+                    `<option value="${window.escapeHtml(val)}" ${f.default === val ? 'selected' : ''}>${window.escapeHtml(label)}</option>`
                 ).join('');
                 inputHtml = `<select id="cred_${f.id}" class="input-styled">${options}</select>`;
             } else if (f.type === 'checkbox') {
@@ -534,7 +534,7 @@ Object.assign(window.BankSyncView, {
             return `
             <div>
                 <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-main);">
-                    ${f.label} ${reqMark}
+                    ${window.escapeHtml(f.label)} ${reqMark}
                 </label>
                 ${descHtml}
                 ${inputHtml}
@@ -624,12 +624,12 @@ Object.assign(window.BankSyncView, {
                         ⚙️ Configuration & Diagnostics
                     </button>
                 </div>
-                <div style="margin-bottom: 8px; line-height: 1.4; color: var(--text-main); font-size: 12.5px;">${rawMsg}</div>
+                <div style="margin-bottom: 8px; line-height: 1.4; color: var(--text-main); font-size: 12.5px;">${window.escapeHtml(rawMsg)}</div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding-top: 6px; border-top: 1px dashed rgba(239,68,68,0.2);">
-                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur création connexion: ${this.selectedBackend?.name || ''} - ${rawMsg.replace(/'/g, "\\'")}');" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard(${window.jsArg(`Erreur création connexion: ${this.selectedBackend?.name || ''} - ${rawMsg}`)});" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
                         📋 Copier le rapport
                     </button>
-                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur création connexion: ${this.selectedBackend?.name || ''}');" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
+                    <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue(${window.jsArg(`Erreur création connexion: ${this.selectedBackend?.name || ''}`)});" style="font-size: 12px; padding: 3px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px;">
                         🐙 Créer une Issue GitHub
                     </button>
                 </div>
@@ -773,16 +773,16 @@ Object.assign(window.BankSyncView, {
                         </button>
                     </div>
                     <div style="color: var(--text-main); font-size: 12.5px; line-height: 1.4; margin-bottom: 14px;">
-                        ${errorMsg}
+                        ${window.escapeHtml(errorMsg)}
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 10px; border-top: 1px dashed rgba(239,68,68,0.2);">
                         <button class="btn btn-primary" onclick="window.BankSyncView.openMappingModal(${connId}, true)" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; font-weight: 600;">
                             🔄 ${window.i18n.t('bank_sync_btn_retry')}
                         </button>
-                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard('Erreur synchro bancaire: ${conn.backend || connId} - ${errorMsg.replace(/'/g, "\\'")}');" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_copy_report')}">
+                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.copyReportToClipboard(${window.jsArg(`Erreur synchro bancaire: ${conn.backend || connId} - ${errorMsg}`)});" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_copy_report')}">
                             📋 ${window.i18n.t('bank_sync_btn_copy_report')}
                         </button>
-                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue('Erreur synchro bancaire: ${conn.backend || connId}');" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_github_issue')}">
+                        <button class="btn btn-secondary" onclick="if(window.ErrorReporter) window.ErrorReporter.openGitHubIssue(${window.jsArg(`Erreur synchro bancaire: ${conn.backend || connId}`)});" style="font-size: 12px; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="${window.i18n.t('bank_sync_btn_github_issue')}">
                             🐙 ${window.i18n.t('bank_sync_btn_github_issue')}
                         </button>
                     </div>
@@ -822,7 +822,7 @@ Object.assign(window.BankSyncView, {
 
         const doNotSyncText = window.i18n ? window.i18n.t('bank_sync_do_not_sync') || 'Ne pas synchroniser' : 'Ne pas synchroniser';
         const localAccOptions = `<option value="">-- ${doNotSyncText} --</option>` + 
-            this.localAccounts.map(a => `<option value="${a.id}">${a.name} (${a.type})</option>`).join('');
+            this.localAccounts.map(a => `<option value="${a.id}">${window.escapeHtml(a.name)} (${a.type})</option>`).join('');
 
         const detectType = (r) => this._detectRemoteType(r);
 
@@ -846,7 +846,7 @@ Object.assign(window.BankSyncView, {
             <div class="mapping-card-item" style="background: var(--bg-base); border: 1px solid ${isJustLinked ? 'var(--success, #10b981)' : 'var(--border-color)'}; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px;">
                 <div class="mapping-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div class="mapping-account-info">
-                        <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${r.label}</div>
+                        <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${window.escapeHtml(r.label)}</div>
                         <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; margin-top: 2px; flex-wrap: wrap;">
                             <span>${lblType}: <strong>${r.type}</strong></span>
                             <span>${lblNumber}: <strong>${r.id}</strong></span>
@@ -875,7 +875,7 @@ Object.assign(window.BankSyncView, {
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 2; min-width: 150px;">
                             <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_name">${window.i18n.t('bank_sync_custom_create_name')}</label>
-                            <input type="text" id="qcName_${r.id}" class="input-styled" value="${r.label.replace(/"/g, '&quot;')}" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
+                            <input type="text" id="qcName_${r.id}" class="input-styled" value="${window.escapeHtml(r.label)}" style="width: 100%; height: 32px; padding: 0 8px; font-size: 12px;">
                         </div>
                         <div style="flex: 1.5; min-width: 130px;">
                             <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;" data-i18n="bank_sync_custom_create_type">${window.i18n.t('bank_sync_custom_create_type')}</label>

@@ -605,7 +605,7 @@ window.AppModules.notifications = {
                 <div class="notif-group-header" onclick="window.app.toggleNotifGroup('${group.key}')">
                     <div class="notif-group-title">
                         <span>${group.icon}</span>
-                        <span>${group.title}</span>
+                        <span>${window.escapeHtml(group.title)}</span>
                         <span class="notif-group-badge">${group.items.length}</span>
                     </div>
                     <span id="notif-chevron-${group.key}" class="${chevronClass}">▼</span>
@@ -826,10 +826,10 @@ window.AppModules.notifications = {
         return `
         <div class="notif-card ${unreadClass} ${isArchived ? 'archived' : ''}" ${clickCallback}>
             <div class="notif-card-header">
-                <span class="notif-card-title" style="color: ${(!n.is_read && !isArchived) ? 'var(--accent)' : 'var(--text-main)'};">${displayTitle}</span>
+                <span class="notif-card-title" style="color: ${(!n.is_read && !isArchived) ? 'var(--accent)' : 'var(--text-main)'};">${window.escapeHtml(displayTitle)}</span>
                 <span class="notif-card-date">${dateStr}</span>
             </div>
-            <div class="notif-card-content">${displayContent}</div>
+            <div class="notif-card-content">${window.escapeHtml(displayContent)}</div>
             <div class="notif-card-footer">
                 ${archivedMeta}
                 <div class="notif-card-actions">

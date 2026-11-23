@@ -75,7 +75,7 @@ window.AppModules.sidebar = {
                 div.className = 'account-item';
                 const crd = Math.abs(acc.balance || 0);
                 const rateBadge = acc.interest_rate ? ` <span style="font-size:10px; color:var(--text-muted); font-weight:normal;">(${acc.interest_rate}%)</span>` : '';
-                div.innerHTML = `<span>${acc.name}${rateBadge}</span><strong style="color: #ef4444;" class="privacy-blur">${formatCurrency(crd, acc.currency || 'EUR')}</strong>`;
+                div.innerHTML = `<span>${window.escapeHtml(acc.name)}${rateBadge}</span><strong style="color: #ef4444;" class="privacy-blur">${formatCurrency(crd, acc.currency || 'EUR')}</strong>`;
                 list.appendChild(div);
             });
 
@@ -93,7 +93,7 @@ window.AppModules.sidebar = {
             liquidAccounts.forEach(acc => {
                 const div = document.createElement('div');
                 div.className = 'account-item';
-                div.innerHTML = `<span>${acc.name}</span><strong class="privacy-blur">${formatCurrency(acc.balance, acc.currency || 'EUR')}</strong>`;
+                div.innerHTML = `<span>${window.escapeHtml(acc.name)}</span><strong class="privacy-blur">${formatCurrency(acc.balance, acc.currency || 'EUR')}</strong>`;
                 list.appendChild(div);
             });
 
@@ -379,7 +379,7 @@ window.AppModules.sidebar = {
                     const currentSelVal = configs.pay_category || '';
                     let html = `<option value="" data-i18n="opt_any_category">${window.i18n.t('opt_any_category') || '-- Toutes --'}</option>`;
                     incomeCats.forEach(c => {
-                        html += `<option value="${c.name}">${c.name}</option>`;
+                        html += `<option value="${window.escapeHtml(c.name)}">${window.escapeHtml(c.name)}</option>`;
                     });
                     catSelect.innerHTML = html;
                     catSelect.value = currentSelVal;
@@ -530,7 +530,7 @@ window.AppModules.sidebar = {
                     const rejectTitle = window.i18n.t('btn_reject_salary') || 'Rejeter cette paie';
                     tr.innerHTML = `
                         <td style="padding: 8px;">${formatDate(tx.date)}</td>
-                        <td style="padding: 8px;"><strong>${tx.description}</strong></td>
+                        <td style="padding: 8px;"><strong>${window.escapeHtml(tx.description)}</strong></td>
                         <td style="padding: 8px; text-align: right; color: var(--color-income); font-weight: bold;">${formatCurrency(tx.amount)}</td>
                         <td style="padding: 8px; text-align: center; white-space: nowrap;">
                             <button class="btn-reject-pay" data-txid="${tx.id}" title="${rejectTitle}" style="cursor:pointer; background:none; border:1px solid var(--border-color); color:var(--color-expense); border-radius:4px; padding:3px 8px; font-weight:bold; transition: all 0.2s;">
@@ -658,7 +658,7 @@ window.AppModules.sidebar = {
                 
                 tr.innerHTML = `
                     <td style="padding: 8px;">${formatDate(c.date)}</td>
-                    <td style="padding: 8px; font-weight: bold; color: var(--text-normal);">${c.description || ''}${statusBadge}</td>
+                    <td style="padding: 8px; font-weight: bold; color: var(--text-normal);">${window.escapeHtml(c.description || '')}${statusBadge}</td>
                     <td style="padding: 8px; text-align: right; font-weight: bold; color: var(--color-income);">${formatCurrency(c.amount)}</td>
                     <td style="padding: 8px; text-align: center;">
                         <button class="btn btn-primary" onclick="window.app.selectPaycheckCandidate(${c.id})" title="${window.i18n.t('btn_apply') || 'Définir comme paie'}" style="padding: 3px 8px; font-size: 12px; border-radius: 4px; background: linear-gradient(135deg, #2ecc71, #27ae60); border: none; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.2); font-weight: bold; color: white;">✔️</button>

@@ -128,7 +128,7 @@ window.ConfigView = Object.assign(window.ConfigView || {}, {
                 this.models = data.models;
                 const select = document.getElementById('conf_ollama_model');
                 
-                select.innerHTML = this.models.map(m => `<option value="${m.name}">${m.name} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`).join('');
+                select.innerHTML = this.models.map(m => `<option value="${window.escapeHtml(m.name)}">${window.escapeHtml(m.name)} (${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB)</option>`).join('');
                 
                 if (this.configData.ollama_model && [...select.options].some(o => o.value === this.configData.ollama_model)) {
                     select.value = this.configData.ollama_model;
