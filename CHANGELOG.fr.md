@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.8.1] - 2026-11-23
 
 ### Corrections & ergonomie
 - **Le texte venu de la banque, des fichiers importés et de l'IA s'affiche toujours comme du texte 🛡️** : un libellé de banque, la référence d'un virement reçu, un fichier importé, un message d'erreur de la banque ou une réponse de l'IA pouvait contenir du HTML. À plusieurs endroits (la chronologie du Cockpit, les notifications, les connexions bancaires, l'historique, les analyses, les propositions du chat), il était lu comme du HTML au lieu de texte : un libellé piégé pouvait exécuter du code dans OmniBank. Tout est désormais affiché comme du texte brut, et la page refuse de charger du code depuis un autre site ou de lui envoyer des données.

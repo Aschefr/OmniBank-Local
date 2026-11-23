@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.8.1] - 2026-11-23
 
 ### Fixed & Ergonomics
 - **Text from the bank, imported files and the AI is always shown as text 🛡️**: A bank label, the reference of a transfer you receive, an imported file, a bank error message or an AI answer could contain HTML. In several places (the Cockpit timeline, notifications, bank connections, history, analytics, chat proposals) it was read as HTML instead of text, so a crafted label could run code inside OmniBank. All of it is now shown as plain text, and the page refuses to load code from another site or send data to it.
