@@ -96,7 +96,9 @@ def test_gap_outside_the_tolerance_is_reported_with_its_direction(db):
     assert below["gap"] == pytest.approx(-500.0)
     assert below["status"] == "below"
 
-    _tx(db, date.today(), 1200.0, "income", to_acc=COURANT, category="Vente")
+    # Marquée « pas un salaire » : après le 15, la paie du mois est attendue et une rentrée de 1 200 € ce jour-là
+    # serait prise pour elle, ce qui ouvrirait une nouvelle période (écart remis à zéro).
+    _tx(db, date.today(), 1200.0, "income", to_acc=COURANT, category="Vente", is_salary=False)
     db.commit()
     above = get_forecast_tracking(db)
     assert above["gap"] == pytest.approx(700.0)
