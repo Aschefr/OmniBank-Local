@@ -3,12 +3,13 @@ import asyncio
 import re
 import json
 
+import httpx
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.models import Base, ChatSession, ChatMessage
+from app.models import Account, Base, ChatSession, ChatMessage
 from app.services.chat import chat_orchestrator as orch
 from app.services.chat.chat_orchestrator import merge_phase_texts
 
@@ -30,9 +31,18 @@ def test_merge_full_restatement_keeps_single_copy():
 
 class _FakeOllama:
     """Ollama simulé au niveau HTTP : tour 1 = raisonnement + appel d'outil, tour 2 = réponse."""
-    def __init__(self, turns):
+    def __init__(self, turns, json_answers=()):
         self.turns = turns
         self.payloads = []
+        # Réponses aux demandes en JSON structuré (paramètre format), dans l'ordre
+        self.json_answers = list(json_answers)
+        self.json_payloads = []
+
+    async def post(self, url, json=None):
+        self.json_payloads.append(json)
+        answer = self.json_answers.pop(0) if self.json_answers else {}
+        return httpx.Response(200, json={"message": {"content": _json.dumps(answer)}, "done": True},
+                              request=httpx.Request("POST", url))
 
     def stream(self, method, url, json=None, timeout=None):
         self.payloads.append(json)
@@ -158,9 +168,9 @@ PROMISE = ("J'ai préparé un virement de 250 € de votre Compte Courant vers v
            "Vous pouvez l'examiner et la valider ci-dessous.")
 
 
-def _run_turns(monkeypatch, gen_env, turns):
+def _run_turns(monkeypatch, gen_env, turns, json_answers=()):
     sid, uid, db = gen_env
-    fake = _FakeOllama(turns)
+    fake = _FakeOllama(turns, json_answers)
     monkeypatch.setattr(orch.httpx, "AsyncClient", lambda *a, **k: fake)
     monkeypatch.setattr(orch, "create_planned_transfer_tool", lambda db, **k: {"status": "pending_validation"})
     q = asyncio.Queue()
@@ -193,15 +203,52 @@ def test_promised_action_without_call_is_requested_from_the_model(monkeypatch, g
     assert "relance" not in content and "relance" not in streamed
 
 
-def test_promised_action_still_not_called_gets_a_notice_not_a_guess(monkeypatch, gen_env):
-    turns = [
-        [{"message": {"content": PROMISE}, "done": True}],
-        [{"message": {"content": "D'accord."}, "done": True}],
-    ]
-    fake, streamed, content = _run_turns(monkeypatch, gen_env, turns)
+NO_CALL_TURNS = [
+    [{"message": {"content": PROMISE}, "done": True}],
+    [{"message": {"content": "D'accord."}, "done": True}],
+]
+
+
+def test_promised_action_still_not_called_is_filled_as_json(monkeypatch, gen_env):
+    """gemma4:e4b annonce le virement sans jamais appeler l'outil, même relancé, mais remplit bien un formulaire
+    imposé : l'action annoncée est demandée en JSON structuré, avec les comptes existants pour seuls choix."""
+    _, _, db = gen_env
+    db.add_all([Account(name="Compte Courant", type="checking"), Account(name="Livret A", type="savings"),
+                Account(name="Vieux compte", type="checking", is_closed=True)])
+    db.commit()
+    transfer = {"from_account": "Compte Courant", "to_account": "Livret A", "amount": 250, "date_operation": "2026-11-30"}
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, NO_CALL_TURNS,
+                                         [{"actions": ["create_planned_transfer"]}, transfer])
+
+    actions = re.findall(r"```action\s*(.*?)\s*```", content, re.S)
+    assert len(actions) == 1
+    card = json.loads(actions[0])
+    assert card["action"] == "create_planned_transfer"
+    assert {k: card["params"][k] for k in transfer} == transfer
+    assert card["params"]["category"] == "Virement interne"
+    assert "n'a pas pu être préparée" not in content
+    pick, fill = fake.json_payloads
+    assert "Oui, enregistrez-le." in pick["messages"][0]["content"] and "J'ai préparé un virement" in pick["messages"][0]["content"]
+    assert fill["format"]["properties"]["from_account"]["enum"] == ["Compte Courant", "Livret A"]
+
+
+def test_promised_action_not_filled_either_gets_a_notice_not_a_guess(monkeypatch, gen_env):
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, NO_CALL_TURNS, [{"actions": ["none"]}])
+    assert len(fake.json_payloads) == 1
     assert "```action" not in content
     assert "n'a pas pu être préparée" in content
     assert "D'accord." not in content
+
+
+def test_incomplete_json_action_gets_a_notice(monkeypatch, gen_env):
+    _, _, db = gen_env
+    db.add_all([Account(name="Compte Courant", type="checking"), Account(name="Livret A", type="savings")])
+    db.commit()
+    same_account = {"from_account": "Livret A", "to_account": "Livret A", "amount": 250}
+    fake, streamed, content = _run_turns(monkeypatch, gen_env, NO_CALL_TURNS,
+                                         [{"actions": ["create_planned_transfer"]}, same_account])
+    assert "```action" not in content
+    assert "n'a pas pu être préparée" in content
 
 
 # --- Garde-fou mémoire : « c'est noté » sans appel de store_financial_fact (gemma4:e4b, 40 fois sur 40) ---

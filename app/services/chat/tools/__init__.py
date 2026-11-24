@@ -328,6 +328,9 @@ ROLE_TOOL_NAMES: Dict[str, List[str]] = {
         "update_recurrence_template",
         "delete_recurrence_template",
         "create_recurrence_template",
+        # Mettre de côté ce que les économies libèrent : sans cet outil, le modèle annonçait un virement
+        # préparé qu'il ne pouvait pas créer
+        "create_planned_transfer",
         "get_budgets_status",
         "get_financial_summary",
         "get_account_balances",

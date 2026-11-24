@@ -82,13 +82,19 @@ def test_build_entity_snapshots_includes_recurrence_and_transaction(test_db):
     assert tx_snap["category"] == "Automobile"
 
 
-def _fake_ollama(monkeypatch, response_message, seen):
-    """Ollama simulé : répond à la relance avec le message donné (appels d'outils)."""
+def _fake_ollama(monkeypatch, response_message, seen, json_answers=()):
+    """Ollama simulé : répond à la relance avec le message donné (appels d'outils), puis aux demandes en JSON
+    structuré (paramètre format) avec json_answers, dans l'ordre."""
     import httpx
     from app.services.chat import chat_orchestrator as orch
+    answers = list(json_answers)
 
     def handler(request):
-        seen.append(_json.loads(request.content))
+        body = _json.loads(request.content)
+        seen.append(body)
+        if "format" in body:
+            answer = answers.pop(0) if answers else {}
+            return httpx.Response(200, json={"message": {"content": _json.dumps(answer)}, "done": True})
         return httpx.Response(200, json={"message": response_message, "done": True})
 
     real_client = httpx.AsyncClient
@@ -98,8 +104,8 @@ def _fake_ollama(monkeypatch, response_message, seen):
     monkeypatch.setattr(orch, "load_system_prompt", lambda *a, **k: "SYSTEM")
 
 
-def _promise_message(db):
-    sess = ChatSession(title="Récupération", role="advisor")
+def _promise_message(db, role="advisor"):
+    sess = ChatSession(title="Récupération", role=role)
     db.add(sess)
     db.commit()
     db.add(ChatMessage(session_id=sess.id, role="user", content="Remets 150 € du livret sur le compte courant."))
@@ -137,8 +143,46 @@ def test_recover_actions_asks_the_model_instead_of_guessing(test_db, monkeypatch
     assert "```action" in msg.content and "n'a pas pu être préparée" not in msg.content
 
 
+def test_recover_actions_fills_the_announced_action_as_json(test_db, monkeypatch):
+    """Le modèle répond encore en texte à la relance : il remplit alors l'action annoncée en JSON structuré."""
+    test_db.add_all([Account(name="Compte courant", type="checking"), Account(name="Livret", type="savings")])
+    test_db.commit()
+    seen = []
+    transfer = {"from_account": "Livret", "to_account": "Compte courant", "amount": 150}
+    _fake_ollama(monkeypatch, {"content": "Je vais maintenant préparer le virement."}, seen,
+                 [{"actions": ["create_planned_transfer"]}, transfer])
+    msg = _promise_message(test_db)
+
+    data = TestClient(app).post(f"/api/chat/messages/{msg.id}/recover-actions?lang=fr").json()
+
+    assert data["ok"] is True and [a["action"] for a in data["actions"]] == ["create_planned_transfer"]
+    assert {k: data["actions"][0]["params"][k] for k in transfer} == transfer
+    pick, fill = [b for b in seen if "format" in b]
+    # La demande et la réponse annoncée servent de contexte, sans l'avis « non préparée »
+    prompt = pick["messages"][0]["content"]
+    assert "Remets 150 € du livret" in prompt and "J'ai préparé un virement de 150 €" in prompt
+    assert "n'a pas pu être préparée" not in prompt
+    assert fill["format"]["properties"]["to_account"]["enum"] == ["Compte courant", "Livret"]
+    test_db.refresh(msg)
+    assert "```action" in msg.content and "n'a pas pu être préparée" not in msg.content
+
+
+def test_recover_actions_only_fills_creations_named_by_existing_names():
+    """Rien qui vise un élément par son identifiant (invisible ici) ni aucune suppression."""
+    from app.services.chat.announced_action_fill import FILLABLE_ACTIONS, _is_complete
+    from app.services.chat.tools import TOOL_MAP
+    for name in FILLABLE_ACTIONS:
+        props = TOOL_MAP[name]["function"]["parameters"]["properties"]
+        assert not any(k.endswith("_id") for k in props), name
+        assert not name.startswith("delete_"), name
+    assert not _is_complete("create_planned_transfer", {"from_account": "A", "to_account": "A", "amount": 10})
+    assert not _is_complete("create_planned_transfer", {"from_account": "A", "to_account": "B", "amount": 0})
+    assert not _is_complete("create_planned_transfer", {"from_account": "A", "amount": 10})
+    assert _is_complete("create_planned_transfer", {"from_account": "A", "to_account": "B", "amount": 10})
+
+
 def test_recover_actions_without_tool_call_adds_nothing(test_db, monkeypatch):
-    _fake_ollama(monkeypatch, {"content": "Je ne peux pas."}, [])
+    _fake_ollama(monkeypatch, {"content": "Je ne peux pas."}, [], [{"actions": ["none"]}])
     msg = _promise_message(test_db)
     before = msg.content
 
@@ -147,3 +191,19 @@ def test_recover_actions_without_tool_call_adds_nothing(test_db, monkeypatch):
     assert data["ok"] is False and data["actions"] == []
     test_db.refresh(msg)
     assert msg.content == before
+
+
+def test_recover_actions_offers_actions_the_role_does_not_have(test_db, monkeypatch):
+    """Une conversation « Simulation de projet » n'a aucun outil d'écriture : le modèle peut quand même avoir annoncé
+    un virement. La récupération lui propose toutes les actions, chaque carte restant à valider."""
+    seen = []
+    call = {"function": {"name": "create_planned_transfer",
+                         "arguments": {"from_account": "Compte courant", "to_account": "Livret", "amount": 500}}}
+    _fake_ollama(monkeypatch, {"content": "", "tool_calls": [call]}, seen)
+    msg = _promise_message(test_db, role="simulator")
+
+    data = TestClient(app).post(f"/api/chat/messages/{msg.id}/recover-actions?lang=fr").json()
+
+    assert data["ok"] is True and data["actions"][0]["action"] == "create_planned_transfer"
+    from app.services.chat.chat_orchestrator import WRITE_TOOLS
+    assert {t["function"]["name"] for t in seen[0]["tools"]} == WRITE_TOOLS

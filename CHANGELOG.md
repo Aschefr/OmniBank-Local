@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **An action the assistant says it prepared now gets its card 💬**: Some models (gemma4:e4b) write "I've prepared the transfer" without actually preparing it, so the chat showed "The announced action could not be prepared" and "Generate action cards" found nothing. OmniBank now asks the model to fill in the announced action as a form, with your existing accounts and categories as the only choices, and shows the card to validate as usual. This covers transfers, recurring charges, envelopes, categories and the expected paycheck; changes and deletions still need the model to prepare them. The "Optimizer (Bills & Fees)" role can also prepare a transfer to savings now.
+
 ## [1.8.1] - 2026-11-23
 
 ### Fixed & Ergonomics

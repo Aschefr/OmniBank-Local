@@ -17,7 +17,7 @@ from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.database import get_engine, SessionLocal
-from app.models import Category, ChatMessage, ChatSession, GlobalConfig, Notification, OrgUser
+from app.models import Account, Category, ChatMessage, ChatSession, GlobalConfig, Notification, OrgUser
 from app.schemas.api_schemas import ChatSendMessage
 from app.services.chat.chat_compression import (
     build_replay_messages,
@@ -29,6 +29,7 @@ from app.services.chat.chat_compression import (
     record_real_usage,
     start_compression,
 )
+from app.services.chat.announced_action_fill import fill_announced_actions
 from app.services.chat.chat_prompt import load_system_prompt
 from app.services.chat.chat_snapshot import build_entity_snapshots
 from app.services.chat.memory_guard import MEMORY_TOOLS, memory_notice, memory_nudge, unsaved_memory_claim
@@ -651,21 +652,31 @@ def write_action_from_call(fn_name: str, fn_args: Any) -> Dict[str, Any]:
     return {"action": fn_name, "params": params}
 
 
+async def fill_announced_write_actions(db: Session, cfg: Dict[str, Any], request_text: str, answer_text: str,
+                                      lang: str = "fr") -> List[Dict[str, Any]]:
+    """Cartes des actions annoncées sans appel d'outil, remplies par le modèle en JSON structuré."""
+    accounts = [a.name for a in db.query(Account).filter(Account.is_closed.isnot(True)).order_by(Account.name).all()]
+    categories = [c.name for c in db.query(Category).filter(Category.is_closed.isnot(True)).order_by(Category.name).all()]
+    filled = await fill_announced_actions(cfg, request_text, answer_text, accounts, categories, lang)
+    return [write_action_from_call(name, params) for name, params in filled]
+
+
 _ACTION_BLOCK_JSON_RE = re.compile(r'```action\s*([\s\S]*?)```')
 _UNPREPARED_NOTICE_RE = re.compile(r'\n*\*\(⚠️ (?:L\'action annoncée|The announced action)[^\n]*\)\*')
 
 
 async def recover_actions_with_model(db: Session, message: ChatMessage, lang: str = "fr") -> List[Dict[str, Any]]:
     """Bouton « Générer les cartes d'actions » : redemande au modèle l'appel d'outil de l'action annoncée
-    dans ce message (même relance que pendant la génération). Rien n'est deviné depuis le texte : sans
-    appel d'outil du modèle, aucune carte. Lève RuntimeError si Ollama n'est pas configuré ou injoignable."""
+    dans ce message (même relance que pendant la génération). S'il répond encore sans appel, il remplit
+    l'action annoncée en JSON structuré (fill_announced_write_actions). Lève RuntimeError si Ollama n'est pas
+    configuré ou injoignable."""
     session = db.query(ChatSession).filter(ChatSession.id == message.session_id).first()
     cfg = get_ollama_config(db)
     if not session or not cfg["enabled"] or not cfg["url"] or not cfg["model"]:
         raise RuntimeError("Ollama URL ou modèle non configuré.")
-    tools = [t for t in get_tools_for_role(session.role) if t["function"]["name"] in WRITE_TOOLS]
-    if not tools:
-        return []
+    # Toutes les actions, pas seulement celles du rôle : le modèle a pu annoncer une action que le rôle n'offre
+    # pas, et chaque carte reste à valider par l'utilisateur
+    tools = [t for t in TOOLS if t["function"]["name"] in WRITE_TOOLS]
 
     history = db.query(ChatMessage).filter(
         ChatMessage.session_id == session.id, ChatMessage.id <= message.id
@@ -711,6 +722,14 @@ async def recover_actions_with_model(db: Session, message: ChatMessage, lang: st
             action = write_action_from_call(fn["name"], args)
             if action not in existing and action not in actions:
                 actions.append(action)
+    if not actions:
+        request = next((m.content for m in reversed(history) if m.role == "user"), "")
+        try:
+            answer = _UNPREPARED_NOTICE_RE.sub("", message.content or "")
+            filled = await fill_announced_write_actions(db, cfg, request, answer, lang)
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"Ollama injoignable : {e}") from e
+        actions = [a for a in filled if a not in existing]
     return actions
 
 
@@ -1404,7 +1423,18 @@ async def _run_generation_task(
             if all_tool_names:
                 _tools_meta = f"<!-- TOOLS_USED: {','.join(all_tool_names)} -->\n"
 
-            # Action annoncée mais toujours pas appelée après la relance : ne rien deviner, le dire
+            # Action annoncée mais toujours pas appelée après la relance : le modèle la remplit en JSON structuré,
+            # et s'il n'y arrive pas, le dire
+            if final_text and session_can_write and not detected_write_actions and announces_prepared_action(final_text):
+                status_fill = "Preparing the validation card..." if req.lang == "en" else "Préparation de la carte de validation..."
+                await _emit(f"data: {json.dumps({'status': status_fill})}\n\n")
+                try:
+                    filled = await fill_announced_write_actions(db, cfg, req.content, final_text, req.lang)
+                except Exception as e:
+                    logger.warning(f"[Chat] Remplissage JSON de l'action annoncée impossible : {e}")
+                    filled = []
+                logger.info(f"[Chat] Action annoncée sans appel d'outil, remplie en JSON : {[a['action'] for a in filled]}")
+                detected_write_actions.extend(filled)
             if final_text and session_can_write and not detected_write_actions and announces_prepared_action(final_text):
                 notice = (
                     "\n\n*(⚠️ The announced action could not be prepared. Ask for it again to get the validation card.)*"

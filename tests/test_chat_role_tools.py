@@ -110,8 +110,9 @@ def test_get_tools_for_role_known_and_fallback():
 
     # Optimizer role
     opt_tools = get_tools_for_role("optimizer")
-    assert len(opt_tools) == 16
+    assert len(opt_tools) == 17
     opt_names = {t["function"]["name"] for t in opt_tools}
+    assert "create_planned_transfer" in opt_names  # mettre de côté ce que les économies libèrent
     assert "close_recurrence_template" in opt_names
     assert "get_upcoming_expenses" in opt_names
     assert "update_recurrence_template" in opt_names
@@ -137,7 +138,8 @@ def test_tool_schemas_stay_compact():
     assert len(json.dumps(get_tools_for_role("advisor"), ensure_ascii=False)) < 12500
     for role in ["simulator", "alerts", "optimizer", "budget_planner", "forecaster", "auditor"]:
         size = len(json.dumps(get_tools_for_role(role), ensure_ascii=False))
-        assert size < 6500, f"Role {role} tool schemas {size} chars"
+        # 7 000 : l'optimiseur prépare aussi le virement d'épargne (6 747 car. le 24/11/2026)
+        assert size < 7000, f"Role {role} tool schemas {size} chars"
 
 
 def test_prompt_category_pruning(db_session):
