@@ -58,34 +58,35 @@ window.RecurrenceView = Object.assign(window.RecurrenceView || {}, {
                 .join('');
             
             tableHtml += `
-                <tr id="rec-row-${t.id}" onclick="window.RecurrenceView.toggleRow(${t.id})" style="cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(99,102,241,0.03)'" onmouseout="this.style.backgroundColor=''">
+                <tr id="rec-row-${t.id}" class="rec-row ${t.is_closed ? 'is-closed' : ''}" onclick="window.RecurrenceView.toggleRow(${t.id})" style="cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(99,102,241,0.03)'" onmouseout="this.style.backgroundColor=''">
                     <td style="width: 3px; min-width: 3px; max-width: 3px; padding: 0; position: relative; overflow: visible;" onclick="event.stopPropagation()">
                         <div style="position: absolute; top: 0; bottom: 0; left: -2px; width: 3px; background: ${typeColors.border}; box-shadow: -3px 0 8px -1px ${typeColors.border}; cursor: help;" title="${window.escapeHtml(typeColors.label)}"></div>
                     </td>
-                    <td style="padding: 12px; text-align: center;">
+                    <td class="rec-c-chevron" style="padding: 12px; text-align: center;">
                         <span id="chevron_${t.id}" style="${chevronStyle}">❯</span>
                     </td>
-                    <td data-label="Description" style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${window.escapeHtml(t.description)}</td>
-                    <td data-label="${window.i18n.t('col_category') || 'Catégorie'}" style="padding: 6px 12px;" onclick="event.stopPropagation()">
+                    <td data-label="Description" class="rec-c-desc" style="padding: 12px; font-weight: 600; color: var(--text-main); font-size: 14px;">${window.escapeHtml(t.description)}</td>
+                    <td data-label="${window.i18n.t('col_category') || 'Catégorie'}" class="rec-c-cat" style="padding: 6px 12px;" onclick="event.stopPropagation()">
                         <select class="inline-input" style="padding: 4px 8px; border-radius: 6px; font-size: 13px; width: 100%; border: 1px solid var(--border-color); background: var(--bg-surface); cursor: pointer;" onchange="window.RecurrenceView.changeTemplateCategory(this, ${t.id})">
                             <option value="">-- Sans catégorie --</option>
                             ${catOptionsHtml}
                             <option value="__new__" style="color: var(--primary-color); font-weight: bold;">+ Nouvelle catégorie...</option>
                         </select>
                     </td>
-                    <td data-label="${window.i18n.t('wizard_th_frequency') || 'Fréquence'}" style="padding: 12px; text-align: center;">${badgeHtml}</td>
-                    <td data-label="${window.i18n.t('col_status') || 'Statut'}" style="padding: 12px; text-align: center;">${statusBadgeHtml}</td>
-                    <td data-label="${window.i18n.t('wizard_th_day') || 'Jour'}" style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;">${t.day_of_month || 1}</td>
-                    <td data-label="${window.i18n.t('col_progress') || 'Progression'}" style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
+                    <td data-label="${window.i18n.t('wizard_th_frequency') || 'Fréquence'}" class="rec-c-freq" style="padding: 12px; text-align: center;">${badgeHtml}<span class="rec-phone-only">${window.escapeHtml(freqLabel)}</span></td>
+                    <td data-label="${window.i18n.t('col_status') || 'Statut'}" class="rec-c-status" style="padding: 12px; text-align: center;">${statusBadgeHtml}<span class="rec-phone-only"><i aria-hidden="true"></i>${window.escapeHtml(statusLabel)}</span></td>
+                    <td data-label="${window.i18n.t('wizard_th_day') || 'Jour'}" class="rec-c-day" style="padding: 12px; text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500;"><span class="rec-desk-only">${t.day_of_month || 1}</span><span class="rec-phone-only">${window.escapeHtml((window.i18n.t('rec_phone_day') || 'le {day}').replace('{day}', t.day_of_month || 1))}</span></td>
+                    <td data-label="${window.i18n.t('col_progress') || 'Progression'}" class="rec-c-progress" style="padding: 12px; text-align: center;" onclick="event.stopPropagation()">
                         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; min-width: 90px;">
                             <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 3px; overflow: hidden; border: 1px solid var(--border-color);">
                                 <div style="width: ${t.progressPct}%; height: 100%; background: ${t.progressPct === 100 ? 'linear-gradient(90deg, #2ecc71, #27ae60)' : 'linear-gradient(90deg, var(--accent, #6c5ce7), #a29bfe)'}; border-radius: 3px; transition: width 0.3s ease;"></div>
                             </div>
-                            <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 12px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
+                            <span class="rec-desk-only" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">${t.progressPct}% <span style="font-size: 12px; font-weight: 500; opacity: 0.7;">(${t.reconciledCount}/${t.totalCount})</span></span>
+                            <span class="rec-phone-only" title="${window.escapeHtml(window.i18n.t('col_progress') || 'Progression')}">${t.reconciledCount}/${t.totalCount}</span>
                         </div>
                     </td>
-                    <td data-label="${window.i18n.t('col_amount') || 'Montant'}" style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
-                    <td data-label="${window.i18n.t('col_total_annual') || 'Total Annuel'}" style="padding: 12px; text-align: right; font-weight: 700; color: ${typeColors.text}; font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
+                    <td data-label="${window.i18n.t('col_amount') || 'Montant'}" class="rec-c-amount" style="padding: 12px; text-align: right; font-weight: 600; color: ${typeColors.text}; font-size: 13px;">${formatCurrency(t.displayAmount)}</td>
+                    <td data-label="${window.i18n.t('col_total_annual') || 'Total Annuel'}" class="rec-c-annual" style="padding: 12px; text-align: right; font-weight: 700; color: ${typeColors.text}; font-size: 14px;"><span class="privacy-blur">${formatCurrency(t.totalAnnualAmount)}</span></td>
                 </tr>
                 <tr id="details_row_${t.id}" class="rec-details-row" style="display: ${displayStyle}; background: var(--bg-sidebar);">
                     <td colspan="10" class="rec-details-cell" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color);">

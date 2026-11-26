@@ -188,64 +188,196 @@ body.theme-titanium-light .gantt-popover {
     }
 }
 
-/* Phones: each recurrence is a compact card (title on top, values in a 2-column grid) */
+/* Variantes de texte : PC (badges du tableau) ou téléphone (ligne compacte) */
+.rec-phone-only {
+    display: none;
+}
+
+/* Téléphones : chaque récurrence sur deux lignes, comme les lignes du Journal (nom et montant, puis fréquence,
+   jour, échéances rapprochées, statut si clôturée, catégorie). Un appui déplie toujours les échéances. */
 @media (max-width: 768px) {
-    .rec-table tbody tr[id^="rec-row-"] {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px 14px;
-        align-items: start;
-        padding: 12px !important;
+    .rec-phone-only {
+        display: inline;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td {
-        display: flex !important;
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 3px;
-        border: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        width: auto !important;
-    }
-
-    .rec-table tbody tr[id^="rec-row-"] > td::before {
-        margin: 0 !important;
-        font-size: 12px !important;
-    }
-
-    /* marker + chevron cells carry no label: the chevron moves to the top-right corner */
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(1) {
+    .rec-desk-only {
         display: none !important;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(2) {
-        grid-column: 2;
-        grid-row: 1;
-        align-items: flex-end !important;
+    .rec-table tbody {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .rec-table tbody tr.rec-row {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 3px;
+        margin: 0 !important;
+        padding: 8px 12px !important;
+        border: 0 !important;
+        border-top: 1px solid var(--border-color) !important;
+        border-radius: 0 !important;
+        background: none !important;
+        box-shadow: none !important;
+    }
+
+    .rec-table tbody tr.rec-row:first-child {
+        border-top: 0 !important;
+    }
+
+    .rec-table tbody tr.rec-row.is-closed {
+        opacity: 0.6;
+    }
+
+    /* Saut de ligne entre nom/montant et le reste */
+    .rec-table tbody tr.rec-row::after {
+        content: '';
+        flex-basis: 100%;
+        height: 0;
+        order: 4;
+    }
+
+    .rec-table tbody tr.rec-row > td {
+        display: none !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    .rec-table tbody tr.rec-row > td::before {
+        content: none !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-desc,
+    .rec-table tbody tr.rec-row > td.rec-c-amount,
+    .rec-table tbody tr.rec-row > td.rec-c-chevron,
+    .rec-table tbody tr.rec-row > td.rec-c-freq,
+    .rec-table tbody tr.rec-row > td.rec-c-day,
+    .rec-table tbody tr.rec-row > td.rec-c-progress,
+    .rec-table tbody tr.rec-row > td.rec-c-cat,
+    .rec-table tbody tr.rec-row.is-closed > td.rec-c-status {
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-desc {
+        order: 1;
+        flex: 1 1 0;
+        min-width: 0 !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-amount {
+        order: 2;
+        flex: none;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-chevron {
+        order: 3;
+        flex: none;
         justify-content: center;
+        width: 16px !important;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(2)::before {
-        display: none;
+    .rec-table tbody tr.rec-row > td.rec-c-freq,
+    .rec-table tbody tr.rec-row > td.rec-c-day,
+    .rec-table tbody tr.rec-row > td.rec-c-progress,
+    .rec-table tbody tr.rec-row > td.rec-c-status {
+        flex: none;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        color: var(--text-muted) !important;
+        white-space: nowrap !important;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(3) {
-        grid-column: 1;
-        grid-row: 1;
-        font-size: 15px !important;
+    .rec-table tbody tr.rec-row > td.rec-c-freq { order: 5; }
+    .rec-table tbody tr.rec-row > td.rec-c-day { order: 6; }
+    .rec-table tbody tr.rec-row > td.rec-c-progress { order: 7; }
+    .rec-table tbody tr.rec-row > td.rec-c-status { order: 8; }
+
+    /* Badges du tableau remplacés par du texte */
+    .rec-table tbody tr.rec-row > td.rec-c-freq > span:first-child,
+    .rec-table tbody tr.rec-row > td.rec-c-status > span:first-child {
+        display: none !important;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(4) {
-        grid-column: 1 / -1;
+    .rec-table tbody tr.rec-row > td.rec-c-status .rec-phone-only {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 600;
     }
 
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-child(4) select {
-        width: 100%;
+    .rec-table tbody tr.rec-row > td.rec-c-status i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
     }
 
-    /* the two amounts are the most useful figures: keep them on one line each */
-    .rec-table tbody tr[id^="rec-row-"] > td:nth-last-child(-n+2) {
-        grid-column: auto;
+    /* Échéances rapprochées : mini-barre + « 3/5 » */
+    .rec-table tbody tr.rec-row > td.rec-c-progress > div {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 5px !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-progress > div > div:first-child {
+        width: 32px !important;
+        height: 4px !important;
+        border: 0 !important;
+        background: var(--border-color) !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-progress .rec-phone-only {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Catégorie : liste déroulante présentée comme une étiquette, ouvre le sélecteur natif */
+    .rec-table tbody tr.rec-row > td.rec-c-cat {
+        order: 9;
+        flex: 0 1 auto;
+        min-width: 0 !important;
+    }
+
+    .rec-table tbody tr.rec-row > td.rec-c-cat select {
+        width: auto !important;
+        max-width: 100%;
+        height: 26px !important;
+        min-height: 0 !important;
+        line-height: 26px;
+        padding: 0 4px 0 6px !important;
+        border: 0 !important;
+        border-radius: 4px !important;
+        background: var(--bg-input) !important;
+        color: var(--text-main);
+        font-size: 12px !important;
+        text-overflow: ellipsis;
+    }
+
+    /* Échéances dépliées : sous la ligne, sur toute la largeur */
+    .rec-table tbody tr.rec-details-row {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: 0 !important;
+        border-top: 1px solid var(--border-color) !important;
+        box-shadow: none !important;
     }
 }

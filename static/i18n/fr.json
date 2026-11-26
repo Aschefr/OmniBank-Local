@@ -2991,6 +2991,7 @@
   "rec_stat_monthly_average": "Moyenne mensuelle",
   "rec_stat_reconciliation": "Rapprochement",
   "rec_stat_total_annual": "Total annuel planifié",
+  "rec_phone_day": "le {day}",
   "rec_status_active": "En cours",
   "rec_status_auto_skip_monitored": "Prévu {date}",
   "rec_status_auto_skip_monitored_tip": "⚙️ Automatisme : Échéance dépassée sous surveillance. Elle sera marquée comme sautée le {date} (si non prélevée et solde bancaire conforme).",
