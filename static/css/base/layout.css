@@ -254,6 +254,32 @@
     white-space: nowrap !important;
 }
 
+/* Icônes du menu (sprite Phosphor duotone dans index.html) : elles prennent la couleur du texte,
+   donc l'accent du profil sur l'onglet actif */
+.nav-ico {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    fill: currentColor;
+    transition: color 0.25s ease, filter 0.25s ease;
+}
+
+.nav-more-item .nav-ico {
+    width: 18px;
+    height: 18px;
+}
+
+/* Icônes posées dans le texte (window.Icon) : même famille que le menu */
+.ico {
+    fill: currentColor;
+    flex-shrink: 0;
+    vertical-align: -0.18em;
+}
+
+.ico-accent {
+    color: var(--accent);
+}
+
 .nav-btn:hover {
     color: var(--accent);
     background-color: var(--accent-subtle);

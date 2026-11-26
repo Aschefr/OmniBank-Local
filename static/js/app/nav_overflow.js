@@ -19,7 +19,7 @@ window.NavOverflow = {
         btn.hidden = true;
         btn.setAttribute('aria-haspopup', 'true');
         btn.setAttribute('aria-expanded', 'false');
-        btn.innerHTML = '<span aria-hidden="true">⋯</span><span><span data-i18n="nav_more">Plus</span> ▾</span>';
+        btn.innerHTML = '<svg class="nav-ico" aria-hidden="true"><use href="#ni-dots-three-circle"/></svg><span><span data-i18n="nav_more">Plus</span> ▾</span>';
         btn.addEventListener('click', (e) => { e.stopPropagation(); this.toggleMenu(); });
         nav.appendChild(btn);
         this._moreBtn = btn;

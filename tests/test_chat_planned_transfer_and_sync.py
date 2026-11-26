@@ -143,11 +143,38 @@ def test_trigger_bank_sync_success_when_unlocked(db_session):
             with patch("app.services.bank_sync.auto_sync.is_background_sync_running", return_value=False):
                 with patch("app.services.bank_sync.auto_sync.trigger_manual_auto_sync") as mock_launch:
                     mock_launch.return_value = {"ok": True, "message": "Synchronisation lancée"}
-                    res = trigger_bank_sync_tool(db_session, force_write=True)
+                    res = trigger_bank_sync_tool(db_session, force_write=True, vault_token="jeton-appareil")
                     assert res.get("success") is True
                     assert "Synchronisation lancée" in res.get("message")
                     assert res.get("connections_count") == 1
                     mock_launch.assert_called_once()
+                    assert mock_launch.call_args.kwargs["vault_token"] == "jeton-appareil"
+                    assert mock_launch.call_args.kwargs["device_only"] is True
+
+
+def test_trigger_bank_sync_refused_when_only_another_device_is_unlocked(db_session):
+    """Coffre ouvert depuis un autre appareil : le relevé demandé au chat sans jeton de cet appareil est refusé."""
+    from app.profile_manager import get_active_profile
+    from app.services.credential_vault import VaultSessionManager
+    pid = get_active_profile().get("id", "default")
+    with patch.object(db_session, "query") as mock_query:
+        mock_conn = MagicMock()
+        mock_conn.is_active = True
+        mock_query.return_value.filter.return_value.all.return_value = [mock_conn]
+        other = VaultSessionManager.create_session("mot-de-passe-invente", 1, profile_id=pid)
+        try:
+            with patch("app.services.bank_sync.auto_sync.trigger_manual_auto_sync") as mock_launch:
+                for token in (None, "jeton-inconnu"):
+                    res = trigger_bank_sync_tool(db_session, force_write=True, vault_token=token)
+                    assert res.get("success") is False
+                    assert res.get("device_locked") is True
+                    assert "cet appareil" in res.get("error", "")
+                mock_launch.assert_not_called()
+                mock_launch.return_value = {"ok": True}
+                res = trigger_bank_sync_tool(db_session, force_write=True, vault_token=other)
+                assert res.get("success") is True
+        finally:
+            VaultSessionManager.lock_session(other)
 
 
 def test_execute_chat_action_routing(db_session):

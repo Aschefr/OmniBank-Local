@@ -41,24 +41,24 @@ Object.assign(window.SetupWizard, {
         const linked = this._hasLinkedBank();
         const step = (done, text) => `
             <li style="display:flex; gap:8px; align-items:flex-start; margin:4px 0; color:${done ? 'var(--text-main)' : 'var(--text-muted)'};">
-                <span aria-hidden="true">${done ? '✅' : '○'}</span><span>${text}</span>
+                ${done ? window.Icon('check-circle', 15) : '<span aria-hidden="true">○</span>'}<span>${text}</span>
             </li>`;
         const connRows = conns.map(c => {
             const n = this._linkedCount(c);
             const label = window.escapeHtml ? window.escapeHtml(c.label || c.backend) : (c.label || c.backend);
             return `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 10px; margin-top:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; flex-wrap:wrap;">
-                    <span style="font-size:13px;">🏦 <strong>${label}</strong> · ${t('wizard_bank_linked_count', 'comptes associés')} : ${n}</span>
+                    <span style="font-size:13px;">${window.Icon('bank', 14)} <strong>${label}</strong> · ${t('wizard_bank_linked_count', 'comptes associés')} : ${n}</span>
                     <button class="wizard-btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="window.SetupWizard._openBankMapping(${c.id})">
                         ${n ? t('wizard_bank_edit_mapping', 'Modifier') : t('wizard_bank_map_btn', 'Associer les comptes')}
                     </button>
                 </div>`;
         }).join('');
         const mainBtn = !hasConn
-            ? `<button class="wizard-btn-primary" style="margin-top:12px;" onclick="window.SetupWizard._openBankConnect()">🔗 ${t('wizard_bank_connect_btn', 'Connecter ma banque')}</button>`
-            : `<button class="wizard-btn-ghost" style="margin-top:10px;" onclick="window.SetupWizard._openBankConnect()">➕ ${t('wizard_bank_add_another', 'Ajouter une autre banque')}</button>`;
+            ? `<button class="wizard-btn-primary" style="margin-top:12px;" onclick="window.SetupWizard._openBankConnect()">${window.Icon('link', 15)} ${t('wizard_bank_connect_btn', 'Connecter ma banque')}</button>`
+            : `<button class="wizard-btn-ghost" style="margin-top:10px;" onclick="window.SetupWizard._openBankConnect()">${window.Icon('plus', 15)} ${t('wizard_bank_add_another', 'Ajouter une autre banque')}</button>`;
         return `
-            <div style="font-weight:700; font-size:14px; margin-bottom:6px; color:var(--accent);">⚡ ${t('wizard_bank_title', 'Connecter votre banque')}</div>
+            <div style="font-weight:700; font-size:14px; margin-bottom:6px; color:var(--accent);">${window.Icon('lightning', 16)} ${t('wizard_bank_title', 'Connecter votre banque')}</div>
             <p style="font-size:12.5px; color:var(--text-muted); margin:0; line-height:1.5;">${t('wizard_bank_desc', 'Vos identifiants sont chiffrés dans un coffre-fort local, avec un mot de passe maître que vous choisissez. OmniBank lit vos comptes et ne peut jamais effectuer de paiement.')}</p>
             <ol style="list-style:none; padding:0; margin:10px 0 0; font-size:12.5px; line-height:1.45;">
                 ${step(hasConn, t('wizard_bank_step1', 'Mot de passe maître et identifiants de la banque'))}
@@ -125,7 +125,7 @@ Object.assign(window.SetupWizard, {
             : t('wizard_first_sync_none', 'Aucun compte bancaire n\'est encore associé. Vous pourrez connecter votre banque depuis Comptes.');
         return `
             <div class="wizard-recap-section">
-                <h4>⚡ ${t('wizard_first_sync_title', 'Premier relevé')}</h4>
+                <h4>${window.Icon('lightning', 16)} ${t('wizard_first_sync_title', 'Premier relevé')}</h4>
                 <p style="font-size:12.5px; color:var(--text-muted); line-height:1.5; margin:0;">${text}</p>
             </div>`;
     },
@@ -133,11 +133,11 @@ Object.assign(window.SetupWizard, {
     _launchButtonHtml() {
         if (this.entryMode === 'sync' && this._hasLinkedBank()) {
             return `<button class="wizard-btn-launch" style="width:100%;" onclick="window.SetupWizard._launchWithFirstStatement()">
-                        🚀 ${this._t('wizard_btn_launch_sync', 'Lancer OmniBank et le premier relevé')}
+                        ${window.Icon('rocket-launch', 16)} ${this._t('wizard_btn_launch_sync', 'Lancer OmniBank et le premier relevé')}
                     </button>`;
         }
         return `<button class="wizard-btn-launch" style="width:100%;" onclick="window.SetupWizard.dismiss()">
-                    🚀 ${window.i18n.t('wizard_btn_launch')}
+                    ${window.Icon('rocket-launch', 16)} ${window.i18n.t('wizard_btn_launch')}
                 </button>`;
     },
 

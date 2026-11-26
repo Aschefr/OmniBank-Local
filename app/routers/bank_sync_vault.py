@@ -172,13 +172,17 @@ def run_manual_auto_sync(data: Optional[Dict[str, Any]] = None, db: Session = De
     vault_token = data.get("vault_token") if data else None
     force = bool(data.get("force", False)) if data else False
     trigger_source = data.get("trigger_source", "manual") if data else "manual"
+    # Relevé demandé à la main : seulement depuis un appareil déverrouillé (son jeton ou le mot de passe).
+    # Le rappel du planificateur (force=False, « scheduled ») peut s'appuyer sur la session du serveur.
+    device_only = force or trigger_source == "manual"
     res = trigger_manual_auto_sync(
         master_password=master_password,
         vault_token=vault_token,
         profile_id=active_pid,
         force=force,
         db=db,
-        trigger_source=trigger_source
+        trigger_source=trigger_source,
+        device_only=device_only
     )
     if not res.get("ok"):
         status_code = 401 if "verrouill" in res.get("detail", "").lower() else 400

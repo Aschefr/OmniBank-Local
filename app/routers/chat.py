@@ -454,6 +454,7 @@ async def apply_chat_action(req: ChatApplyActionRequest, request: Request, db: S
         message_id=req.message_id,
         action_id=req.action_id,
         user_name=user_name,
+        vault_token=request.headers.get("x-omnibank-vault-token"),
     )
 
 

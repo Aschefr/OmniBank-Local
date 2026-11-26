@@ -524,6 +524,19 @@ window.ChatView = Object.assign(window.ChatView || {}, {
 
     async executeDirectAction(actionId, actionObj) {
         const btn = document.querySelector(`button[data-action-id="${actionId}"]`);
+        const bankSync = window.BankSyncView;
+        // Relevé demandé depuis le chat : comme « Relever en ligne », cet appareil doit être déverrouillé
+        if (actionObj.action === 'trigger_bank_sync' && bankSync && typeof bankSync.promptMasterPassword === 'function') {
+            await bankSync.loadVaultStatus();
+            if (!(bankSync.vaultStatus && bankSync.vaultStatus.is_unlocked && bankSync.getVaultToken())) {
+                const pw = await bankSync.promptMasterPassword(
+                    window.i18n.t('bank_sync_run_background_btn') || 'Relever en ligne',
+                    window.i18n.t('bank_sync_vault_prompt_msg') || 'Entrez votre mot de passe maître pour autoriser le relevé en tâche de fond :',
+                    { forSync: true, forcePrompt: true }
+                );
+                if (!pw) return;
+            }
+        }
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-border-sm" style="width:12px; height:12px; border:2px solid; border-right-color:transparent; border-radius:50%; animation: spin 0.75s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px;"></span>${window.i18n.t('chat_sync_in_progress') || 'Synchronisation en cours...'}`;
@@ -533,6 +546,8 @@ window.ChatView = Object.assign(window.ChatView || {}, {
             const userName = this.getActiveUserName();
             const headers = { 'Content-Type': 'application/json' };
             if (userName) headers['X-User-Name'] = encodeURIComponent(userName);
+            const vaultToken = bankSync && typeof bankSync.getVaultToken === 'function' ? bankSync.getVaultToken() : null;
+            if (vaultToken) headers['X-OmniBank-Vault-Token'] = vaultToken;
 
             const response = await fetch('/api/chat/apply-action', {
                 method: 'POST',
@@ -551,10 +566,16 @@ window.ChatView = Object.assign(window.ChatView || {}, {
                 throw new Error(err.detail || "Erreur lors de la synchronisation");
             }
 
+
             const result = await response.json().catch(() => ({}));
             if (result.already_applied) {
                 await this.loadMessages();
                 return;
+            }
+            // Le relevé part : les boutons « Relever en ligne » le suivent jusqu'au bout
+            if (actionObj.action === 'trigger_bank_sync' && bankSync && typeof bankSync._startSyncPollingTracker === 'function') {
+                bankSync.setButtonsState('syncing');
+                bankSync._startSyncPollingTracker();
             }
 
             if (btn) {

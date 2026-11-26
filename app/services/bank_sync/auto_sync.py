@@ -485,18 +485,28 @@ def trigger_manual_auto_sync(
     profile_id: Optional[str] = None,
     force: bool = False,
     db: Optional[Session] = None,
-    trigger_source: str = "manual"
+    trigger_source: str = "manual",
+    device_only: bool = False
 ) -> Dict[str, Any]:
     """
     Déclenche un relevé en arrière-plan pour un profil.
     force=True (demande explicite, « Relever en ligne ») : toutes les connexions actives, sans condition.
     force=False (déverrouillage, planificateur) : uniquement les connexions où c'est nécessaire, voir
     due_connections() ; sinon rien ne part et le dernier relevé enregistré reste la référence.
+    device_only=True (demande faite depuis un appareil) : il faut le mot de passe maître ou le jeton de cet
+    appareil ; un coffre ouvert depuis un autre appareil ne suffit pas.
     """
     pid = _resolve_profile_id(profile_id)
 
-    pw = master_password or (VaultSessionManager.get_password(vault_token, profile_id=pid) if vault_token else None) or VaultSessionManager.get_password(profile_id=pid)
+    pw = master_password or (VaultSessionManager.get_password(vault_token, profile_id=pid) if vault_token else None)
+    if not pw and not device_only:
+        pw = VaultSessionManager.get_password(profile_id=pid)
     if not pw:
+        if device_only and VaultSessionManager.is_unlocked(profile_id=pid):
+            return {
+                "ok": False,
+                "detail": "Coffre-fort verrouillé sur cet appareil. Saisissez le mot de passe maître pour lancer le relevé."
+            }
         return {
             "ok": False,
             "detail": "Coffre-fort verrouillé. Veuillez d'abord déverrouiller le coffre pour lancer le relevé."

@@ -16,31 +16,31 @@ window.AutopilotView = {
     _drawerEscHandler: null,
 
     _icons: {
-        steeringWheel: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); flex-shrink: 0;"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
-        steeringWheelMini: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="15" x2="12" y2="21.5"></line><line x1="2.5" y1="12" x2="9" y2="12"></line><line x1="15" y1="12" x2="21.5" y2="12"></line></svg>`,
-        info: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
-        compass: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>`,
-        gauge: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>`,
-        shield: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
-        settings: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
-        alertCircle: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
-        list: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
-        brain: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.54z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.54z"></path></svg>`,
-        inbox: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>`,
-        tag: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>`,
-        repeat: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>`,
-        chart: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
-        package: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>`,
-        link: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`,
-        check: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
-        edit: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
-        undo: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>`,
-        unpoint: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>`,
-        search: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
-        target: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
-        sparkles: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>`,
-        save: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`,
-        power: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>`
+        steeringWheel: window.Icon('steering-wheel', 24, 'ico-accent'),
+        steeringWheelMini: window.Icon('steering-wheel', 18),
+        info: window.Icon('info', 15),
+        compass: window.Icon('compass', 15),
+        gauge: window.Icon('gauge', 16),
+        shield: window.Icon('shield-check', 14),
+        settings: window.Icon('gear-six', 14),
+        alertCircle: window.Icon('warning-circle', 16),
+        list: window.Icon('list-bullets', 16),
+        brain: window.Icon('brain', 16),
+        inbox: window.Icon('tray', 16),
+        tag: window.Icon('tag', 15),
+        repeat: window.Icon('repeat', 15),
+        chart: window.Icon('chart-bar', 15),
+        package: window.Icon('package', 14),
+        link: window.Icon('link', 14),
+        check: window.Icon('check', 14),
+        edit: window.Icon('pencil-simple', 14),
+        undo: window.Icon('arrow-counter-clockwise', 14),
+        unpoint: window.Icon('lock-simple-open', 14),
+        search: window.Icon('magnifying-glass', 14),
+        target: window.Icon('target', 14),
+        sparkles: window.Icon('sparkle', 14),
+        save: window.Icon('floppy-disk', 14),
+        power: window.Icon('power', 16),
     },
 
     _subtogglesDef: [
@@ -237,7 +237,7 @@ window.AutopilotView = {
                         <!-- Encadré 2 : Actions Rapides & Automatismes -->
                         <div id="apActionButtonsGroup" class="autopilot-toolbar-group ap-toolbar-actions-group">
                             <button type="button" class="btn ap-header-btn" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" title="${window.i18n ? window.i18n.t('autopilot_view_last_statement_tooltip') || 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote' : 'Consulter le dernier relevé bancaire et l\'audit des actions de l\'Auto-Pilote'}">
-                                <span class="ap-btn-icon">📋</span> <span class="ap-btn-label" data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
+                                <span class="ap-btn-icon">${window.Icon('receipt', 16)}</span> <span class="ap-btn-label" data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                             </button>
                             <button type="button" class="btn ap-header-btn" onclick="window.AutopilotView.openSettingsDrawer()" title="${window.i18n ? window.i18n.t('autopilot_settings_btn_title') : 'Configurer les 15 automatismes et le seuil'}">
                                 <span class="ap-btn-icon">${this._icons.settings}</span>
@@ -392,11 +392,11 @@ window.AutopilotView = {
                                 <div class="ap-feed-filters-bar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <select id="feedFilterType" class="form-control" style="font-size: 12px; padding: 4px 10px; border-radius: 6px;" onchange="window.AutopilotView.onFilterChange()">
                                         <option value="" data-i18n="autopilot_filter_all">${window.i18n.t('autopilot_filter_all') || 'Toutes les décisions'}</option>
-                                        <option value="action:AUTO_COMMIT" data-i18n="autopilot_filter_reconciliation_confirmed">${window.i18n.t('autopilot_filter_reconciliation_confirmed') || '⚡ Rapprochements confirmés'}</option>
-                                        <option value="action:LINKED_COMING" data-i18n="autopilot_filter_linked_coming">${window.i18n.t('autopilot_filter_linked_coming') || '⏳ Liaisons à venir'}</option>
-                                        <option value="type:new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || '✨ Nouvelles Écritures'}</option>
-                                        <option value="type:recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || '🔄 Récurrences'}</option>
-                                        <option value="type:budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || '🎯 Budgets'}</option>
+                                        <option value="action:AUTO_COMMIT" data-i18n="autopilot_filter_reconciliation_confirmed">${window.i18n.t('autopilot_filter_reconciliation_confirmed') || 'Rapprochements confirmés'}</option>
+                                        <option value="action:LINKED_COMING" data-i18n="autopilot_filter_linked_coming">${window.i18n.t('autopilot_filter_linked_coming') || 'Liaisons à venir'}</option>
+                                        <option value="type:new_entry" data-i18n="autopilot_filter_new_entry">${window.i18n.t('autopilot_filter_new_entry') || 'Nouvelles Écritures'}</option>
+                                        <option value="type:recurrence_promotion" data-i18n="autopilot_filter_recurrence">${window.i18n.t('autopilot_filter_recurrence') || 'Récurrences'}</option>
+                                        <option value="type:budget_suggestion" data-i18n="autopilot_filter_budget">${window.i18n.t('autopilot_filter_budget') || 'Budgets'}</option>
                                     </select>
                                     <label class="ap-feed-filter-checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer;">
                                         <input type="checkbox" id="feedShowUndone" checked onchange="window.AutopilotView.onFilterChange()">
@@ -471,7 +471,7 @@ window.AutopilotView = {
 
                     <div class="ap-role-pillars">
                         <div class="ap-role-pillar-item">
-                            <span class="ap-role-pillar-icon">🎯</span>
+                            <span class="ap-role-pillar-icon">${window.Icon('target', 20)}</span>
                             <div class="ap-role-pillar-content">
                                 <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_orchestrator_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_title') : 'Chef d\'orchestre global'}</div>
                                 <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_orchestrator_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_orchestrator_desc') : 'Il ne remplace pas vos règles, il active et synchronise les 15 automatismes modulaires sous un seuil de confiance unifié.'}</p>
@@ -479,7 +479,7 @@ window.AutopilotView = {
                         </div>
 
                         <div class="ap-role-pillar-item">
-                            <span class="ap-role-pillar-icon">🕊️</span>
+                            <span class="ap-role-pillar-icon">${window.Icon('bird', 20)}</span>
                             <div class="ap-role-pillar-content">
                                 <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_dispensable_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_title') : '100% Dispensable'}</div>
                                 <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_dispensable_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_dispensable_desc') : 'Désactivé, l\'application repasse en mode manuel classique : vos écritures attendent dans le Sas pour une revue ligne à ligne.'}</p>
@@ -487,7 +487,7 @@ window.AutopilotView = {
                         </div>
 
                         <div class="ap-role-pillar-item">
-                            <span class="ap-role-pillar-icon">⚙️</span>
+                            <span class="ap-role-pillar-icon">${window.Icon('gear-six', 20)}</span>
                             <div class="ap-role-pillar-content">
                                 <div class="ap-role-pillar-title" data-i18n="autopilot_role_pillar_modular_title">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_title') : 'Modulaire & Découplé'}</div>
                                 <p class="ap-role-pillar-desc" data-i18n="autopilot_role_pillar_modular_desc">${window.i18n ? window.i18n.t('autopilot_role_pillar_modular_desc') : 'Chaque brique (récurrences, budgets, marchands) peut être activée ou coupée unitairement selon vos préférences.'}</p>
@@ -577,7 +577,7 @@ window.AutopilotView = {
                                 <button type="button" id="btnPresetBalanced" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('balanced')">
                                     <div class="ap-preset-btn-top">
                                         <div class="ap-preset-btn-title">
-                                            <span>🛡️</span> <span data-i18n="autopilot_preset_balanced">${window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)'}</span>
+                                            ${window.Icon('shield-check', 16)} <span data-i18n="autopilot_preset_balanced">${window.i18n ? window.i18n.t('autopilot_preset_balanced') : 'Mode Équilibré (8)'}</span>
                                         </div>
                                         <span id="presetCheckBalanced" class="ap-preset-active-badge ap-preset-active-balanced">✓ Actif</span>
                                     </div>
@@ -588,7 +588,7 @@ window.AutopilotView = {
                                 <button type="button" id="btnPresetFull" class="btn ap-preset-btn" onclick="window.AutopilotView.applyPreset('full')">
                                     <div class="ap-preset-btn-top">
                                         <div class="ap-preset-btn-title">
-                                            <span>⚡</span> <span data-i18n="autopilot_preset_full">${window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)'}</span>
+                                            ${window.Icon('lightning', 16)} <span data-i18n="autopilot_preset_full">${window.i18n ? window.i18n.t('autopilot_preset_full') : 'Autonomie Totale (15)'}</span>
                                         </div>
                                         <span id="presetCheckFull" class="ap-preset-active-badge ap-preset-active-full">✓ Actif</span>
                                     </div>
@@ -599,7 +599,7 @@ window.AutopilotView = {
                                 <button type="button" id="btnPresetCustom" class="btn ap-preset-btn" onclick="window.AutopilotView.focusCustomSubtoggles()">
                                     <div class="ap-preset-btn-top">
                                         <div class="ap-preset-btn-title">
-                                            <span>🛠️</span> <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/15)</span>
+                                            ${window.Icon('wrench', 16)} <span><span data-i18n="autopilot_preset_custom_card">${window.i18n ? (window.i18n.t('autopilot_preset_custom_card') || 'Personnalisé') : 'Personnalisé'}</span> (<span id="presetCustomCountVal">--</span>/15)</span>
                                         </div>
                                         <span id="presetCheckCustom" class="ap-preset-active-badge ap-preset-active-custom">✓ Actif</span>
                                     </div>
@@ -1000,31 +1000,26 @@ window.AutopilotView = {
 
     async onCylonScannerClick(event) {
         if (event) event.stopPropagation();
-        const isVaultUnlocked = !!this._status?.vault_unlocked;
-        if (!isVaultUnlocked) {
-            if (window.BankSyncView && typeof window.BankSyncView.unlockVaultManually === 'function') {
-                window.BankSyncView.unlockVaultManually();
-            }
-            return;
-        }
         if (this._status?.is_syncing) {
             showToast(window.i18n ? (window.i18n.t('autopilot_sync_in_progress') || 'Un relevé automatique est déjà en cours...') : 'Un relevé automatique est déjà en cours...', 'info');
             return;
         }
         try {
-            showToast(window.i18n ? (window.i18n.t('autopilot_sync_running') || 'Lancement du relevé...') : 'Lancement du relevé...', 'info');
+            // Le relevé ne s'affiche « en cours » qu'une fois accepté par le serveur : tant que ce navigateur
+            // attend le mot de passe maître, rien n'est parti (un coffre ouvert ailleurs ne suffit pas).
+            let launched = false;
+            if (window.BankSyncView && typeof window.BankSyncView.triggerBackgroundSyncNow === 'function') {
+                launched = await window.BankSyncView.triggerBackgroundSyncNow();
+            } else {
+                await API.post('/api/bank-sync/trigger-auto-sync', { force: true, trigger_source: 'manual' });
+                launched = true;
+            }
+            if (!launched) return;
             const timeEl = document.getElementById('apHeroCountdownTime');
             if (timeEl) timeEl.textContent = window.i18n ? window.i18n.t('autopilot_sync_running') : 'Relevé en cours...';
             const syncBanner = document.getElementById('apSyncingBanner');
             if (syncBanner) syncBanner.style.display = 'flex';
-
             this._startActiveSyncTracker();
-
-            if (window.BankSyncView && typeof window.BankSyncView.triggerBackgroundSyncNow === 'function') {
-                await window.BankSyncView.triggerBackgroundSyncNow();
-            } else {
-                await API.post('/api/bank-sync/trigger-auto-sync', { force: true, trigger_source: 'manual' });
-            }
         } catch (e) {
             console.warn('[AutopilotView] Erreur déclenchement sync manuel:', e);
             this._stopActiveSyncTracker();
@@ -1067,7 +1062,7 @@ window.AutopilotView = {
 
         if (!isVaultUnlocked) {
             this._stopActiveSyncTracker();
-            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 12px; cursor: pointer; font-weight:700;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">🔒 ${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
+            countdownTimeEl.innerHTML = `<span style="color: #f59e0b; font-size: 12px; cursor: pointer; font-weight:700;" onclick="event.stopPropagation(); window.BankSyncView && window.BankSyncView.unlockVaultManually()" title="${window.i18n ? window.i18n.t('autopilot_vault_locked_title') : 'Déverrouiller le coffre pour reprendre les relevés'}">${window.Icon('lock-simple', 13)} ${window.i18n ? window.i18n.t('autopilot_vault_locked') : 'Coffre verrouillé'}</span>`;
             return;
         }
 
@@ -1426,7 +1421,7 @@ window.AutopilotView = {
                                             <span>${escapeHtml(itemLabel)}</span>
                                             ${isAutopilotDriven ? `
                                                 <span class="badge" style="font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                                                    🤖 ${window.i18n ? window.i18n.t('autopilot_badge_driven') : 'Auto-Pilote'}
+                                                    ${window.Icon('robot', 13)} ${window.i18n ? window.i18n.t('autopilot_badge_driven') : 'Auto-Pilote'}
                                                 </span>
                                             ` : ''}
                                         </div>
@@ -1628,7 +1623,7 @@ window.AutopilotView = {
             : t('autopilot_review_ai_banner_one', "L'IA complète 1 opération : si elle la reconnaît, elle quittera cette liste d'elle-même. Inutile de la corriger tout de suite.")).replace('{n}', n);
         return `
             <div role="status" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); font-size: 12.5px; color: var(--text-main); line-height: 1.4;">
-                <span aria-hidden="true" style="font-size: 15px; display: inline-block; animation: syncPulseIcon 1.6s ease-in-out infinite;">✨</span>
+                <span aria-hidden="true" style="display: inline-flex; color: var(--accent); animation: syncPulseIcon 1.6s ease-in-out infinite;">${window.Icon('sparkle', 17)}</span>
                 <span>${escapeHtml(text)}</span>
             </div>`;
     },
@@ -1636,7 +1631,7 @@ window.AutopilotView = {
     _aiPendingBadge(item) {
         if (!item || !item.ai_pending) return '';
         const t = (k, fb) => (window.i18n && window.i18n.t(k)) || fb;
-        return `<span title="${escapeHtml(t('autopilot_review_ai_pending_tooltip', "L'IA cherche le nom et la catégorie de cette opération"))}" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--accent);">✨ ${escapeHtml(t('autopilot_review_ai_pending', 'IA en cours'))}</span>`;
+        return `<span title="${escapeHtml(t('autopilot_review_ai_pending_tooltip', "L'IA cherche le nom et la catégorie de cette opération"))}" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 12px; font-weight: 600; color: var(--accent);">${window.Icon('sparkle', 13)} ${escapeHtml(t('autopilot_review_ai_pending', 'IA en cours'))}</span>`;
     },
 
     renderReviewQueue() {
@@ -1661,7 +1656,7 @@ window.AutopilotView = {
                     </div>
                     <div style="margin-top: 12px;">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="window.BankSyncView ? window.BankSyncView.openLastStatementModal() : null" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                            <span>📋</span> <span data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
+                            ${window.Icon('receipt', 15)} <span data-i18n="autopilot_view_last_statement_btn">${window.i18n ? window.i18n.t('autopilot_view_last_statement_btn') || 'Dernier relevé' : 'Dernier relevé'}</span>
                         </button>
                     </div>
                 </div>
@@ -2194,29 +2189,29 @@ window.AutopilotView = {
         const tooltip = (desc && desc !== descKey) ? desc : (window.i18n ? window.i18n.t('autopilot_feed_reason_title').replace('{reason}', escapeHtml(label)) : `Raison de la décision : ${escapeHtml(label)}`);
         let icon = '';
         if (reason === 'ai_existing' || reason === 'ai_new_category' || reason === 'chameleon_ai') {
-            icon = '🤖 ';
+            icon = window.Icon('robot', 13) + ' ';
         } else if (reason === 'rule' || reason === 'keyword_category') {
-            icon = '⚙️ ';
+            icon = window.Icon('gear-six', 13) + ' ';
         } else if (reason === 'history') {
-            icon = '🕒 ';
+            icon = window.Icon('clock', 13) + ' ';
         } else if (reason === 'linked_forecast' || reason === 'manual_link_review') {
-            icon = '🔗 ';
+            icon = window.Icon('link', 13) + ' ';
         } else if (reason === 'suspected_duplicate') {
-            icon = '⚠️ ';
+            icon = window.Icon('warning', 13) + ' ';
         } else if (reason === 'user_override') {
-            icon = '👤 ';
+            icon = window.Icon('user', 13) + ' ';
         } else if (reason === 'unreconciled_overdue' || reason === 'recurrence_skip') {
-            icon = '⏳ ';
+            icon = window.Icon('hourglass', 13) + ' ';
         } else if (reason === 'recurrence_closed_3_skips') {
-            icon = '🔒 ';
+            icon = window.Icon('lock-simple', 13) + ' ';
         } else if (reason === 'budget_recurrence_sync') {
-            icon = '🔄 ';
+            icon = window.Icon('repeat', 13) + ' ';
         } else if (reason === 'internal_transfer' || reason === 'internal_transfer_same_statement' || reason === 'first_month_fixed') {
-            icon = '🔄 ';
+            icon = window.Icon('repeat', 13) + ' ';
         } else if (reason === 'budget_enrichment') {
-            icon = '➕ ';
+            icon = window.Icon('plus', 13) + ' ';
         } else if (reason === 'bank_coming') {
-            icon = '⏳ ';
+            icon = window.Icon('hourglass', 13) + ' ';
         }
         if (!isStrikethrough && reason !== 'user_override') {
             return `<span class="ap-reason-badge" title="${escapeHtml(tooltip)}">${icon}${escapeHtml(label)}</span>`;
@@ -2368,7 +2363,7 @@ window.AutopilotView = {
             const forecastDesc = d.details.linked_to_forecast_description || d.details.forecast_description;
             reasonBadgeHtml = `
                 <span class="badge" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 12px; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;" title="Liée à la prévision">
-                    🔗 Liée à : ${escapeHtml(forecastDesc)}
+                    ${window.Icon('link', 13)} Liée à : ${escapeHtml(forecastDesc)}
                 </span>
             `;
             if (isOverridden) {
@@ -3050,9 +3045,9 @@ window.AutopilotView = {
             return;
         }
 
-        const origHtml = btnEl ? btnEl.innerHTML : '✨';
+        const origHtml = btnEl ? btnEl.innerHTML : window.Icon('sparkle', 14);
         if (btnEl) {
-            btnEl.innerHTML = '⏳';
+            btnEl.innerHTML = window.Icon('hourglass', 14);
             btnEl.disabled = true;
         }
 

@@ -612,7 +612,7 @@ class App {
 
             [desktopIcon, mobileIcon].forEach(icon => {
                 if (icon) {
-                    icon.style.stroke = iconColor;
+                    icon.style.color = iconColor;
                     if (shouldAlert) {
                         icon.style.filter = 'drop-shadow(0 0 3px rgba(245, 158, 11, 0.6))';
                         icon.setAttribute('title', tooltip);
@@ -844,6 +844,17 @@ class App {
                     this._lastSyncExecutionAt = currentLastExec;
                 } else if (!currentIsSyncing) {
                     this._applyPendingServerRefresh();
+                }
+
+                // Filet : bouton resté sur « Relevé en cours » sans relevé côté serveur ni suivi actif.
+                // Deux constats de suite, pour ne pas couper un relevé dont la demande vient de partir.
+                const bankSyncBtn = window.BankSyncView;
+                const staleSyncButton = !currentIsSyncing && bankSyncBtn && bankSyncBtn._syncState === 'syncing'
+                    && !bankSyncBtn._syncPollingTimer && !bankSyncBtn._syncFinishing;
+                this._staleSyncButtonChecks = staleSyncButton ? (this._staleSyncButtonChecks || 0) + 1 : 0;
+                if (this._staleSyncButtonChecks >= 2) {
+                    this._staleSyncButtonChecks = 0;
+                    bankSyncBtn.setButtonsState('idle');
                 }
 
                 if (remSec !== null && remSec <= 0 && status.is_enabled && status.bank_auto_sync_enabled && status.vault_unlocked && !currentIsSyncing) {

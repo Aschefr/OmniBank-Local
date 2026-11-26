@@ -184,6 +184,11 @@
         transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
+    .mobile-nav .nav-btn .nav-ico {
+        width: 19px;
+        height: 19px;
+    }
+
     .mobile-nav .nav-btn[style*="display: none"],
     .mobile-nav .nav-btn[style*="display:none"],
     .mobile-nav .nav-btn.is-hidden,

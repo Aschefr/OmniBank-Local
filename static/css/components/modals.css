@@ -253,6 +253,28 @@
     border-color: var(--success);
 }
 
+/* Icônes des étapes : elles suivent la taille du rond (font-size) et l'état de l'étape */
+.wizard-dot-icon {
+    color: var(--text-muted);
+}
+
+.wizard-dot-icon .ico {
+    width: 1em;
+    height: 1em;
+}
+
+.wizard-step-dot.active .wizard-dot-icon {
+    color: var(--accent);
+}
+
+.wizard-step-dot.done .wizard-dot-icon {
+    color: var(--success);
+}
+
+.wizard-logo-final {
+    color: var(--accent);
+}
+
 .wizard-dot-line {
     width: 40px;
     height: 2px;
@@ -565,6 +587,7 @@
 .wizard-star-btn.active {
     opacity: 1;
     filter: none;
+    color: #f59e0b;
 }
 
 .wizard-account-card:hover {
@@ -1476,6 +1499,7 @@
 .wizard-entry-icon {
     font-size: 24px;
     margin-bottom: 8px;
+    color: var(--accent);
 }
 
 .wizard-entry-title {

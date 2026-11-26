@@ -22,8 +22,21 @@ Object.assign(window.BankSyncView, {
         const effectiveTitle = title || defaultTitle;
         const effectiveMessage = message || defaultMessage;
 
+        // Une seule demande à la fois : un second appel attend la même saisie au lieu de remplacer la
+        // première (sinon l'appelant initial, par exemple « Relever en ligne », n'aurait jamais de réponse).
+        if (this._pwResolve) {
+            this._pwForSync = this._pwForSync || forSync;
+            return new Promise((resolve) => { this._pwWaiters.push(resolve); });
+        }
+
         return new Promise((resolve) => {
-            this._pwResolve = resolve;
+            this._pwWaiters = [];
+            this._pwResolve = (val) => {
+                const waiters = this._pwWaiters || [];
+                this._pwWaiters = [];
+                resolve(val);
+                waiters.forEach(w => w(val));
+            };
             this._pwForSync = forSync;
             const modal = document.getElementById('masterPasswordModal');
             if (modal && window.i18n && typeof window.i18n.translateDOM === 'function') {
@@ -51,7 +64,9 @@ Object.assign(window.BankSyncView, {
                 setTimeout(() => input && input.focus(), 50);
             } else {
                 this._pwForSync = false;
-                resolve(null);
+                const done = this._pwResolve;
+                this._pwResolve = null;
+                done(null);
             }
         });
     },

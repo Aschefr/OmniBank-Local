@@ -979,9 +979,10 @@ def create_planned_transfer_tool(
     }
 
 
-def trigger_bank_sync_tool(db: Session, force_write: bool = False) -> dict:
+def trigger_bank_sync_tool(db: Session, force_write: bool = False, vault_token: Optional[str] = None) -> dict:
     """
     Déclenche une synchronisation et un relevé bancaire en ligne en tâche de fond pour rapprocher les écritures.
+    Demande faite depuis un appareil : il faut le jeton de cet appareil, un coffre ouvert ailleurs ne suffit pas.
     """
     if not force_write:
         return {"success": True, "pending_validation": True}
@@ -1000,7 +1001,13 @@ def trigger_bank_sync_tool(db: Session, force_write: bool = False) -> dict:
             "error": "Aucune connexion bancaire active n'est configurée dans OmniBank."
         }
 
-    is_unlocked = VaultSessionManager.is_unlocked(profile_id=pid)
+    is_unlocked = bool(vault_token) and VaultSessionManager.is_unlocked(vault_token, profile_id=pid)
+    if not is_unlocked and VaultSessionManager.is_unlocked(profile_id=pid):
+        return {
+            "success": False,
+            "device_locked": True,
+            "error": "Coffre-fort verrouillé sur cet appareil. Saisissez le mot de passe maître pour lancer le relevé en ligne."
+        }
     if not is_unlocked:
         return {
             "success": False,
@@ -1014,7 +1021,7 @@ def trigger_bank_sync_tool(db: Session, force_write: bool = False) -> dict:
             "message": "Une synchronisation bancaire est déjà en cours d'exécution en arrière-plan."
         }
 
-    res = trigger_manual_auto_sync(profile_id=pid, force=True, db=db, trigger_source="manual")
+    res = trigger_manual_auto_sync(profile_id=pid, vault_token=vault_token, force=True, db=db, trigger_source="manual", device_only=True)
     return {
         "success": res.get("ok", False),
         "message": res.get("message") or res.get("detail", "Relevé bancaire en ligne lancé avec succès en tâche de fond."),

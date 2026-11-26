@@ -54,7 +54,7 @@ window.SetupWizard = {
         {
             categoryKey: 'autopilot_cat_operations',
             category: 'Opérations & Ingestion',
-            icon: '📥',
+            icon: 'tray',
             items: [
                 { key: 'auto_reconcile_transactions', labelKey: 'autopilot_subtoggle_auto_reconcile_transactions', label: 'Auto-Rapprochement haute certitude', descKey: 'autopilot_subtoggle_auto_reconcile_transactions_desc', desc: 'Pointe et réconcilie automatiquement les écritures bancaires avec vos prévisions lorsque le score de confiance atteint le seuil.' },
                 { key: 'auto_commit_incoming_transactions', labelKey: 'autopilot_subtoggle_auto_commit_incoming_transactions', label: 'Enregistrement direct des écritures', descKey: 'autopilot_subtoggle_auto_commit_incoming_transactions_desc', desc: 'Intègre immédiatement les opérations confirmées en base pour garantir l\'alignement strict du solde bancaire.' },
@@ -66,7 +66,7 @@ window.SetupWizard = {
         {
             categoryKey: 'autopilot_cat_merchants',
             category: 'Marchands & Catégories',
-            icon: '🏷️',
+            icon: 'tag',
             items: [
                 { key: 'auto_create_missing_categories', labelKey: 'autopilot_subtoggle_auto_create_missing_categories', label: 'Création autonome des catégories', descKey: 'autopilot_subtoggle_auto_create_missing_categories_desc', desc: 'Crée automatiquement les catégories détectées lors de l\'enrichissement des flux bancaires.' }
             ]
@@ -74,7 +74,7 @@ window.SetupWizard = {
         {
             categoryKey: 'autopilot_cat_recurrences',
             category: 'Récurrences & Abonnements',
-            icon: '🔁',
+            icon: 'repeat',
             items: [
                 { key: 'auto_promote_recurrences', labelKey: 'autopilot_subtoggle_auto_promote_recurrences', label: 'Création automatique des récurrences', descKey: 'autopilot_subtoggle_auto_promote_recurrences_desc', desc: 'Crée les récurrences des charges fixes (prêt, assurance, box, énergie) dès leur premier prélèvement, et celles des abonnements après 3 échéances consécutives.' },
                 { key: 'auto_link_deviant_recurrences', labelKey: 'autopilot_subtoggle_auto_link_deviant_recurrences', label: 'Rapprochement déviant tolérant', descKey: 'autopilot_subtoggle_auto_link_deviant_recurrences_desc', desc: 'Rapproche les prélèvements récurrents dont le montant fluctue dans une fourchette tolérée de ±15%.' },
@@ -86,7 +86,7 @@ window.SetupWizard = {
         {
             categoryKey: 'autopilot_cat_budgets',
             category: 'Budgets & Enveloppes',
-            icon: '📊',
+            icon: 'chart-bar',
             items: [
                 { key: 'enable_budget_creation_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_creation_suggestions', label: 'Suggestions de nouvelles enveloppes', descKey: 'autopilot_subtoggle_enable_budget_creation_suggestions_desc', desc: 'Analyse vos dépenses réelles pour proposer la création d\'enveloppes sur vos postes récurrents.' },
                 { key: 'enable_budget_recalibration_suggestions', labelKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions', label: 'Suggestions de plafonds à revoir', descKey: 'autopilot_subtoggle_enable_budget_recalibration_suggestions_desc', desc: 'Signale les enveloppes mensuelles dépassées, ou utilisées à moins de 60 %, trois périodes de suite, et propose un nouveau plafond à valider.' },
@@ -234,12 +234,12 @@ window.SetupWizard = {
         if (!bar) return;
         // 7 étapes symétriques (l'étape 3 est "Membres" en mode Org, ou "Salaire" en mode standard)
         const icons = this._orgMode
-            ? ['👋', '🔒', '🏦', '👥', '📝', '⚡', '🤖', '🚀']
-            : ['👋', '🔒', '🏦', '💰', '📝', '⚡', '🤖', '🚀'];
+            ? ['hand-waving', 'lock-simple', 'bank', 'users', 'note-pencil', 'lightning', 'robot', 'rocket-launch']
+            : ['hand-waving', 'lock-simple', 'bank', 'coins', 'note-pencil', 'lightning', 'robot', 'rocket-launch'];
 
         bar.innerHTML = icons.map((ic, i) => `
             <div class="wizard-step-dot ${i < this.currentStep ? 'done' : ''} ${i === this.currentStep ? 'active' : ''}">
-                <span class="wizard-dot-icon">${ic}</span>
+                <span class="wizard-dot-icon">${window.Icon(ic, 16)}</span>
                 <span class="wizard-dot-line"></span>
             </div>
         `).join('');
@@ -284,10 +284,10 @@ window.SetupWizard = {
     _stepWelcome(body) {
         const isOrg = this._orgMode || false;
         const themes = [
-            { id: 'dark', icon: '🌙', nameKey: 'wizard_theme_dark', bg: '#161c24', accent: '#6366f1' },
-            { id: 'light', icon: '☀️', nameKey: 'wizard_theme_light', bg: '#f4f6f8', accent: '#6366f1' },
-            { id: 'titanium-dark', icon: '🌌', nameKey: 'wizard_theme_titanium_dark', bg: '#21252d', accent: '#60a5fa' },
-            { id: 'titanium-light', icon: '❄️', nameKey: 'wizard_theme_titanium_light', bg: '#f7f5f0', accent: '#c25e00' }
+            { id: 'dark', icon: 'moon', nameKey: 'wizard_theme_dark', bg: '#161c24', accent: '#6366f1' },
+            { id: 'light', icon: 'sun', nameKey: 'wizard_theme_light', bg: '#f4f6f8', accent: '#6366f1' },
+            { id: 'titanium-dark', icon: 'moon-stars', nameKey: 'wizard_theme_titanium_dark', bg: '#21252d', accent: '#60a5fa' },
+            { id: 'titanium-light', icon: 'snowflake', nameKey: 'wizard_theme_titanium_light', bg: '#f7f5f0', accent: '#c25e00' }
         ];
 
         body.innerHTML = `
@@ -319,7 +319,7 @@ window.SetupWizard = {
                             const title = window.i18n.t(t.nameKey) || t.id;
                             return `
                                 <div class="wizard-theme-card ${isActive ? 'active' : ''}" onclick="window.SetupWizard._selectTheme('${t.id}')">
-                                    <span class="wizard-theme-icon">${t.icon}</span>
+                                    <span class="wizard-theme-icon">${window.Icon(t.icon, 20)}</span>
                                     <div class="wizard-theme-info">
                                         <span class="wizard-theme-name">${title}</span>
                                         <div class="wizard-theme-dots">
@@ -351,7 +351,7 @@ window.SetupWizard = {
                 <!-- Mode Organisation -->
                 <div class="wizard-org-toggle">
                     <label class="wizard-ai-toggle-row" style="justify-content:center; gap:14px;">
-                        <span>🏢</span>
+                        ${window.Icon('buildings', 18)}
                         <span data-i18n="wizard_org_mode">${window.i18n.t('wizard_org_mode')}</span>
                         <div class="wizard-toggle">
                             <input type="checkbox" id="wizOrgToggle" ${isOrg ? 'checked' : ''} onchange="window.SetupWizard._orgMode = this.checked">
@@ -425,7 +425,7 @@ window.SetupWizard = {
     _stepProfileSecurity(body) {
         body.innerHTML = `
             <div class="wizard-step-content">
-                <h2 class="wizard-step-title">🔒 ${window.i18n.t('wizard_profile_title') || 'Profil Maître & Sécurité'}</h2>
+                <h2 class="wizard-step-title">${window.Icon('lock-simple', 22)} ${window.i18n.t('wizard_profile_title') || 'Profil Maître & Sécurité'}</h2>
                 <p class="wizard-step-desc">${window.i18n.t('wizard_profile_desc') || 'Nommez votre espace et protégez vos données financières locales.'}</p>
 
                 <!-- Nom du profil -->
@@ -441,7 +441,7 @@ window.SetupWizard = {
                 <!-- Verrouillage PIN optionnel -->
                 <div class="wizard-profile-card">
                     <label class="wizard-ai-toggle-row">
-                        <span style="font-weight: 600; font-size: 13.5px;">🔑 ${window.i18n.t('wizard_profile_pin_enable') || 'Protéger ce profil par un code PIN'}</span>
+                        <span style="font-weight: 600; font-size: 13.5px;">${window.Icon('key', 15)} ${window.i18n.t('wizard_profile_pin_enable') || 'Protéger ce profil par un code PIN'}</span>
                         <div class="wizard-toggle">
                             <input type="checkbox" id="wizPinToggle" onchange="document.getElementById('wizPinContainer').style.display = this.checked ? 'block' : 'none';">
                             <span class="wizard-toggle-slider"></span>
@@ -460,7 +460,7 @@ window.SetupWizard = {
                             </div>
                         </div>
                         <p class="wizard-hint" style="margin-top: 8px;">
-                            💡 En cas d'inactivité de plus de 5 minutes, OmniBank verrouillera l'écran pour protéger vos données.
+                            ${window.Icon('lightbulb', 15)} En cas d'inactivité de plus de 5 minutes, OmniBank verrouillera l'écran pour protéger vos données.
                         </p>
                     </div>
                 </div>
@@ -469,7 +469,7 @@ window.SetupWizard = {
                 <div class="wizard-profile-card">
                     <label class="wizard-ai-toggle-row">
                         <div>
-                            <span style="font-weight: 600; font-size: 13.5px;">💾 ${window.i18n.t('wizard_autobackup_enable') || 'Sauvegarde automatique locale (recommandé)'}</span>
+                            <span style="font-weight: 600; font-size: 13.5px;">${window.Icon('floppy-disk', 15)} ${window.i18n.t('wizard_autobackup_enable') || 'Sauvegarde automatique locale (recommandé)'}</span>
                             <p style="font-size: 11.5px; color: var(--text-muted); margin: 3px 0 0 0;">${window.i18n.t('wizard_autobackup_hint') || 'Crée des sauvegardes ZIP horodatées chaque semaine sur votre disque.'}</p>
                         </div>
                         <div class="wizard-toggle">
@@ -555,29 +555,29 @@ window.SetupWizard = {
 
         body.innerHTML = `
             <div class="wizard-step-content">
-                <h2 class="wizard-step-title">🏦 ${window.i18n.t('wizard_accounts_title')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('bank', 22)} ${window.i18n.t('wizard_accounts_title')}</h2>
                 <p class="wizard-step-desc">${window.i18n.t('wizard_accounts_desc')}</p>
 
                 <!-- Choix du mode d'entrée -->
                 <div class="wizard-entry-grid">
                     <div class="wizard-entry-tile ${isSync ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('sync')" style="position:relative;">
-                        <span class="wizard-preset-badge" style="position:absolute; top:8px; right:8px;">⭐ ${this._t('wizard_entry_recommended', 'Recommandé')}</span>
-                        <div class="wizard-entry-icon">⚡</div>
+                        <span class="wizard-preset-badge" style="position:absolute; top:8px; right:8px;">${window.Icon('star', 12)} ${this._t('wizard_entry_recommended', 'Recommandé')}</span>
+                        <div class="wizard-entry-icon">${window.Icon('lightning', 28)}</div>
                         <div class="wizard-entry-title">${this._t('wizard_entry_sync', 'Connecter ma banque')}</div>
                         <div class="wizard-entry-desc">${this._t('wizard_entry_sync_desc', 'Vos opérations arrivent toutes seules. Lecture seule, chiffrées en local.')}</div>
                     </div>
                     <div class="wizard-entry-tile ${isImport ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('import')">
-                        <div class="wizard-entry-icon">📥</div>
+                        <div class="wizard-entry-icon">${window.Icon('download-simple', 28)}</div>
                         <div class="wizard-entry-title">${window.i18n.t('wizard_entry_import') || 'Importer un relevé'}</div>
                         <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_import_desc') || 'Chargez directement votre premier fichier (CSV, Excel, OFX).'}</div>
                     </div>
                     <div class="wizard-entry-tile ${isManual ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('manual')">
-                        <div class="wizard-entry-icon">✍️</div>
+                        <div class="wizard-entry-icon">${window.Icon('pencil-line', 28)}</div>
                         <div class="wizard-entry-title">${window.i18n.t('wizard_entry_manual') || 'Saisie manuelle'}</div>
                         <div class="wizard-entry-desc">${window.i18n.t('wizard_entry_manual_desc') || 'Créez vos comptes un par un avec leur solde initial.'}</div>
                     </div>
                     <div class="wizard-entry-tile ${isDemo ? 'active' : ''}" onclick="window.SetupWizard._setEntryMode('demo')">
-                        <div class="wizard-entry-icon">🧪</div>
+                        <div class="wizard-entry-icon">${window.Icon('flask', 28)}</div>
                         <div class="wizard-entry-title">${this._t('wizard_entry_demo', 'Essayer avec une démo')}</div>
                         <div class="wizard-entry-desc">${this._t('wizard_entry_demo_desc', 'Aucun compte à créer : 6 mois de données fictives, effaçables en un clic.')}</div>
                     </div>
@@ -654,7 +654,7 @@ window.SetupWizard = {
             <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px; color: var(--accent);">${title}</div>
             <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">${desc}</p>${extra}`;
         if (mode === 'import') {
-            return box('📄 ' + this._t('wizard_notice_import_title', 'Importation immédiate à la fin du wizard'),
+            return box(window.Icon('file-text', 16) + ' ' + this._t('wizard_notice_import_title', 'Importation immédiate à la fin du wizard'),
                 this._t('wizard_notice_import_desc', 'Dès la fin de l\'assistant, le cockpit d\'importation s\'ouvrira pour charger votre fichier. Vos comptes seront détectés automatiquement à partir des lignes du relevé.'));
         }
         if (mode === 'sync' && this._bankLoaded && typeof this._bankPanelHtml === 'function') {
@@ -662,16 +662,16 @@ window.SetupWizard = {
         }
         if (mode === 'sync') {
             const bullets = [
-                ['wizard_notice_sync_b1', '🔒 Aucun cloud : identifiants chiffrés dans un coffre-fort local'],
-                ['wizard_notice_sync_b2', '👁️ Lecture seule : OmniBank ne peut jamais effectuer de paiement'],
-                ['wizard_notice_sync_b3', '🤖 Combinée à l\'Auto-Pilote, vos opérations se classent et se pointent seules']
-            ].map(([k, f]) => `<li>${this._t(k, f)}</li>`).join('');
-            return box('⚡ ' + this._t('wizard_notice_sync_title', 'Synchronisation bancaire : la voie royale'),
+                ['wizard_notice_sync_b1', 'Aucun cloud : identifiants chiffrés dans un coffre-fort local', 'lock-simple'],
+                ['wizard_notice_sync_b2', 'Lecture seule : OmniBank ne peut jamais effectuer de paiement', 'eye'],
+                ['wizard_notice_sync_b3', 'Combinée à l\'Auto-Pilote, vos opérations se classent et se pointent seules', 'robot']
+            ].map(([k, f, ic]) => `<li style="list-style:none; display:flex; gap:7px; align-items:baseline;">${window.Icon(ic, 14)}<span>${this._t(k, f)}</span></li>`).join('');
+            return box(window.Icon('lightning', 16) + ' ' + this._t('wizard_notice_sync_title', 'Synchronisation bancaire : la voie royale'),
                 this._t('wizard_notice_sync_desc', 'Dès la fin de l\'assistant, nous vous guidons pour connecter votre banque via le coffre-fort sécurisé.'),
-                `<ul style="margin:10px 0 0; padding-left:18px; font-size:12px; color:var(--text-muted); line-height:1.7;">${bullets}</ul>`);
+                `<ul style="margin:10px 0 0; padding-left:0; font-size:12px; color:var(--text-muted); line-height:1.7;">${bullets}</ul>`);
         }
         if (mode === 'demo') {
-            return box('🧪 ' + this._t('wizard_notice_demo_title', 'Mode découverte'),
+            return box(window.Icon('flask', 16) + ' ' + this._t('wizard_notice_demo_title', 'Mode découverte'),
                 this._t('wizard_notice_demo_desc', 'Un foyer fictif est chargé : 4 comptes, 6 mois d\'historique, budgets, récurrences et décisions de l\'Auto-Pilote. Un bandeau vous permettra de tout effacer en un clic pour repartir à neuf.'));
         }
         return '';
@@ -702,7 +702,7 @@ window.SetupWizard = {
             const curr = acc.currency || window.appBaseCurrency || 'EUR';
             return `
             <div class="wizard-account-card">
-                <button class="wizard-star-btn ${isMain ? 'active' : ''}" onclick="window.SetupWizard._setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${isMain ? '⭐' : '☆'}</button>
+                <button class="wizard-star-btn ${isMain ? 'active' : ''}" onclick="window.SetupWizard._setMainAccount(${acc.id})" title="${window.i18n.t('acc_set_main')}">${window.Icon('star', 16)}</button>
                 <div class="wizard-account-info">
                     <strong>${window.escapeHtml(acc.name)}</strong>
                     <span class="wizard-account-type">${acc.type} <small style="opacity:0.8;">(${curr})</small></span>
@@ -812,7 +812,7 @@ window.SetupWizard = {
 
         body.innerHTML = `
             <div class="wizard-step-content">
-                <h2 class="wizard-step-title">👥 ${window.i18n.t('wizard_users_title')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('users', 22)} ${window.i18n.t('wizard_users_title')}</h2>
                 <p class="wizard-step-desc">${window.i18n.t('wizard_users_desc')}</p>
 
                 <div class="wizard-account-form">
@@ -852,7 +852,7 @@ window.SetupWizard = {
         return this._orgUsers.filter(u => u.is_active).map(u => `
             <div class="wizard-account-card">
                 <div class="wizard-account-info">
-                    <strong>👤 ${window.escapeHtml(u.name)}</strong>
+                    <strong>${window.Icon('user', 14)} ${window.escapeHtml(u.name)}</strong>
                 </div>
                 <button class="wizard-btn-remove" onclick="window.SetupWizard._removeWizUser(${u.id})">✕</button>
             </div>
@@ -893,7 +893,7 @@ window.SetupWizard = {
     _stepPayDay(body) {
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
-                <h2 class="wizard-step-title">💰 ${window.i18n.t('wizard_pay_title')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('coins', 22)} ${window.i18n.t('wizard_pay_title')}</h2>
                 <p class="wizard-step-desc" data-i18n="wizard_pay_desc">${window.i18n.t('wizard_pay_desc')}</p>
 
                 <!-- Jour de paie -->
@@ -991,14 +991,14 @@ window.SetupWizard = {
     _stepGuide(body) {
         body.innerHTML = `
             <div class="wizard-step-content">
-                <h2 class="wizard-step-title">📝 ${window.i18n.t('wizard_guide_title')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('note-pencil', 22)} ${window.i18n.t('wizard_guide_title')}</h2>
                 <p class="wizard-step-desc">${window.i18n.t('wizard_guide_desc')}</p>
 
                 <!-- Guide des 4 directions de flux -->
                 <div class="wizard-guide-cards">
                     <div class="wizard-guide-card wizard-guide-expense">
                         <div class="wizard-guide-card-header">
-                            <span class="wizard-guide-icon">📤</span>
+                            <span class="wizard-guide-icon">${window.Icon('upload-simple', 20)}</span>
                             <strong>${window.i18n.t('wizard_guide_expense')}</strong>
                         </div>
                         <div class="wizard-guide-schema">
@@ -1011,7 +1011,7 @@ window.SetupWizard = {
 
                     <div class="wizard-guide-card wizard-guide-income">
                         <div class="wizard-guide-card-header">
-                            <span class="wizard-guide-icon">📥</span>
+                            <span class="wizard-guide-icon">${window.Icon('download-simple', 20)}</span>
                             <strong>${window.i18n.t('wizard_guide_income')}</strong>
                         </div>
                         <div class="wizard-guide-schema">
@@ -1024,7 +1024,7 @@ window.SetupWizard = {
 
                     <div class="wizard-guide-card wizard-guide-transfer">
                         <div class="wizard-guide-card-header">
-                            <span class="wizard-guide-icon">🔄</span>
+                            <span class="wizard-guide-icon">${window.Icon('arrows-clockwise', 20)}</span>
                             <strong>${window.i18n.t('wizard_guide_transfer')}</strong>
                         </div>
                         <div class="wizard-guide-schema">
@@ -1037,7 +1037,7 @@ window.SetupWizard = {
 
                     <div class="wizard-guide-card wizard-guide-neutral">
                         <div class="wizard-guide-card-header">
-                            <span class="wizard-guide-icon">📋</span>
+                            <span class="wizard-guide-icon">${window.Icon('clipboard-text', 20)}</span>
                             <strong>${window.i18n.t('wizard_guide_neutral')}</strong>
                         </div>
                         <div class="wizard-guide-schema">
@@ -1051,17 +1051,17 @@ window.SetupWizard = {
 
                 <!-- Badges de pointage -->
                 <div class="wizard-recon-section">
-                    <h3 class="wizard-subsection-title">✅ ${window.i18n.t('wizard_recon_title')}</h3>
+                    <h3 class="wizard-subsection-title">${window.Icon('check-circle', 18)} ${window.i18n.t('wizard_recon_title')}</h3>
                     <div class="wizard-recon-badges">
                         <div class="wizard-recon-badge">
-                            <span class="wizard-recon-badge-icon" style="background:rgba(54,179,126,0.15);color:var(--success);">💰</span>
+                            <span class="wizard-recon-badge-icon" style="background:rgba(54,179,126,0.15);color:var(--success);">${window.Icon('coins', 16)}</span>
                             <div>
                                 <strong>${window.i18n.t('wizard_badge_rest_to_live')}</strong>
                                 <p>${window.i18n.t('wizard_badge_rest_to_live_desc')}</p>
                             </div>
                         </div>
                         <div class="wizard-recon-badge">
-                            <span class="wizard-recon-badge-icon" style="background:rgba(255,86,48,0.15);color:var(--danger);">⚠️</span>
+                            <span class="wizard-recon-badge-icon" style="background:rgba(255,86,48,0.15);color:var(--danger);">${window.Icon('warning', 16)}</span>
                             <div>
                                 <strong>${window.i18n.t('wizard_badge_unreconciled')}</strong>
                                 <p>${window.i18n.t('wizard_badge_unreconciled_desc')}</p>
@@ -1087,15 +1087,15 @@ window.SetupWizard = {
 
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
-                <h2 class="wizard-step-title">🤖 ${window.i18n.t('wizard_ai_title')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('robot', 22)} ${window.i18n.t('wizard_ai_title')}</h2>
                 <p class="wizard-step-desc" data-i18n="wizard_ai_desc">${window.i18n.t('wizard_ai_desc')}</p>
 
                 <!-- Mode Auto-Pilote & Automatismes -->
                 <div class="wizard-autopilot-card">
                     <div class="wizard-ap-header">
                         <div>
-                            <div class="wizard-ap-title" data-i18n="autopilot_wizard_title">
-                                🤖 ${window.i18n.t('autopilot_wizard_title') || 'Mode Auto-Pilote (Recommandé)'}
+                            <div class="wizard-ap-title">
+                                ${window.Icon('robot', 18)} <span data-i18n="autopilot_wizard_title">${window.i18n.t('autopilot_wizard_title') || 'Mode Auto-Pilote (Recommandé)'}</span>
                             </div>
                             <div class="wizard-ap-desc" data-i18n="autopilot_wizard_desc">
                                 ${window.i18n.t('autopilot_wizard_desc') || 'Prise en charge autonome des flux, réconciliation et classification avec réversibilité totale.'}
@@ -1111,21 +1111,21 @@ window.SetupWizard = {
                         <!-- Sélecteur de profil d'autonomie -->
                         <div class="wizard-presets-grid">
                             <div id="wizPresetBalanced" class="wizard-preset-card ${this._autopilotPreset === 'balanced' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('balanced')">
-                                <span class="wizard-preset-badge">🛡️ 7/15 • Recommandé</span>
+                                <span class="wizard-preset-badge">${window.Icon('shield-check', 12)} 7/15 • Recommandé</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_balanced">${window.i18n.t('autopilot_wizard_preset_balanced') || 'Mode Équilibré'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_balanced_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_balanced_desc') || 'Rapprochements haute certitude, apprentissage marchands, synchro en arrière-plan et suggestions budgétaires avec validation.'}
                                 </div>
                             </div>
                             <div id="wizPresetFull" class="wizard-preset-card full-preset ${this._autopilotPreset === 'full' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('full')">
-                                <span class="wizard-preset-badge">⚡ 15/15 • Max</span>
+                                <span class="wizard-preset-badge">${window.Icon('lightning', 12)} 15/15 • Max</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_full">${window.i18n.t('autopilot_wizard_preset_full') || 'Autonomie Totale'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_full_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_full_desc') || '100% autonome : auto-création d\'enveloppes, auto-application des budgets, auto-clôture des récurrences.'}
                                 </div>
                             </div>
                             <div id="wizPresetCustom" class="wizard-preset-card custom-preset ${this._autopilotPreset === 'custom' ? 'active' : ''}" onclick="window.SetupWizard._selectAutopilotPreset('custom')">
-                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">🛠️ <span id="wizPresetCustomActiveCount">${activeCount}</span>/15 • Sur-mesure</span>
+                                <span class="wizard-preset-badge" id="wizPresetCustomBadge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);">${window.Icon('wrench', 12)} <span id="wizPresetCustomActiveCount">${activeCount}</span>/15 • Sur-mesure</span>
                                 <div class="wizard-preset-name" data-i18n="autopilot_wizard_preset_custom">${window.i18n.t('autopilot_wizard_preset_custom') || 'Personnalisé'}</div>
                                 <div class="wizard-preset-desc" data-i18n="autopilot_wizard_preset_custom_desc">
                                     ${window.i18n.t('autopilot_wizard_preset_custom_desc') || 'Configurez à la carte chacune des 15 briques modulaires ci-dessous.'}
@@ -1149,7 +1149,7 @@ window.SetupWizard = {
                         <div>
                             <button type="button" class="wizard-accordion-btn" onclick="window.SetupWizard._toggleAutopilotAccordion()">
                                 <span style="display:flex; align-items:center; gap:6px;">
-                                    ⚙️ <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 15 automatismes'}</span>
+                                    ${window.Icon('gear-six', 15)} <span data-i18n="autopilot_wizard_customize_btn">${window.i18n.t('autopilot_wizard_customize_btn') || 'Personnaliser les 15 automatismes'}</span>
                                     <span id="wizSubtoggleCountBadge" class="wizard-preset-badge" style="font-size:10px;">${activeCount}/14</span>
                                 </span>
                                 <span id="wizAccordionIcon">${this._autopilotAccordionOpen ? '▲' : '▼'}</span>
@@ -1159,7 +1159,7 @@ window.SetupWizard = {
                                 ${this._subtogglesDef.map(cat => `
                                     <div class="wizard-subtoggle-group">
                                         <div class="wizard-subtoggle-group-title">
-                                            <span>${cat.icon}</span>
+                                            ${window.Icon(cat.icon, 15)}
                                             <span data-i18n="${cat.categoryKey}">${window.i18n.t(cat.categoryKey) || cat.category}</span>
                                         </div>
                                         ${cat.items.map(item => {
@@ -1197,7 +1197,7 @@ window.SetupWizard = {
                             <div class="wizard-ai-url-row">
                                 <input type="text" id="wizAIUrl" class="wizard-input" value="http://127.0.0.1:11434" placeholder="http://127.0.0.1:11434">
                                 <button class="wizard-btn-secondary" onclick="window.SetupWizard._testOllama()" id="wizTestBtn">
-                                    🔄 ${window.i18n.t('wizard_ai_test')}
+                                    ${window.Icon('arrows-clockwise', 15)} ${window.i18n.t('wizard_ai_test')}
                                 </button>
                             </div>
                         </div>
@@ -1347,22 +1347,22 @@ window.SetupWizard = {
         const repRow = document.getElementById('wizAIReportsRow');
 
         if (!url) {
-            if (status) status.innerHTML = `<span class="wizard-status-error">❌ ${window.i18n.t('wizard_ai_url_empty')}</span>`;
+            if (status) status.innerHTML = `<span class="wizard-status-error">${window.Icon('x-circle', 15)} ${window.i18n.t('wizard_ai_url_empty')}</span>`;
             return;
         }
 
         if (btn) {
             btn.disabled = true;
-            btn.textContent = '⏳ ...';
+            btn.innerHTML = window.Icon('hourglass', 15) + ' ...';
         }
-        if (status) status.innerHTML = `<span class="wizard-status-loading">⏳ ${window.i18n.t('wizard_ai_testing')}</span>`;
+        if (status) status.innerHTML = `<span class="wizard-status-loading">${window.Icon('hourglass', 15)} ${window.i18n.t('wizard_ai_testing')}</span>`;
 
         try {
             // L'adresse n'est enregistrée qu'à la fin de l'étape, IA cochée : un test ne remplace plus la bonne
             const data = await API.get(`/api/config/ollama/models?url=${encodeURIComponent(url)}`);
 
             if (data.models && data.models.length > 0) {
-                if (status) status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.tp('wizard_ai_found_models', { count: data.models.length })}</span>`;
+                if (status) status.innerHTML = `<span class="wizard-status-ok">${window.Icon('check-circle', 15)} ${window.i18n.tp('wizard_ai_found_models', { count: data.models.length })}</span>`;
                 const container = document.getElementById('wizAIModelContainer');
                 const select = document.getElementById('wizAIModel');
                 if (select) {
@@ -1376,7 +1376,7 @@ window.SetupWizard = {
             } else {
                 // Le serveur répond : la connexion est bonne, il manque seulement un modèle. Pas de rouge, et les
                 // modèles recommandés s'affichent pour en télécharger un.
-                if (status) status.innerHTML = `<span class="wizard-status-ok">✅ ${window.i18n.t('wizard_ai_no_models')}</span>`;
+                if (status) status.innerHTML = `<span class="wizard-status-ok">${window.Icon('check-circle', 15)} ${window.i18n.t('wizard_ai_no_models')}</span>`;
                 const container = document.getElementById('wizAIModelContainer');
                 if (container) container.style.display = 'none';
                 if (repRow) repRow.style.display = 'none';
@@ -1391,7 +1391,7 @@ window.SetupWizard = {
             if (status) {
                 status.innerHTML = `
                     <div style="font-size:12px; color:var(--text-muted); line-height:1.4; padding:8px; background:rgba(255,86,48,0.08); border-radius:8px; border:1px solid rgba(255,86,48,0.2);">
-                        <div style="color:var(--danger); font-weight:700; margin-bottom:4px;">❌ ${window.i18n.t('wizard_ai_ollama_not_found') || 'Ollama n\'est pas détecté en local.'}</div>
+                        <div style="color:var(--danger); font-weight:700; margin-bottom:4px;">${window.Icon('x-circle', 15)} ${window.i18n.t('wizard_ai_ollama_not_found') || 'Ollama n\'est pas détecté en local.'}</div>
                         <div>${window.i18n.t('wizard_ai_install_hint')}</div>
                     </div>
                 `;
@@ -1400,7 +1400,7 @@ window.SetupWizard = {
 
         if (btn) {
             btn.disabled = false;
-            btn.textContent = `🔄 ${window.i18n.t('wizard_ai_test')}`;
+            btn.innerHTML = `${window.Icon('arrows-clockwise', 15)} ${window.i18n.t('wizard_ai_test')}`;
         }
     },
 
@@ -1510,7 +1510,7 @@ window.SetupWizard = {
 
         const accountsHtml = this.createdAccounts.map(a =>
             `<div class="wizard-recap-item">
-                <span>🏦 <strong>${window.escapeHtml(a.name)}</strong> <em>(${a.type})</em></span>
+                <span>${window.Icon('bank', 14)} <strong>${window.escapeHtml(a.name)}</strong> <em>(${a.type})</em></span>
                 <span>${formatCurrency(a.initial_balance)}</span>
             </div>`
         ).join('');
@@ -1534,13 +1534,13 @@ window.SetupWizard = {
 
         body.innerHTML = `
             <div class="wizard-step-content wizard-center">
-                <div class="wizard-logo-anim wizard-logo-final">🚀</div>
+                <div class="wizard-logo-anim wizard-logo-final">${window.Icon('rocket-launch', 56)}</div>
                 <h2 class="wizard-step-title" data-i18n="wizard_confirm_title">${window.i18n.t('wizard_confirm_title')}</h2>
                 <p class="wizard-step-desc" data-i18n="wizard_confirm_desc">${window.i18n.t('wizard_confirm_desc')}</p>
 
                 <div class="wizard-recap">
                     <div class="wizard-recap-section">
-                        <h4>🎨 ${window.i18n.t('wizard_theme_title') || 'Apparence & Accueil'}</h4>
+                        <h4>${window.Icon('palette', 16)} ${window.i18n.t('wizard_theme_title') || 'Apparence & Accueil'}</h4>
                         <div class="wizard-recap-item">
                             <span>Thème visuel</span>
                             <strong>${themeNames[this._selectedTheme] || this._selectedTheme}</strong>
@@ -1552,15 +1552,15 @@ window.SetupWizard = {
                     </div>
 
                     <div class="wizard-recap-section">
-                        <h4>🏦 ${window.i18n.t('wizard_recap_accounts')}</h4>
+                        <h4>${window.Icon('bank', 16)} ${window.i18n.t('wizard_recap_accounts')}</h4>
                         ${accountsHtml || `<p style="color:var(--text-muted);">${window.i18n.t('wizard_no_accounts')}</p>`}
                     </div>
 
                     <div class="wizard-recap-section">
-                        <h4>🤖 ${window.i18n.t('autopilot_wizard_recap_title') || 'Auto-Pilote & Automatismes'}</h4>
+                        <h4>${window.Icon('robot', 16)} ${window.i18n.t('autopilot_wizard_recap_title') || 'Auto-Pilote & Automatismes'}</h4>
                         <div class="wizard-recap-item">
                             <span>Statut</span>
-                            <strong>${this._autopilotEnabled ? '✅ ' + (window.i18n.t('autopilot_wizard_recap_active') || 'Activé') : '⏸️ ' + (window.i18n.t('autopilot_wizard_recap_inactive') || 'En veille / Inactif')}</strong>
+                            <strong>${this._autopilotEnabled ? window.Icon('check-circle', 15) + ' ' + (window.i18n.t('autopilot_wizard_recap_active') || 'Activé') : window.Icon('pause-circle', 15) + ' ' + (window.i18n.t('autopilot_wizard_recap_inactive') || 'En veille / Inactif')}</strong>
                         </div>
                         ${this._autopilotEnabled ? `
                         <div class="wizard-recap-item">
@@ -1575,8 +1575,8 @@ window.SetupWizard = {
                     </div>
 
                     <div class="wizard-recap-section">
-                        <h4>🧠 ${window.i18n.t('wizard_recap_ai')}</h4>
-                        <p>${aiEnabled ? '✅ ' + window.i18n.t('wizard_recap_ai_on') : '⏭️ ' + window.i18n.t('wizard_recap_ai_off')}</p>
+                        <h4>${window.Icon('brain', 16)} ${window.i18n.t('wizard_recap_ai')}</h4>
+                        <p>${aiEnabled ? window.Icon('check-circle', 15) + ' ' + window.i18n.t('wizard_recap_ai_on') : window.Icon('skip-forward', 15) + ' ' + window.i18n.t('wizard_recap_ai_off')}</p>
                     </div>
                     ${this._firstStatementRecapHtml()}
                 </div>
@@ -1585,7 +1585,7 @@ window.SetupWizard = {
                     ${this._launchButtonHtml()}
 
                     ${this._demoSeeded ? '' : `<button class="wizard-btn-demo" onclick="window.SetupWizard._seedDemoAndLaunch()">
-                        ${window.i18n.t('wizard_btn_demo') || '🧪 Découvrir avec des données de démonstration'}
+                        ${window.Icon('flask', 16)} ${window.i18n.t('wizard_btn_demo') || 'Découvrir avec des données de démonstration'}
                     </button>`}
                 </div>
             </div>
@@ -1659,19 +1659,19 @@ window.SetupWizard = {
 
     _automationScenes() {
         return [
-            { icon: '📥', tag: 'auto_commit_incoming_transactions',
+            { icon: 'tray', tag: 'auto_commit_incoming_transactions',
               title: this._t('wizard_auto_s1_title', 'Une opération arrive de votre banque'),
               desc: this._t('wizard_auto_s1_desc', '« PRLV LOYER APPARTEMENT −850,00 € » est enregistrée immédiatement, sans que vous leviez le petit doigt.'),
               tagLabel: this._t('autopilot_subtoggle_auto_commit_incoming_transactions', 'Enregistrement direct des écritures') },
-            { icon: '🔗', tag: 'auto_reconcile_transactions',
+            { icon: 'link', tag: 'auto_reconcile_transactions',
               title: this._t('wizard_auto_s2_title', 'Elle est rapprochée avec votre prévision'),
               desc: this._t('wizard_auto_s2_desc', 'Confiance 97 % ≥ votre seuil : l\'opération est pointée et liée à l\'échéance « Loyer ».'),
               tagLabel: this._t('autopilot_subtoggle_auto_reconcile_transactions', 'Auto-Rapprochement haute certitude') },
-            { icon: '🔁', tag: 'auto_propagate_recurrence_hikes',
+            { icon: 'repeat', tag: 'auto_propagate_recurrence_hikes',
               title: this._t('wizard_auto_s3_title', 'Netflix augmente son tarif'),
               desc: this._t('wizard_auto_s3_desc', '13,49 € → 15,99 € constaté 3 mois de suite : vos prévisions futures sont ajustées.'),
               tagLabel: this._t('autopilot_subtoggle_auto_propagate_recurrence_hikes', 'Propagation automatique des hausses') },
-            { icon: '📊', tag: 'enable_budget_recalibration_suggestions',
+            { icon: 'chart-bar', tag: 'enable_budget_recalibration_suggestions',
               title: this._t('wizard_auto_s4_title', 'Le budget Alimentation déborde'),
               desc: this._t('wizard_auto_s4_desc', 'Après trois périodes de dépassement, un nouveau plafond vous est suggéré, à valider d\'un clic.'),
               tagLabel: this._t('autopilot_subtoggle_enable_budget_recalibration_suggestions', 'Suggestions de recalibrage mensuel') }
@@ -1682,20 +1682,20 @@ window.SetupWizard = {
         this._ensureStyles();
         const scenes = this._automationScenes().map((s, i) => `
             <div class="wiz-scene" id="wizScene${i}">
-                <div class="wiz-scene-icon">${s.icon}</div>
+                <div class="wiz-scene-icon">${window.Icon(s.icon, 24)}</div>
                 <div>
                     <div class="wiz-scene-title">${window.escapeHtml(s.title)}</div>
                     <div class="wiz-scene-desc">${window.escapeHtml(s.desc)}</div>
-                    <span class="wiz-scene-tag">🤖 ${s.tagLabel}</span>
+                    <span class="wiz-scene-tag">${window.Icon('robot', 13)} ${s.tagLabel}</span>
                 </div>
             </div>`).join('');
 
         body.innerHTML = `
             <div class="wizard-step-content">
-                <h2 class="wizard-step-title">⚡ ${this._t('wizard_auto_title', 'Vos finances sur pilote automatique')}</h2>
+                <h2 class="wizard-step-title">${window.Icon('lightning', 22)} ${this._t('wizard_auto_title', 'Vos finances sur pilote automatique')}</h2>
                 <p class="wizard-step-desc">${this._t('wizard_auto_desc', 'Voici ce qui se passe, jour après jour, quand l\'Auto-Pilote est activé. Vous réglerez son niveau d\'autonomie à l\'étape suivante.')}</p>
                 <div id="wizScenes">${scenes}</div>
-                <p class="wizard-hint">🛡️ ${this._t('wizard_auto_reversible', 'Rien n\'est définitif : chaque décision est inscrite au journal Auto-Pilote et peut être annulée.')}</p>
+                <p class="wizard-hint">${window.Icon('shield-check', 14)} ${this._t('wizard_auto_reversible', 'Rien n\'est définitif : chaque décision est inscrite au journal Auto-Pilote et peut être annulée.')}</p>
                 <div class="wizard-nav">
                     <button class="wizard-btn-ghost" onclick="window.SetupWizard._nav(-1)">← ${window.i18n.t('wizard_btn_back')}</button>
                     <button class="wizard-btn-ghost" onclick="window.SetupWizard._playScenes()">↻ ${this._t('wizard_auto_replay', 'Rejouer')}</button>

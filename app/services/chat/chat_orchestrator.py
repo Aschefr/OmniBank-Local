@@ -260,7 +260,8 @@ def execute_chat_action(
     params: dict,
     message_id: Optional[int] = None,
     action_id: Optional[str] = None,
-    user_name: Optional[str] = None
+    user_name: Optional[str] = None,
+    vault_token: Optional[str] = None
 ) -> dict:
     """
     Exécute de manière transactionnelle une action interactive validée par l'utilisateur.
@@ -268,7 +269,7 @@ def execute_chat_action(
     la traçabilité et l'invalidation de cache.
     """
     if not (message_id and action_id):
-        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name)
+        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name, vault_token=vault_token)
 
     key = (_resolve_profile_id(), message_id, action_id)
     with _ACTIONS_LOCK:
@@ -277,7 +278,7 @@ def execute_chat_action(
             raise HTTPException(status_code=409, detail="Action déjà en cours d'exécution.")
         _ACTIONS_IN_FLIGHT.add(key)
     try:
-        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name)
+        return _execute_chat_action_unlocked(db, action, params, message_id, action_id, user_name=user_name, vault_token=vault_token)
     finally:
         with _ACTIONS_LOCK:
             _ACTIONS_IN_FLIGHT.discard(key)
@@ -289,7 +290,8 @@ def _execute_chat_action_unlocked(
     params: dict,
     message_id: Optional[int] = None,
     action_id: Optional[str] = None,
-    user_name: Optional[str] = None
+    user_name: Optional[str] = None,
+    vault_token: Optional[str] = None
 ) -> dict:
     # Validation du mode Organisation (audit point #9)
     from app.services.budget_service import is_org_mode as _org_mode_active
@@ -480,7 +482,7 @@ def _execute_chat_action_unlocked(
             user_name=user_name,
         )
     elif action == "trigger_bank_sync":
-        res = trigger_bank_sync_tool(db, force_write=True)
+        res = trigger_bank_sync_tool(db, force_write=True, vault_token=vault_token)
     elif action == "store_financial_fact":
         res = store_financial_fact_tool(
             db,

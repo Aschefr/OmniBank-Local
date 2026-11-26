@@ -266,7 +266,7 @@ Object.assign(window.BankSyncView, {
                 window.i18n ? window.i18n.t('bank_sync_no_connections') || 'Aucune connexion bancaire configurée pour ce profil.' : 'Aucune connexion bancaire configurée pour ce profil.',
                 'warning'
             );
-            return;
+            return false;
         }
 
         // 1. Vérifier l'état temps réel du coffre auprès du serveur
@@ -286,7 +286,7 @@ Object.assign(window.BankSyncView, {
 
             if (!pw) {
                 this.setButtonsState('idle');
-                return;
+                return false;
             }
             token = this.getVaultToken();
         }
@@ -297,7 +297,7 @@ Object.assign(window.BankSyncView, {
         if (pending2FAConn) {
             this.setButtonsState('idle');
             await this.promptAndSync(pending2FAConn.id);
-            return;
+            return false;
         }
 
         // Lancer l'animation de progression sur le fond du bouton
@@ -321,6 +321,7 @@ Object.assign(window.BankSyncView, {
 
             // Démarrer le suivi intelligent du relevé
             this._startSyncPollingTracker();
+            return true;
         } catch (err) {
             console.error('[BankSync] Erreur trigger-auto-sync:', err);
             this._stopSyncPollingTracker();
@@ -339,11 +340,12 @@ Object.assign(window.BankSyncView, {
                 if (retryPw) {
                     return this.triggerBackgroundSyncNow();
                 }
-                return;
+                return false;
             }
             this.setButtonsState('error', err.detail || err.message);
             setTimeout(() => this.setButtonsState('idle'), 3500);
             this.showToast('Erreur : ' + (err.detail || err.message), 'error');
+            return false;
         }
     },
 
