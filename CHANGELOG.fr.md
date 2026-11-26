@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.9.0] - 2026-11-26
 
 ### Corrections & ergonomie
 - **Une action que l'assistant dit avoir préparée a maintenant sa carte 💬** : certains modèles (gemma4:e4b) écrivent « J'ai préparé le virement » sans le préparer vraiment : le chat affichait « L'action annoncée n'a pas pu être préparée » et « Générer les cartes d'actions » ne trouvait rien. OmniBank demande désormais au modèle de remplir l'action annoncée comme un formulaire, avec vos comptes et catégories existants pour seuls choix, et affiche la carte à valider comme d'habitude. Cela couvre les virements, les récurrences, les enveloppes, les catégories et la paie attendue ; les modifications et les suppressions doivent toujours être préparées par le modèle. Le rôle « Optimiseur (Contrats & Frais) » peut aussi préparer un virement vers l'épargne.
