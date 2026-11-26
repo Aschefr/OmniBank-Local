@@ -2222,7 +2222,10 @@ window.AutopilotView = {
     },
 
     _renderDecisionItem(d) {
-        const score = d.confidence_score !== null ? Math.round(d.confidence_score) : null;
+        // Deux côtés d'un virement réunis dans le même relevé : un virement lié, pas une écriture ; la confiance du
+        // classement de chaque côté n'a plus de sens une fois le virement formé
+        const isPairedTransfer = Boolean(d.details && d.details.decision_reason === 'internal_transfer_same_statement');
+        const score = isPairedTransfer ? null : (d.confidence_score !== null ? Math.round(d.confidence_score) : null);
 
         let badgeClass = 'badge-blue';
         let typeLabel = window.i18n ? window.i18n.t('autopilot_action_committed') : 'Saisie directe';
@@ -2299,7 +2302,7 @@ window.AutopilotView = {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Budget suggéré';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Création d\'enveloppe budgétaire suggérée';
-        } else if (d.decision_type === 'transfer_link') {
+        } else if (d.decision_type === 'transfer_link' || isPairedTransfer) {
             badgeClass = 'badge-blue';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked') || 'Virement lié') : 'Virement lié';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked_desc') || 'Virement interne détecté et automatiquement rapproché entre vos comptes.') : 'Virement interne détecté et automatiquement rapproché entre vos comptes.';
@@ -2321,7 +2324,7 @@ window.AutopilotView = {
         } else if (d.decision_type === 'recurrence_hike' && d.details && d.details.new_amount !== undefined) {
             amtColor = '#10b981';
         } else if ((d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined)
-                   || d.decision_type === 'transfer_link') {
+                   || d.decision_type === 'transfer_link' || isPairedTransfer) {
             amtColor = 'var(--text-main)';
         } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip'
                    || d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {

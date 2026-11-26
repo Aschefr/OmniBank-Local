@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed & Ergonomics
+- **An internal transfer joined in one statement shows as a linked transfer in the Auto-Pilot journal 🔁**: Its two sides showed as "Entry created" with the score of each side's automatic category (0 % and 50 %), which meant nothing once they formed one transfer. They now show as "Transfer linked", without a score, with the amount in neutral colour like any transfer.
+
 ## [1.9.0] - 2026-11-26
 
 ### Fixed & Ergonomics

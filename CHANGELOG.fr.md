@@ -2,6 +2,11 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
+## [Unreleased]
+
+### Corrections & ergonomie
+- **Un virement interne réuni dans un même relevé s'affiche en virement lié dans le journal Auto-Pilote 🔁** : ses deux côtés apparaissaient en « Écriture créée » avec le score du classement automatique de chaque côté (0 % et 50 %), qui n'avait plus de sens une fois le virement formé. Ils s'affichent désormais en « Virement lié », sans score, avec le montant en couleur neutre comme tout virement.
+
 ## [1.9.0] - 2026-11-26
 
 ### Corrections & ergonomie
