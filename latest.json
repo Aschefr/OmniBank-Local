@@ -1,11 +1,11 @@
 {
     "platforms":  {
                       "windows-x86_64":  {
-                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSCtndHNkRzdjYVh1MnNIL3FlMmRkVVpRQ0QwSm5pTnNpandVK0p6SHk2dlNnQnRYeUxTVDVDNDJCdE85SlM2R0d1MzQwMkdUQVJnYkp3dmVOZjZmdndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NDM5ODE1CWZpbGU6T21uaUJhbmtfMS44LjFfeDY0X2ZyLUZSLm1zaQpCeFNDTklZWjRNa2Q5M0c1TmV6YzZXcmgzeGNOeGxDa1c1NnBwOCs1VXBaWjh3aVFlVTZ6YXZSd0JOOUcrbG9vanF6R1gyd3ZQOE1sNy9uVSsyS2lEZz09Cg==",
-                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.8.1/OmniBank_1.8.1_x64_fr-FR.msi"
+                                             "signature":  "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZVpRT0VBeXZVSDJkS1RLOWYwNXo3TURlWmNFUXcrQ2N6ZVltOVAxRkh2VzFHaXU3L0M3d0EycXFCMnROSHFGVmsvcVhHbnpORlUwWWlkNTVaNUVZbE0wMnhlVnluVUFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NzI0NDE5CWZpbGU6T21uaUJhbmtfMS45LjBfeDY0X2ZyLUZSLm1zaQpkSE5Hay9lVUdBajdFMVBLdWtxWVN4NUxuM0xlOTRJYlBESHR4Mzg4K0JBdFJMaWVudk9Bbm9uR2NRWmkwRWtOK3l4SWtWYk9yZGtrUmVaOWtVdnRDUT09Cg==",
+                                             "url":  "https://github.com/Aschefr/OmniBank-Local/releases/download/v1.9.0/OmniBank_1.9.0_x64_fr-FR.msi"
                                          }
                   },
-    "pub_date":  "2026-11-23T13:16:55Z",
-    "version":  "1.8.1",
-    "notes":  "Security: bank, file and AI text always shown as text, Content-Security-Policy; names with an apostrophe no longer break buttons"
+    "pub_date":  "2026-11-26T20:20:19Z",
+    "version":  "1.9.0",
+    "notes":  "Lignes compactes sur telephone, journal Auto-Pilote en grand livre, icones Phosphor, releve manuel reserve a un appareil deverrouille, virements internes d\u0027un meme releve reunis."
 }
