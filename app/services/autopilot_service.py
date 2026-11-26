@@ -1694,6 +1694,15 @@ def get_autopilot_decisions_feed(
             not is_reconciliation and live_tx and current_amt is not None and initial_amt is not None and abs(float(current_amt) - abs(float(initial_amt))) > 0.005
         )
 
+        # Montant corrigé par l'utilisateur : afficher celui de l'opération (le montant brut de la banque restait
+        # affiché), avec le signe du montant d'origine ; le montant d'avant correction prend le même signe
+        if amt_changed and not is_manual_link and live_tx is not None and live_tx.amount is not None:
+            negative = float(raw_amt) < 0 or (float(raw_amt) == 0 and str(live_tx.type or "").startswith("expense"))
+            sign = -1.0 if negative else 1.0
+            raw_amt = sign * abs(float(live_tx.amount))
+            if initial_amt is not None:
+                initial_amt = sign * abs(float(initial_amt))
+
         if is_manual_link:
             orig_c = (saved_override.get("original_category") if saved_override else None) or src_snap.get("category") or cat
             curr_c = (saved_override.get("current_category") if saved_override else None) or (saved_override.get("new_category") if saved_override else None) or cat

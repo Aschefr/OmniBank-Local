@@ -51,7 +51,7 @@ window.AutopilotView = Object.assign(window.AutopilotView || {}, {
         const det = d.details || {};
         const uo = d.user_override || {};
         if (uo.is_overridden && uo.amount_changed && uo.original_amount !== null && uo.original_amount !== undefined) {
-            return [formatCurrency(Number(uo.original_amount)), formatCurrency(Math.abs(d.amount))];
+            return [formatCurrency(Number(uo.original_amount)), formatCurrency(d.amount)];
         }
         if (d.decision_type === 'budget_suggestion' && det.suggested_amount !== undefined && det.current_amount !== undefined) {
             const pct = det.delta_pct !== undefined ? ` (${det.delta_pct > 0 ? '+' : ''}${det.delta_pct} %)` : '';

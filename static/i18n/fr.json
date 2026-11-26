@@ -296,7 +296,6 @@
   "autopilot_feed_filter_recurrence": "Récurrences",
   "autopilot_feed_loading": "Chargement du journal d'audit...",
   "autopilot_feed_no_label": "Sans libellé",
-  "autopilot_feed_original_amount": "Montant initial : {amount} €",
   "autopilot_feed_original_cat": "Catégorie initiale : {cat}",
   "autopilot_feed_original_label": "Libellé initial : {label}",
   "autopilot_feed_pagination_info": "Page {page} sur {totalPages} ({total} décision(s))",

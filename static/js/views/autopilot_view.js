@@ -2318,46 +2318,19 @@ window.AutopilotView = {
         const uo = d.user_override;
         const isOverridden = Boolean(uo && uo.is_overridden);
         
-        // Customized display for amounts depending on decision type & manual override
-        let amtDisplay = `${d.amount >= 0 ? '+' : ''}${d.amount.toFixed(2)} €`;
+        // Couleur du montant selon le type de décision (le montant lui-même est formaté par _ledgerAmount)
         let amtColor = d.amount < 0 ? 'var(--text-main)' : '#10b981';
-
         if (d.decision_type === 'budget_suggestion' && d.details && d.details.suggested_amount !== undefined) {
-            const cur = d.details.current_amount !== undefined ? Number(d.details.current_amount).toFixed(2) : null;
-            const sug = Number(d.details.suggested_amount).toFixed(2);
             const deltaPct = d.details.delta_pct !== undefined ? d.details.delta_pct : null;
             amtColor = deltaPct !== null && deltaPct > 0 ? '#10b981' : (deltaPct !== null && deltaPct < 0 ? '#f59e0b' : 'var(--text-main)');
-            amtDisplay = cur !== null
-                ? `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${cur} € ➔</span> ${sug} €`
-                : `${sug} €`;
-            if (deltaPct !== null) {
-                amtDisplay += ` <span style="font-size: 12px; opacity: 0.85;">(${deltaPct > 0 ? '+' : ''}${deltaPct}%)</span>`;
-            }
         } else if (d.decision_type === 'recurrence_hike' && d.details && d.details.new_amount !== undefined) {
-            const oldAmt = d.details.old_amount !== undefined ? Number(d.details.old_amount).toFixed(2) : null;
-            const newAmt = Number(d.details.new_amount).toFixed(2);
-            amtDisplay = oldAmt !== null
-                ? `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`
-                : `${newAmt} €`;
             amtColor = '#10b981';
-        } else if (d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined) {
-            const oldAmt = Number(d.details.old_amount).toFixed(2);
-            const newAmt = Number(d.details.new_amount).toFixed(2);
-            amtDisplay = `<span style="font-size: 12px; opacity: 0.7; font-weight: normal;">${oldAmt} € ➔</span> ${newAmt} €`;
+        } else if ((d.decision_type === 'budget_recurrence_sync' && d.details && d.details.old_amount !== undefined && d.details.new_amount !== undefined)
+                   || d.decision_type === 'transfer_link') {
             amtColor = 'var(--text-main)';
-        } else if (d.decision_type === 'transfer_link') {
-            amtDisplay = `${d.amount < 0 ? '-' : '+'}${Math.abs(d.amount).toFixed(2)} €`;
-            amtColor = 'var(--text-main)';
-        } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 12px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 12px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Ignorée</span>`;
+        } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip'
+                   || d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
             amtColor = 'var(--text-muted)';
-        } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.65; font-size: 12px;">-${Math.abs(d.amount).toFixed(2)} €</span> <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; font-size: 12px; margin-left: 4px; border: 1px solid rgba(148, 163, 184, 0.25);">Clôturé</span>`;
-            amtColor = 'var(--text-muted)';
-        } else if (isOverridden && uo.amount_changed && uo.original_amount !== null && uo.original_amount !== undefined) {
-            const origAmt = Number(uo.original_amount).toFixed(2);
-            const origAmtTip = window.i18n ? window.i18n.t('autopilot_feed_original_amount').replace('{amount}', origAmt) : `Montant initial : ${origAmt} €`;
-            amtDisplay = `<span style="text-decoration: line-through; opacity: 0.55; font-size: 12px; font-weight: normal; margin-right: 2px;" title="${escapeHtml(origAmtTip)}">${origAmt} €</span> <span class="ap-override-arrow">➔</span> ${amtDisplay}`;
         }
 
         // Label display (support manual rename override)
@@ -2415,8 +2388,13 @@ window.AutopilotView = {
         if (isOverridden) reasonBadgeHtml = `<span class="ap-chain">${reasonBadgeHtml}</span>`;
 
         // Contenu repris par la feuille du téléphone (titre, montant, méta) : caché dans la ligne
+        // Montant de la feuille : avant → après quand il a changé, au format de la langue comme la ligne
+        const amountChange = this._ledgerAmountChange(d);
+        const sheetAmount = amountChange
+            ? `<span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};"><s class="ap-sheet-old-amount">${escapeHtml(amountChange[0])}</s> <span class="ap-override-arrow">➔</span> ${escapeHtml(amountChange[1])}</span>`
+            : this._ledgerAmount(d, amtColor, 'ap-decision-amount-val');
         const srcHtml = `
-            <div class="ap-decision-amount-mobile"><span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span></div>
+            <div class="ap-decision-amount-mobile">${sheetAmount}</div>
             <div class="ap-decision-title">
                 ${labelHtml}
                 ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span class="ap-decision-raw-label">(${escapeHtml(d.raw_label)})</span>` : ''}
@@ -2475,8 +2453,7 @@ window.AutopilotView = {
                         `}
                     </div>`;
 
-        const view = { typeLabel, tooltipText, badgeClass, score, amtDisplay, amtColor, isUndone, isOverridden,
-                       amountChanged: Boolean(isOverridden && uo.amount_changed), actionsHtml, srcHtml };
+        const view = { typeLabel, tooltipText, badgeClass, score, amtColor, isUndone, isOverridden, actionsHtml, srcHtml };
         return this._phoneDecisionRow(d, view) + this._ledgerRow(d, view);
     },
 

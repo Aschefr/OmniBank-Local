@@ -296,7 +296,6 @@
   "autopilot_feed_filter_recurrence": "Recurrences",
   "autopilot_feed_loading": "Loading audit log...",
   "autopilot_feed_no_label": "No description",
-  "autopilot_feed_original_amount": "Initial amount: {amount} €",
   "autopilot_feed_original_cat": "Initial category: {cat}",
   "autopilot_feed_original_label": "Initial label: {label}",
   "autopilot_feed_pagination_info": "Page {page} of {totalPages} ({total} decision(s))",

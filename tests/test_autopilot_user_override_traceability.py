@@ -226,3 +226,65 @@ def test_autopilot_reconciliation_is_not_falsely_flagged_as_user_override(test_d
 
     # DOIT être None car c'est un rapprochement Auto-Pilote naturel, pas une modification utilisateur !
     assert item.get("user_override") is None
+
+
+def _expense_decision(db, amount, raw_amount, label="Grill Exemple", tx_type="expense_var"):
+    acc = Account(name=f"Compte {label}", initial_balance=500.0)
+    db.add(acc)
+    db.commit()
+    tx = Transaction(
+        from_account_id=acc.id if tx_type != "income" else None,
+        to_account_id=acc.id if tx_type == "income" else None,
+        date_saisie=date(2026, 11, 20),
+        date_operation=date(2026, 11, 20),
+        amount=amount,
+        type=tx_type,
+        description=label,
+        raw_description=f"X1234 {label.upper()}",
+        category="Restaurants",
+    )
+    db.add(tx)
+    db.commit()
+    snap = {"bank_tx": {"amount": raw_amount, "raw_amount": raw_amount, "description": label}, "decision_reason": "ai_existing"}
+    decision = AutopilotDecisionLog(
+        batch_id="batch_test_amount", decision_type="categorization", action="AUTO_COMMIT",
+        entity_type="transaction", entity_id=tx.id, account_id=acc.id, confidence_score=80.0,
+        raw_snapshot=json.dumps(snap), is_undone=False,
+    )
+    db.add(decision)
+    db.commit()
+    return decision
+
+
+def _feed_item(db, decision_id):
+    return next(it for it in get_autopilot_decisions_feed(db, limit=50)["items"] if it["id"] == decision_id)
+
+
+def test_corrected_amount_is_shown_instead_of_the_bank_amount(test_db):
+    """26/11/2026 : après « Modifier et apprendre » avec 26,50 € sur une dépense de 24,00 €, le journal affichait
+    toujours le montant brut de la banque (24,00 € → -24,00 €) alors que l'opération était bien enregistrée à 26,50 €."""
+    decision = _expense_decision(test_db, 24.00, -24.00)
+    override_autopilot_decision(db=test_db, decision_id=decision.id, new_amount=26.50, learn_rule=False)
+
+    item = _feed_item(test_db, decision.id)
+    assert item["amount"] == -26.50
+    uo = item["user_override"]
+    assert uo["amount_changed"] is True
+    # Même signe que le montant affiché, pour lire « -24,00 € → -26,50 € »
+    assert uo["original_amount"] == -24.00
+
+
+def test_corrected_income_amount_keeps_its_sign(test_db):
+    decision = _expense_decision(test_db, 100.00, 100.00, label="Remboursement Exemple", tx_type="income")
+    override_autopilot_decision(db=test_db, decision_id=decision.id, new_amount=120.00, learn_rule=False)
+    item = _feed_item(test_db, decision.id)
+    assert item["amount"] == 120.00
+    assert item["user_override"]["original_amount"] == 100.00
+
+
+def test_amount_is_the_bank_amount_when_only_the_label_is_corrected(test_db):
+    decision = _expense_decision(test_db, 6.20, -6.20, label="Boulangerie Exemple")
+    override_autopilot_decision(db=test_db, decision_id=decision.id, new_description="Boulangerie du Pont-Neuf", learn_rule=False)
+    item = _feed_item(test_db, decision.id)
+    assert item["amount"] == -6.20
+    assert item["user_override"]["amount_changed"] is False
