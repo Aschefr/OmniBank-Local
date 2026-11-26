@@ -41,12 +41,10 @@ window.AutopilotView = Object.assign(window.AutopilotView || {}, {
     },
 
     _phoneDecisionRow(d, v) {
-        const status = v.isUndone ? this._phoneT('autopilot_feed_badge_undone', 'Annulé') : v.typeLabel;
+        const status = v.isUndone ? this._phoneT('autopilot_feed_badge_undone', 'Annulé') : this._shortStatusLabel(v.typeLabel);
         const statusClass = v.isUndone ? 'badge-slate' : v.badgeClass;
         const accColor = d.account_color || '#3366ff';
         const more = this._phoneT('acc_more_actions', "Plus d'actions");
-        // Montant corrigé : la ligne garde le montant retenu, l'ancien reste barré dans la feuille
-        const amount = v.amountChanged ? `${d.amount >= 0 ? '+' : ''}${d.amount.toFixed(2)} €` : v.amtDisplay;
         const edited = v.isOverridden
             ? `<span class="ap-mrow-edited" title="${escapeHtml(this._phoneT('autopilot_reason_user_override', "Modifiée par l'utilisateur"))}">${this._phoneIcons.pencil}${escapeHtml(this._phoneT('autopilot_feed_edited_short', 'Modifiée'))}</span>`
             : '';
@@ -55,7 +53,7 @@ window.AutopilotView = Object.assign(window.AutopilotView || {}, {
                 <div class="ap-mrow-main">
                     <div class="ap-mrow-l1">
                         <span class="ap-mrow-label">${escapeHtml(d.label || this._phoneT('autopilot_feed_no_label', 'Sans libellé'))}</span>
-                        <span class="ap-mrow-amt privacy-blur" style="color: ${v.amtColor};">${amount}</span>
+                        ${this._ledgerAmount(d, v.amtColor, 'ap-mrow-amt')}
                     </div>
                     <div class="ap-mrow-l2">
                         <span class="ap-mrow-status ${statusClass}"><i aria-hidden="true"></i>${escapeHtml(status)}</span>
@@ -113,7 +111,7 @@ window.AutopilotView = Object.assign(window.AutopilotView || {}, {
                 : (tip && tip.length <= 32 ? tip : (text || tip));
             const icon = src.querySelector('svg');
             return { icon: icon ? icon.outerHTML : window.PhoneSheet.icons.restore, label,
-                     danger: src.classList.contains('btn-danger'), onClick: () => src.click() };
+                     danger: src.classList.contains('btn-danger') || src.classList.contains('is-danger'), onClick: () => src.click() };
         });
         window.PhoneSheet.open(headHtml, items, trigger, 'ap-psheet');
     },

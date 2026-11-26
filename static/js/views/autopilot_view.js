@@ -2165,49 +2165,15 @@ window.AutopilotView = {
 
         let html = '';
         for (const [batchId, items] of Object.entries(batches)) {
-            const first = items[0];
-            const batchDate = first.created_at ? new Date(first.created_at).toLocaleString() : '';
             const isAllUndone = items.every(x => x.is_undone);
             const isUnbatched = batchId === 'unbatched';
-            const batchTitle = isUnbatched 
-                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_title') : 'Actions individuelles (hors lot)')
-                : (window.i18n ? window.i18n.t('autopilot_feed_batch_id_title').replace('{batchId}', batchId) : `Identifiant du lot : ${batchId}`);
-            const batchLabel = isUnbatched
-                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_label') : 'Hors lot')
-                : (window.i18n ? window.i18n.t('autopilot_feed_batch_label') : 'Lot');
-            const batchShortDisplay = isUnbatched 
-                ? (window.i18n ? window.i18n.t('autopilot_feed_unbatched_short') : 'Hors lot')
-                : `#${batchId.substring(0, 8)}`;
-            const actionsCountLabel = window.i18n ? window.i18n.t('autopilot_feed_actions_count').replace('{count}', items.length) : `${items.length} action(s)`;
 
             html += `
                 <div class="ap-batch-card" id="apBatch_${escapeHtml(batchId)}" data-batch-id="${escapeHtml(batchId)}" style="opacity: ${isAllUndone ? '0.6' : '1'};">
-                    <div class="ap-batch-header" onclick="window.AutopilotView.toggleBatch(${window.jsArg(batchId)})">
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span class="ap-batch-chevron">▾</span>
-                            <span style="display: inline-flex; align-items: center; color: var(--accent);">${this._icons.package}</span>
-                            <span class="ap-batch-label-group" title="${escapeHtml(batchTitle)}">
-                                <span style="font-weight: 700; font-size: 12.5px;">${escapeHtml(batchLabel)}</span>
-                                ${!isUnbatched ? `<code class="ap-batch-code">${escapeHtml(batchShortDisplay)}</code>` : ''}
-                            </span>
-                            <span style="font-size: 12px; color: var(--text-muted);">${batchDate}</span>
-                            <span class="badge" style="font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.1); color: var(--accent);">${escapeHtml(actionsCountLabel)}</span>
-                        </div>
-                        <div onclick="event.stopPropagation()" style="display: flex; align-items: center; gap: 6px;">
-                            ${this._restorePointForBatch(batchId) ? `
-                                <button class="btn btn-secondary btn-sm" style="font-size: 12px; padding: 3px 8px;" data-point-id="${escapeHtml(this._restorePointForBatch(batchId).id)}" onclick="window.AutopilotView.openRestoreDialog(this.dataset.pointId)">
-                                    <span data-i18n="autopilot_restore_btn">${window.i18n ? window.i18n.t('autopilot_restore_btn') : 'Restaurer avant ce lot'}</span>
-                                </button>
-                            ` : ''}
-                            ${!isAllUndone && !isUnbatched ? `
-                                <button class="btn btn-danger btn-sm" style="font-size: 12px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;" data-batch-id="${escapeHtml(batchId)}" onclick="window.AutopilotView.onRollbackCycleClick(this)">
-                                    ${this._icons.undo} <span data-i18n="autopilot_feed_batch_rollback">${window.i18n ? window.i18n.t('autopilot_feed_batch_rollback') : 'Annuler le lot'}</span>
-                                </button>
-                            ` : (isAllUndone ? `<span style="font-size: 12px; color: #ef4444; font-style: italic;" data-i18n="autopilot_feed_batch_undone">${window.i18n ? window.i18n.t('autopilot_feed_batch_undone') : 'Lot annulé'}</span>` : '')}
-                        </div>
-                    </div>
+                    ${this._ledgerBatchHead(batchId, items, isAllUndone, isUnbatched)}
                     ${this._phoneBatchHead(batchId, items, isAllUndone, isUnbatched)}
-                    <div class="ap-batch-body" style="padding: 10px 16px;">
+                    <div class="ap-batch-body">
+                        ${this._ledgerColumnsHead()}
                         ${items.map(d => this._renderDecisionItem(d)).join('')}
                     </div>
                 </div>
@@ -2262,115 +2228,90 @@ window.AutopilotView = {
 
     _renderDecisionItem(d) {
         const score = d.confidence_score !== null ? Math.round(d.confidence_score) : null;
-        let scoreBadge = '';
-        if (score !== null) {
-            const color = score >= 90 ? '#10b981' : (score >= 80 ? 'var(--accent)' : '#f59e0b');
-            scoreBadge = `<span class="ap-decision-score-badge" style="background: ${color}22; color: ${color}; border: 1px solid ${color}44;">${score}%</span>`;
-        }
 
         let badgeClass = 'badge-blue';
         let typeLabel = window.i18n ? window.i18n.t('autopilot_action_committed') : 'Saisie directe';
         let tooltipText = '';
-        let icon = '✨';
 
         if (d.action === 'LINKED_MANUAL' || (d.details && d.details.manual_linked_forecast)) {
             badgeClass = 'badge-emerald';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done') || 'Vérifiée & liée') : 'Vérifiée & liée';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done_desc') || 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.') : 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.';
-            icon = '✓';
         } else if (d.action === 'AUTO_COMMIT_SUSPECTED_DUPLICATE_PENDING_REVIEW') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_suspected_dup_pending') || 'À vérifier (Doublon)') : 'À vérifier (Doublon)';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_suspected_dup_pending_desc') : 'En attente de vérification : une prévision de même montant a été détectée.';
-            icon = '⚡';
         } else if (d.action === 'AUTO_COMMIT_PENDING_REVIEW' || d.action === 'AUTO_COMMIT_COMING_PENDING_REVIEW') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_pending_review') || 'À vérifier') : 'À vérifier';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_pending_review_desc') : 'En attente de vérification dans la file de revue.';
-            icon = '⚡';
         } else if (d.decision_type === 'reconciliation' || d.decision_type === 'reconcile') {
             const isManuallyLinked = Boolean(d.details && (d.details.linked_to_forecast_id || d.details.decision_reason === 'linked_forecast'));
             if (isManuallyLinked) {
                 badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done') || 'Vérifiée & liée') : 'Vérifiée & liée';
                 tooltipText = window.i18n ? (window.i18n.t('autopilot_action_linked_forecast_done_desc') || 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.') : 'L\'opération a été vérifiée manuellement et liée à sa prévision budgétaire.';
-                icon = '✓';
             } else if (d.action === 'LINKED_COMING') {
                 badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? window.i18n.t('autopilot_action_linked_coming') : 'Opération à venir liée';
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_linked_coming_desc') : 'L\'opération prévisionnelle a été rattachée à l\'annonce bancaire à venir.';
-                icon = '⏳';
             } else if (d.action === 'LINKED_COMING_PENDING_REVIEW') {
                 badgeClass = 'badge-amber';
                 typeLabel = window.i18n ? (window.i18n.t('autopilot_action_pending_review') || 'À vérifier') : 'À vérifier';
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_pending_review_desc') : 'En attente de vérification dans la file de revue.';
-                icon = '⚡';
             } else if (d.action === 'AUTO_RECONCILED_DEVIANT') {
                 badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? window.i18n.t('autopilot_action_deviant_confirmed') : 'Rapprochement ajusté';
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_deviant_confirmed_desc') : 'Le débit bancaire effectif a été pointé et le montant ajusté.';
-                icon = '⚡';
             } else {
                 badgeClass = 'badge-emerald';
                 typeLabel = window.i18n ? window.i18n.t('autopilot_action_reconciled_confirmed') : 'Rapprochement confirmé';
                 tooltipText = window.i18n ? window.i18n.t('autopilot_action_reconciled_confirmed_desc') : 'Le débit bancaire effectif a été pointé et rapproché.';
-                icon = '⚡';
             }
         } else if (d.action === 'AUTO_SKIPPED_UNRECONCILED' || d.decision_type === 'recurrence_skip') {
             badgeClass = 'badge-slate';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_recurrence_skipped') || 'Échéance ignorée') : 'Échéance ignorée';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_recurrence_skipped_desc') || 'Échéance récurrente non prélevée après 30 jours : ignorée pour préserver l\'exactitude du solde.') : 'Échéance récurrente non prélevée après 30 jours : ignorée pour préserver l\'exactitude du solde.';
-            icon = '⊝';
         } else if (d.action === 'AUTO_CLOSED_SKIPPED' || d.decision_type === 'recurrence_close') {
             badgeClass = 'badge-slate';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed') || 'Abonnement clôturé') : 'Abonnement clôturé';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_recurrence_closed_desc') || 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.') : 'Modèle de récurrence clôturé automatiquement après 3 échéances consécutives non prélevées.';
-            icon = '🔒';
         } else if (d.decision_type === 'recurrence_promotion' && d.details && d.details.decision_reason === 'first_month_fixed') {
             badgeClass = 'badge-purple';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_first_month_recurrence') : 'Récurrence (1er mois)';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_first_month_recurrence_desc') : 'Charge fixe vue une fois : récurrence mensuelle créée tout de suite. Annulez-la si elle ne revient pas chaque mois.';
-            icon = '🔄';
         } else if (d.decision_type === 'recurrence' || d.decision_type === 'recurrence_promoted' || d.decision_type === 'recurrence_promotion') {
             badgeClass = 'badge-purple';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_promoted') : 'Récurrence détectée et promue automatiquement';
-            icon = '🔄';
         } else if (d.decision_type === 'recurrence_hike') {
             badgeClass = 'badge-purple';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse propagée';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_hike') : 'Hausse tarifaire propagée';
-            icon = '🔄';
         } else if (d.decision_type === 'budget_recurrence_sync') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_budget_synced') || 'Budget synchronisé') : 'Budget synchronisé';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_budget_synced_desc') || 'Enveloppe budgétaire automatiquement mise à jour suite à l\'ajustement ou la promotion d\'une récurrence.') : 'Enveloppe budgétaire automatiquement mise à jour suite à l\'ajustement ou la promotion d\'une récurrence.';
-            icon = '🎯';
         } else if (d.decision_type === 'budget_enrichment_suggestion') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_budget_enriched') || 'Catégorie rattachée') : 'Catégorie rattachée';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_budget_enriched_desc') || 'Nouvelle catégorie de dépense récurrente intégrée automatiquement à une enveloppe budgétaire existante.') : 'Nouvelle catégorie de dépense récurrente intégrée automatiquement à une enveloppe budgétaire existante.';
-            icon = '🎯';
         } else if (d.decision_type === 'budget' || d.decision_type === 'budget_adjustment' || d.decision_type === 'budget_suggestion') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_recalibrated') : 'Budget';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_recalibrated') : 'Budget recalibré automatiquement';
-            icon = '🎯';
         } else if (d.decision_type === 'budget_creation_suggestion') {
             badgeClass = 'badge-amber';
             typeLabel = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Budget suggéré';
             tooltipText = window.i18n ? window.i18n.t('autopilot_action_budget_created') : 'Création d\'enveloppe budgétaire suggérée';
-            icon = '🎯';
         } else if (d.decision_type === 'transfer_link') {
             badgeClass = 'badge-blue';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked') || 'Virement lié') : 'Virement lié';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_transfer_linked_desc') || 'Virement interne détecté et automatiquement rapproché entre vos comptes.') : 'Virement interne détecté et automatiquement rapproché entre vos comptes.';
-            icon = '🔄';
         } else if (d.action === 'AUTO_COMMIT_COMING') {
             badgeClass = 'badge-blue';
             typeLabel = window.i18n ? (window.i18n.t('autopilot_action_coming_detected') || 'Débit à venir') : 'Débit à venir';
             tooltipText = window.i18n ? (window.i18n.t('autopilot_action_coming_detected_desc') || 'Opération bancaire à venir annoncée par la banque.') : 'Opération bancaire à venir annoncée par la banque.';
-            icon = '⏳';
         }
 
         const isUndone = d.is_undone;
@@ -2473,38 +2414,19 @@ window.AutopilotView = {
         // Keep "old ➔ new" together when the meta line wraps
         if (isOverridden) reasonBadgeHtml = `<span class="ap-chain">${reasonBadgeHtml}</span>`;
 
-        return `
-            ${this._phoneDecisionRow(d, { typeLabel, badgeClass, score, amtDisplay, amtColor, isUndone, isOverridden, amountChanged: Boolean(isOverridden && uo.amount_changed) })}
-            <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}" data-decision-id="${d.id}">
-                <div class="ap-decision-header-mobile">
-                    <div class="ap-decision-badge-wrap">
-                        <div class="ov-ap-decision-badge ${badgeClass}" title="${escapeHtml(tooltipText)}">
-                            <span>${icon}</span> <span>${typeLabel}</span>
-                        </div>
-                        ${scoreBadge ? `<span class="ap-decision-score-mobile">${scoreBadge}</span>` : ''}
-                    </div>
-                    <div class="ap-decision-amount-mobile">
-                        <span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span>
-                    </div>
-                </div>
-
-                <div class="ap-decision-body">
-                    <div class="ap-decision-title">
-                        ${labelHtml}
-                        ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span class="ap-decision-raw-label">(${escapeHtml(d.raw_label)})</span>` : ''}
-                    </div>
-                    <div class="ap-decision-meta">
-                        ${categoryHtml}
-                        ${d.account_name ? `<span class="ap-decision-acc-badge" style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
-                        ${reasonBadgeHtml}
-                    </div>
-                </div>
-
-                <div class="ap-decision-footer">
-                    <div class="ap-decision-amount-desktop">
-                        <span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span>
-                        ${scoreBadge ? `<span class="ap-decision-score-desktop">${scoreBadge}</span>` : ''}
-                    </div>
+        // Contenu repris par la feuille du téléphone (titre, montant, méta) : caché dans la ligne
+        const srcHtml = `
+            <div class="ap-decision-amount-mobile"><span class="privacy-blur ap-decision-amount-val" style="color: ${amtColor};">${amtDisplay}</span></div>
+            <div class="ap-decision-title">
+                ${labelHtml}
+                ${d.raw_label && d.raw_label !== d.label && (!uo || d.raw_label !== uo.original_description) ? `<span class="ap-decision-raw-label">(${escapeHtml(d.raw_label)})</span>` : ''}
+            </div>
+            <div class="ap-decision-meta">
+                ${categoryHtml}
+                ${d.account_name ? `<span class="ap-decision-acc-badge" style="display: inline-flex; align-items: center; gap: 4px;">${this._icons.shield} ${escapeHtml(d.account_name)}</span>` : ''}
+                ${reasonBadgeHtml}
+            </div>`;
+        const actionsHtml = `
                     <div class="ap-decision-actions">
                         <button class="btn btn-secondary btn-sm ap-btn-inspect" onclick="window.AutopilotView.inspectDecisionEntity(${d.id})" title="${window.i18n.t('autopilot_inspect_item') || 'Localiser l\'élément concerné'}">
                             ${this._icons.search}
@@ -2551,10 +2473,11 @@ window.AutopilotView = {
                                 ` : ''}
                             </div>
                         `}
-                    </div>
-                </div>
-            </div>
-        `;
+                    </div>`;
+
+        const view = { typeLabel, tooltipText, badgeClass, score, amtDisplay, amtColor, isUndone, isOverridden,
+                       amountChanged: Boolean(isOverridden && uo.amount_changed), actionsHtml, srcHtml };
+        return this._phoneDecisionRow(d, view) + this._ledgerRow(d, view);
     },
 
     inspectDecisionEntity(decisionId) {

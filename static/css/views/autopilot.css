@@ -241,38 +241,11 @@
     opacity: 0.55;
 }
 
-.ap-decision-header-mobile {
-    display: flex;
-    align-items: center;
-    min-width: 175px;
-    max-width: 175px;
-    flex-shrink: 0;
-}
 
-.ap-decision-badge-wrap {
-    display: inline-flex;
-    align-items: center;
-}
 
-.ap-decision-badge-wrap .ov-ap-decision-badge {
-    font-size: 12px;
-    padding: 2.5px 8px;
-    border-radius: 6px;
-    white-space: nowrap;
-}
 
-.ap-decision-score-mobile {
-    display: none !important;
-}
 
-.ap-decision-amount-mobile {
-    display: none !important;
-}
 
-.ap-decision-body {
-    flex: 1;
-    min-width: 0;
-}
 
 .ap-decision-title {
     font-size: 13px;
@@ -302,21 +275,7 @@
     flex-wrap: wrap;
 }
 
-.ap-decision-footer {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-    flex-wrap: nowrap;
-}
 
-.ap-decision-amount-desktop {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-    white-space: nowrap;
-}
 
 .ap-decision-amount-val {
     font-size: 13.5px;
@@ -326,12 +285,6 @@
     display: inline-block;
 }
 
-.ap-decision-score-badge {
-    font-size: 12px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 6px;
-}
 
 .ap-decision-actions {
     display: flex;
@@ -531,11 +484,6 @@
     transform: rotate(-90deg);
 }
 
-.ap-batch-label-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
 
 .ap-batch-code {
     font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
@@ -3107,7 +3055,9 @@ body.theme-titanium-light .ap-threshold-apply-btn {
     /* ── Journal d'audit sur téléphone : un lot sur une ligne, une décision sur deux (autopilot_journal_phone.js).
        Les lignes du rendu PC restent dans le DOM, masquées : la feuille d'actions déclenche leurs boutons. ── */
     .ap-batch-card > .ap-batch-header,
-    .ap-batch-body > .ap-decision-row {
+    .ap-batch-body > .ap-decision-row,
+    .ap-batch-body > .apl-head,
+    .ap-batch-body > .apl-detail {
         display: none !important;
     }
     .ap-batch-card {
@@ -3408,89 +3358,383 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 
 /* Touch: the "Annuler le lot" button and the review-card actions get a 40px target */
 @media (pointer: coarse), (max-width: 768px) {
-    .ap-batch-header .btn,
-    .ap-batch-card .btn-danger[data-batch-id],
     .ap-review-card .btn {
         min-height: 40px;
     }
 }
 
-/* ── Journal d'audit (desktop) ──
-   Étroit : ligne 1 = type … montant & actions, ligne 2 = libellé + méta sur toute la largeur.
-   Large (>= 940px de liste) : 4 colonnes alignées d'une ligne à l'autre (type | libellé | montant | actions). */
-@media (min-width: 769px) {
-    .ap-batch-body {
-        container-type: inline-size;
-    }
-
-    .ap-decision-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-areas: "head foot" "body body";
-        align-items: center;
-        gap: 8px 20px;
-        padding: 12px 12px;
-    }
-
-    .ap-decision-header-mobile {
-        grid-area: head;
-        min-width: 0;
-        max-width: none;
-        width: 100%;
-    }
-
-    .ap-decision-body {
-        grid-area: body;
-    }
-
-    .ap-decision-footer {
-        grid-area: foot;
-        gap: 20px;
-    }
-
-    .ap-decision-badge-wrap .ov-ap-decision-badge {
-        padding: 4px 10px;
-    }
-
-    .ap-decision-meta {
-        gap: 6px 10px;
-        margin-top: 6px;
-        line-height: 1.5;
-    }
-
-    .ap-decision-meta > * {
-        flex-shrink: 0;
-    }
-
-    .ap-reason-badge {
-        padding: 2px 8px;
-    }
-
-    .ap-decision-amount-desktop {
-        min-width: 140px;
-        justify-content: flex-end;
-    }
-
-    .ap-decision-actions {
-        min-width: 170px;
-        justify-content: flex-end;
-    }
-
-    /* Long labels wrap (raw bank label on its own muted line) instead of being cut */
-    .ap-decision-title {
-        white-space: normal;
-        overflow: visible;
-        flex-wrap: wrap;
-        row-gap: 2px;
-    }
-
+/* ── Journal d'audit (ordinateur) : une décision = une ligne de grand livre (autopilot_journal_ledger.js) ──
+   Colonnes alignées d'une ligne à l'autre : statut | opération | catégorie | compte | score | montant | actions.
+   Liste étroite (< 1000 px) : le score passe à côté du statut, le compte devient une pastille devant le nom.
+   Un clic sur la ligne déplie le détail (.apl-detail). */
+.apl-head,
+.apl-detail,
+.ap-decision-src {
+    display: none;
 }
 
-@container (min-width: 940px) {
-    .ap-decision-row {
-        grid-template-columns: 195px minmax(0, 1fr) auto;
-        grid-template-areas: "head body foot";
-        column-gap: 20px;
+@media (min-width: 769px) {
+    .ap-batch-card {
+        container-type: inline-size;
+        border-radius: 12px;
+    }
+
+    .ap-batch-card .ap-batch-body {
+        padding: 0;
+    }
+
+    .ap-batch-header.apl-batch-head {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 0 8px 0 14px;
+    }
+
+    .apl-batch-head .ap-batch-chevron {
+        display: inline-flex;
+        margin: 0;
+    }
+
+    .apl-batch-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-main);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .apl-batch-count {
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    .apl-batch-head .apl-batch-code {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--text-muted);
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 12px;
+        font-weight: 400;
+    }
+
+    .apl-batch-spacer {
+        flex: 1;
+    }
+
+    .apl-batch-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .apl-tb {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--text-muted);
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .apl-tb:hover {
+        background: rgba(145, 158, 171, 0.12);
+        color: var(--text-main);
+    }
+
+    .apl-tb.is-danger {
+        color: var(--danger);
+    }
+
+    .apl-tb:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+    }
+
+    .apl-batch-undone {
+        font-size: 12px;
+        color: var(--danger);
+    }
+
+    .apl-head,
+    .ap-decision-row.apl-row,
+    .apl-detail:not([hidden]) {
+        display: grid;
+        grid-template-columns: 132px minmax(0, 1fr) 128px 112px 44px 104px 104px;
+        align-items: center;
+        column-gap: 12px;
+        padding: 0 8px 0 14px;
+    }
+
+    .apl-head {
+        height: 30px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .apl-head .apl-score,
+    .apl-head .apl-num {
+        text-align: right;
+    }
+
+    .ap-decision-row.apl-row {
+        min-height: 44px;
+        border: 0;
+        border-top: 1px solid var(--border-color);
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .apl-head + .ap-decision-row.apl-row {
+        border-top: 0;
+    }
+
+    .ap-decision-row.apl-row:hover,
+    .ap-decision-row.apl-row.is-open {
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+
+    .ap-decision-row.apl-row:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
+
+    /* Les thèmes Titanium imposent un espacement aux anciennes lignes de décision */
+    body.theme-titanium-dark .ap-decision-row.apl-row,
+    body.theme-titanium-light .ap-decision-row.apl-row {
+        padding: 0 8px 0 14px !important;
+        border-bottom: 0 !important;
+    }
+
+    body.theme-titanium-dark .ap-batch-header.apl-batch-head,
+    body.theme-titanium-light .ap-batch-header.apl-batch-head {
+        padding: 0 8px 0 14px !important;
+        font-size: 13px !important;
+    }
+
+    .apl-status {
+        min-width: 0;
+        font-size: 12.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apl-detail .apl-score-detail {
+        display: none;
+    }
+
+    .apl-name {
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .apl-name b {
+        flex: 0 1 auto;
+        min-width: 6em;
+        font-weight: 600;
+        color: var(--text-main);
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apl-name .apl-old {
+        flex: 0 3 auto;
+        min-width: 3em;
+        color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apl-arrow {
+        color: var(--text-muted);
+    }
+
+    .apl-accdot {
+        display: none;
+        flex: none;
+        align-self: center;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .apl-cat {
+        min-width: 0;
+    }
+
+    .apl-cat > span {
+        display: inline-block;
+        max-width: 100%;
+        padding: 1px 7px;
+        border-radius: 4px;
+        background: var(--bg-input);
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+
+    .apl-acc {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apl-acc i {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .apl-score {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .apl-amt {
+        text-align: right;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .apl-amt.is-struck {
+        color: var(--text-muted);
+        text-decoration: line-through;
+        font-weight: 400;
+    }
+
+    /* Actions toujours visibles, en icônes discrètes (le texte reste en infobulle) */
+    .apl-actions .ap-decision-actions,
+    .apl-actions .ap-decision-action-btns {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .apl-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+        min-height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--text-muted);
+        box-shadow: none;
+    }
+
+    .apl-actions .btn:hover {
+        background: rgba(145, 158, 171, 0.14);
+        color: var(--text-main);
+    }
+
+    .apl-actions .btn > span,
+    .apl-actions .ap-badge-undone {
+        display: none;
+    }
+
+    .apl-actions .btn svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    /* Détail déplié sous la ligne, aligné sur la colonne Opération */
+    .apl-detail:not([hidden]) {
+        padding-top: 2px;
+        padding-bottom: 10px;
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+        font-size: 12px;
+    }
+
+    .apl-detail dl {
+        grid-column: 2 / -1;
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: 4px 16px;
+        margin: 0;
+    }
+
+    .apl-detail dt {
+        color: var(--text-muted);
+    }
+
+    .apl-detail dd {
+        margin: 0;
+        color: var(--text-main);
+        overflow-wrap: anywhere;
+    }
+
+    .apl-detail dd s {
+        color: var(--text-muted);
+    }
+}
+
+@container (max-width: 999px) {
+    .apl-head,
+    .ap-decision-row.apl-row,
+    .apl-detail:not([hidden]) {
+        grid-template-columns: 132px minmax(0, 1fr) 112px 96px 104px;
+        column-gap: 10px;
+    }
+
+    .apl-head .apl-acc,
+    .apl-head .apl-score,
+    .apl-row .apl-acc,
+    .apl-row .apl-score {
+        display: none;
+    }
+
+    /* Le score passe dans le détail déplié, « Modifiée » se réduit à son icône (texte en infobulle) */
+    .apl-detail .apl-score-detail {
+        display: contents;
+    }
+
+    .apl-edited .apl-edited-text {
+        display: none;
+    }
+
+    .apl-accdot {
+        display: inline-block;
+    }
+
+    /* L'ancien nom barré passe dans le détail */
+    .apl-name .apl-old,
+    .apl-name .apl-arrow {
+        display: none;
     }
 }
 
@@ -3517,12 +3761,6 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 }
 
 @media (max-width: 480px) {
-    .ap-decision-badge-wrap {
-        max-width: 100%;
-        min-width: 0;
-    }
-
-    .ap-decision-badge-wrap .ov-ap-decision-badge,
     .ap-reason-badge {
         max-width: 100%;
         height: auto !important;
