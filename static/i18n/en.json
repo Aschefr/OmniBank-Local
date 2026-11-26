@@ -1288,6 +1288,8 @@
   "cat_conflict_confirm": "The category '{name}' already exists as a variable expense. Do you want to permanently move it to fixed expenses?",
   "cat_conflict_suffix_prompt": "The category '{name}' already exists under another transaction type.\n\nWould you like to create the category '{suggestedName}' instead?",
   "cat_conflict_title": "Category Conflict",
+  "cat_action_close": "Close the category",
+  "cat_action_reopen": "Reopen the category",
   "cat_custom_types": "Type Customization",
   "cat_delete": "Delete Category",
   "cat_direction_credit": "Inflow (Credit)",

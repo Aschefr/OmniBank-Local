@@ -746,6 +746,141 @@ body.theme-titanium-light .bank-connection-item > div > div:first-child {
     }
 }
 
+/* Catégories sur téléphone : une ligne par catégorie (nom, « Clôturée » si fermée, « ⋯ » qui ouvre la feuille
+   Modifier / Clôturer ou Rouvrir / Supprimer) ; la création passe avant les listes, la personnalisation des types en bas */
+.cat-more,
+.cat-closed-phone {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .cat-page {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .cat-page .categories-add-card { order: 1; }
+    .cat-page #categoriesContainer { order: 2; margin-bottom: 20px; gap: 16px !important; }
+    .cat-page .categories-type-card { order: 3; }
+
+    /* Nouvelle catégorie : nom sur toute la largeur, puis type et Ajouter côte à côte */
+    .cat-page .categories-add-form {
+        display: grid !important;
+        grid-template-columns: 1fr auto;
+        gap: 8px !important;
+    }
+
+    .cat-page .categories-add-form #cat_name {
+        grid-column: 1 / -1;
+        min-width: 0 !important;
+    }
+
+    .cat-page .categories-add-form > .btn {
+        height: 40px !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        align-self: center;
+    }
+
+    .category-group-card {
+        padding: 0 !important;
+        overflow: hidden !important;
+        border-radius: 12px !important;
+    }
+
+    .category-group-card h4 {
+        margin: 0 !important;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .cat-table thead {
+        display: none;
+    }
+
+    .cat-table,
+    .cat-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .cat-table tr.cat-row {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        padding-left: 12px;
+        border-top: 1px solid var(--border-color);
+        cursor: pointer;
+    }
+
+    .cat-table tr.cat-row:first-child {
+        border-top: 0;
+    }
+
+    .cat-table tr.cat-row:active {
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+
+    .cat-table tr.cat-row > td {
+        display: block;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    /* Statut : seul « Clôturée » compte, affiché après le nom */
+    .cat-table tr.cat-row > td:nth-child(2) {
+        display: none;
+    }
+
+    .cat-table tr.cat-row > td.cat-c-name {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .cat-table tr.cat-row > td.cat-c-name strong {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cat-closed-phone {
+        display: inline;
+        flex-shrink: 0;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .cat-table .cat-action-btn {
+        display: none !important;
+    }
+
+    .cat-more {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+
+    .cat-more:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
+}
+
 /* ══ Configuration page: cards, tabs, groups, danger zone ══ */
 .config-card {
     margin-bottom: 20px;

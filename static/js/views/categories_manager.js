@@ -33,6 +33,7 @@ window.CategoriesView = {
                 </div>
             </div>
             
+            <div class="cat-page">
             <div class="categories-type-card" style="margin-bottom: 20px; background: var(--bg-surface); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h3 style="margin: 0;" data-i18n="cat_custom_types">${window.i18n.t('cat_custom_types')}</h3>
@@ -56,6 +57,7 @@ window.CategoriesView = {
 
             <div id="categoriesContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start;">
                 <!-- Rendered dynamically -->
+            </div>
             </div>
 
             <!-- Edit Modal -->
@@ -201,13 +203,14 @@ window.CategoriesView = {
                         : `<span class="cat-status-badge is-active">${window.i18n.t('badge_active') || 'Active'}</span>`;
                     
                     html += `
-                    <tr style="${rowStyle}">
-                        <td style="padding-left: 10px;"><strong>${window.escapeHtml(cat.name)}</strong></td>
+                    <tr class="cat-row ${isClosed ? 'is-closed' : ''}" style="${rowStyle}" onclick="window.CategoriesView.openPhoneSheet(${cat.id}, this.querySelector('.cat-more'))">
+                        <td class="cat-c-name" style="padding-left: 10px;"><strong>${window.escapeHtml(cat.name)}</strong>${isClosed ? `<span class="cat-closed-phone">${window.escapeHtml(window.i18n.t('badge_closed_cat') || 'Closed')}</span>` : ''}</td>
                         <td>${statusBadge}</td>
-                        <td style="text-align: right; white-space: nowrap; overflow: visible;">
+                        <td class="cat-c-actions" style="text-align: right; white-space: nowrap; overflow: visible;" onclick="event.stopPropagation()">
                             <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.openEdit(${cat.id})" title="${window.i18n.t('tooltip_edit') || 'Edit'}">✏️</button>
-                            <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('tooltip_reopen') || 'Reopen') : (window.i18n.t('tooltip_close') || 'Close')}">${isClosed ? '🔓' : '🔒'}</button>
+                            <button class="btn btn-secondary cat-action-btn" onclick="window.CategoriesView.toggleClose(${cat.id})" title="${isClosed ? (window.i18n.t('cat_action_reopen') || 'Reopen the category') : (window.i18n.t('cat_action_close') || 'Close the category')}">${isClosed ? '🔓' : '🔒'}</button>
                             <button class="btn btn-danger cat-action-btn" onclick="window.CategoriesView.openDelete(${cat.id})" title="${window.i18n.t('tooltip_delete') || 'Delete'}">✕</button>
+                            <button type="button" class="cat-more" aria-label="${window.escapeHtml(window.i18n.t('acc_more_actions') || "Plus d'actions")}" aria-haspopup="menu" onclick="window.CategoriesView.openPhoneSheet(${cat.id}, this)">${window.PhoneSheet.icons.dots}</button>
                         </td>
                     </tr>
                     `;
@@ -223,6 +226,28 @@ window.CategoriesView = {
         
         container.innerHTML = html;
         window.i18n.translateDOM(container);
+    },
+
+    // Téléphone : « ⋯ » (ou un appui sur la ligne) ouvre la feuille Modifier / Fermer ou Rouvrir / Supprimer
+    openPhoneSheet(id, trigger) {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        const cat = this.categories.find(c => c.id === id);
+        if (!cat) return;
+        const t = (k, d) => window.i18n.t(k) || d;
+        const icon = (d) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+        const head = `
+            <div class="plist-sheet-title">${window.escapeHtml(cat.name)}</div>
+            <div class="plist-sheet-sub">${window.escapeHtml(window.app.getTypeLabel(cat.type))}${cat.is_closed ? ` · ${window.escapeHtml(t('badge_closed_cat', 'Closed'))}` : ''}</div>`;
+        window.PhoneSheet.open(head, [
+            { icon: icon('<path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>'),
+              label: t('tooltip_edit', 'Edit'), onClick: () => this.openEdit(cat.id) },
+            { icon: cat.is_closed
+                ? icon('<rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path>')
+                : icon('<rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path>'),
+              label: cat.is_closed ? t('cat_action_reopen', 'Reopen the category') : t('cat_action_close', 'Close the category'), onClick: () => this.toggleClose(cat.id) },
+            { icon: icon('<path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path>'),
+              label: t('tooltip_delete', 'Delete'), danger: true, onClick: () => this.openDelete(cat.id) },
+        ], trigger);
     },
 
     async saveTypeLabels() {

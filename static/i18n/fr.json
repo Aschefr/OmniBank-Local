@@ -1288,6 +1288,8 @@
   "cat_conflict_confirm": "La catégorie '{name}' existe déjà en tant que dépense variable. Voulez-vous la déplacer définitivement vers les charges fixes ?",
   "cat_conflict_suffix_prompt": "La catégorie '{name}' existe déjà sous un autre type de transaction.\n\nSouhaitez-vous créer la catégorie '{suggestedName}' à la place ?",
   "cat_conflict_title": "Conflit de catégorie",
+  "cat_action_close": "Clôturer la catégorie",
+  "cat_action_reopen": "Rouvrir la catégorie",
   "cat_custom_types": "Personnalisation des Types",
   "cat_delete": "Supprimer la Catégorie",
   "cat_direction_credit": "Entrée (Crédit)",
