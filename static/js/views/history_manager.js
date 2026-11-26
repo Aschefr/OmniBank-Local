@@ -45,6 +45,7 @@ window.HistoryView = {
                     </tbody>
                 </table>
             </div>
+            <div id="historyPhoneList" class="plist"></div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                 <button id="btnPrevHistory" class="btn btn-secondary" onclick="window.HistoryView.prevPage()" style="padding: 6px 12px; font-size: 12px;">← Précédent</button>
@@ -89,6 +90,8 @@ window.HistoryView = {
                     <td colspan="6" style="padding: 30px; text-align: center; color: var(--text-muted);" data-i18n="history_no_actions">Aucune action enregistrée.</td>
                 </tr>
             `;
+            const emptyPhone = document.getElementById('historyPhoneList');
+            if (emptyPhone) emptyPhone.innerHTML = `<div class="plist-empty">${window.escapeHtml(window.i18n.t('history_no_actions') || 'Aucune action enregistrée.')}</div>`;
             if (pageLabel) pageLabel.textContent = `Page ${Math.floor(this.offset / this.limit) + 1}`;
             if (btnPrev) btnPrev.disabled = this.offset === 0;
             if (btnNext) btnNext.disabled = true;
@@ -111,9 +114,11 @@ window.HistoryView = {
             "recurrence_template": "history_entity_recurrence_template",
             "org_user": "history_entity_org_user",
             "paycheck_override": "history_entity_paycheck_override",
-            "bank_label_mapping": "history_entity_bank_label_mapping"
+            "bank_label_mapping": "history_entity_bank_label_mapping",
+            "autopilot_decision": "history_entity_autopilot_decision"
         };
 
+        const phoneRows = [];
         tbody.innerHTML = this.actions.map(act => {
             const actConf = actionTypes[act.action_type] || { text: act.action_type, color: "var(--text-main)", bg: "var(--border-color)" };
             const entityI18n = entityTypes[act.entity_type] || act.entity_type;
@@ -122,6 +127,8 @@ window.HistoryView = {
 
             // Details formulation
             let detail = "";
+            let phoneLabel = "";
+            let phoneAmount = "";
             try {
                 const prev = act.previous_state ? JSON.parse(act.previous_state) : null;
                 const next = act.new_state ? JSON.parse(act.new_state) : null;
@@ -132,31 +139,52 @@ window.HistoryView = {
                     const amount = state.amount !== undefined && state.amount !== null ? state.amount : state.monthly_amount;
                     const amtStr = amount !== undefined && amount !== null ? ` (${parseFloat(amount).toFixed(2).replace('.', ',')} €)` : "";
 
+                    phoneAmount = amtStr ? amtStr.slice(2, -1) : "";
                     if (act.entity_type === 'transaction') {
                         detail = `${name || 'Sans description'}${amtStr}`;
+                        phoneLabel = name || 'Sans description';
                     } else if (act.entity_type === 'paycheck_override') {
                         const period = state.override_paycheck_period || "";
                         const valStr = amount !== undefined && amount !== null ? `${parseFloat(amount).toFixed(2).replace('.', ',')} €` : "";
                         detail = `${valStr}${period ? ` (${period})` : ""}`;
+                        phoneLabel = period || entityText;
+                        phoneAmount = valStr;
                     } else if (act.entity_type === 'budget_allocation') {
                         detail = `${state.note || 'Allocation'}${amtStr}`;
+                        phoneLabel = state.note || 'Allocation';
                     } else if (act.entity_type === 'recurrence_template') {
                         detail = `${name || 'Modèle'}${amtStr}`;
+                        phoneLabel = name || 'Modèle';
                     } else if (act.entity_type === 'budget') {
                         detail = `${name || 'Sans nom'}${amtStr}`;
+                        phoneLabel = name || 'Sans nom';
+                    } else if (act.entity_type === 'autopilot_decision') {
+                        // Décision annulée ou corrigée : nommée par l'opération de la banque qu'elle concernait
+                        let snap = {};
+                        try { snap = state.raw_snapshot ? JSON.parse(state.raw_snapshot) : {}; } catch (e) { snap = {}; }
+                        const bankTx = snap.bank_tx || {};
+                        detail = bankTx.description || snap.forecast_description || snap.description || `ID: ${act.entity_id}`;
+                        phoneLabel = detail;
+                        phoneAmount = "";
                     } else if (act.entity_type === 'bank_label_mapping') {
                         const raw = state.raw_pattern || '';
                         const clean = state.clean_description || raw;
                         const cat = state.is_multi_category ? 'Multi' : (state.category || 'Sans cat');
                         const mode = state.is_manual ? 'Manuelle' : 'Auto';
                         detail = `${raw} → ${clean} (${cat}, ${mode})`;
+                        phoneLabel = detail;
+                        phoneAmount = "";
                     } else {
                         detail = `${name || 'ID: ' + act.entity_id}${amtStr}`;
+                        phoneLabel = name || 'ID: ' + act.entity_id;
                     }
                 }
             } catch (err) {
                 detail = `ID: ${act.entity_id}`;
+                phoneLabel = detail;
+                phoneAmount = "";
             }
+            phoneRows.push(this._phoneRow(act, { label: phoneLabel || entityText, amount: phoneAmount, actionText, entityText }));
 
             const formattedDate = act.timestamp ? new Date(act.timestamp).toLocaleString() : "";
             
@@ -194,9 +222,90 @@ window.HistoryView = {
             `;
         }).join('');
 
+        const phoneList = document.getElementById('historyPhoneList');
+        if (phoneList) phoneList.innerHTML = this._phoneListHtml(phoneRows);
+
         if (pageLabel) pageLabel.textContent = `Page ${Math.floor(this.offset / this.limit) + 1}`;
         if (btnPrev) btnPrev.disabled = this.offset === 0;
         if (btnNext) btnNext.disabled = !this.hasMore;
+    },
+
+    // ── Téléphone : une action sur deux lignes (élément et montant, puis action, type, heure et auteur),
+    //    regroupées par jour ; Détails et Annuler passent dans la feuille ouverte par « ⋯ ». ──
+    _phoneRow(act, v) {
+        const tone = act.is_undone ? 'is-muted' : ({ CREATE: 'is-success', UPDATE: 'is-warning', DELETE: 'is-danger' }[act.action_type] || 'is-muted');
+        const status = act.is_undone ? (window.i18n.t('history_undone') || 'Annulée') : v.actionText;
+        const date = act.timestamp ? new Date(act.timestamp) : null;
+        const lang = window.i18n ? window.i18n.currentLang : undefined;
+        const time = date ? date.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }) : '';
+        const user = this.formatUserName(act.user_name);
+        const more = window.i18n.t('acc_more_actions') || "Plus d'actions";
+        const html = `
+            <div class="plist-row ${act.is_undone ? 'is-undone' : ''}" onclick="window.HistoryView.openPhoneSheet(${act.id}, this.querySelector('.plist-more'))">
+                <div class="plist-main">
+                    <div class="plist-l1">
+                        <span class="plist-label">${window.escapeHtml(v.label)}</span>
+                        ${v.amount ? `<span class="plist-amt privacy-blur">${window.escapeHtml(v.amount)}</span>` : ''}
+                    </div>
+                    <div class="plist-l2">
+                        <span class="plist-status ${tone}"><i aria-hidden="true"></i>${window.escapeHtml(status)}</span>
+                        <span>${window.escapeHtml(v.entityText)}</span>
+                        <span class="plist-time">${window.escapeHtml(time)}</span>
+                        ${user && user !== '-' ? `<span class="plist-user">${window.escapeHtml(user)}</span>` : ''}
+                    </div>
+                </div>
+                <button type="button" class="plist-more" aria-label="${window.escapeHtml(more)}" aria-haspopup="menu" onclick="event.stopPropagation(); window.HistoryView.openPhoneSheet(${act.id}, this)">${window.PhoneSheet.icons.dots}</button>
+            </div>`;
+        return { day: date ? date.toDateString() : '', date, html };
+    },
+
+    _phoneListHtml(rows) {
+        const lang = window.i18n ? window.i18n.currentLang : undefined;
+        let out = '';
+        let day = null;
+        for (const r of rows) {
+            if (r.day !== day) {
+                if (day !== null) out += '</div>';
+                day = r.day;
+                let title = r.date ? r.date.toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+                title = title.charAt(0).toUpperCase() + title.slice(1);
+                out += `<div class="plist-day">${window.escapeHtml(title)}</div><div class="plist-group">`;
+            }
+            out += r.html;
+        }
+        return out + (day !== null ? '</div>' : '');
+    },
+
+    openPhoneSheet(actionId, trigger) {
+        const act = this.actions.find(a => a.id === actionId);
+        const row = trigger && trigger.closest('.plist-row');
+        if (!act || !row) return;
+        const label = row.querySelector('.plist-label');
+        const amount = row.querySelector('.plist-amt');
+        const status = row.querySelector('.plist-status');
+        const entity = row.querySelector('.plist-l2 > span:nth-child(2)');
+        const when = act.timestamp ? new Date(act.timestamp).toLocaleString() : '';
+        const user = this.formatUserName(act.user_name);
+        const head = `
+            <div class="plist-sheet-top">
+                <div class="plist-sheet-title">${label ? label.innerHTML : ''}</div>
+                ${amount ? `<div class="plist-sheet-amt privacy-blur">${amount.innerHTML}</div>` : ''}
+            </div>
+            <div class="plist-sheet-line">${status ? status.outerHTML : ''} <span>· ${entity ? entity.innerHTML : ''}</span></div>
+            <div class="plist-sheet-sub">${window.escapeHtml(when)}${user && user !== '-' ? ` · ${window.escapeHtml(user)}` : ''}</div>`;
+        const items = [{
+            icon: window.PhoneSheet.icons.search,
+            label: window.i18n.t('history_sheet_details') || 'Voir le détail',
+            onClick: () => this.showDetails(act.id),
+        }];
+        if (!act.is_undone) {
+            items.push({
+                icon: window.PhoneSheet.icons.undo,
+                label: window.i18n.t('history_sheet_undo') || 'Annuler cette action',
+                onClick: () => this.triggerUndo(act.id),
+            });
+        }
+        window.PhoneSheet.open(head, items, trigger);
     },
 
     async prevPage() {

@@ -1,0 +1,220 @@
+/* ═══════════════════════════════════════════════════════
+   Liste du téléphone : un élément sur deux lignes (nom et montant, puis statut et méta), un bouton « ⋯ » qui ouvre
+   la feuille d'actions (static/js/components/phone_sheet.js). Même grammaire que les lignes du Journal.
+   Utilisée par : Historique de l'activité (#historyPhoneList).
+   ═══════════════════════════════════════════════════════ */
+.plist {
+    display: none;
+}
+
+.plist-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.plist-status i {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.plist-status.is-success { color: var(--success); }
+.plist-status.is-warning { color: var(--warning); }
+.plist-status.is-danger { color: var(--danger); }
+.plist-status.is-muted { color: var(--text-muted); }
+
+/* Thèmes clairs : teintes foncées pour rester lisibles sur fond clair */
+body.theme-classic-light .plist-status.is-success,
+body.theme-titanium-light .plist-status.is-success { color: #047857; }
+body.theme-classic-light .plist-status.is-warning,
+body.theme-titanium-light .plist-status.is-warning { color: #b45309; }
+body.theme-classic-light .plist-status.is-danger,
+body.theme-titanium-light .plist-status.is-danger { color: #c2410c; }
+
+/* En-tête de la feuille d'actions */
+.plist-sheet-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.plist-sheet-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.plist-sheet-amt {
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.plist-sheet-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.plist-sheet-sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.phone-sheet .acc-menu-item svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+}
+
+body.privacy-mode .plist .privacy-blur,
+body.privacy-mode .phone-sheet .privacy-blur {
+    filter: blur(5px);
+    opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+    /* Historique de l'activité : la liste remplace le tableau en cartes */
+    .history-table-card {
+        display: none !important;
+    }
+
+    .plist {
+        display: block;
+        margin-bottom: 16px;
+    }
+
+    .plist-day {
+        padding: 14px 4px 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .plist-day:first-child {
+        padding-top: 0;
+    }
+
+    .plist-group {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .plist-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 0 8px 12px;
+        border-top: 1px solid var(--border-color);
+        cursor: pointer;
+    }
+
+    .plist-row:first-child {
+        border-top: 0;
+    }
+
+    .plist-row:active {
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+
+    .plist-row.is-undone {
+        opacity: 0.55;
+    }
+
+    .plist-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .plist-l1,
+    .plist-l2 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .plist-l2 {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    .plist-label {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .plist-amt {
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-main);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .plist-time {
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .plist-user {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .plist-more {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+
+    .plist-more:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
+    }
+
+    .plist-empty {
+        padding: 30px 16px;
+        text-align: center;
+        color: var(--text-muted);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+}

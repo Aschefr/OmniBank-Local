@@ -1540,7 +1540,9 @@ def get_autopilot_decisions_feed(
     else:
         decisions = query.order_by(AutopilotDecisionLog.created_at.desc()).offset(offset).limit(limit).all()
 
-    acc_map = {acc.id: acc.name for acc in db.query(Account).all()}
+    accounts = db.query(Account).all()
+    acc_map = {acc.id: acc.name for acc in accounts}
+    acc_colors = {acc.id: acc.color for acc in accounts}
 
     tx_ids = [d.entity_id for d in decisions if d.entity_type == "transaction" and d.entity_id]
     tx_map = {}
@@ -1746,6 +1748,7 @@ def get_autopilot_decisions_feed(
             "conn_id": d.conn_id,
             "account_id": d.account_id,
             "account_name": acc_map.get(d.account_id),
+            "account_color": acc_colors.get(d.account_id),
             "label": lbl,
             "raw_label": raw_lbl,
             "amount": float(raw_amt),

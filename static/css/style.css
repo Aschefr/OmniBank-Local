@@ -15,6 +15,7 @@
 @import url('./components/tables.css?v=84');
 @import url('./components/badges.css?v=82');
 @import url('./components/category_picker.css?v=82');
+@import url('./components/phone_list.css?v=1');
 @import url('./components/notifications.css?v=95');
 
 /* 3. View-Specific Layouts */
@@ -26,7 +27,7 @@
 @import url('./views/chat.css?v=83');
 @import url('./views/settings.css?v=96');
 @import url('./views/accounts.css?v=2');
-@import url('./views/autopilot.css?v=90');
+@import url('./views/autopilot.css?v=93');
 @import url('./views/cockpit.css?v=88');
 
 /* 4. Themes & Overrides */

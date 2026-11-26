@@ -471,6 +471,7 @@ class AutopilotDecisionItem(BaseModel):
     conn_id: Optional[int] = None
     account_id: Optional[int] = None
     account_name: Optional[str] = None
+    account_color: Optional[str] = None
     label: str
     raw_label: Optional[str] = None
     amount: float

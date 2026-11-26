@@ -2369,12 +2369,155 @@ body.theme-titanium-light .ap-override-rule-card {
     }
 }
 
+/* ── Journal d'audit sur téléphone (lignes compactes et feuille d'actions, voir le bloc max-width: 768px) ── */
+.ap-mbatch-head,
+.ap-mrow {
+    display: none;
+}
+
+.ap-mrow-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ap-mrow-status i {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.ap-mrow-score {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ap-mrow-status.badge-emerald { color: var(--success); }
+.ap-mrow-status.badge-amber { color: var(--warning); }
+.ap-mrow-status.badge-blue { color: #60a5fa; }
+.ap-mrow-status.badge-purple { color: #c084fc; }
+.ap-mrow-status.badge-slate { color: var(--text-muted); }
+
+/* Thèmes clairs : teintes foncées pour rester lisibles sur fond clair */
+body.theme-classic-light .ap-mrow-status.badge-emerald,
+body.theme-titanium-light .ap-mrow-status.badge-emerald { color: #047857; }
+body.theme-classic-light .ap-mrow-status.badge-amber,
+body.theme-titanium-light .ap-mrow-status.badge-amber { color: #b45309; }
+body.theme-classic-light .ap-mrow-status.badge-blue,
+body.theme-titanium-light .ap-mrow-status.badge-blue { color: #1d4ed8; }
+body.theme-classic-light .ap-mrow-status.badge-purple,
+body.theme-titanium-light .ap-mrow-status.badge-purple { color: #7e22ce; }
+
+.ap-mrow-edited {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    color: var(--accent);
+    /* Couleur du profil éclaircie (sombre) ou foncée (clair) : 12 px restent lisibles quelle que soit la teinte */
+    color: color-mix(in srgb, var(--accent) 60%, #fff);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+body.theme-classic-light .ap-mrow-edited,
+body.theme-titanium-light .ap-mrow-edited {
+    color: color-mix(in srgb, var(--accent) 75%, #000);
+}
+
+.ap-psheet-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+/* Décision corrigée : chaînes « ancien → nouveau » sur toute la largeur, qui passent à la ligne au besoin */
+.ap-psheet-top.is-corrected {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.ap-psheet .ap-chain {
+    flex-wrap: wrap;
+    white-space: normal;
+    row-gap: 2px;
+}
+
+.ap-psheet .ap-chain > :first-child {
+    min-width: 0;
+    overflow: visible;
+}
+
+.ap-psheet-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    overflow-wrap: anywhere;
+}
+
+.ap-psheet-title .ap-decision-raw-label {
+    display: block;
+    margin-top: 3px;
+    font-size: 13px;
+}
+
+.ap-psheet-amt,
+.ap-psheet-amt .ap-decision-amount-val {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ap-psheet-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.ap-psheet-meta {
+    margin-top: 6px;
+    font-size: 13px;
+}
+
+.ap-psheet-sub {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.ap-psheet-code {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 12px;
+}
+
+.ap-psheet .acc-menu-item svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+}
+
 /* ═══════════════════════════════════════════════════════
    Privacy Mode Support for Autopilot Control Center
    ═══════════════════════════════════════════════════════ */
 body.privacy-mode .ap-review-card .privacy-blur,
 body.privacy-mode .ap-review-desktop-table .privacy-blur,
 body.privacy-mode .ap-decision-row .privacy-blur,
+body.privacy-mode .ap-mrow .privacy-blur,
+body.privacy-mode .ap-psheet .privacy-blur,
 body.privacy-mode .candidate-forecast-card .privacy-blur,
 body.privacy-mode input.privacy-blur {
     filter: blur(5px);
@@ -2385,6 +2528,8 @@ body.privacy-mode input.privacy-blur {
 body.privacy-mode .ap-review-card .privacy-blur:hover,
 body.privacy-mode .ap-review-desktop-table .privacy-blur:hover,
 body.privacy-mode .ap-decision-row .privacy-blur:hover,
+body.privacy-mode .ap-mrow .privacy-blur:hover,
+body.privacy-mode .ap-psheet .privacy-blur:hover,
 body.privacy-mode .candidate-forecast-card .privacy-blur:hover,
 body.privacy-mode input.privacy-blur:hover,
 body.privacy-mode input.privacy-blur:focus {
@@ -2959,162 +3104,142 @@ body.theme-titanium-light .ap-threshold-apply-btn {
 }
 
 @media (max-width: 768px) {
-    /* ── Journal d'audit : Structure Carte Responsive Mobile ── */
-    .ap-decision-row,
-    body.theme-titanium-dark .ap-decision-row,
-    body.theme-titanium-light .ap-decision-row {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        padding: 12px 10px !important;
-        margin-bottom: 10px !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 10px !important;
-        background: var(--bg-card, var(--bg-surface)) !important;
-        gap: 9px !important;
-        box-sizing: border-box !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-    }
-    .ap-decision-row:last-child {
-        margin-bottom: 0 !important;
-    }
-
-    /* Ligne 1 Mobile : Badge type à gauche, Montant à droite */
-    .ap-decision-header-mobile {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-        gap: 8px !important;
-    }
-    .ap-decision-badge-wrap {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        min-width: 0 !important;
-        flex-wrap: wrap !important;
-        max-width: 65% !important;
-    }
-    .ap-decision-badge-wrap .ov-ap-decision-badge {
-        font-size: 12px !important;
-        padding: 2.5px 7px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-    }
-    .ap-decision-score-mobile {
-        display: inline-flex !important;
-    }
-    .ap-decision-score-badge {
-        font-size: 12px !important;
-        padding: 1.5px 5px !important;
-    }
-    .ap-decision-amount-mobile {
-        display: block !important;
-        text-align: right !important;
-        flex-shrink: 0 !important;
-    }
-    .ap-decision-amount-mobile .ap-decision-amount-val {
-        font-size: 14px !important;
-        font-weight: 800 !important;
-        text-align: right !important;
-        min-width: 0 !important;
-    }
-
-    /* Ligne 2 Mobile : Libellé principal et Métadonnées */
-    .ap-decision-body {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        width: 100% !important;
-        min-width: 0 !important;
-    }
-    .ap-decision-title {
-        font-size: 13.5px !important;
-        font-weight: 700 !important;
-        color: var(--text-main) !important;
-        white-space: normal !important;
-        word-break: break-word !important;
-        line-height: 1.35 !important;
-        display: flex !important;
-        align-items: center !important;
-        flex-wrap: wrap !important;
-        gap: 4px 6px !important;
-    }
-    .ap-decision-raw-label {
-        font-size: 12px !important;
-        color: var(--text-muted) !important;
-        word-break: break-all !important;
-    }
-    .ap-decision-meta {
-        font-size: 12px !important;
-        color: var(--text-muted) !important;
-        display: flex !important;
-        align-items: center !important;
-        flex-wrap: wrap !important;
-        gap: 6px !important;
-        margin-top: 2px !important;
-        line-height: 1.3 !important;
-    }
-    .ap-decision-meta .ap-reason-badge {
-        font-size: 12px !important;
-        padding: 1px 6px !important;
-    }
-
-    /* Ligne 3 Mobile : Barre d'actions alignée proprement en bas */
-    .ap-decision-footer {
-        display: flex !important;
-        justify-content: flex-end !important;
-        align-items: center !important;
-        width: 100% !important;
-        padding-top: 8px !important;
-        border-top: 1px dashed var(--border-color) !important;
-        gap: 8px !important;
-    }
-    .ap-decision-amount-desktop {
+    /* ── Journal d'audit sur téléphone : un lot sur une ligne, une décision sur deux (autopilot_journal_phone.js).
+       Les lignes du rendu PC restent dans le DOM, masquées : la feuille d'actions déclenche leurs boutons. ── */
+    .ap-batch-card > .ap-batch-header,
+    .ap-batch-body > .ap-decision-row {
         display: none !important;
     }
-    .ap-decision-actions {
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        width: 100% !important;
-        justify-content: flex-end !important;
-    }
-    .ap-decision-action-btns {
-        display: flex !important;
-        gap: 6px !important;
-        align-items: center !important;
-    }
-    .ap-decision-actions .btn {
-        font-size: 12px !important;
-        padding: 5px 12px !important;
-        height: 40px !important;
-        min-height: 40px !important;
-        min-width: 40px !important;
-        max-height: 40px !important;
-        line-height: 1 !important;
-        border-radius: 6px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 4px !important;
-    }
-
-    /* Lot Cards Mobile */
     .ap-batch-card {
         margin-bottom: 12px !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
     }
-    .ap-batch-header {
-        padding: 9px 12px !important;
-        gap: 8px !important;
+    .ap-batch-card .ap-batch-body {
+        padding: 0 !important;
     }
-    .ap-batch-body {
-        padding: 10px !important;
+    .ap-mbatch-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding-left: 12px;
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.035));
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+        user-select: none;
+    }
+    .ap-batch-card.collapsed .ap-mbatch-head {
+        border-bottom: 0;
+    }
+    .ap-mbatch-head .ap-batch-chevron {
+        display: inline-flex;
+        margin: 0;
+    }
+    .ap-mbatch-title {
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-main);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ap-mbatch-count,
+    .ap-mbatch-undone {
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+    .ap-mbatch-undone {
+        color: var(--danger);
+    }
+    .ap-mbatch-head .ap-mbtn-more {
+        margin-left: auto;
+    }
+    .ap-mrow {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 0 8px 12px;
+        border-top: 1px solid var(--border-color);
+        cursor: pointer;
+    }
+    .ap-mrow:first-child {
+        border-top: 0;
+    }
+    .ap-mrow:active {
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+    .ap-mrow.is-undone {
+        opacity: 0.55;
+    }
+    .ap-mrow-main {
+        flex: 1;
+        min-width: 0;
+    }
+    .ap-mrow-l1,
+    .ap-mrow-l2 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+    .ap-mrow-l2 {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    .ap-mrow-label {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ap-mrow-amt {
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    .ap-mrow-cat {
+        min-width: 0;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: var(--bg-input);
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ap-mrow-acc {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .ap-mbtn-more {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+    }
+    .ap-mbtn-more:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -2px;
     }
     .ap-feed-body-container {
         padding: 12px 10px !important;

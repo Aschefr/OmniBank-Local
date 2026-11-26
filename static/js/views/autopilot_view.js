@@ -2206,6 +2206,7 @@ window.AutopilotView = {
                             ` : (isAllUndone ? `<span style="font-size: 12px; color: #ef4444; font-style: italic;" data-i18n="autopilot_feed_batch_undone">${window.i18n ? window.i18n.t('autopilot_feed_batch_undone') : 'Lot annulé'}</span>` : '')}
                         </div>
                     </div>
+                    ${this._phoneBatchHead(batchId, items, isAllUndone, isUnbatched)}
                     <div class="ap-batch-body" style="padding: 10px 16px;">
                         ${items.map(d => this._renderDecisionItem(d)).join('')}
                     </div>
@@ -2473,7 +2474,8 @@ window.AutopilotView = {
         if (isOverridden) reasonBadgeHtml = `<span class="ap-chain">${reasonBadgeHtml}</span>`;
 
         return `
-            <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}">
+            ${this._phoneDecisionRow(d, { typeLabel, badgeClass, score, amtDisplay, amtColor, isUndone, isOverridden, amountChanged: Boolean(isOverridden && uo.amount_changed) })}
+            <div class="ap-decision-row ${isUndone ? 'ap-decision-undone' : ''}" data-decision-id="${d.id}">
                 <div class="ap-decision-header-mobile">
                     <div class="ap-decision-badge-wrap">
                         <div class="ov-ap-decision-badge ${badgeClass}" title="${escapeHtml(tooltipText)}">
