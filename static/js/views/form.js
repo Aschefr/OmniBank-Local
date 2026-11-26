@@ -385,7 +385,8 @@ window.FormView = {
         }
         
         // Determine if recurrent
-        const isRecurrent = tx.is_monthly || tx.is_yearly || !!tx.recurrence_id;
+        // Seule une récurrence existante compte : une marque « mensuelle » restée sans récurrence ne mène nulle part
+        const isRecurrent = !!tx.recurrence_id;
         document.getElementById('op_is_recurrent').checked = isRecurrent;
         // Déjà dans une série : on la gère depuis Récurrences ; sinon l'interrupteur crée la série à partir d'elle
         document.getElementById('op_is_recurrent').disabled = isRecurrent;

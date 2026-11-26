@@ -1814,6 +1814,25 @@ def _restore_bank_line(db: Session, tx: Transaction, csv_id: Optional[str]) -> N
         tx.reconciliation_date = None
 
 
+def _undo_recurrence_promotion(db: Session, tpl: RecurrenceTemplate, snap: Dict[str, Any], user_name: str) -> None:
+    """Défait une récurrence créée par l'Auto-Pilote : ses prévisions générées partent avec elle, les opérations
+    de la banque qu'elle avait reprises restent, sans lien ni marque de répétition. Tout passe par l'historique :
+    Annuler dans l'en-tête remet la récurrence, qui régénère ses prévisions."""
+    # Enregistrée en premier, donc défaite en dernier : les opérations sont déjà reliées quand la récurrence revient
+    record_action(db, "recurrence_template", tpl.id, "DELETE", snapshot_entity(tpl), None, user_name=user_name)
+    linked = set(snap.get("linked_transactions") or [])
+    for tx in db.query(Transaction).filter(Transaction.recurrence_id == tpl.id).all():
+        if tx.reconciliation_date is None and tx.csv_id is None and tx.id not in linked:
+            db.delete(tx)
+            continue
+        before = snapshot_entity(tx)
+        tx.recurrence_id = None
+        tx.is_monthly = tx.is_yearly = tx.is_bimonthly = False
+        record_action(db, "transaction", tx.id, "UPDATE", before, snapshot_entity(tx), user_name=user_name)
+    db.flush()
+    db.delete(tpl)
+
+
 def _unreconcile_from_decision(db: Session, tx: Transaction, snap: Dict[str, Any], user_name: str) -> None:
     """Défait un rapprochement de l'Auto-Pilote : l'opération retrouve l'état d'avant la décision et libère la ligne de
     la banque. Si l'instantané « avant » est celui d'une autre opération (liaison déplacée puis défaite par une version
@@ -1909,10 +1928,7 @@ def rollback_autopilot_decision(db: Session, decision_id: int, profile_id: Optio
             tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == decision.entity_id).first()
             if tpl:
                 if decision.decision_type == "recurrence_promotion":
-                    db.query(Transaction).filter(Transaction.recurrence_id == tpl.id).update(
-                        {"recurrence_id": None}, synchronize_session=False
-                    )
-                    db.delete(tpl)
+                    _undo_recurrence_promotion(db, tpl, snap, "Rollback Auto-Pilote (Récurrence)")
                 elif decision.decision_type == "recurrence_hike":
                     old_amt = snap.get("old_amount")
                     if old_amt is not None:
@@ -2105,10 +2121,7 @@ def rollback_autopilot_cycle(db: Session, batch_id: str, profile_id: Optional[st
         elif d.decision_type == "recurrence_promotion" and d.entity_id:
             tpl = db.query(RecurrenceTemplate).filter(RecurrenceTemplate.id == d.entity_id).first()
             if tpl:
-                db.query(Transaction).filter(Transaction.recurrence_id == tpl.id).update(
-                    {"recurrence_id": None}, synchronize_session=False
-                )
-                db.delete(tpl)
+                _undo_recurrence_promotion(db, tpl, snap, "Rollback Cycle Auto-Pilote (Récurrence)")
 
         d.is_undone = True
         d.undone_at = datetime.now(timezone.utc)

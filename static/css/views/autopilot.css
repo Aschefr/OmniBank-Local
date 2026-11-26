@@ -89,7 +89,7 @@
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    background: rgba(99, 102, 241, 0.12);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: var(--accent);
     flex-shrink: 0;
 }
