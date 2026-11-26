@@ -486,7 +486,7 @@
 
 
 .ap-batch-code {
-    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+    font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 12px;
     font-weight: 700;
     color: var(--accent);
@@ -1997,7 +1997,7 @@ body.theme-titanium-light .ap-override-rule-card {
 .ap-cylon-time {
     font-size: 12px;
     font-weight: 800;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: ui-monospace, SFMono-Regular, monospace;
     color: #ffffff;
     letter-spacing: 0.3px;
     line-height: 1.2;
