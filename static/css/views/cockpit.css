@@ -1234,14 +1234,103 @@
     }
 }
 
-@media (max-width: 520px) {
-    .cockpit-forecast-kpi-grid {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
+/* Téléphone : les quatre montants en petit grand livre (libellé et précision à gauche, montant à droite),
+   la marge nette en ligne de résultat. Un appui ouvre toujours la fiche de détail. */
+@media (max-width: 768px) {
     .cockpit-forecast-container {
         padding: 12px 14px;
+    }
+
+    .cockpit-forecast-season-badge {
+        padding: 0;
+        border: 0 !important;
+        background: none !important;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .cockpit-forecast-kpi-grid {
+        display: block;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .cockpit-forecast-kpi-card,
+    .cockpit-forecast-kpi-card.clickable {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "label val" "sub val";
+        column-gap: 12px;
+        row-gap: 2px;
+        padding: 10px 12px;
+        background: none;
+        border: 0;
+        border-top: 1px solid var(--border-color);
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .cockpit-forecast-kpi-card:first-child {
+        border-top: 0;
+    }
+
+    .cockpit-forecast-kpi-card:hover,
+    .cockpit-forecast-kpi-card.clickable:hover,
+    .cockpit-forecast-kpi-card.clickable:active {
+        transform: none;
+        box-shadow: none;
+        border-color: var(--border-color);
+    }
+
+    .cockpit-forecast-kpi-card.clickable:active {
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+
+    .cockpit-forecast-kpi-top {
+        grid-area: label;
+        margin: 0;
+        min-width: 0;
+    }
+
+    .cockpit-forecast-kpi-icon {
+        display: none;
+    }
+
+    .cockpit-forecast-kpi-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .cockpit-forecast-kpi-sub {
+        grid-area: sub;
+        min-width: 0;
+        font-size: 12px;
+    }
+
+    .cockpit-forecast-kpi-val {
+        grid-area: val;
+        align-self: center;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    /* Ligne de résultat : recettes moins charges, comme le bas d'un relevé */
+    .cockpit-forecast-kpi-card.kpi-remaining {
+        border-top: 1px solid var(--text-muted);
+        background: var(--bg-surface-hover, rgba(255, 255, 255, 0.03));
+    }
+
+    .cockpit-forecast-kpi-card.kpi-remaining .cockpit-forecast-kpi-label {
+        font-weight: 700;
+    }
+
+    .cockpit-forecast-kpi-card.kpi-remaining .cockpit-forecast-kpi-val {
+        font-size: 15px;
     }
 }
 
