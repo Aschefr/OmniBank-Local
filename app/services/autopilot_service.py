@@ -539,6 +539,14 @@ def process_incoming_batch(
     except Exception as rec_eval_err:
         logger.debug(f"[AutoPilot] Évaluation réconciliation non appliquée: {rec_eval_err}")
 
+    # 2.A' Les deux côtés d'un virement interne sont dans ce relevé : une correspondance faible ne doit pas retenir
+    # l'un d'eux en attente, sinon il n'est jamais réuni à l'autre (réunion en 2.B, sur les opérations créées)
+    try:
+        from app.services.bank_sync.transfer_pairing import release_weak_matches_for_batch_mirrors
+        release_weak_matches_for_batch_mirrors(db, preview_data.get("accounts", []))
+    except Exception as release_err:
+        logger.warning(f"[AutoPilot] Virements internes du relevé non préparés : {release_err}")
+
     # 3. Indexer les csv_id existants en base et les catégories valides
     from app.models import Category
     existing_reconciled_csv_ids = set(
@@ -721,6 +729,12 @@ def process_incoming_batch(
                             else:
                                 existing.to_account_id = acc_id
                             existing.type = "transfer"
+                            # Côté déjà classé en revenu ou en dépense (« Banque ») : un virement prend une catégorie de virement
+                            linked_cat = db.query(Category).filter(Category.name == existing.category).first() if existing.category else None
+                            if linked_cat is None or linked_cat.type != "transfer":
+                                from app.services.smart_label_service import ensure_category_exists
+                                ensure_category_exists(db, "Virement interne", "transfer")
+                                existing.category = "Virement interne"
                             creator_user = "Automatisme (Liaison Virement)" if is_confident else "Automatisme (Virement à vérifier)"
                             dec_action = "AUTO_LINKED_TRANSFER" if is_confident else "AUTO_LINKED_TRANSFER_PENDING_REVIEW"
                         elif is_mirror_transfer:
