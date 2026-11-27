@@ -287,6 +287,32 @@ def best_scored_tx(
     return best_candidate, best_score, collision_detected
 
 
+def _woob_line_prefix(csv_id: Optional[str]) -> Optional[str]:
+    """« woob_cragr_00011122233 » pour une ligne bancaire de ce compte (confirmée ou à venir), sinon None."""
+    if not csv_id or not str(csv_id).startswith("woob_"):
+        return None
+    cid = str(csv_id).replace("woob_coming_", "woob_", 1)
+    return cid.rsplit("_", 1)[0] if cid.count("_") >= 3 else None
+
+
+def _can_be_mirror_of(cand, target_dt, target_csv_ids: List[str]) -> bool:
+    """
+    Un virement déjà pointé n'est le pendant d'une ligne bancaire que s'il ne porte pas déjà une autre ligne de ce
+    même compte, et, s'il est déjà lié à la banque, à quelques jours près (comme _find_already_reconciled). Sinon,
+    un second virement du même montant dans le mois est pris pour un doublon du premier et disparaît des deux comptes.
+    """
+    cand_csv = cand.csv_id or ""
+    if not cand_csv.startswith("woob_"):
+        return True
+    if cand_csv in target_csv_ids:
+        return True
+    own_prefixes = {_woob_line_prefix(c) for c in target_csv_ids} - {None}
+    if _woob_line_prefix(cand_csv) in own_prefixes:
+        return False
+    deltas = [abs((target_dt - d).days) for d in (cand.date_operation, cand.reconciliation_date) if d]
+    return not deltas or min(deltas) <= 7
+
+
 def check_reconciliation(
     db: Session,
     tx_date,
@@ -721,6 +747,9 @@ def check_reconciliation(
         mirror_candidates = base_mirror_query.filter(
             Transaction.reconciliation_date.isnot(None)
         ).all()
+
+    if mirror_candidates:
+        mirror_candidates = [c for c in mirror_candidates if _can_be_mirror_of(c, target_dt, target_csv_ids)]
 
     if mirror_candidates:
         mirror_match, mirror_score, mirror_collision = best_scored_tx(mirror_candidates, target_dt, bank_label, db=db, is_coming=is_coming)

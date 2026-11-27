@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed & Ergonomics
 - **An internal transfer joined in one statement shows as a linked transfer in the Auto-Pilot journal 🔁**: Its two sides showed as "Entry created" with the score of each side's automatic category (0 % and 50 %), which meant nothing once they formed one transfer. They now show as "Transfer linked", without a score, with the amount in neutral colour like any transfer.
+- **A second transfer of the same amount between the same accounts is no longer lost 🔁**: When you moved the same amount again less than two weeks after a first transfer (200 € to the savings account on the 3rd, then 200 € again on the 12th), both sides of the second one were taken for duplicates of the first: nothing was saved, nothing waited for review, and both balances no longer matched the bank. The second transfer is now saved and joined like any other. If it already went missing, the next statement after the update adds it.
 
 ## [1.9.0] - 2026-11-26
 

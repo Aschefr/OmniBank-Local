@@ -9,6 +9,7 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 
 ### Corrections & ergonomie
 - **Un virement interne réuni dans un même relevé s'affiche en virement lié dans le journal Auto-Pilote 🔁** : ses deux côtés apparaissaient en « Écriture créée » avec le score du classement automatique de chaque côté (0 % et 50 %), qui n'avait plus de sens une fois le virement formé. Ils s'affichent désormais en « Virement lié », sans score, avec le montant en couleur neutre comme tout virement.
+- **Un second virement du même montant entre les mêmes comptes n'est plus perdu 🔁** : quand vous viriez de nouveau le même montant moins de deux semaines après un premier virement (200 € vers le livret le 3, puis encore 200 € le 12), les deux côtés du second étaient pris pour des doublons du premier : rien n'était enregistré, rien n'attendait de vérification, et les deux soldes ne correspondaient plus à la banque. Le second virement est désormais enregistré et réuni comme les autres. S'il manque déjà, le prochain relevé après la mise à jour l'ajoute.
 
 ## [1.9.0] - 2026-11-26
 
