@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added & Improved
+- **Charts in the Summary 🥧**: A new "Tables | Charts" switch at the top of the Summary shows your spending broken down by category in a ring, and your income and spending month by month in bars. They follow the same filters as the tables (period, accounts, reconciled status). Hover or tap a part of the ring or a month to read its amounts; the smallest categories are grouped under "Other", which opens to list them. The tables stay the default display, and your choice is kept for each profile. Privacy mode blurs the amounts here too.
+
 ### Fixed & Ergonomics
 - **An internal transfer joined in one statement shows as a linked transfer in the Auto-Pilot journal 🔁**: Its two sides showed as "Entry created" with the score of each side's automatic category (0 % and 50 %), which meant nothing once they formed one transfer. They now show as "Transfer linked", without a score, with the amount in neutral colour like any transfer.
 

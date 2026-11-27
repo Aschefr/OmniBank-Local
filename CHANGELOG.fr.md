@@ -4,6 +4,9 @@ Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait 
 
 ## [Unreleased]
 
+### Ajouts & améliorations
+- **Des graphiques dans la Synthèse 🥧** : un nouveau sélecteur « Tableaux | Graphiques » en haut de la Synthèse affiche la répartition de vos dépenses par catégorie dans un anneau, et vos recettes et dépenses mois par mois en barres. Ils suivent les mêmes filtres que les tableaux (période, comptes, statut pointé). Survolez ou touchez une part de l'anneau ou un mois pour lire ses montants ; les plus petites catégories sont regroupées dans « Autres », qui se déplie pour les lister. Les tableaux restent l'affichage par défaut, et votre choix est retenu pour chaque profil. Le mode confidentialité floute aussi les montants ici.
+
 ### Corrections & ergonomie
 - **Un virement interne réuni dans un même relevé s'affiche en virement lié dans le journal Auto-Pilote 🔁** : ses deux côtés apparaissaient en « Écriture créée » avec le score du classement automatique de chaque côté (0 % et 50 %), qui n'avait plus de sens une fois le virement formé. Ils s'affichent désormais en « Virement lié », sans score, avec le montant en couleur neutre comme tout virement.
 

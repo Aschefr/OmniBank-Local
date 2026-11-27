@@ -9,6 +9,7 @@ window.AnalyticsView = {
     _resizing: false,
     customRange: { enabled: false, start: null, end: null },  // day-granularity custom period
     _cachedQueryKey: null,
+    displayMode: 'tables',     // 'tables' | 'charts', relu par profil dans init()
 
     TYPE_CONFIG: {
         'expense_var': { emoji: '🛍️', color: '#f59e0b', sign: '-' },
@@ -26,6 +27,10 @@ window.AnalyticsView = {
                     <h2 class="view-header-title">📊 <span data-i18n="analytics_title">${window.i18n.t('analytics_title')}</span></h2>
                 </div>
                 <div class="view-header-toolbar">
+                    <div class="analytics-mode-toggle" role="group" aria-label="${window.i18n.t('analytics_display_mode') || 'Affichage'}">
+                        <button type="button" data-mode="tables" aria-pressed="${this.displayMode !== 'charts'}" onclick="window.AnalyticsView.setDisplayMode('tables')" data-i18n="analytics_mode_tables">${window.i18n.t('analytics_mode_tables') || 'Tableaux'}</button>
+                        <button type="button" data-mode="charts" aria-pressed="${this.displayMode === 'charts'}" onclick="window.AnalyticsView.setDisplayMode('charts')" data-i18n="analytics_mode_charts">${window.i18n.t('analytics_mode_charts') || 'Graphiques'}</button>
+                    </div>
                     <div id="analyticsPeriodWrapper" class="filter-pill">
                         <span class="filter-pill-label">📅 <span data-i18n="budget_label_period">${window.i18n.t('budget_label_period')}</span></span>
                         <select id="analyticsPeriod" class="filter-pill-select" style="min-width:140px;" onchange="window.AnalyticsView.changeFilter('period', this.value)">
@@ -76,7 +81,17 @@ window.AnalyticsView = {
         </div>`;
     },
 
+    setDisplayMode(mode) {
+        this.displayMode = mode === 'charts' ? 'charts' : 'tables';
+        ProfileStorage.set('analytics_display_mode', this.displayMode);
+        document.querySelectorAll('.analytics-mode-toggle [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === this.displayMode)));
+        this.renderAll();
+    },
+
     async init() {
+        // Choix par profil : relu à chaque ouverture de la vue
+        this.displayMode = ProfileStorage.get('analytics_display_mode') === 'charts' ? 'charts' : 'tables';
+        document.querySelectorAll('.analytics-mode-toggle [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === this.displayMode)));
         const savedReconciled = ProfileStorage.get('analytics_reconciled');
         if (savedReconciled) this.reconciled = savedReconciled;
 
@@ -370,6 +385,13 @@ window.AnalyticsView = {
 
         // Dynamically build and render years in the popover
         this.renderYearsPopover(revYears);
+
+        if (this.displayMode === 'charts' && window.AnalyticsCharts) {
+            if (this._floatCleanup) { this._floatCleanup(); this._floatCleanup = null; }
+            window.AnalyticsCharts.render(container, this.data);
+            return;
+        }
+        if (window.AnalyticsCharts) window.AnalyticsCharts.stop();
 
         const sections = [];
         for (const [txType, typeData] of Object.entries(by_type)) {
