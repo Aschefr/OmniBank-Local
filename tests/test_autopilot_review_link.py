@@ -137,13 +137,12 @@ def test_find_candidate_forecasts_and_linking(review_test_db, client):
     dup_tx = review_test_db.query(Transaction).filter_by(id=3362).first()
     assert dup_tx is None
 
-    # Verify merchant rule learned
+    # Aucune règle n'est apprise sur un libellé PayPal seul : elle nommerait « Floatplane » tous les paiements PayPal.
+    # Le nom reste sur l'opération, d'où les paiements suivants le reprennent (montant et date proches).
     mapping = review_test_db.query(BankLabelMapping).filter(
         BankLabelMapping.raw_pattern.ilike("%PAYPAL%")
     ).first()
-    assert mapping is not None
-    assert mapping.clean_description == "Floatplane"
-    assert mapping.category == "Abonnement loisir"
+    assert mapping is None
 
 
 def test_update_review_auto_merge_on_rename(review_test_db, client):

@@ -995,6 +995,8 @@ class BankSyncService:
                                         tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
                                         tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                                         tx["smart_confidence"] = res.get("confidence", 0.0)
+                    from app.services.smart_label.gateway import name_gateway_lines
+                    name_gateway_lines(db, accounts_preview)
             except Exception as sl_err:
                 logger.warning(f"[BankSync] Erreur résolution smart labels: {sl_err}")
 

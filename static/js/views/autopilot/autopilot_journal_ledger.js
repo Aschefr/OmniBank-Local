@@ -121,10 +121,33 @@ window.AutopilotView = Object.assign(window.AutopilotView || {}, {
         if (amount) row(tr('autopilot_detail_amount', 'Montant'), `<span class="privacy-blur">${change(amount[0], amount[1])}</span>`);
         const forecast = det.linked_to_forecast_description || det.forecast_description;
         if (forecast) row(tr('autopilot_detail_forecast', 'Prévision liée'), escapeHtml(forecast));
+        this._gatewayRows(d, row, tr);
         if (d.account_name) row(tr('autopilot_detail_account', 'Compte'), escapeHtml(d.account_name));
         // Score : visible dans la ligne quand la liste est large, ici sinon (voir autopilot.css)
         if (v.score !== null) rows.push(`<div class="apl-score-detail"><dt>${escapeHtml(tr('autopilot_col_score', 'Score'))}</dt><dd>${v.score} %</dd></div>`);
         return `<div class="apl-detail" id="apl_det_${d.id}" hidden><dl>${rows.join('')}</dl></div>`;
+    },
+
+    // Paiement PayPal & co : d'après quel paiement déjà nommé, et ce qui reste à confirmer
+    _gatewayRows(d, row, tr) {
+        const bt = (d.details && d.details.bank_tx) || {};
+        const g = bt.smart_gateway_detail;
+        if (g && g.ref_description) {
+            const when = g.ref_date ? new Date(g.ref_date + 'T00:00:00').toLocaleDateString(window.i18n?.currentLang || undefined, { day: 'numeric', month: 'short' }) : '';
+            const amount = g.same_amount ? tr('autopilot_gateway_same_amount', 'même montant') : tr('autopilot_gateway_close_amount', 'montant proche');
+            const gap = g.day_gap === 0 ? tr('autopilot_gateway_same_day', 'même jour du mois')
+                : tr(g.day_gap === 1 ? 'autopilot_gateway_day_gap_one' : 'autopilot_gateway_day_gap_other', "{count} jours d'écart dans le mois").replace('{count}', g.day_gap);
+            row(tr('autopilot_detail_gateway_ref', "D'après"), `« ${escapeHtml(g.ref_description)} »${when ? ' ' + escapeHtml(tr('autopilot_gateway_of_date', 'du {date}').replace('{date}', when)) : ''} · ${escapeHtml(amount)} · ${escapeHtml(gap)}`);
+            const checks = [];
+            if (g.other_description) checks.push(tr('autopilot_gateway_check_two', 'deux paiements possibles ({a}, {b})').replace('{a}', g.ref_description).replace('{b}', g.other_description));
+            if (g.day_gap > 3) checks.push(tr('autopilot_gateway_check_day', 'jour du mois éloigné'));
+            if (!g.same_amount) checks.push(tr('autopilot_gateway_check_amount', 'montant proche, pas identique'));
+            if (checks.length && ((d.details && d.details.needs_review) || (bt.smart_confidence ?? 1) < 0.85)) {
+                row(tr('autopilot_detail_gateway_check', 'À confirmer'), escapeHtml(checks.join(' · ')));
+            }
+        } else if (bt.smart_is_gateway && d.reason === 'gateway_unknown') {
+            row(tr('autopilot_detail_gateway_hint', 'À noter'), escapeHtml(tr('autopilot_gateway_unknown_hint', 'Une fois ce paiement nommé, les suivants du même montant reprendront ce nom.')));
+        }
     },
 
     toggleDecisionDetail(decisionId) {

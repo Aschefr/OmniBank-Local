@@ -366,6 +366,8 @@ window.ConfigSmartLabels = {
                 `;
             }
 
+            if (m.is_gateway_inactive) return this._gatewayInactiveRow(m);
+
             const originBadge = m.is_manual
                 ? `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_demote_tip') || 'Règle sanctuarisée (cliquer pour repasser en auto)'}" style="cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 12px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_manual') || '🛡️ Manuelle'}</button>`
                 : `<button type="button" class="badge" onclick="window.ConfigSmartLabels.toggleManual(${m.id})" title="${window.i18n?.t('smart_label_btn_promote_tip') || 'Règle auto-apprise (cliquer pour sanctuariser en manuelle)'}" style="cursor: pointer; border: 1px solid rgba(99, 102, 241, 0.35); background: rgba(99, 102, 241, 0.12); color: var(--accent); font-weight: 600; font-size: 12px; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 2px; transition: transform 0.1s ease;">${window.i18n?.t('smart_label_badge_auto') || '🤖 Auto'}</button>`;
@@ -429,6 +431,31 @@ window.ConfigSmartLabels = {
                 </tr>
             `;
         }).join('');
+    },
+
+    // Règle de nommage sur un libellé PayPal & co : gardée dans la liste, mais plus appliquée
+    _gatewayInactiveRow(m) {
+        const esc = (v) => (window.escapeHtml ? window.escapeHtml(v || '') : (v || ''));
+        const t = (k, f) => window.i18n?.t(k, f) || f;
+        const tip = t('smart_label_gateway_inactive_tip', "Libellé d'un intermédiaire de paiement (PayPal, SumUp…) : cette règle n'est plus appliquée. Ces paiements sont nommés d'après les paiements déjà nommés du même montant, vers le même jour du mois.");
+        return `
+            <tr class="sl-row-inactive" title="${esc(tip)}">
+                <td class="sl-inactive-pattern" title="${esc(m.raw_pattern)}">${esc(m.raw_pattern)}</td>
+                <td class="sl-inactive-name"><span class="sl-inactive-old">${esc(m.clean_description)}</span>
+                    <span class="sl-inactive-why">${esc(t('smart_label_gateway_inactive_why', 'Plus appliquée : ce libellé ne dit pas qui a été payé.'))}</span></td>
+                <td><span class="sl-inactive-badge">${window.Icon ? window.Icon('pause-circle', 13) : ''}${esc(t('smart_label_gateway_inactive_badge', 'Inactive'))}</span></td>
+                <td style="padding: 8px 6px; text-align: center;"><span class="badge sl-inactive-count">${m.match_count || 1}</span></td>
+                <td class="col-actions" style="padding: 8px 12px; text-align: right; overflow: visible;">
+                    <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                        <button class="btn btn-secondary sl-inactive-btn" onclick="window.ConfigSmartLabels.toggleMappingStatus(${m.id})" title="${esc(t('smart_label_act_to_exclusion_tip', 'Ne jamais proposer de nom pour ce libellé'))}">
+                            🚫<span class="sl-act-label">${esc(t('smart_label_act_to_exclusion', 'Transformer en exclusion'))}</span>
+                        </button>
+                        <button class="btn btn-secondary sl-inactive-btn" onclick="window.ConfigSmartLabels.deleteMapping(${m.id})" title="${esc(t('btn_delete', 'Supprimer'))}">
+                            ✕<span class="sl-act-label">${esc(t('btn_delete', 'Supprimer'))}</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
     },
 
     filterMappings() {
@@ -957,7 +984,11 @@ window.ConfigSmartLabels = {
                     let badgeColor = 'var(--accent)';
                     let badgeText = `${res.source} (${conf}%)`;
 
-                    if (res.source === 'rule') {
+                    if (res.is_gateway) {
+                        badgeText = '💳 ' + (window.i18n?.t('smart_label_sandbox_gateway') || 'Intermédiaire de paiement');
+                        badgeBg = 'rgba(14, 165, 233, 0.15)';
+                        badgeColor = '#0ea5e9';
+                    } else if (res.source === 'rule') {
                         badgeText = res.is_manual ? '🛡️ Règle manuelle' : '🤖 Règle apprise';
                         badgeBg = res.is_manual ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)';
                         badgeColor = res.is_manual ? '#10b981' : '#6366f1';
@@ -990,7 +1021,9 @@ window.ConfigSmartLabels = {
                 }
 
                 if (explEl) {
-                    explEl.textContent = res.explanation || '';
+                    explEl.textContent = res.is_gateway
+                        ? (window.i18n?.t('smart_label_sandbox_gateway_expl') || "Ce libellé ne dit pas qui a été payé : aucune règle ne s'applique. À l'import, le paiement prend le nom et la catégorie d'un paiement déjà nommé du même montant, vers le même jour du mois ; sinon il reste à nommer.")
+                        : (res.explanation || '');
                 }
 
                 if (card) {

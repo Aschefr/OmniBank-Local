@@ -183,6 +183,8 @@ def get_pending_sync_summary(db: Session = Depends(get_db)):
                                 tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
                                 tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                                 tx["smart_confidence"] = res.get("confidence", 0.0)
+        from app.services.smart_label.gateway import name_gateway_lines
+        name_gateway_lines(db, pending.get("accounts", []))
 
     stats_cache.set(active_pid, "bank_pending_sync_summary", pending)
     return pending

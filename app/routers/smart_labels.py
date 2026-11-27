@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import BankLabelMapping
 from app.services.history_service import record_action, snapshot_entity
+from app.services.smart_label.gateway import gateway_of_label
 from app.services.smart_label_service import (
     learn_label_mapping,
     normalize_raw_label,
@@ -168,7 +169,9 @@ def simulate_smart_label(req: SimulateRequest, db: Session = Depends(get_db)):
         "explanation": explanation,
         "mapping_id": res.get("mapping_id"),
         "smart_is_new_category": bool(res.get("smart_is_new_category", False)),
-        "smart_is_fallback": bool(res.get("smart_is_fallback", False))
+        "smart_is_fallback": bool(res.get("smart_is_fallback", False)),
+        # Libellé d'un intermédiaire de paiement (PayPal…) : nommé d'après les paiements déjà nommés, sans règle
+        "is_gateway": bool(res.get("smart_is_gateway", False)),
     }
 
 
@@ -189,6 +192,8 @@ def list_mappings(db: Session = Depends(get_db)):
             "is_ignored": bool(m.is_ignored),
             "is_manual": bool(m.is_manual),
             "is_multi_category": bool(m.is_multi_category),
+            # Règle de nommage sur un libellé PayPal & co : plus appliquée (une exclusion, elle, l'est toujours)
+            "is_gateway_inactive": bool(not m.is_ignored and gateway_of_label(m.raw_pattern)),
             "match_count": m.match_count or 1,
             "last_used_at": m.last_used_at.isoformat() if m.last_used_at else None,
             "created_at": m.created_at.isoformat() if m.created_at else None,

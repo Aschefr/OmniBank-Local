@@ -779,8 +779,11 @@ window.AutopilotView = {
                             </div>
                         </div>
 
+                        <!-- Paiement via un intermédiaire (PayPal…) : explication à la place de la case -->
+                        <div id="overrideGatewayNote" class="gw-note" style="display: none;"></div>
+
                         <!-- Carte Option Mémorisation Règle -->
-                        <label class="ap-override-rule-card" for="overrideLearnRule">
+                        <label class="ap-override-rule-card" id="overrideLearnCard" for="overrideLearnRule">
                             <input type="checkbox" id="overrideLearnRule" checked>
                             <div>
                                 <span class="ap-override-rule-title" data-i18n="autopilot_override_learn_rule">
@@ -2194,6 +2197,10 @@ window.AutopilotView = {
             icon = window.Icon('gear-six', 13) + ' ';
         } else if (reason === 'history') {
             icon = window.Icon('clock', 13) + ' ';
+        } else if (reason === 'gateway_match') {
+            icon = window.Icon('coins', 13) + ' ';
+        } else if (reason === 'gateway_unknown') {
+            icon = window.Icon('info', 13) + ' ';
         } else if (reason === 'linked_forecast' || reason === 'manual_link_review') {
             icon = window.Icon('link', 13) + ' ';
         } else if (reason === 'suspected_duplicate') {
@@ -2743,6 +2750,10 @@ window.AutopilotView = {
         
         const checkEl = document.getElementById('overrideLearnRule');
         if (checkEl) checkEl.checked = true;
+        if (window.GatewayHint) {
+            window.GatewayHint.apply(((this._decisions || []).find(x => x.id === Number(decisionId)) || {}).raw_label, checkEl,
+                document.getElementById('overrideLearnCard'), document.getElementById('overrideGatewayNote'));
+        }
 
         // Ensure categories list is loaded for CategoryPicker
         if (!window.app?.categoriesList || window.app.categoriesList.length === 0) {
@@ -2953,6 +2964,10 @@ window.AutopilotView = {
 
         const checkEl = document.getElementById('overrideLearnRule');
         if (checkEl) checkEl.checked = true;
+        if (window.GatewayHint) {
+            window.GatewayHint.apply(item ? item.raw_description : '', checkEl,
+                document.getElementById('overrideLearnCard'), document.getElementById('overrideGatewayNote'));
+        }
 
         // Update modal title for review
         const titleEl = modal.querySelector('.ap-override-title');

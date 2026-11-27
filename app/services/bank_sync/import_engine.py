@@ -283,6 +283,8 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                                     tx["smart_is_fallback"] = res.get("smart_is_fallback", False)
                                     tx["smart_is_new_category"] = res.get("smart_is_new_category", False)
                                     tx["smart_confidence"] = res.get("confidence", 0.0)
+            from app.services.smart_label.gateway import name_gateway_lines
+            name_gateway_lines(db, preview_data.get("accounts", []))
         except Exception as e:
             logger.debug(f"[BankSync] Smart labels batch resolution error: {e}")
 

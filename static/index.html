@@ -22,7 +22,7 @@
     <script defer src="/static/vendor/katex/katex.min.js"></script>
     <script defer src="/static/vendor/katex/contrib/auto-render.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=178">
+    <link rel="stylesheet" href="/static/css/style.css?v=179">
 
     <!-- Local Vendor: Chart.js & Zoom plugins -->
     <script src="/static/vendor/chartjs/chart.umd.js"></script>
@@ -778,7 +778,8 @@
 
                 <!-- Auto-Pilote : Option de mémorisation de la règle -->
                 <div id="op_autopilot_learn_container" style="display: none; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.25); border-radius: 8px; padding: 10px 14px;">
-                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0; user-select: none;">
+                    <div id="op_autopilot_gateway_note" class="gw-note" style="display: none;"></div>
+                    <label id="op_autopilot_learn_card" style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin: 0; user-select: none;">
                         <input type="checkbox" id="op_autopilot_learn_rule" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 2px;">
                         <div style="flex: 1;">
                             <div style="font-size: 12.5px; font-weight: 700; color: var(--text-main);" data-i18n="autopilot_override_learn_rule">Mémoriser cette règle pour les futures opérations similaires</div>
@@ -998,6 +999,7 @@
     <script src="/static/js/components/multi-select.js"></script>
     <script src="/static/js/components/category_picker.js?v=2"></script>
     <script src="/static/js/components/phone_sheet.js?v=1"></script>
+    <script src="/static/js/components/gateway_hint.js?v=1"></script>
     <script src="/static/js/reconciliation_states.js?v=1"></script>
     <script src="/static/js/views/timeline.js?v=9"></script>
     <script src="/static/js/views/all_operations.js?v=8"></script>
@@ -1014,7 +1016,7 @@
     <script src="/static/js/views/config/config_org_users.js?v=3"></script>
     <script src="/static/js/views/config/config_license.js?v=2"></script>
     <script src="/static/js/views/config/config_profiles.js?v=2"></script>
-    <script src="/static/js/views/config/config_smart_labels.js?v=3"></script>
+    <script src="/static/js/views/config/config_smart_labels.js?v=4"></script>
     <script src="/static/js/views/config/config_diagnostics.js"></script>
     <script src="/static/js/views/config_manager.js?v=13"></script>
     <script src="/static/js/views/chat/chat_sessions.js?v=10"></script>
@@ -1024,7 +1026,7 @@
     <script src="/static/js/views/chat.js?v=152"></script>
 
 
-    <script src="/static/js/views/form.js?v=12"></script>
+    <script src="/static/js/views/form.js?v=13"></script>
     <script src="/static/js/views/import_wizard.js?v=6"></script>
     <script src="/static/js/floating_header.js?v=2"></script>
     <script src="/static/js/views/analytics_charts.js?v=2"></script>
@@ -1410,9 +1412,9 @@
     <script src="/static/js/views/bank_sync_review.js?v=6"></script>
     <script src="/static/js/views/bank_sync_sync.js?v=11"></script>
     <script src="/static/js/views/bank_sync_connections.js?v=12"></script>
-    <script src="/static/js/views/autopilot_view.js?v=37"></script>
+    <script src="/static/js/views/autopilot_view.js?v=38"></script>
     <script src="/static/js/views/autopilot/autopilot_journal_phone.js?v=6"></script>
-    <script src="/static/js/views/autopilot/autopilot_journal_ledger.js?v=5"></script>
+    <script src="/static/js/views/autopilot/autopilot_journal_ledger.js?v=6"></script>
 
 
 

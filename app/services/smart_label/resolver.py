@@ -26,6 +26,7 @@ from .categories import (
     starter_match,
     strong_category_for,
 )
+from .gateway import gateway_of_label
 from .learning import get_user_habit_descriptions
 from .matcher import _compute_match_score, _compute_match_score_precomputed
 from .places import place_words
@@ -106,6 +107,12 @@ def resolve_smart_label(
         }
 
     raw_str = str(raw_label).strip()
+    # PayPal & co : même traitement que par lot (exclusions respectées, ni règle ni historique ni IA)
+    if gateway_of_label(raw_str):
+        return resolve_smart_labels_batch(
+            db, [raw_str], use_ai_fallback=False, tx_types={raw_str: tx_type} if tx_type else None,
+            auto_fallback_category=auto_fallback_category,
+        )[raw_str]
     pattern = normalize_raw_label(raw_str)
     cat_type_map = {c.name: c.type for c in db.query(Category).all() if c.name}
     places = place_words(db)
@@ -476,6 +483,19 @@ def _amount_fits(amount: float, seen: Optional[Tuple[float, float]]) -> bool:
     return low / HISTORY_AMOUNT_FACTOR <= amount <= high * HISTORY_AMOUNT_FACTOR
 
 
+def _ignored_by_rule(pattern, p_tokens, p_sig, rule_by_pattern, rule_data, places) -> bool:
+    """Le libellé tombe sous une règle d'exclusion (exacte, ou partielle comme l'étape 2 de la résolution)."""
+    exact = rule_by_pattern.get(pattern)
+    if exact is not None:
+        return bool(exact.is_ignored)
+    best, best_score = None, 0.0
+    for r, r_clean, r_tokens, r_sig in rule_data:
+        score = _compute_match_score_precomputed(pattern, p_tokens, p_sig, r_clean, r_tokens, r_sig, places)
+        if score > best_score:
+            best, best_score = r, score
+    return bool(best and best_score >= 0.75 and best.is_ignored)
+
+
 def resolve_smart_labels_batch(
     db: Session,
     raw_labels: List[str],
@@ -574,6 +594,20 @@ def resolve_smart_labels_batch(
         pattern = normalize_raw_label(raw_str)
         p_tokens = _tokenize(pattern)
         p_sig = p_tokens - _GENERIC_TOKENS
+
+        # 0. Passerelle de paiement seule (« PayPal Europe S.a.r.l. ») : ni règle, ni historique, ni IA ne savent qui
+        # a été payé. La ligne prend le repli, puis name_gateway_lines la nomme d'après son montant et sa date.
+        # Une règle d'exclusion (« ignorer PayPal ») reste respectée : elle ne nomme personne.
+        if gateway_of_label(raw_str) and not _ignored_by_rule(pattern, p_tokens, p_sig, rule_by_pattern, rule_data, places):
+            results[raw_str] = {
+                "description": raw_str,
+                "category": None,
+                "source": "none",
+                "confidence": 0.0,
+                "mapping_id": None,
+                "smart_is_gateway": True,
+            }
+            continue
 
         # 1. Match exact règle
         if pattern in rule_by_pattern:
@@ -838,6 +872,7 @@ def resolve_smart_labels_batch(
                 res.get("category") is None
                 and res.get("source") in ("none", "ambiguous", "multi_category")
                 and not res.get("is_manual")
+                and not res.get("smart_is_gateway")
                 and res.get("source") != "ignored"
             ):
                 clean_desc = normalize_raw_label(raw).title()
@@ -959,7 +994,8 @@ def resolve_smart_labels_batch(
     no_ai = ai_failed or not _ai_enabled(db)
     keyword_sources = ("none", "ambiguous", "multi_category") if no_ai else ("none", "ambiguous")
     unresolved = [raw for raw, res in results.items()
-                  if res.get("category") is None and res.get("source") in keyword_sources and not res.get("is_manual")]
+                  if res.get("category") is None and res.get("source") in keyword_sources and not res.get("is_manual")
+                  and not res.get("smart_is_gateway")]
     if unresolved and no_ai:
         existing = {name.lower(): name for (name,) in db.query(Category.name).filter(
             (Category.is_closed == False) | (Category.is_closed == None)).all() if name}

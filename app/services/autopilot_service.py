@@ -426,6 +426,10 @@ def process_incoming_batch(
                             tx["smart_is_new_category"] = res.get("is_new_category", res.get("smart_is_new_category", False))
                             tx["smart_confidence"] = res.get("confidence", 0.0)
 
+        # Paiements PayPal & co : nommés d'après les paiements déjà nommés au même montant, vers le même jour du mois
+        from app.services.smart_label.gateway import name_gateway_lines
+        name_gateway_lines(db, preview_data.get("accounts", []))
+
         # Filet de sécurité supplémentaire : s'assurer qu'aucune opération non rapprochée ne reste sans catégorie
         from app.services.smart_label_service import resolve_fallback_category
         for acc in preview_data.get("accounts", []):
@@ -861,7 +865,12 @@ def process_incoming_batch(
 
                 # Déterminer la raison de la décision pour le Decision Feed
                 decision_reason = "rule"
-                if is_fallback:
+                if tx.get("smart_gateway_ref"):
+                    # Paiement PayPal & co nommé d'après un paiement déjà nommé (montant, jour du mois)
+                    decision_reason = "gateway_match"
+                elif is_fallback and tx.get("smart_is_gateway"):
+                    decision_reason = "gateway_unknown"
+                elif is_fallback:
                     decision_reason = "chameleon_default" if is_multi_cat else "fallback_catchall"
                 elif tx.get("smart_source") == "keyword":
                     decision_reason = "keyword_category"

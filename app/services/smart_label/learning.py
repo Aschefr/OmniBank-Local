@@ -101,6 +101,15 @@ def learn_label_mapping(
     if not pattern or len(pattern) < 2:
         pattern = raw_str.upper()
 
+    # « PayPal Europe S.a.r.l. » ne désigne aucun marchand : une règle nommerait tous les paiements PayPal d'après
+    # celui-ci. Le nom donné reste sur l'opération, d'où name_gateway_lines le reprend (montant et date proches).
+    from .gateway import gateway_of_label
+    if not is_ignored and gateway_of_label(raw_str):
+        # Une règle d'exclusion existante reste telle quelle (protégée contre l'écrasement, comme ailleurs)
+        return db.query(BankLabelMapping).filter(
+            BankLabelMapping.raw_pattern == pattern, BankLabelMapping.is_ignored == True  # noqa: E712
+        ).first()
+
     now = datetime.now(timezone.utc)
 
     # Détection automatique de marchand caméléon natif si auto-appris

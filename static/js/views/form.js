@@ -1931,6 +1931,10 @@ window.FormView = {
                 learnContainer.style.display = 'block';
                 const learnCb = document.getElementById('op_autopilot_learn_rule');
                 if (learnCb) learnCb.checked = true;
+                if (window.GatewayHint) {
+                    window.GatewayHint.apply(this.currentTxBase?.raw_description, learnCb,
+                        document.getElementById('op_autopilot_learn_card'), document.getElementById('op_autopilot_gateway_note'));
+                }
             }
             if (linkContainer) {
                 linkContainer.style.display = 'block';
