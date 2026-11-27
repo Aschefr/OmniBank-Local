@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
-from app.models import Transaction, Account
+from app.models import Account, RecurrenceTemplate, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,26 @@ UNIVERSAL_MERCHANT_ALIASES: Dict[str, List[str]] = {
 }
 
 
+def occurrence_bank_labels(rows, template_name: Optional[str]) -> List[str]:
+    """
+    Libellés bancaires (raw, description) des opérations d'une récurrence qui en sont vraiment des échéances : nom
+    proche de celui de la récurrence, ou libellé bancaire partagé avec une autre échéance. Un achat rattaché par
+    erreur puis renommé (« Synthé virtuel - Plugin » payé par PayPal dans « Box Internet ») ne désigne pas le
+    créancier : sans ce tri, chaque paiement PayPal du même montant reprenait la prévision suivante de la récurrence.
+    """
+    from app.services.recurrence_detector import label_words
+    name = (template_name or "").strip().lower()
+    name_words = label_words(template_name)
+    raw_words = [label_words(raw) for raw, _ in rows]
+    kept = []
+    for i, (raw, desc) in enumerate(rows):
+        same_name = bool(desc) and (desc.strip().lower() == name or bool(name_words & label_words(desc)))
+        shared_raw = any(raw_words[i] & w for j, w in enumerate(raw_words) if j != i)
+        if same_name or shared_raw:
+            kept.append(raw)
+    return kept
+
+
 def known_bank_label_score(db: Session, recurrence_id: Optional[int], bank_label: Optional[str],
                            cache: Optional[Dict[int, List[str]]] = None) -> int:
     """Meilleur score textuel (0 à 25) entre une ligne de la banque et les libellés bancaires déjà débités sous
@@ -42,13 +62,15 @@ def known_bank_label_score(db: Session, recurrence_id: Optional[int], bank_label
         return 0
     cache = cache if cache is not None else {}
     if recurrence_id not in cache:
-        rows = db.query(Transaction.raw_description).filter(
+        rows = db.query(Transaction.raw_description, Transaction.description).filter(
             Transaction.recurrence_id == recurrence_id,
             Transaction.reconciliation_date.isnot(None),
             Transaction.csv_id.isnot(None),
             Transaction.raw_description.isnot(None),
-        ).distinct().limit(10).all()
-        cache[recurrence_id] = [label for (label,) in rows]
+        ).order_by(Transaction.date_operation.desc()).limit(24).all()
+        tpl = db.get(RecurrenceTemplate, recurrence_id)
+        labels = occurrence_bank_labels(rows, tpl.description if tpl else None)
+        cache[recurrence_id] = list(dict.fromkeys(labels))[:10]
     return max((compute_text_score(label, bank_label, db=db) for label in cache[recurrence_id]), default=0)
 
 

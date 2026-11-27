@@ -180,6 +180,14 @@ def re_evaluate_preview_data(db: Session, preview_data: Dict[str, Any], use_ai_f
                         tx_copy["type"] = rec_info.get("type")
                         tx_copy["db_type"] = rec_info.get("type")
                 else:
+                    # La catégorie et le type venaient de l'ancienne correspondance (« Box Internet » -> « Box ») : ils
+                    # partent avec elle, pour que la ligne soit classée comme une nouvelle opération
+                    if tx_copy.get("db_category") and tx_copy.get("category") == tx_copy.get("db_category"):
+                        tx_copy["category"] = None
+                    if tx_copy.get("db_type") and tx_copy.get("type") == tx_copy.get("db_type"):
+                        tx_copy.pop("type", None)
+                    tx_copy["db_category"] = None
+                    tx_copy["db_type"] = None
                     tx_copy["is_amount_deviant"] = False
                     tx_copy["original_forecast_amount"] = None
                     tx_copy["is_reconciled"] = False
