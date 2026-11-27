@@ -2,7 +2,7 @@
 
 Traduction française de [CHANGELOG.md](CHANGELOG.md). La version anglaise fait référence ; une version absente de ce fichier s'affiche en anglais dans l'application.
 
-## [Unreleased]
+## [1.10.0] - 2026-11-27
 
 ### Ajouts & améliorations
 - **Des graphiques dans la Synthèse 🥧** : un nouveau sélecteur « Tableaux | Graphiques » en haut de la Synthèse affiche la répartition de vos dépenses par catégorie dans un anneau, et vos recettes et dépenses mois par mois en barres. Ils suivent les mêmes filtres que les tableaux (période, comptes, statut pointé). Survolez ou touchez une part de l'anneau ou un mois pour lire ses montants ; les plus petites catégories sont regroupées dans « Autres », qui se déplie pour les lister. Les tableaux restent l'affichage par défaut, et votre choix est retenu pour chaque profil. Le mode confidentialité floute aussi les montants ici.

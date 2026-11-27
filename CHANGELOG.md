@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.10.0] - 2026-11-27
 
 ### Added & Improved
 - **Charts in the Summary 🥧**: A new "Tables | Charts" switch at the top of the Summary shows your spending broken down by category in a ring, and your income and spending month by month in bars. They follow the same filters as the tables (period, accounts, reconciled status). Hover or tap a part of the ring or a month to read its amounts; the smallest categories are grouped under "Other", which opens to list them. The tables stay the default display, and your choice is kept for each profile. Privacy mode blurs the amounts here too.
